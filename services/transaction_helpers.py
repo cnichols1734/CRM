@@ -308,6 +308,21 @@ def apply_listing_info_overrides(listing_info, overrides):
         data['financing_types'] = financing_types
         sources['financing_types'] = 'override'
 
+    go_live = clean(overrides.get('go_live_date'))
+    if go_live is not None:
+        data['go_live_date'] = _format_date(go_live)
+        sources['go_live_date'] = 'override'
+
+    broker_fee = clean(overrides.get('broker_fee'))
+    if broker_fee is not None:
+        data['broker_fee'] = _format_percent(broker_fee) or _format_currency(broker_fee)
+        sources['broker_fee'] = 'override'
+
+    special_provisions = clean(overrides.get('special_provisions'))
+    if special_provisions is not None:
+        data['special_provisions'] = special_provisions
+        sources['special_provisions'] = 'override'
+
     has_hoa = clean(overrides.get('has_hoa'))
     if has_hoa is not None:
         normalized_hoa = has_hoa.lower()
@@ -760,6 +775,7 @@ def purge_transaction_dependent_rows(transaction_id: int) -> None:
         TransactionAssignment,
         TransactionChangeProposal,
         TransactionCommunication,
+        Task,
         TransactionRequirement,
         TransactionRequirementDependency,
         TransactionRequirementEvent,
@@ -844,6 +860,13 @@ def purge_transaction_dependent_rows(transaction_id: int) -> None:
         TransactionRequirement.query.filter(
             TransactionRequirement.id.in_(req_ids),
         ).delete(synchronize_session=False)
+
+    # Checklist tasks may have only a transaction_id. SET NULL on delete
+    # then fails the task_has_contact_or_transaction check.
+    Task.query.filter(
+        Task.transaction_id == transaction_id,
+        Task.contact_id.is_(None),
+    ).delete(synchronize_session=False)
 
     # --- Controlling contract package (NOT NULL accepted_contract_id) ---
     SellerContractDocument.query.filter_by(

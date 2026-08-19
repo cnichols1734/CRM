@@ -2,7 +2,6 @@
                 {# Always expose Listing / Offers / Contract so the lifecycle is discoverable. #}
                 {% set default_seller_tab = (
                     'contract' if stage.key in ('under_contract', 'closing') and primary_seller_contract
-                    else 'offers' if stage.key == 'offers' or (active_seller_offers and active_seller_offers|length)
                     else 'listing'
                 ) %}
                 <section class="crm-surface" id="seller-workspace" data-default-seller-tab="{{ default_seller_tab }}">

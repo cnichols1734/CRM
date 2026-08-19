@@ -19,6 +19,13 @@ from services.checklist_service import (
     ensure_expected_placeholder,
 )
 from services.deadline_rules import DeadlineRulesService
+from services.listing_prep_checklist import (
+    AUTO_KEYS,
+    VISIBLE_KEYS,
+    listing_prep_groups,
+    seed_listing_prep_checklist,
+    sync_listing_prep_checklist,
+)
 from services.requirement_evidence import auto_attach_for_document
 
 
@@ -538,3 +545,80 @@ def test_absorb_matching_placeholder_folds_open_slot(app, seed):
             assert kept.included_reason == 'Required by questionnaire'
         finally:
             _cleanup_tx(org_id, tx_id, delete_tx=True)
+
+
+class TestListingPrepChecklist:
+    def test_listing_agreement_upload_auto_checks_sign_row(self, app, seed):
+        tx_id = None
+        with app.app_context():
+            try:
+                tx = _fresh_tx(seed, side='seller', status='preparing_to_list')
+                tx_id = tx.id
+                seed_listing_prep_checklist(tx, seed['org_a'], actor_id=seed['owner_a'])
+                db.session.commit()
+
+                req = TransactionRequirement.query.filter_by(
+                    transaction_id=tx_id,
+                    requirement_key='listing_agreement',
+                ).one()
+                assert req.work_status == 'pending'
+                assert req.due_at is None
+
+                _doc(
+                    seed['org_a'], tx_id,
+                    template_slug='listing-agreement',
+                    template_name='Listing Agreement',
+                    status='signed',
+                    is_placeholder=False,
+                    signed_file_path='storage/listing.pdf',
+                )
+                db.session.commit()
+                sync_listing_prep_checklist(tx, actor_id=seed['owner_a'])
+                db.session.commit()
+
+                refreshed = db.session.get(TransactionRequirement, req.id)
+                assert refreshed.work_status == 'completed'
+                groups = listing_prep_groups(tx)
+                labels = [group['label'] for group in groups]
+                assert labels == [
+                    'Listing Documents',
+                    'Property & Marketing Prep',
+                    'MLS Setup',
+                ]
+                visible = [
+                    item['key']
+                    for group in groups
+                    for item in group['rows']
+                ]
+                assert visible == list(VISIBLE_KEYS)
+                assert 'photos_ready' not in visible
+                sign_row = next(
+                    item for item in groups[0]['rows']
+                    if item['key'] == 'listing_agreement'
+                )
+                assert sign_row['done'] is True
+                assert sign_row['auto'] is True
+            finally:
+                if tx_id:
+                    _cleanup_tx(seed['org_a'], tx_id, delete_tx=True)
+
+    def test_hidden_pack_keys_are_not_seeded(self, app, seed):
+        tx_id = None
+        with app.app_context():
+            try:
+                tx = _fresh_tx(seed, side='seller', status='preparing_to_list')
+                tx_id = tx.id
+                seed_listing_prep_checklist(tx, seed['org_a'], actor_id=seed['owner_a'])
+                db.session.commit()
+                keys = {
+                    req.requirement_key
+                    for req in TransactionRequirement.query.filter_by(
+                        transaction_id=tx_id,
+                    ).all()
+                }
+                assert 'photos_ready' not in keys
+                assert 'offer_intake_ready' not in keys
+                assert AUTO_KEYS <= keys
+            finally:
+                if tx_id:
+                    _cleanup_tx(seed['org_a'], tx_id, delete_tx=True)

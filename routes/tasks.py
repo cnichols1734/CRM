@@ -415,7 +415,7 @@ def view_task(task_id):
                 'id': task.contact.id,
                 'first_name': task.contact.first_name,
                 'last_name': task.contact.last_name
-            },
+            } if task.contact else None,
             'task_type': {
                 'id': task.task_type.id,
                 'name': task.task_type.name

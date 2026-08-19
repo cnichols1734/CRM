@@ -1,7 +1,7 @@
 """Seller listing operations routes."""
 from decimal import Decimal, InvalidOperation
 
-from flask import abort, jsonify, request
+from flask import abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 
 from models import (
@@ -84,11 +84,111 @@ def update_seller_listing_profile(id):
     profile.mls_number = data.get('mls_number')
 
     try:
+        from services.listing_prep_checklist import sync_listing_prep_checklist
+        sync_listing_prep_checklist(transaction, actor_id=current_user.id)
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/listing-description', methods=['POST'])
+@login_required
+@transactions_required
+def save_listing_description(id):
+    """Save MLS remarks on the listing profile and check the checklist row."""
+    transaction = _get_seller_transaction(id)
+    if transaction is None:
+        return jsonify({'success': False, 'error': 'Listing description is only available for seller transactions'}), 400
+
+    data = request.get_json(silent=True) or {}
+    text = str(data.get('listing_description') or '').strip()
+    source = str(data.get('source') or '').strip().lower()
+    if source not in ('ai', 'manual'):
+        source = 'manual'
+    profile = _profile_for(transaction)
+    extra = dict(profile.extra_data or {})
+    if text:
+        extra['listing_description'] = text
+        extra['listing_description_source'] = source
+    else:
+        extra.pop('listing_description', None)
+        extra.pop('listing_description_source', None)
+    profile.extra_data = extra
+
+    try:
+        from services.listing_prep_checklist import sync_listing_prep_checklist
+        sync_listing_prep_checklist(transaction, actor_id=current_user.id)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'listing_description': text,
+            'source': extra.get('listing_description_source') or '',
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/listing-description/draft', methods=['POST'])
+@login_required
+@transactions_required
+def draft_listing_description(id):
+    """Draft MLS remarks from file facts plus a web-search model pass."""
+    from config import Config
+    from services.ai_service import generate_ai_response
+    from services.transaction_helpers import build_listing_info
+
+    transaction = _get_seller_transaction(id)
+    if transaction is None:
+        return jsonify({'success': False, 'error': 'Listing description is only available for seller transactions'}), 400
+    if not Config.OPENAI_API_KEY:
+        return jsonify({
+            'success': False,
+            'error': 'AI drafting is not configured. Type the remarks yourself.',
+        }), 400
+
+    from models import TransactionDocument
+    documents = TransactionDocument.query.filter_by(transaction_id=transaction.id).all()
+    profile = SellerListingProfile.query.filter_by(
+        transaction_id=transaction.id,
+        organization_id=current_user.organization_id,
+    ).first()
+    listing_info = build_listing_info(
+        documents,
+        (transaction.extra_data or {}).get('listing_info_overrides') or {},
+        transaction=transaction,
+        listing_profile=profile,
+    ) or {}
+
+    try:
+        from services.listing_description import (
+            LISTING_DESCRIPTION_SYSTEM_PROMPT,
+            build_listing_description_user_prompt,
+            collect_listing_description_facts,
+            sanitize_listing_copy,
+            web_search_location,
+        )
+
+        facts = collect_listing_description_facts(transaction, listing_info, documents)
+        draft = generate_ai_response(
+            system_prompt=LISTING_DESCRIPTION_SYSTEM_PROMPT,
+            user_prompt=build_listing_description_user_prompt(facts),
+            temperature=0.5,
+            reasoning_effort="low",
+            web_search=True,
+            user_location=web_search_location(facts),
+        )
+        return jsonify({'success': True, 'draft': sanitize_listing_copy(draft)})
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception:
+        current_app.logger.exception('listing description draft failed')
+        return jsonify({
+            'success': False,
+            'error': 'Could not draft remarks. Try again or write them yourself.',
+        }), 500
 
 
 @transactions_bp.route('/<int:id>/seller/price-change', methods=['POST'])

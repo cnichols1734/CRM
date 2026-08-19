@@ -1,10 +1,11 @@
-"""Render tests for the merged transaction checklist on detail pages."""
+"""Render tests for the transaction checklist on detail pages."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
 from models import (
+    SellerListingProfile,
     Transaction,
     TransactionDocument,
     TransactionRequirement,
@@ -26,7 +27,7 @@ def _buyer_type(org_id):
     return tx_type
 
 
-def _make_tx(seed, *, side='seller', address='900 Checklist Render Ln'):
+def _make_tx(seed, *, side='seller', address='900 Checklist Render Ln', status='under_contract'):
     if side == 'seller':
         type_id = seed['tx_type_a']
     else:
@@ -38,7 +39,7 @@ def _make_tx(seed, *, side='seller', address='900 Checklist Render Ln'):
         street_address=address,
         city='Austin',
         state='TX',
-        status='under_contract',
+        status=status,
     )
     db.session.add(tx)
     db.session.flush()
@@ -56,54 +57,14 @@ def _cleanup(org_id, tx_id):
     db.session.commit()
 
 
-def test_seller_detail_renders_merged_checklist(app, seed, owner_a_client):
+def test_seller_preparing_to_list_renders_grouped_checklist(app, seed, owner_a_client):
     tx_id = None
     with app.app_context():
-        tx = _make_tx(seed, side='seller', address='901 Seller Checklist Ln')
+        tx = _make_tx(
+            seed, side='seller', address='901 Seller Checklist Ln',
+            status='preparing_to_list',
+        )
         tx_id = tx.id
-        now = datetime.utcnow()
-        db.session.add(TransactionRequirement(
-            organization_id=seed['org_a'],
-            transaction_id=tx_id,
-            package_key='seller_ctc',
-            phase_key='due_diligence',
-            requirement_key='survey',
-            title='Survey Completed',
-            work_status='pending',
-            deadline_rule_version='v1',
-            due_at=now + timedelta(days=5),
-            responsible_party_label='Seller',
-        ))
-        db.session.add(TransactionRequirement(
-            organization_id=seed['org_a'],
-            transaction_id=tx_id,
-            package_key='seller_ctc',
-            phase_key='financing',
-            requirement_key='appraisal',
-            title='Appraisal Completed',
-            work_status='pending',
-            deadline_rule_version='v1',
-            due_at=now + timedelta(days=12),
-        ))
-        db.session.add(TransactionDocument(
-            organization_id=seed['org_a'],
-            transaction_id=tx_id,
-            template_slug='survey',
-            template_name='Survey',
-            status='pending',
-            is_placeholder=True,
-            document_source='placeholder',
-            included_reason='Required by: Survey Completed',
-        ))
-        db.session.add(TransactionDocument(
-            organization_id=seed['org_a'],
-            transaction_id=tx_id,
-            template_slug='standalone-hoa',
-            template_name='HOA Packet',
-            status='pending',
-            is_placeholder=True,
-            document_source='placeholder',
-        ))
         db.session.commit()
 
     try:
@@ -112,51 +73,121 @@ def test_seller_detail_renders_merged_checklist(app, seed, owner_a_client):
         html = response.get_data(as_text=True)
 
         assert 'id="transaction-checklist"' in html
-        assert 'Survey Completed' in html
-        assert 'Appraisal Completed' in html
-        assert 'HOA Packet' in html
-        assert 'Add upload' in html or 'Upload' in html
-        # Seller/buyer files use the package workspace as the documents surface;
-        # the legacy table's "On checklist" / included_reason hints no longer render there.
-
-        checklist_block = html.split('id="transaction-checklist"', 1)[1]
-        checklist_block = checklist_block.split('id="transaction-assignments"', 1)[0]
-        # Folded survey must not also appear as a standalone checklist document row.
-        assert checklist_block.count('data-checklist-key="survey"') == 1
-        assert 'data-checklist-kind="document" data-checklist-key="survey"' not in checklist_block
-        # Appraisal has no expected document — no create/upload control on that row.
-        appraisal_row = None
-        for chunk in checklist_block.split('data-checklist-key="'):
-            if chunk.startswith('appraisal"'):
-                appraisal_row = chunk.split('</li>', 1)[0]
-                break
-        assert appraisal_row is not None
-        assert 'Add upload' not in appraisal_row
-        assert 'showFulfillPlaceholderModal' not in appraisal_row
-        assert '/pdf' not in appraisal_row
-        assert 'viewStoredDocument' not in appraisal_row
+        assert 'Checklist' in html
+        assert 'Preparing to List' in html
+        assert 'Listing Documents' in html
+        assert 'Property &amp; Marketing Prep' in html or 'Property & Marketing Prep' in html
+        assert 'MLS Setup' in html
+        assert 'Sign Listing Agreement' in html
+        assert 'Seller&#39;s Disclosure' in html or "Seller's Disclosure" in html
+        assert 'Upload Listing Documents' in html
+        assert 'Confirm Property Details with Seller' in html
+        assert 'Add Property Description' in html
+        assert 'data-listing-description-toggle' in html
+        assert 'Draft listing description' in html or 'Add listing description' in html
+        assert 'Write' not in html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
+        assert 'MLS public remarks' in html
+        assert 'Draft uses the listing agreement' in html
+        assert 'Draft with AI' in html or 'AI drafting is not set up' in html
+        assert 'data-checklist-date-button' in html
+        assert 'data-checklist-count' in html
+        assert 'Add date' in html
+        assert 'data-checklist-add' in html
+        assert 'Add an item' in html
+        assert 'Next step: Sign Listing Agreement' in html
+        assert 'href="#transaction-checklist"' in html
+        assert 'id="transaction-required-documents"' not in html
+        assert 'click any date' not in html.lower()
+        assert 'Overdue' not in html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
     finally:
         with app.app_context():
             _cleanup(seed['org_a'], tx_id)
 
 
-def test_deadlines_and_required_documents_are_separate_lists(app, seed, owner_a_client):
-    """Deadlines answer "when"; the document tracker answers "what's missing"."""
+def test_listing_agreement_on_file_auto_checks_sign_row(app, seed, owner_a_client):
     tx_id = None
     with app.app_context():
-        tx = _make_tx(seed, side='seller', address='903 Split Checklist Ln')
+        tx = _make_tx(
+            seed, side='seller', address='904 Listing File Ln',
+            status='preparing_to_list',
+        )
         tx_id = tx.id
-        db.session.add(TransactionRequirement(
+        db.session.add(TransactionDocument(
             organization_id=seed['org_a'],
             transaction_id=tx_id,
-            package_key='listing',
-            phase_key='listing_prep',
-            requirement_key='photos_ready',
-            title='Photos Ready',
-            work_status='pending',
-            deadline_rule_version='v1',
-            due_at=datetime.utcnow() + timedelta(days=4),
+            template_slug='listing-agreement',
+            template_name='Listing Agreement',
+            status='signed',
+            is_placeholder=False,
+            document_source='completed',
+            signed_file_path='/tmp/listing-agreement.pdf',
         ))
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        checklist = html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
+        assert 'Sign Listing Agreement' in checklist
+        assert 'On file' in checklist
+        assert 'data-item-key="listing_agreement"' in checklist
+        assert 'data-auto="true"' in checklist
+        assert 'Review with PDF' in html
+        assert 'id="listing-info-compare"' in html
+    finally:
+        with app.app_context():
+            _cleanup(seed['org_a'], tx_id)
+
+
+def test_listing_description_row_marks_ai_draft(app, seed, owner_a_client):
+    tx_id = None
+    with app.app_context():
+        tx = _make_tx(
+            seed, side='seller', address='906 Remarks Draft Ln',
+            status='preparing_to_list',
+        )
+        tx_id = tx.id
+        db.session.add(SellerListingProfile(
+            organization_id=seed['org_a'],
+            transaction_id=tx_id,
+            created_by_id=seed['owner_a'],
+            extra_data={
+                'listing_description': (
+                    'Built in 2018, this four-bedroom home in Fosters Ridge '
+                    'offers 2,638 square feet on a large lot.'
+                ),
+                'listing_description_source': 'ai',
+            },
+        ))
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        checklist = html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
+        assert 'Add Property Description' in checklist
+        assert 'AI draft' in checklist
+        assert 'data-listing-description-source="ai"' in checklist
+        assert 'Built in 2018' in checklist
+        assert checklist.count('Add date') >= 1
+    finally:
+        with app.app_context():
+            SellerListingProfile.query.filter_by(transaction_id=tx_id).delete(
+                synchronize_session=False,
+            )
+            _cleanup(seed['org_a'], tx_id)
+
+
+def test_required_documents_block_is_gone(app, seed, owner_a_client):
+    tx_id = None
+    with app.app_context():
+        tx = _make_tx(
+            seed, side='seller', address='903 Split Checklist Ln',
+            status='preparing_to_list',
+        )
+        tx_id = tx.id
         db.session.add(TransactionDocument(
             organization_id=seed['org_a'],
             transaction_id=tx_id,
@@ -166,15 +197,36 @@ def test_deadlines_and_required_documents_are_separate_lists(app, seed, owner_a_
             is_placeholder=True,
             document_source='placeholder',
         ))
-        db.session.add(TransactionDocument(
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'id="transaction-checklist"' in html
+        assert 'id="transaction-required-documents"' not in html
+        assert '1 of 2 uploaded' not in html
+        assert 'data-document-state="missing"' not in html
+    finally:
+        with app.app_context():
+            _cleanup(seed['org_a'], tx_id)
+
+
+def test_seller_under_contract_shows_dated_deadlines_not_listing_prep(app, seed, owner_a_client):
+    tx_id = None
+    with app.app_context():
+        tx = _make_tx(seed, side='seller', address='905 Under Contract Ln')
+        tx_id = tx.id
+        db.session.add(TransactionRequirement(
             organization_id=seed['org_a'],
             transaction_id=tx_id,
-            template_slug='wire-fraud-warning',
-            template_name='Wire Fraud Warning',
-            status='signed',
-            is_placeholder=False,
-            document_source='completed',
-            signed_file_path='/tmp/wire.pdf',
+            package_key='seller_ctc',
+            phase_key='due_diligence',
+            requirement_key='survey',
+            title='Survey Completed',
+            work_status='pending',
+            deadline_rule_version='v1',
+            due_at=datetime.utcnow() + timedelta(days=5),
         ))
         db.session.commit()
 
@@ -182,31 +234,19 @@ def test_deadlines_and_required_documents_are_separate_lists(app, seed, owner_a_
         response = owner_a_client.get(f'/transactions/{tx_id}')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-
         assert 'id="transaction-checklist"' in html
-        assert 'id="transaction-required-documents"' in html
-
-        deadlines_block, documents_block = html.split(
-            'id="transaction-required-documents"', 1,
-        )
-        deadlines_block = deadlines_block.split('id="transaction-checklist"', 1)[1]
-
-        # Deadlines list carries the dated work item, not the document placeholders.
-        assert 'Photos Ready' in deadlines_block
-        assert 'Information About Brokerage Services' not in deadlines_block
-
-        # Document tracker carries placeholders and uploaded docs with a count.
-        assert 'Information About Brokerage Services' in documents_block
-        assert 'Wire Fraud Warning' in documents_block
-        assert '1 of 2 uploaded' in documents_block
-        assert 'data-document-state="missing"' in documents_block
-        assert 'data-document-state="uploaded"' in documents_block
+        checklist = html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
+        assert 'Deadlines' in checklist
+        assert 'Survey Completed' in checklist
+        assert 'Sign Listing Agreement' not in checklist
+        assert 'Add Property Description' not in checklist
+        assert 'id="transaction-required-documents"' not in html
     finally:
         with app.app_context():
             _cleanup(seed['org_a'], tx_id)
 
 
-def test_buyer_detail_renders_merged_checklist(app, seed, owner_a_client):
+def test_buyer_detail_renders_quiet_deadline_list(app, seed, owner_a_client):
     tx_id = None
     with app.app_context():
         tx = _make_tx(seed, side='buyer', address='902 Buyer Checklist Ln')
@@ -223,17 +263,6 @@ def test_buyer_detail_renders_merged_checklist(app, seed, owner_a_client):
             deadline_rule_version='v1',
             due_at=now + timedelta(days=3),
         ))
-        db.session.add(TransactionDocument(
-            organization_id=seed['org_a'],
-            transaction_id=tx_id,
-            template_slug='inspection-report',
-            template_name='Inspection Report',
-            status='signed',
-            is_placeholder=False,
-            document_source='completed',
-            source_file_path='/tmp/inspection.pdf',
-            included_reason='Required by: Inspection Completed',
-        ))
         db.session.commit()
 
     try:
@@ -243,18 +272,12 @@ def test_buyer_detail_renders_merged_checklist(app, seed, owner_a_client):
 
         assert 'id="transaction-checklist"' in html
         assert 'Inspection Completed' in html
-        assert f'/transactions/{tx_id}/documents/' in html
-        assert '/pdf' in html
-        assert 'viewStoredDocument' not in html
-
+        assert 'id="transaction-required-documents"' not in html
         checklist_block = html.split('id="transaction-checklist"', 1)[1]
         checklist_block = checklist_block.split('</section>', 1)[0]
-        assert checklist_block.count('data-checklist-key="inspection"') == 1
-        assert checklist_block.count('Inspection Report') >= 1
-        # No duplicate standalone document row for the folded inspection report.
-        assert 'data-checklist-kind="document"' not in checklist_block or (
-            'data-checklist-key="inspection-report"' not in checklist_block
-        )
+        assert 'Deadlines' in checklist_block
+        assert 'data-checklist-toggle' not in checklist_block
+        assert 'data-checklist-key=' not in checklist_block
     finally:
         with app.app_context():
             _cleanup(seed['org_a'], tx_id)

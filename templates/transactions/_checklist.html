@@ -1,248 +1,198 @@
-{# Coordination: deadlines and required documents as two separate lists.
-   Both are derived from build_checklist(); deadlines answer "when", the
-   document tracker answers "what still needs to be uploaded". #}
-{% from "components/ui.html" import badge %}
+{% from "components/ui.html" import badge, section_header %}
 
 {% set deadline_items = checklist|selectattr('kind', 'equalto', 'requirement')|list %}
-{% set document_items = checklist|selectattr('document_state', 'in', ['uploaded', 'missing'])|list %}
-{% set docs_uploaded = document_items|selectattr('document_state', 'equalto', 'uploaded')|list %}
-{% set docs_missing = document_items|selectattr('document_state', 'equalto', 'missing')|list %}
+{% set dated_deadline_items = deadline_items|selectattr('due_at')|list %}
+{% set show_listing_prep = listing_prep_groups and transaction.transaction_type.name == 'seller' and transaction.status == 'preparing_to_list' %}
+{% set show_other_deadlines = deadline_items and transaction.transaction_type.name != 'seller' %}
+{% set show_seller_deadlines = dated_deadline_items and transaction.transaction_type.name == 'seller' and transaction.status != 'preparing_to_list' %}
 
-{% macro deadline_status_badge(item) -%}
-{% set timing = item.timing_state %}
-{% set work = item.work_status %}
-{% if work in ('completed', 'not_applicable', 'superseded') %}
-{{ badge(work|replace('_', ' ')|title, 'success' if work == 'completed' else 'neutral') }}
-{% elif timing == 'overdue' %}
-{{ badge('Overdue', 'danger') }}
-{% elif timing == 'due_soon' %}
-{{ badge('Due soon', 'warning') }}
-{% elif work == 'in_progress' %}
-{{ badge('In progress', 'info') }}
-{% else %}
-{{ badge('Pending', 'neutral') }}
-{% endif %}
-{%- endmacro %}
-
-{% macro document_upload_control(item) -%}
-{% if item.document_state == 'uploaded' and item.document %}
-<a href="{{ url_for('transactions.view_document_pdf', id=transaction.id, doc_id=item.document.id) }}"
-   target="_blank"
-   rel="noopener noreferrer"
-   class="crm-btn crm-btn-secondary crm-btn-sm"
-   title="View {{ item.document.template_name }}">
-    <i class="fas fa-file-pdf text-[10px] text-slate-400" aria-hidden="true"></i>
-    View
-</a>
-{% elif item.document_state == 'missing' and item.expected_document_exists and item.document %}
-<button type="button"
-        class="crm-btn crm-btn-accent crm-btn-sm"
-        onclick='showFulfillPlaceholderModal({{ item.document.id }}, {{ item.document.template_name|tojson }})'>
-    <i class="fas fa-upload text-[10px]" aria-hidden="true"></i>
-    Upload
-</button>
-{% elif item.document_state == 'missing' and item.requirement_id %}
-<span class="inline-flex items-center" data-checklist-create-slot
-      data-requirement-id="{{ item.requirement_id }}"
-      data-title="{{ item.title|e }}">
-    <button type="button"
-            class="crm-btn crm-btn-accent crm-btn-sm"
-            data-checklist-create-btn
-            onclick="createExpectedDocumentSlot(this)">
-        <i class="fas fa-upload text-[10px]" aria-hidden="true"></i>
-        Upload
-    </button>
-    <button type="button"
-            class="crm-btn crm-btn-accent crm-btn-sm hidden"
-            data-checklist-upload-btn
-            disabled>
-        <i class="fas fa-upload text-[10px]" aria-hidden="true"></i>
-        Upload
-    </button>
-</span>
-{% endif %}
-{%- endmacro %}
-
-<div id="transaction-checklist" class="min-w-0">
-    {# ----- Deadlines ----- #}
-    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-3 sm:px-6">
+{% if show_listing_prep %}
+<section id="transaction-checklist" class="crm-surface scroll-mt-28">
+    <div class="crm-surface-header">
         <div>
-            <p class="crm-eyebrow">Coordination</p>
-            <h2 class="mt-1 text-lg font-semibold text-slate-950">Deadlines</h2>
-            <p class="mt-1 text-sm text-slate-500">Click any date to set or change it.</p>
+            {{ section_header('Checklist') }}
+            <p class="mt-1 text-sm text-slate-500">Preparing to List</p>
         </div>
-        <div class="flex items-center gap-2">
-            {% if control_tower_summary.overdue %}
-            <span class="crm-badge crm-badge-danger">{{ control_tower_summary.overdue }} overdue</span>
-            {% endif %}
-            {% if control_tower_summary.due_soon %}
-            <span class="crm-badge crm-badge-warning">{{ control_tower_summary.due_soon }} due soon</span>
-            {% endif %}
-        </div>
+        {% set prep_done = listing_prep_groups|sum(attribute='done_count') %}
+        {% set prep_total = listing_prep_groups|sum(attribute='total') %}
+        <span class="text-xs font-medium tabular-nums text-slate-500" data-checklist-count>{{ prep_done }} of {{ prep_total }}</span>
     </div>
-
-    {% if deadline_items %}
-    <ul class="divide-y divide-slate-100" data-checklist-list>
-        {% for item in deadline_items %}
-        {% set is_done = item.work_status in ('completed', 'not_applicable', 'superseded') %}
-        {% set phase_text = item.phase_label or (item.phase_key|replace('_', ' ') if item.phase_key else none) %}
-        <li class="crm-checklist-row text-sm"
-            data-checklist-key="{{ item.key }}"
-            data-checklist-kind="{{ item.kind }}"
-            {% if item.requirement_id %}data-requirement-id="{{ item.requirement_id }}"{% endif %}>
-            <div class="text-xs font-medium tabular-nums leading-5 {% if item.timing_state == 'overdue' %}text-red-700{% elif item.timing_state == 'due_soon' %}text-amber-700{% else %}text-slate-500{% endif %}">
-                {% if item.requirement_id %}
-                <button type="button"
-                        class="rounded px-0.5 text-left hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-orange-500"
-                        data-checklist-date-btn
-                        data-requirement-id="{{ item.requirement_id }}"
-                        data-due="{{ item.due_at.strftime('%Y-%m-%d') if item.due_at else '' }}"
-                        onclick="editChecklistDueDate(this)"
-                        title="{% if item.due_at %}Change date ({{ item.due_at.strftime('%m/%d/%Y') }}){% else %}Set date{% endif %}">
-                    {% if item.due_at %}{{ item.due_at.strftime('%b %d') }}{% else %}<span class="font-normal text-slate-400">Set date</span>{% endif %}
-                </button>
-                <input type="date"
-                       class="crm-input hidden w-[8.5rem] px-1.5 py-0.5 text-xs"
-                       data-checklist-date-input
-                       value="{{ item.due_at.strftime('%Y-%m-%d') if item.due_at else '' }}">
-                {% elif item.due_at %}{{ item.due_at.strftime('%b %d') }}{% else %}<span class="font-normal text-slate-400">No date</span>{% endif %}
-            </div>
-            <div class="crm-checklist-row__meta">
-                <span class="truncate font-medium leading-5 {% if is_done %}text-slate-400 line-through{% else %}text-slate-900{% endif %}">{{ item.title }}</span>
-                {% if phase_text %}
-                <span class="shrink-0 text-slate-300" aria-hidden="true">·</span>
-                <span class="max-w-[7rem] shrink truncate text-xs text-slate-400">{{ phase_text }}</span>
-                {% endif %}
-                {% if item.responsible_party_label %}
-                <span class="hidden shrink-0 text-slate-300 md:inline" aria-hidden="true">·</span>
-                <span class="hidden max-w-[5.5rem] shrink truncate text-xs text-slate-500 md:inline">{{ item.responsible_party_label }}</span>
-                {% endif %}
-            </div>
-            <div class="crm-checklist-row__actions">
-                <div class="crm-checklist-row__status">{{ deadline_status_badge(item) }}</div>
-                <div class="crm-checklist-row__control">
-                    {% if item.document_state == 'uploaded' and item.document %}
-                    <a href="{{ url_for('transactions.view_document_pdf', id=transaction.id, doc_id=item.document.id) }}"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       class="max-w-[10rem] truncate text-xs font-semibold text-orange-700 hover:underline"
-                       title="View {{ item.document.template_name }}">
-                        {{ item.document.template_name }}
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <div class="px-5 py-6 sm:px-6">
-        <p class="text-sm font-semibold text-slate-900">No deadlines yet.</p>
-        <p class="mt-1 text-sm text-slate-500">Dates appear once the listing or contract is on file. You can also set them by hand.</p>
-    </div>
-    {% endif %}
-
-    {# ----- Required documents ----- #}
-    <div id="transaction-required-documents" class="scroll-mt-28 border-t border-slate-200">
-        <div class="flex flex-wrap items-start justify-between gap-3 px-5 py-3 sm:px-6">
-            <div>
-                <h2 class="text-lg font-semibold text-slate-950">Required documents</h2>
-                <p class="mt-1 text-sm text-slate-500">
-                    {% if document_items %}
-                    {{ docs_uploaded|length }} of {{ document_items|length }} uploaded. Drop any PDF in and it gets identified and filed for you.
-                    {% else %}
-                    Based on your questionnaire answers.
-                    {% endif %}
-                </p>
-            </div>
-            <button type="button"
-                    class="crm-btn crm-btn-secondary"
-                    data-action="document-upload-hub#open"
-                    data-document-upload-hub-scope-param="other"
-                    data-document-upload-hub-label-param="Document">
-                <i class="fas fa-upload text-xs" aria-hidden="true"></i>
-                Upload any document
-            </button>
-        </div>
-
-        {% if document_items %}
-        {% if document_items|length > 1 %}
-        <div class="px-5 pb-3 sm:px-6">
-            <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-200" role="img"
-                 aria-label="{{ docs_uploaded|length }} of {{ document_items|length }} required documents uploaded">
-                <div class="h-full rounded-full bg-emerald-500"
-                     style="width: {{ (docs_uploaded|length / document_items|length * 100)|round(0, 'floor')|int }}%"></div>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if docs_missing %}
-        <ul class="divide-y divide-slate-100 border-t border-slate-100" data-required-documents-list>
-            {% for item in docs_missing %}
-            <li class="crm-checklist-row text-sm"
-                data-document-key="{{ item.expected_document_slug or item.key }}"
-                data-document-state="missing"
-                {% if item.document %}data-document-id="{{ item.document.id }}"{% endif %}>
-                <div class="text-xs font-medium leading-5 text-amber-700">Needed</div>
-                <div class="crm-checklist-row__meta">
-                    <span class="truncate font-medium leading-5 text-slate-900">{{ item.document.template_name if item.document else item.title }}</span>
-                </div>
-                <div class="crm-checklist-row__actions">
-                    <div class="crm-checklist-row__status">{{ badge('Missing', 'warning') }}</div>
-                    <div class="crm-checklist-row__control">{{ document_upload_control(item) }}</div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <div class="border-t border-slate-100 px-5 py-4 sm:px-6">
-            <p class="text-sm font-medium text-emerald-700">
-                <i class="fas fa-check-circle text-xs" aria-hidden="true"></i>
-                Every required document is on file.
-            </p>
-        </div>
-        {% endif %}
-
-        {% if docs_uploaded %}
-        <details class="border-t border-slate-100 group">
-            <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-5 py-2.5 text-sm font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 sm:px-6 [&::-webkit-details-marker]:hidden">
-                <span>{{ docs_uploaded|length }} uploaded document{{ 's' if docs_uploaded|length != 1 else '' }}</span>
-                <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" aria-hidden="true"></i>
-            </summary>
-            <ul class="divide-y divide-slate-100 border-t border-slate-100">
-                {% for item in docs_uploaded %}
-                <li class="crm-checklist-row text-sm"
-                    data-document-key="{{ item.expected_document_slug or item.key }}"
-                    data-document-state="uploaded"
-                    {% if item.document %}data-document-id="{{ item.document.id }}"{% endif %}>
-                    <div class="text-xs font-medium leading-5 text-emerald-700">On file</div>
-                    <div class="crm-checklist-row__meta">
-                        <span class="truncate font-medium leading-5 text-slate-900">{{ item.document.template_name if item.document else item.title }}</span>
-                    </div>
-                    <div class="crm-checklist-row__actions">
-                        <div class="crm-checklist-row__status">{{ badge('Uploaded', 'success') }}</div>
-                        <div class="crm-checklist-row__control">{{ document_upload_control(item) }}</div>
+    <div class="crm-surface-body space-y-6">
+        {% for group in listing_prep_groups %}
+        <div data-checklist-group="{{ group.key }}">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ group.label }}</h3>
+            <ul class="mt-2 divide-y divide-slate-100" data-checklist-rows>
+                {% for item in group.rows %}
+                <li class="py-2.5 first:pt-0 last:pb-0"
+                    data-checklist-item
+                    data-requirement-id="{{ item.id }}"
+                    data-item-key="{{ item.key }}"
+                    data-auto="{{ 'true' if item.auto else 'false' }}"
+                    data-custom="{{ 'true' if item.custom else 'false' }}"
+                    data-done="{{ 'true' if item.done else 'false' }}">
+                    <div class="flex items-start gap-3">
+                        {% if item.auto %}
+                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border {% if item.done %}border-emerald-600 bg-emerald-600 text-white{% else %}border-slate-300 bg-white text-transparent{% endif %}"
+                              data-checklist-box
+                              aria-hidden="true">
+                            <i class="fas fa-check text-[10px]"></i>
+                        </span>
+                        {% else %}
+                        <button type="button"
+                                class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border {% if item.done %}border-emerald-600 bg-emerald-600 text-white{% else %}border-slate-300 bg-white text-transparent hover:border-slate-400{% endif %}"
+                                data-checklist-toggle
+                                aria-pressed="{{ 'true' if item.done else 'false' }}"
+                                aria-label="{{ 'Mark incomplete' if item.done else 'Mark complete' }}: {{ item.title }}">
+                            <i class="fas fa-check text-[10px]"></i>
+                        </button>
+                        {% endif %}
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0 flex items-center gap-2">
+                                    <p class="truncate text-sm font-medium {% if item.done %}text-[color:var(--ink-3)] line-through{% else %}text-[color:var(--ink)]{% endif %}" data-checklist-title>{{ item.title }}</p>
+                                    {% if item.key == 'listing_description' %}
+                                    <span data-listing-description-badge>
+                                        {% if listing_description and listing_description_source|default('') == 'ai' %}
+                                        {{ badge('AI draft', 'info') }}
+                                        {% endif %}
+                                    </span>
+                                    {% elif item.auto and item.done %}
+                                    <span class="shrink-0 text-xs text-[color:var(--ink-3)]">On file</span>
+                                    {% endif %}
+                                </div>
+                                <div class="flex shrink-0 items-center gap-2">
+                                    <div class="relative" data-checklist-due>
+                                        <button type="button"
+                                                class="text-xs font-medium {% if item.due_at %}tabular-nums is-set{% else %}text-[color:var(--ink-3)] hover:text-[color:var(--ink)]{% endif %}"
+                                                data-checklist-date-button
+                                                data-requirement-id="{{ item.id }}"
+                                                data-due="{{ item.due_at.strftime('%Y-%m-%d') if item.due_at else '' }}">
+                                            {% if item.due_at %}{{ item.due_at.strftime('%b %d') }}{% else %}Add date{% endif %}
+                                        </button>
+                                        <input type="date"
+                                               class="crm-input absolute right-0 top-0 hidden w-[9.5rem] py-1 text-xs"
+                                               data-checklist-date-input
+                                               value="{{ item.due_at.strftime('%Y-%m-%d') if item.due_at else '' }}">
+                                    </div>
+                                    {% if item.custom %}
+                                    <button type="button"
+                                            class="text-xs text-[color:var(--ink-3)] hover:text-[color:var(--ink)]"
+                                            data-checklist-remove
+                                            aria-label="Remove {{ item.title }}">
+                                        Remove
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if item.key == 'listing_description' and listing_description %}
+                            <p class="mt-1 truncate text-xs text-[color:var(--ink-3)]" data-listing-description-preview>{{ listing_description }}</p>
+                            {% endif %}
+                            {% if item.key == 'listing_description' %}
+                            <div class="mt-2" data-listing-description-launch>
+                                <button type="button"
+                                        class="crm-btn crm-btn-secondary crm-btn-sm inline-flex items-center gap-1.5"
+                                        data-listing-description-toggle>
+                                    {% if listing_description_ai_ready and not listing_description %}
+                                    <i class="fas fa-wand-magic-sparkles text-[10px]" aria-hidden="true"></i>
+                                    <span data-listing-description-toggle-label>Draft listing description</span>
+                                    {% else %}
+                                    <span data-listing-description-toggle-label>{{ 'Edit remarks' if listing_description else 'Add listing description' }}</span>
+                                    {% endif %}
+                                </button>
+                            </div>
+                            <div class="mt-3 hidden rounded-md border border-[color:var(--hairline)] bg-[color:var(--paper-2)] p-3"
+                                 data-listing-description
+                                 data-listing-description-source="{{ listing_description_source|default('') }}"
+                                 hidden>
+                                <div class="flex items-center justify-between gap-3">
+                                    <label class="text-xs font-medium text-[color:var(--ink-2)]" for="listing-description-remarks">MLS public remarks</label>
+                                    <span data-listing-description-composer-badge>
+                                        {% if listing_description and listing_description_source|default('') == 'ai' %}
+                                        {{ badge('AI draft', 'info') }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <p class="mt-1 text-xs leading-5 text-[color:var(--ink-3)]">
+                                    Draft uses the listing agreement, supporting docs, and a web check. File facts win. Review before you save.
+                                </p>
+                                <textarea id="listing-description-remarks"
+                                          name="listing_description"
+                                          rows="6"
+                                          class="crm-textarea listing-description-remarks mt-2 w-full text-sm"
+                                          placeholder="Specific, clean remarks. No hype.">{{ listing_description or '' }}</textarea>
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    <button type="button"
+                                            class="crm-btn crm-btn-ghost crm-btn-sm"
+                                            data-listing-description-cancel>
+                                        Cancel
+                                    </button>
+                                    <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+                                        {% if listing_description_ai_ready %}
+                                        <button type="button"
+                                                class="crm-btn crm-btn-secondary crm-btn-sm inline-flex items-center gap-1.5"
+                                                data-listing-description-draft>
+                                            <i class="fas fa-wand-magic-sparkles text-[10px]" aria-hidden="true"></i>
+                                            Draft with AI
+                                        </button>
+                                        {% else %}
+                                        <span class="text-xs text-[color:var(--ink-4)]">AI drafting is not set up. Type the remarks here.</span>
+                                        {% endif %}
+                                        <button type="button"
+                                                class="crm-btn crm-btn-primary crm-btn-sm"
+                                                data-listing-description-save>
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </li>
                 {% endfor %}
             </ul>
-        </details>
-        {% endif %}
-        {% else %}
-        <div class="border-t border-slate-100 px-5 py-6 sm:px-6">
-            <p class="text-sm font-semibold text-slate-900">No required documents yet.</p>
-            <p class="mt-1 text-sm text-slate-500">
-                Finish the questionnaire and the documents this file needs are listed here.
-            </p>
         </div>
+        {% endfor %}
+
+        <form class="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4" data-checklist-add>
+            <label class="min-w-[12rem] flex-1">
+                <span class="sr-only">New checklist item</span>
+                <input type="text"
+                       name="title"
+                       class="crm-input w-full text-sm"
+                       placeholder="Add an item"
+                       maxlength="200"
+                       required>
+            </label>
+            <label>
+                <span class="sr-only">Optional due date</span>
+                <input type="date" name="due_date" class="crm-input py-1.5 text-sm">
+            </label>
+            <button type="submit" class="crm-btn crm-btn-secondary crm-btn-sm">Add</button>
+        </form>
+    </div>
+</section>
+{% elif show_other_deadlines or show_seller_deadlines %}
+{% set list_items = deadline_items if show_other_deadlines else dated_deadline_items %}
+<section id="transaction-checklist" class="crm-surface scroll-mt-28">
+    <div class="crm-surface-header">
+        <div>
+            {{ section_header('Deadlines') }}
+        </div>
+        {% if control_tower_summary.overdue %}
+        <span class="crm-badge crm-badge-danger">{{ control_tower_summary.overdue }} overdue</span>
         {% endif %}
     </div>
-
-    {% if vtc_pilot and seller_contract_milestones %}
-    <div class="border-t border-slate-200 px-5 py-2.5 sm:px-6">
-        <button type="button" class="crm-btn crm-btn-secondary crm-btn-sm" onclick="backfillTransactionRequirements()">
-            Sync seller milestones
-        </button>
-    </div>
-    {% endif %}
-</div>
+    <ul class="divide-y divide-slate-100 px-5 py-2">
+        {% for item in list_items %}
+        {% set is_done = item.work_status in ('completed', 'not_applicable', 'superseded') %}
+        <li class="flex items-center justify-between gap-3 py-2.5 text-sm">
+            <span class="min-w-0 truncate font-medium {% if is_done %}text-slate-400 line-through{% else %}text-slate-900{% endif %}">{{ item.title }}</span>
+            <span class="shrink-0 text-xs tabular-nums text-slate-500">
+                {% if item.due_at %}{{ item.due_at.strftime('%b %d') }}{% else %}—{% endif %}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}

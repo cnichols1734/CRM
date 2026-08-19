@@ -59,6 +59,22 @@ BOOTSTRAP_EXTRACTION_FIELDS = {
         'When multiple people, list each full name separated by " and " '
         '(e.g. "Billy Copaus and Kimberly Copaus"). Do not combine into one blob.'
     ),
+    'seller_email': (
+        'Seller email address(es) if printed on the document. '
+        'When more than one, list in the same order as seller_name, separated by commas.'
+    ),
+    'seller_phone': (
+        'Seller phone number(s) if printed on the document. '
+        'When more than one, list in the same order as seller_name, separated by commas.'
+    ),
+    'buyer_email': (
+        'Buyer email address(es) if printed on the document. '
+        'When more than one, list in the same order as buyer_name, separated by commas.'
+    ),
+    'buyer_phone': (
+        'Buyer phone number(s) if printed on the document. '
+        'When more than one, list in the same order as buyer_name, separated by commas.'
+    ),
     'side': (
         'Which side the uploading agent appears to represent, ONLY if explicitly '
         'indicated on the document (listing agent / seller\'s broker / buyer\'s broker / '
@@ -147,6 +163,14 @@ LISTING_BOOTSTRAP_EXTRACTION_FIELDS = {
     'seller_name': (
         'Seller / owner name(s) as written. When multiple people, list each full name '
         'separated by " and ".'
+    ),
+    'seller_email': (
+        'Seller email address(es) if printed (often near notices / Paragraph 20). '
+        'When more than one, list in the same order as seller_name, separated by commas.'
+    ),
+    'seller_phone': (
+        'Seller phone number(s) if printed. When more than one, list in the same '
+        'order as seller_name, separated by commas.'
     ),
     'side': (
         'Which side the uploading agent appears to represent. For listing agreements '
@@ -324,6 +348,10 @@ _FIELD_PRESENTATION = {
     'title_company': ('Title company', 'other', False),
     'buyer_name': ('Buyer', 'party_names', False),
     'seller_name': ('Seller', 'party_names', False),
+    'buyer_email': ('Buyer email', 'other', False),
+    'seller_email': ('Seller email', 'other', False),
+    'buyer_phone': ('Buyer phone', 'other', False),
+    'seller_phone': ('Seller phone', 'other', False),
     'buyer_signature_present': ('Buyer signature', 'other', True),
     'seller_signature_present': ('Seller signature', 'other', True),
 }
@@ -395,6 +423,172 @@ def parse_person_name(full: str) -> dict[str, str]:
             'last_name': ' '.join(parts[-2:]),
         }
     return {'first_name': ' '.join(parts[:-1]), 'last_name': parts[-1]}
+
+
+_EMAIL_RE = re.compile(r'[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}', re.I)
+
+_ROLE_CONTACT_KEYS = {
+    'seller': {
+        'email': ('seller_email', 'seller_email_fax', 'seller_emails'),
+        'phone': ('seller_phone', 'seller_phones'),
+        'email_extra': ('seller_email_2', 'seller_email_fax_2', 'co_seller_email'),
+        'phone_extra': ('seller_phone_2', 'co_seller_phone'),
+    },
+    'buyer': {
+        'email': ('buyer_email', 'buyer_emails'),
+        'phone': ('buyer_phone', 'buyer_phones'),
+        'email_extra': ('buyer_email_2', 'co_buyer_email'),
+        'phone_extra': ('buyer_phone_2', 'co_buyer_phone'),
+    },
+}
+
+
+def _session_field_value(session: ContractBootstrapSession, *keys: str) -> Any:
+    classification = session.classification or {}
+    candidates = session.extracted_candidates or {}
+    for key in keys:
+        raw = classification.get(key)
+        if raw not in (None, '', [], {}):
+            return raw
+        cand = candidates.get(key)
+        if isinstance(cand, dict):
+            value = cand.get('value')
+            if value not in (None, '', [], {}):
+                return value
+        elif cand not in (None, '', [], {}):
+            return cand
+    return None
+
+
+def _split_contact_values(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    text = str(raw).strip()
+    if not text:
+        return []
+    return [part.strip() for part in re.split(r'\s*(?:,|;|/|\band\b)\s*', text) if part.strip()]
+
+
+def _emails_from(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    found = [match.group(0).lower() for match in _EMAIL_RE.finditer(str(raw))]
+    if found:
+        return found
+    return [part.lower() for part in _split_contact_values(raw) if '@' in part]
+
+
+def _phones_from(raw: Any) -> list[str]:
+    from utils import format_phone_number
+
+    phones: list[str] = []
+    seen: set[str] = set()
+    for part in _split_contact_values(raw) or [str(raw or '')]:
+        formatted = format_phone_number(part)
+        if formatted and formatted not in seen:
+            seen.add(formatted)
+            phones.append(formatted)
+    return phones
+
+
+def _party_family(role: str) -> str | None:
+    if role in ('seller', 'co_seller'):
+        return 'seller'
+    if role in ('buyer', 'co_buyer'):
+        return 'buyer'
+    return None
+
+
+def _party_extracted_contact_info(
+    session: ContractBootstrapSession,
+    role: str,
+    index: int,
+) -> dict[str, str | None]:
+    """Pull email/phone/address for one party from extracted document fields."""
+    info: dict[str, str | None] = {
+        'email': None,
+        'phone': None,
+        'street_address': None,
+        'city': None,
+        'state': None,
+        'zip_code': None,
+    }
+    family = _party_family(role)
+    if not family:
+        return info
+
+    keys = _ROLE_CONTACT_KEYS[family]
+    emails = _emails_from(_session_field_value(session, *keys['email']))
+    phones = _phones_from(_session_field_value(session, *keys['phone']))
+    if index >= 1:
+        extra_emails = _emails_from(_session_field_value(session, *keys['email_extra']))
+        extra_phones = _phones_from(_session_field_value(session, *keys['phone_extra']))
+        emails = extra_emails or emails[1:]
+        phones = extra_phones or phones[1:]
+    if emails:
+        info['email'] = emails[0][:120]
+    if phones:
+        info['phone'] = phones[0][:20]
+    if family == 'seller':
+        street = _session_field_value(session, 'seller_address', 'street_address')
+        if street:
+            info['street_address'] = str(street).strip()[:200]
+        for field, limit in (('city', 100), ('state', 50), ('zip_code', 20)):
+            value = _session_field_value(session, f'seller_{field}', field)
+            if value:
+                info[field] = str(value).strip()[:limit]
+    return info
+
+
+def _find_contact_by_email(org_id: int, email: str | None) -> Contact | None:
+    if not org_id or not email:
+        return None
+    from sqlalchemy import func
+
+    return Contact.query.filter(
+        Contact.organization_id == org_id,
+        func.lower(Contact.email) == email.strip().lower(),
+    ).first()
+
+
+def default_party_resolutions(
+    session: ContractBootstrapSession,
+    user_id: int,
+) -> list[dict[str, Any]]:
+    """Link a high-confidence match, otherwise create a contact from the document."""
+    stored = (session.classification or {}).get('parties')
+    parties = stored if isinstance(stored, list) and stored else build_party_proposals(
+        session, user_id,
+    )
+    resolutions: list[dict[str, Any]] = []
+    for party in parties:
+        if not isinstance(party, dict):
+            continue
+        first = (party.get('first_name') or '').strip()
+        last = (party.get('last_name') or '').strip()
+        full = (party.get('full_name') or '').strip()
+        if not first and not last and not full:
+            continue
+        recommended = party.get('recommended_contact_id')
+        action = 'link' if recommended else 'create'
+        resolutions.append({
+            'party_key': party.get('party_key'),
+            'role': party.get('role'),
+            'full_name': full,
+            'first_name': first or (full.split()[0] if full else ''),
+            'last_name': last,
+            'action': action,
+            'contact_id': recommended,
+            'email': party.get('email'),
+            'phone': party.get('phone'),
+            'street_address': party.get('street_address'),
+            'city': party.get('city'),
+            'state': party.get('state'),
+            'zip_code': party.get('zip_code'),
+        })
+    return resolutions
 
 
 def find_contact_matches(
@@ -483,11 +677,26 @@ def build_party_proposals(
             matches = find_contact_matches(
                 session.organization_id, user_id, full_name, limit=5,
             )
+            extracted = _party_extracted_contact_info(session, role, idx)
             recommended = None
             if matches:
                 top = matches[0]
                 if top.get('score', 0) >= 0.9:
                     recommended = top['id']
+            if not recommended and extracted.get('email'):
+                by_email = _find_contact_by_email(
+                    session.organization_id, extracted['email'],
+                )
+                if by_email:
+                    recommended = by_email.id
+                    if not any(m.get('id') == by_email.id for m in matches):
+                        matches.insert(0, {
+                            'id': by_email.id,
+                            'name': f'{by_email.first_name} {by_email.last_name}'.strip(),
+                            'email': by_email.email,
+                            'phone': by_email.phone,
+                            'score': 0.95,
+                        })
             parties.append({
                 'party_key': f'{primary_role}_{idx}',
                 'role': role,
@@ -496,6 +705,8 @@ def build_party_proposals(
                 'last_name': parsed['last_name'],
                 'matches': matches,
                 'recommended_contact_id': recommended,
+                'default_action': 'link' if recommended else 'create',
+                **extracted,
             })
     return parties
 
@@ -532,7 +743,7 @@ def _build_bob_questions(
             'key': 'parties',
             'prompt': 'People on this deal',
             'required': True,
-            'help': 'Link each person to a contact, create a new one, or skip.',
+            'help': 'If nobody matches, we create a contact from the document.',
             'items': parties,
         },
     }
@@ -1067,6 +1278,10 @@ def classify_and_extract(
         ),
         'buyer_name': field_data.get('buyer_name') or field_data.get('buyer_names'),
         'seller_name': field_data.get('seller_name') or field_data.get('seller_names'),
+        'buyer_email': field_data.get('buyer_email'),
+        'seller_email': field_data.get('seller_email') or field_data.get('seller_email_fax'),
+        'buyer_phone': field_data.get('buyer_phone'),
+        'seller_phone': field_data.get('seller_phone'),
         'document_identity': identity.to_dict() if identity else None,
         'route_decision': route.to_dict(),
         'purchase_contract_type': (
@@ -1099,6 +1314,7 @@ def classify_and_extract(
     alias_map = {
         'buyer_names': 'buyer_name',
         'seller_names': 'seller_name',
+        'seller_email_fax': 'seller_email',
         'offer_price': 'sales_price',
         'proposed_close_date': 'closing_date',
     }
@@ -2213,6 +2429,8 @@ def approve_selected(
             route=route,
         )
         session.matched_transaction_id = transaction.id
+        if not party_resolutions:
+            party_resolutions = default_party_resolutions(session, user_id)
         _apply_party_resolutions(
             transaction=transaction,
             org_id=session.organization_id,
@@ -2587,32 +2805,60 @@ def _apply_party_resolutions(
         elif action == 'create':
             first_name = (resolution.get('first_name') or '').strip()
             last_name = (resolution.get('last_name') or '').strip()
-            if not first_name or not last_name:
+            if (not first_name or not last_name) and display_name:
+                parsed = parse_person_name(display_name)
+                first_name = first_name or parsed['first_name']
+                last_name = last_name or parsed['last_name']
+            if not first_name:
                 raise ValueError(
-                    f'first_name and last_name required to create contact for '
-                    f'{resolution.get("party_key") or display_name or "party"}'
+                    f'A name is required to create a contact for '
+                    f'{resolution.get("party_key") or display_name or "this person"}'
                 )
-            contact = Contact(
-                organization_id=org_id,
-                user_id=user_id,
-                created_by_id=user_id,
-                first_name=first_name[:80],
-                last_name=last_name[:80],
-            )
-            group = (
-                ContactGroup.query.filter_by(
+            email = (resolution.get('email') or '').strip().lower() or None
+            if email and '@' not in email:
+                email = None
+            from utils import format_phone_number
+            phone = format_phone_number(resolution.get('phone')) if resolution.get('phone') else None
+            existing = _find_contact_by_email(org_id, email)
+            if existing:
+                contact = existing
+                display_name = f'{contact.first_name} {contact.last_name}'.strip()
+            else:
+                contact = Contact(
                     organization_id=org_id,
                     user_id=user_id,
-                    is_active=True,
+                    created_by_id=user_id,
+                    first_name=first_name[:80],
+                    last_name=(last_name or '')[:80],
+                    email=email[:120] if email else None,
+                    phone=phone,
+                    street_address=((resolution.get('street_address') or '').strip() or None),
+                    city=((resolution.get('city') or '').strip() or None),
+                    state=((resolution.get('state') or '').strip() or None),
+                    zip_code=((resolution.get('zip_code') or '').strip() or None),
                 )
-                .order_by(ContactGroup.sort_order, ContactGroup.id)
-                .first()
-            )
-            db.session.add(contact)
-            db.session.flush()
-            if group:
-                contact.groups.append(group)
-            display_name = f'{first_name} {last_name}'.strip()
+                if contact.street_address:
+                    contact.street_address = contact.street_address[:200]
+                if contact.city:
+                    contact.city = contact.city[:100]
+                if contact.state:
+                    contact.state = contact.state[:50]
+                if contact.zip_code:
+                    contact.zip_code = contact.zip_code[:20]
+                group = (
+                    ContactGroup.query.filter_by(
+                        organization_id=org_id,
+                        user_id=user_id,
+                        is_active=True,
+                    )
+                    .order_by(ContactGroup.sort_order, ContactGroup.id)
+                    .first()
+                )
+                db.session.add(contact)
+                db.session.flush()
+                if group:
+                    contact.groups.append(group)
+                display_name = f'{first_name} {last_name}'.strip() or first_name
         else:
             raise ValueError(
                 f'Invalid party action "{action}" for {resolution.get("party_key")}. '

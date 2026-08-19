@@ -47,11 +47,11 @@
         <div id="contract-review-error" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert"></div>
 
         {% if is_processing %}
-        <section class="crm-surface overflow-hidden" aria-labelledby="processing-heading">
+        <section class="crm-surface mx-auto w-full max-w-2xl overflow-hidden" aria-labelledby="processing-heading">
             <div class="grid lg:grid-cols-[minmax(0,1fr)_320px]">
                 <div class="crm-surface-body p-6 sm:p-8">
                     <div class="flex items-start gap-4">
-                        <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded bg-slate-900 text-xs font-bold tracking-wide text-white">BOB</span>
+                        <span class="crm-bob-mark">BOB</span>
                         <div>
                             <h1 id="processing-heading" class="text-xl font-semibold text-slate-950">Identifying the form and extracting fields.</h1>
                             <p class="mt-2 max-w-[62ch] text-sm leading-6 text-slate-600">
@@ -123,10 +123,10 @@
         </section>
 
         {% elif needs_match %}
-        <section class="crm-surface overflow-hidden" aria-labelledby="match-heading">
+        <section class="crm-surface mx-auto w-full max-w-xl overflow-hidden" aria-labelledby="match-heading">
             <div class="crm-surface-body p-5 sm:p-7">
                 <div class="flex items-start gap-3">
-                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-900 text-[11px] font-bold tracking-wide text-white">BOB</span>
+                    <span class="crm-bob-mark">BOB</span>
                     <div>
                         <h1 id="match-heading" class="text-lg font-semibold text-slate-950">
                             {% if matches|length == 0 %}
@@ -154,21 +154,21 @@
                 </div>
 
                 {% if matches %}
-                <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                <div class="mt-6 grid gap-3">
                     {% for match in matches %}
-                    <article class="flex min-h-[150px] flex-col justify-between rounded-md border border-slate-200 bg-white p-4">
+                    <article class="flex min-h-[132px] flex-col justify-between rounded-md border border-[color:var(--hairline)] bg-[color:var(--paper-2)] p-4">
                         <div>
                             <div class="flex items-start justify-between gap-3">
-                                <p class="text-sm font-semibold text-slate-950">{{ match.address }}</p>
+                                <p class="text-sm font-semibold text-[color:var(--ink)]">{{ match.address }}</p>
                                 {% if match.side %}{{ badge(match.side|title, 'neutral') }}{% endif %}
                             </div>
-                            <p class="mt-1 text-sm text-slate-500">
+                            <p class="mt-1 text-sm text-[color:var(--ink-3)]">
                                 {% if match.city %}{{ match.city }}, {% endif %}{{ match.state or '' }}
                                 {% if match.status %} · {{ match.status|replace('_', ' ')|title }}{% endif %}
                             </p>
                         </div>
                         <button type="button"
-                                class="js-match-select crm-btn crm-btn-secondary mt-4 w-full justify-center"
+                                class="js-match-select crm-btn crm-btn-primary mt-4 w-full justify-center"
                                 data-decision="select"
                                 data-transaction-id="{{ match.transaction_id }}">
                             Use this transaction
@@ -183,16 +183,16 @@
                 </p>
                 {% endif %}
 
-                <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5">
-                    <button type="button" id="start-new-transaction" class="crm-btn crm-btn-accent">
+                <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-[color:var(--hairline)] pt-5">
+                    <button type="button" id="start-new-transaction" class="crm-btn crm-btn-secondary">
                         Start a new {{ side or '' }} transaction
                     </button>
                     <details class="group min-w-[260px] flex-1">
-                        <summary class="min-h-11 cursor-pointer list-none rounded-md px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
+                        <summary class="min-h-11 cursor-pointer list-none rounded-md px-3 py-2.5 text-sm font-medium text-[color:var(--ink-2)] hover:bg-[color:var(--paper-2)] hover:text-[color:var(--ink)]">
                             Search another transaction
                         </summary>
-                        <div class="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-                            <label for="transaction-search" class="block text-sm font-medium text-slate-700">Search by property address</label>
+                        <div class="mt-3 rounded-md border border-[color:var(--hairline)] bg-[color:var(--paper-2)] p-3">
+                            <label for="transaction-search" class="block text-sm font-medium text-[color:var(--ink-2)]">Search by property address</label>
                             <input id="transaction-search" type="search" class="crm-input mt-2" autocomplete="off" placeholder="Start typing an address">
                             <div id="transaction-search-results" class="mt-2 space-y-2" aria-live="polite"></div>
                         </div>
@@ -207,7 +207,7 @@
                 <section class="crm-surface overflow-hidden" aria-labelledby="identity-heading">
                     <div class="crm-surface-body p-5 sm:p-6">
                         <div class="flex items-start gap-3">
-                            <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-900 text-[11px] font-bold tracking-wide text-white">BOB</span>
+                            <span class="crm-bob-mark">BOB</span>
                             <div class="min-w-0 flex-1">
                                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Identified as</p>
                                 <div class="mt-1 flex flex-wrap items-center gap-2">
@@ -218,7 +218,7 @@
                                         {% endif %}
                                     </h1>
                                     {{ badge(identification.confidence_wording or 'Needs confirmation', 'warning' if identification.confidence_wording != 'High confidence' else 'success') }}
-                                    {{ badge(side_label, 'accent') }}
+                                    {{ badge(side_label, 'neutral') }}
                                 </div>
                                 <dl class="mt-4 grid gap-3 sm:grid-cols-2">
                                     <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
@@ -327,7 +327,7 @@
                 <section class="crm-surface" aria-labelledby="people-heading">
                     <div class="border-b border-slate-200 px-4 py-4 sm:px-5">
                         <h2 id="people-heading" class="text-sm font-semibold text-slate-950">People on this deal</h2>
-                        <p class="mt-1 text-sm text-slate-500">Link an existing contact, create one, or keep the person only on this transaction.</p>
+                        <p class="mt-1 text-sm text-slate-500">If nobody matches, we create a contact from the document. Link someone you already have, or leave them off.</p>
                     </div>
                     <div class="divide-y divide-slate-100" id="party-list">
                         {% for party in parties %}
@@ -336,21 +336,32 @@
                              data-role="{{ party.role }}"
                              data-full-name="{{ party.full_name }}"
                              data-first-name="{{ party.first_name }}"
-                             data-last-name="{{ party.last_name }}">
+                             data-last-name="{{ party.last_name }}"
+                             data-email="{{ party.email or '' }}"
+                             data-phone="{{ party.phone or '' }}"
+                             data-street-address="{{ party.street_address or '' }}"
+                             data-city="{{ party.city or '' }}"
+                             data-state="{{ party.state or '' }}"
+                             data-zip-code="{{ party.zip_code or '' }}">
                             <div>
                                 <p class="text-sm font-semibold text-slate-950">{{ party.full_name }}</p>
-                                <p class="mt-0.5 text-xs text-slate-500">{{ party.role|replace('_', ' ')|title }}</p>
+                                <p class="mt-0.5 text-xs text-slate-500">{{ party.role|replace('_', ' ')|title }}{% if party.email %} · {{ party.email }}{% endif %}{% if party.phone %} · {{ party.phone }}{% endif %}</p>
                             </div>
                             <label>
                                 <span class="sr-only">Contact choice for {{ party.full_name }}</span>
                                 <select class="crm-select js-party-action">
-                                    <option value="keep" {% if not party.recommended_contact_id %}selected{% endif %}>Keep on transaction only</option>
+                                    {% if not party.recommended_contact_id %}
+                                    <option value="create" selected>Create a new CRM contact</option>
+                                    {% endif %}
                                     {% for match in party.matches %}
                                     <option value="link:{{ match.id }}" {% if party.recommended_contact_id == match.id %}selected{% endif %}>
                                         Link {{ match.name }}{% if match.email %} · {{ match.email }}{% endif %}
                                     </option>
                                     {% endfor %}
+                                    {% if party.recommended_contact_id %}
                                     <option value="create">Create a new CRM contact</option>
+                                    {% endif %}
+                                    <option value="keep">Keep on transaction only</option>
                                     <option value="skip">Leave this person out</option>
                                 </select>
                             </label>
@@ -395,14 +406,14 @@
                             Choose one to continue.
                         </p>
                         {% endif %}
-                        <div class="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Confirmed representation">
-                            <button type="button" class="js-review-side min-h-11 rounded-md border px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 {% if side == 'buyer' %}border-orange-500 bg-orange-50 text-orange-950{% else %}border-slate-200 bg-white text-slate-600{% endif %}" data-side="buyer" aria-pressed="{{ 'true' if side == 'buyer' else 'false' }}">Buyer</button>
-                            <button type="button" class="js-review-side min-h-11 rounded-md border px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 {% if side == 'seller' %}border-orange-500 bg-orange-50 text-orange-950{% else %}border-slate-200 bg-white text-slate-600{% endif %}" data-side="seller" aria-pressed="{{ 'true' if side == 'seller' else 'false' }}">Seller</button>
+                        <div class="crm-segment crm-segment--lg mt-2" role="group" aria-label="Confirmed representation">
+                            <button type="button" class="js-review-side crm-segment__item{% if side == 'buyer' %} is-active{% endif %}" data-side="buyer" aria-pressed="{{ 'true' if side == 'buyer' else 'false' }}">Buyer</button>
+                            <button type="button" class="js-review-side crm-segment__item{% if side == 'seller' %} is-active{% endif %}" data-side="seller" aria-pressed="{{ 'true' if side == 'seller' else 'false' }}">Seller</button>
                         </div>
                         <input type="hidden" id="confirmed-side" value="{{ side or '' }}">
                         {% if classification.side_inferred_from_document %}
                         <p class="mt-2 text-xs leading-5 text-slate-500">
-                            <i class="fas fa-wand-magic-sparkles text-[10px] text-orange-600" aria-hidden="true"></i>
+                            <i class="fas fa-wand-magic-sparkles text-[10px] text-[color:var(--ink-3)]" aria-hidden="true"></i>
                             From the document.
                             {{ inference.summary }}
                             Change it only if that's wrong.
@@ -446,7 +457,7 @@
 
                         <button type="button"
                                 id="approve-contract"
-                                class="crm-btn crm-btn-accent mt-5 min-h-12 w-full justify-center whitespace-normal px-4 py-3 text-center leading-5"
+                                class="crm-btn crm-btn-primary mt-5 min-h-12 w-full justify-center whitespace-normal px-4 py-3 text-center leading-5"
                                 {% if not can_approve or identification.is_invalid or (needs_destination and not identification.destination_choice) %}disabled{% endif %}>
                             {{ approve_cta_label }}
                         </button>
@@ -609,12 +620,12 @@
                     rows.forEach((row) => {
                         const button = document.createElement('button');
                         button.type = 'button';
-                        button.className = 'flex min-h-11 w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm hover:border-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500';
+                        button.className = 'crm-btn crm-btn-secondary flex min-h-11 w-full items-center justify-between gap-3 text-left';
                         const address = document.createElement('span');
-                        address.className = 'font-medium text-slate-900';
+                        address.className = 'font-medium';
                         address.textContent = row.address + (row.city ? ', ' + row.city : '');
                         const meta = document.createElement('span');
-                        meta.className = 'shrink-0 text-xs text-slate-500';
+                        meta.className = 'shrink-0 text-xs text-[color:var(--ink-3)]';
                         meta.textContent = (row.side || '') + ' · ' + String(row.status || '').replaceAll('_', ' ');
                         button.append(address, meta);
                         button.addEventListener('click', async () => {
@@ -652,12 +663,7 @@
             document.querySelectorAll('.js-review-side').forEach((choice) => {
                 const active = choice === button;
                 choice.setAttribute('aria-pressed', active ? 'true' : 'false');
-                choice.classList.toggle('border-orange-500', active);
-                choice.classList.toggle('bg-orange-50', active);
-                choice.classList.toggle('text-orange-950', active);
-                choice.classList.toggle('border-slate-200', !active);
-                choice.classList.toggle('bg-white', !active);
-                choice.classList.toggle('text-slate-600', !active);
+                choice.classList.toggle('is-active', active);
             });
             if (approveButton && root.dataset.approveCta) {
                 approveButton.textContent = root.dataset.approveCta;
@@ -727,15 +733,34 @@
                     last_name: row.dataset.lastName,
                     action: parts[0],
                     contact_id: parts[1] ? Number(parts[1]) : null,
+                    email: row.dataset.email || '',
+                    phone: row.dataset.phone || '',
+                    street_address: row.dataset.streetAddress || '',
+                    city: row.dataset.city || '',
+                    state: row.dataset.state || '',
+                    zip_code: row.dataset.zipCode || '',
                 };
             });
 
             const destinationChoice = selectedDestination() || null;
             const cta = root.dataset.approveCta || 'Apply';
 
+            function setFilingBusy(busy) {
+                approveButton.disabled = busy;
+                approveButton.setAttribute('aria-busy', busy ? 'true' : 'false');
+                document.querySelectorAll('.js-review-side').forEach((choice) => {
+                    choice.disabled = busy;
+                });
+                if (busy) {
+                    approveButton.innerHTML =
+                        '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><span>Filing…</span>';
+                } else {
+                    approveButton.textContent = cta;
+                }
+            }
+
             try {
-                approveButton.disabled = true;
-                approveButton.textContent = 'Filing…';
+                setFilingBusy(true);
                 const data = await postJson(root.dataset.approveUrl, {
                     selected: selected,
                     corrections: corrections,
@@ -745,8 +770,7 @@
                 });
                 window.location.href = data.next_url || data.redirect_url;
             } catch (error) {
-                approveButton.disabled = false;
-                approveButton.textContent = cta;
+                setFilingBusy(false);
                 showError(error.message);
             }
         });

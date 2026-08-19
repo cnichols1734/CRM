@@ -1,7 +1,5 @@
 """Regression coverage for the transaction detail workspace hierarchy."""
 
-from datetime import datetime, timedelta
-
 from models import DocumentReviewReport, TransactionDocument, TransactionRequirement, db
 
 
@@ -21,71 +19,51 @@ def _clear_requirements(seed):
     db.session.commit()
 
 
-def test_detail_prioritizes_five_open_requirements(app, seed, owner_a_client):
-    created_ids = []
+def test_detail_is_quiet_two_column_workspace(app, seed, owner_a_client):
     with app.app_context():
         _clear_review_reports(seed)
         _clear_requirements(seed)
-        now = datetime.utcnow()
-        requirements = [
-            TransactionRequirement(
-                organization_id=seed['org_a'],
-                transaction_id=seed['tx_a'],
-                package_key='seller_ctc',
-                phase_key='under_contract',
-                requirement_key=f'detail_workspace_{index}',
-                title=f'Workspace requirement {index}',
-                work_status='completed' if index == 7 else 'pending',
-                due_at=now + timedelta(days=index),
-            )
-            for index in range(1, 8)
-        ]
-        db.session.add_all(requirements)
-        db.session.commit()
-        created_ids = [requirement.id for requirement in requirements]
 
-    try:
-        response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
-        assert response.status_code == 200
+    response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
 
-        html = response.get_data(as_text=True)
-        assert 'id="transaction-checklist"' in html
-        checklist = html.split('id="transaction-checklist"', 1)[1]
-        checklist = checklist.split('id="transaction-assignments"', 1)[0]
+    assert 'id="people-and-work"' in html
+    assert 'lg:w-[380px] xl:w-[420px]' in html
+    assert 'Coordination team' in html
+    assert (
+        'id="listing-documents"' in html
+        or 'id="seller-workspace"' in html
+        or 'id="transaction-documents-card"' in html
+    )
+    assert 'href="#listing-documents"' in html or 'href="#seller-workspace"' in html
 
-        for index in range(1, 8):
-            assert f'Workspace requirement {index}' in checklist
-
-        assert 'Manage coordination team' in html
-        # Seller packages put documents in the workspace; other modes keep
-        # #listing-documents / questionnaire anchors for deep-links.
-        assert (
-            'id="listing-documents"' in html
-            or 'id="seller-workspace"' in html
-            or 'id="transaction-documents-card"' in html
-        )
-        assert 'href="#listing-documents"' in html or 'href="#seller-workspace"' in html
-    finally:
-        with app.app_context():
-            TransactionRequirement.query.filter(
-                TransactionRequirement.id.in_(created_ids)
-            ).delete(synchronize_session=False)
-            db.session.commit()
+    assert 'File pulse' not in html
+    assert 'Client portal' not in html
+    assert 'Required documents' not in html
+    assert 'id="control-tower"' not in html
+    assert 'id="document-review-inbox"' not in html
+    assert 'id="transaction-required-documents"' not in html
+    assert 'openDocumentReview' not in html
+    assert 'id="bob-document-review-toast"' in html
+    assert 'Review findings' not in html
+    assert 'Upload document' in html
 
 
-def test_empty_detail_hides_inactive_bob_review(app, seed, owner_a_client):
+def test_empty_detail_hides_bob_checks(app, seed, owner_a_client):
     with app.app_context():
         _clear_review_reports(seed)
     response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
     assert response.status_code == 200
 
     html = response.get_data(as_text=True)
-    assert 'id="document-review-inbox" class="mb-6 scroll-mt-20 hidden"' in html
+    assert 'id="bob-checks"' not in html
+    assert 'id="document-review-inbox"' not in html
     assert 'Review BOB suggestion' not in html
     assert 'Upload document' in html
 
 
-def test_document_finding_is_prioritized_in_next_up_and_can_be_resolved(
+def test_document_finding_lands_in_collapsed_bob_log(
     app, seed, owner_a_client,
 ):
     report_id = None
@@ -116,10 +94,15 @@ def test_document_finding_is_prioritized_in_next_up_and_can_be_resolved(
         response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        next_up = html.split('<ol class="divide-y divide-slate-100">', 1)[1]
-        next_up = next_up.split('</ol>', 1)[0]
-        assert 'The property address in the document does not match this transaction.' in next_up
-        assert f'openDocumentReview({report_id})' in next_up
+        assert 'id="bob-checks"' in html
+        bob_log = html.split('id="bob-checks"', 1)[1]
+        bob_log = bob_log.split('</section>', 1)[0]
+        assert '<details' in bob_log
+        assert ' open' not in bob_log.split('>', 1)[0]
+        assert 'The property address in the document does not match this transaction.' in bob_log
+        assert 'openDocumentReview' not in html
+        assert 'Review findings' not in bob_log
+        assert '/review' not in bob_log
 
         resolved = owner_a_client.post(
             f'/transactions/{seed["tx_a"]}/document-reviews/{report_id}/resolve',

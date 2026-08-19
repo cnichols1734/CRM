@@ -576,6 +576,17 @@ def post_upload_processing(doc):
         from services.checklist_service import absorb_matching_placeholder
         absorb_matching_placeholder(doc, actor_id=actor_id)
 
+        try:
+            from models import Transaction as _Transaction
+            from services.listing_prep_checklist import sync_listing_prep_checklist
+            tx = _Transaction.query.get(doc.transaction_id)
+            if tx:
+                sync_listing_prep_checklist(tx, actor_id=actor_id)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                'Listing prep checklist sync failed for doc %s', doc_id,
+            )
+
         _db.session.commit()
     except Exception:
         logging.getLogger(__name__).exception(

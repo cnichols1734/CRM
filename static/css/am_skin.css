@@ -276,6 +276,17 @@ html.am-skin body.crm-auth-page aside#sidebar.crm-sidebar {
     padding-left: calc(var(--sidebar-width) + 8px);
     min-height: 100%;
     box-sizing: border-box;
+    transition: padding-left 0.24s ease;
+  }
+
+  /* Full-bleed review workspaces still sit beside the floating nav. */
+  html.am-skin main#mainContent:has(.document-review-workspace) .content-wrapper,
+  html.am-skin main#mainContent:has(.offer-compare-workspace) .content-wrapper,
+  html.am-skin main#mainContent:has(.amendment-review-workspace) .content-wrapper {
+    padding-top: 3.5rem;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: calc(var(--sidebar-width) + 8px);
   }
 }
 
@@ -406,24 +417,33 @@ html.am-skin .crm-btn {
   padding-inline: 14px;
   border-width: 0 !important;
 }
-html.am-skin .crm-btn-primary,
+html.am-skin .crm-btn-primary {
+  background: var(--ink) !important;
+  color: var(--paper) !important;
+  border-color: var(--ink) !important;
+}
 html.am-skin .crm-btn-accent {
   background: var(--am-key-bg) !important;
   color: #fff !important;
   border-color: var(--am-key-bg) !important;
 }
-html.am-skin .crm-btn-primary:hover,
+html.am-skin .crm-btn-primary:hover {
+  background: var(--ink-2) !important;
+  color: var(--paper) !important;
+}
 html.am-skin .crm-btn-accent:hover {
   background: var(--am-key-pressed) !important;
 }
 html.am-skin .crm-btn-secondary,
 html.am-skin .crm-btn-subtle {
-  background: var(--am-control-bg) !important;
+  background: var(--paper-2) !important;
   color: var(--ink) !important;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 html.am-skin .crm-btn-secondary:hover,
 html.am-skin .crm-btn-subtle:hover {
-  color: var(--accent) !important;
+  background: var(--paper-3) !important;
+  color: var(--ink) !important;
 }
 
 /* Friction survey — choice tiles must lift off paper in both themes */
@@ -562,10 +582,13 @@ html.am-skin textarea::placeholder {
   color: var(--ink-4) !important;
 }
 
-/* Segmented control */
+/* Segmented control — selected chip must lift off the track.
+   Light: white paper on paper-2. Dark: paper as the track (same as the
+   card) and paper-3 as the chip; paper-on-paper-2 recedes and looks
+   unselected. */
 html.am-skin .crm-segment {
-  background: var(--am-control-bg) !important;
-  border: 0.5px solid var(--hairline) !important;
+  background: var(--paper-2) !important;
+  border: 0.5px solid var(--hairline-strong) !important;
   border-radius: 1000px !important;
   padding: 2px !important;
 }
@@ -573,12 +596,24 @@ html.am-skin .crm-segment__item {
   border-radius: 1000px !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  color: var(--ink-3) !important;
+  color: var(--ink-2) !important;
 }
-html.am-skin .crm-segment__item.is-active {
+html.am-skin .crm-segment__item.is-active,
+html.am-skin .crm-segment__item[aria-pressed="true"],
+html.am-skin .crm-segment__item[aria-selected="true"] {
   background: var(--paper) !important;
-  color: var(--accent) !important;
-  box-shadow: none !important;
+  color: var(--ink) !important;
+  box-shadow: inset 0 0 0 1px var(--hairline) !important;
+}
+html.am-skin[data-theme="dark"] .crm-segment {
+  background: var(--paper) !important;
+}
+html.am-skin[data-theme="dark"] .crm-segment__item.is-active,
+html.am-skin[data-theme="dark"] .crm-segment__item[aria-pressed="true"],
+html.am-skin[data-theme="dark"] .crm-segment__item[aria-selected="true"] {
+  background: var(--paper-3) !important;
+  color: var(--ink) !important;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong) !important;
 }
 
 /* Badges / avatars */
@@ -899,6 +934,48 @@ html.am-skin .crm-page .text-slate-600 {
 html.am-skin .crm-page .text-slate-500,
 html.am-skin .crm-page .text-slate-400 {
   color: var(--ink-3) !important;
+}
+html.am-skin .info-label,
+html.am-skin .intel-label {
+  color: var(--ink-3) !important;
+}
+html.am-skin .info-value,
+html.am-skin .intel-value {
+  color: var(--ink) !important;
+}
+html.am-skin [data-checklist-date-button].is-set {
+  color: var(--positive) !important;
+}
+html.am-skin .listing-info-compare::backdrop {
+  background: rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+html.am-skin .listing-info-compare__fields .crm-field-label {
+  color: var(--ink) !important;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+html.am-skin .listing-info-compare__fields .crm-input,
+html.am-skin .listing-info-compare__fields .crm-select,
+html.am-skin .listing-info-compare__fields .crm-textarea {
+  color: var(--ink-2) !important;
+  font-size: 13px !important;
+  font-weight: 400;
+}
+html.am-skin .listing-description-remarks {
+  resize: none;
+  overflow: hidden;
+  min-height: 8.75rem;
+  field-sizing: content;
+}
+html.am-skin .info-value--price {
+  color: var(--positive) !important;
+}
+html.am-skin .info-row,
+html.am-skin .intel-row {
+  border-bottom-color: var(--hairline) !important;
 }
 html.am-skin .crm-page .border-slate-200,
 html.am-skin .crm-page .border-slate-100,
@@ -1688,6 +1765,30 @@ html.am-skin .crm-document-upload-hub__footer {
   border-color: var(--hairline) !important;
   color: var(--ink) !important;
 }
+html.am-skin .crm-document-upload-hub__title {
+  color: var(--ink) !important;
+}
+html.am-skin .crm-document-upload-hub__lede,
+html.am-skin .crm-upload-drop__hint {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-document-upload-hub .crm-select {
+  border-radius: 10px !important;
+}
+html.am-skin .crm-document-upload-hub .crm-select:focus {
+  box-shadow: 0 0 0 3px var(--accent-soft) !important;
+}
+html.am-skin .crm-upload-drop {
+  background: var(--paper-2) !important;
+  border-color: var(--hairline-strong) !important;
+  color: var(--ink) !important;
+  border-radius: 10px !important;
+}
+html.am-skin .crm-upload-drop:hover,
+html.am-skin .crm-upload-drop.is-active,
+html.am-skin .crm-upload-drop:focus-within {
+  background: var(--paper-3) !important;
+}
 html.am-skin .crm-document-package__list > li + li,
 html.am-skin .crm-document-row + .crm-document-row {
   border-color: var(--hairline) !important;
@@ -1731,6 +1832,18 @@ html.am-skin .seller-offer-dropzone {
 }
 html.am-skin .seller-offer-dropzone {
   background: var(--paper-2) !important;
+}
+@media (min-width: 768px) {
+  html.am-skin .seller-new-offer-panel {
+    width: min(26rem, 94vw);
+  }
+  html.am-skin #sellerNewOfferModal.is-manual .seller-new-offer-panel {
+    width: min(40rem, 94vw);
+  }
+}
+html.am-skin #sellerNewOfferModal .crm-select,
+html.am-skin #sellerNewOfferModal .crm-input {
+  border-radius: 10px !important;
 }
 
 /* Platform admin / reports tables without crm-table */

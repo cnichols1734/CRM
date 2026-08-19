@@ -341,44 +341,24 @@ def get_next_step(
         ):
             overdue += 1
 
-    if open_reviews or pending_proposals:
-        doc = open_reviews[0].document if open_reviews else None
+    open_prep = None
+    if side == 'seller' and (tx.status or '') == 'preparing_to_list':
+        from services.listing_prep_checklist import (
+            first_open_listing_prep_item,
+            listing_prep_groups,
+        )
+        open_prep = first_open_listing_prep_item(listing_prep_groups(tx))
+
+    if open_prep:
         next_step = {
-            'action': 'review_document',
-            'summary': (
-                'Review the uploaded document and approve the extracted terms '
-                'in the side-by-side workspace.'
-            ),
-            'document_id': open_reviews[0].document_id if open_reviews else None,
-            'document_name': (
-                (doc.template_name or doc.template_slug) if doc else None
-            ),
+            'action': 'listing_prep',
+            'summary': f'Next on the listing checklist: {open_prep["title"]}.',
+            'item_key': open_prep.get('key'),
         }
     elif side == 'seller' and not questionnaire_done:
         next_step = {
             'action': 'complete_questionnaire',
-            'summary': (
-                'Finish the property questionnaire — it builds the '
-                'required-document list for this listing.'
-            ),
-        }
-    elif missing:
-        next_step = {
-            'action': 'upload_missing_documents',
-            'summary': (
-                f'{len(missing)} required document(s) still needed: '
-                + ', '.join(
-                    (d.template_name or d.template_slug or 'document')
-                    for d in missing[:5]
-                )
-            ),
-            'missing_documents': [
-                {
-                    'document_id': d.id,
-                    'name': d.template_name or d.template_slug,
-                }
-                for d in missing[:20]
-            ],
+            'summary': 'Finish the property questionnaire — HOA, year built, and districts.',
         }
     elif overdue:
         next_step = {
@@ -388,7 +368,7 @@ def get_next_step(
     else:
         next_step = {
             'action': 'none',
-            'summary': 'Nothing urgent. Reviews, questionnaire, and required documents are all handled.',
+            'summary': 'Nothing urgent right now.',
         }
 
     return ToolResult.success(

@@ -1,0 +1,134 @@
+{# Shared listing-info field order for the card and the PDF compare pane.
+   Set listing_info_mode to 'display' (default) or 'edit'. #}
+{% set listing_info_mode = listing_info_mode|default('display') %}
+{% set listing_sources = (listing_info._sources if listing_info else {}) or {} %}
+{% set listing_source_labels = {
+    'listing_profile': 'from listing profile',
+    'intake': 'from questionnaire',
+    'override': 'edited'
+} %}
+{% set listing_override_values = listing_info_overrides or {} %}
+
+{% macro _src(key) -%}
+{% set src = listing_sources.get(key) %}
+{% if src and listing_source_labels.get(src) %}
+    <span class="ml-1 text-[10px] text-[color:var(--ink-4)]" title="{{ listing_source_labels[src] }}">{{ listing_source_labels[src] }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% if listing_info_mode == 'edit' %}
+<label class="block">
+    <span class="crm-field-label">List Price</span>
+    <input name="list_price" class="crm-input mt-1" placeholder="$335,000" value="{{ listing_override_values.get('list_price', listing_info.list_price if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">Go-live Date</span>
+    <input name="go_live_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('go_live_date', listing_info.go_live_date if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">Listing Start Date</span>
+    <input name="listing_start_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('listing_start_date', listing_info.listing_start_date if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">Listing Expiration Date</span>
+    <input name="listing_end_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('listing_end_date', listing_info.listing_end_date if listing_info else '') }}">
+</label>
+{% if listing_info and listing_info.commission_type == '5b' %}
+<label class="block">
+    <span class="crm-field-label">Broker's Fee (Origen Realty)</span>
+    <input name="broker_fee" class="crm-input mt-1" value="{{ listing_override_values.get('broker_fee', listing_info.broker_fee if listing_info else '') }}">
+</label>
+{% else %}
+<label class="block">
+    <span class="crm-field-label">Total Commission</span>
+    <input name="total_commission" class="crm-input mt-1" placeholder="6%" value="{{ listing_override_values.get('total_commission', listing_info.total_commission if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">Listing Side Commission</span>
+    <input name="listing_side_commission" class="crm-input mt-1" placeholder="3%" value="{{ listing_override_values.get('listing_side_commission', listing_info.listing_side_commission if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">Buyer Side Commission</span>
+    <input name="buyer_commission" class="crm-input mt-1" placeholder="3%" value="{{ listing_override_values.get('buyer_commission', listing_info.buyer_commission if listing_info else '') }}">
+</label>
+{% endif %}
+<label class="block">
+    <span class="crm-field-label">Protection Period (days)</span>
+    <input name="protection_period_days" class="crm-input mt-1" placeholder="180" value="{{ listing_override_values.get('protection_period_days', listing_info.protection_period_days if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">Accepted Financing</span>
+    <input name="financing_types" class="crm-input mt-1" placeholder="Conventional, VA, FHA, Cash" value="{{ listing_override_values.get('financing_types', listing_info.financing_types if listing_info else '') }}">
+</label>
+<label class="block">
+    <span class="crm-field-label">HOA Required</span>
+    {% set has_hoa_override = listing_override_values.get('has_hoa', listing_info.has_hoa if listing_info else '') %}
+    <select name="has_hoa" class="crm-select mt-1">
+        <option value="">—</option>
+        <option value="Yes" {% if has_hoa_override == 'Yes' %}selected{% endif %}>Yes</option>
+        <option value="No" {% if has_hoa_override == 'No' %}selected{% endif %}>No</option>
+    </select>
+</label>
+<label class="block">
+    <span class="crm-field-label">Special Provisions</span>
+    <textarea name="special_provisions" rows="3" class="crm-input mt-1">{{ listing_override_values.get('special_provisions', listing_info.special_provisions if listing_info else '') }}</textarea>
+</label>
+{% else %}
+<div class="info-row">
+    <span class="info-label">List Price{{ _src('list_price') }}</span>
+    <span class="info-value info-value--price">{{ listing_info.list_price or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Go-live Date{{ _src('go_live_date') }}</span>
+    <span class="info-value">{{ listing_info.go_live_date or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Listing Start Date{{ _src('listing_start_date') }}</span>
+    <span class="info-value">{{ listing_info.listing_start_date or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Listing Expiration Date{{ _src('listing_end_date') }}</span>
+    <span class="info-value">{{ listing_info.listing_end_date or '—' }}</span>
+</div>
+{% if listing_info.commission_type == '5b' %}
+<div class="info-row">
+    <span class="info-label">Broker's Fee (Origen Realty){{ _src('broker_fee') }}</span>
+    <span class="info-value">{{ listing_info.broker_fee or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Buyer Side Commission</span>
+    <span class="info-value italic text-[color:var(--ink-4)]">N/A — Listing Broker Only (Section 5B)</span>
+</div>
+{% else %}
+<div class="info-row">
+    <span class="info-label">Total Commission{{ _src('total_commission') }}</span>
+    <span class="info-value">{{ listing_info.total_commission or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Listing Side Commission{{ _src('listing_side_commission') }}</span>
+    <span class="info-value">{{ listing_info.listing_side_commission or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Buyer Side Commission{{ _src('buyer_commission') }}</span>
+    <span class="info-value">{{ listing_info.buyer_commission or '—' }}</span>
+</div>
+{% endif %}
+<div class="info-row">
+    <span class="info-label">Protection Period{{ _src('protection_period_days') }}</span>
+    <span class="info-value">{% if listing_info.protection_period_days %}{{ listing_info.protection_period_days }} days{% else %}—{% endif %}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">Accepted Financing{{ _src('financing_types') }}</span>
+    <span class="info-value">{{ listing_info.financing_types or '—' }}</span>
+</div>
+<div class="info-row">
+    <span class="info-label">HOA Required{{ _src('has_hoa') }}</span>
+    <span class="info-value">{{ listing_info.has_hoa or '—' }}</span>
+</div>
+{% if listing_info.special_provisions %}
+<div class="mt-3 border-t border-[color:var(--hairline)] pt-3">
+    <span class="info-label mb-1 block">Special Provisions{{ _src('special_provisions') }}</span>
+    <p class="text-sm leading-relaxed text-[color:var(--ink-2)]">{{ listing_info.special_provisions }}</p>
+</div>
+{% endif %}
+{% endif %}

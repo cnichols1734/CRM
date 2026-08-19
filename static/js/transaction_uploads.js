@@ -139,7 +139,7 @@ function renderListingInfo(info) {
             </div>
             <div class="info-row">
                 <span class="info-label">Buyer Side Commission</span>
-                <span class="info-value text-slate-400 italic">N/A &mdash; Listing Broker Only (Section 5B)</span>
+                <span class="info-value italic text-[color:var(--ink-4)]">N/A &mdash; Listing Broker Only (Section 5B)</span>
             </div>
         `
         : `
@@ -159,9 +159,9 @@ function renderListingInfo(info) {
 
     const specialProvisions = info.special_provisions
         ? `
-            <div class="mt-3 border-t border-slate-100 pt-3">
+            <div class="mt-3 border-t border-[color:var(--hairline)] pt-3">
                 <span class="info-label mb-1 block">Special Provisions</span>
-                <p class="text-sm leading-relaxed text-slate-700">${escapeHtml(info.special_provisions)}</p>
+                <p class="text-sm leading-relaxed text-[color:var(--ink-2)]">${escapeHtml(info.special_provisions)}</p>
             </div>
         `
         : '';
@@ -170,7 +170,7 @@ function renderListingInfo(info) {
         <div class="space-y-0">
             <div class="info-row">
                 <span class="info-label">List Price</span>
-                <span class="info-value text-emerald-700 font-semibold">${listingInfoValue(info.list_price)}</span>
+                <span class="info-value info-value--price">${listingInfoValue(info.list_price)}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Listing Start Date</span>
@@ -1333,14 +1333,14 @@ if (addPlaceholderForm) {
         wrapper.className = 'space-y-0';
 
         var price = info.list_price || '\u2014';
-        wrapper.appendChild(makeRow('List Price', price, 'text-emerald-600 font-semibold'));
+        wrapper.appendChild(makeRow('List Price', price, 'info-value--price'));
         wrapper.appendChild(makeRow('Go-live Date', info.go_live_date));
         wrapper.appendChild(makeRow('Listing Start Date', info.listing_start_date));
         wrapper.appendChild(makeRow('Listing Expiration Date', info.listing_end_date));
 
         if (info.commission_type === '5b') {
             wrapper.appendChild(makeRow("Broker's Fee (Origen Realty)", info.broker_fee));
-            wrapper.appendChild(makeRow('Buyer Side Commission', 'N/A \u2014 Listing Broker Only (Section 5B)', 'text-slate-400 italic'));
+            wrapper.appendChild(makeRow('Buyer Side Commission', 'N/A \u2014 Listing Broker Only (Section 5B)', 'italic text-[color:var(--ink-4)]'));
         } else {
             wrapper.appendChild(makeRow('Total Commission', info.total_commission));
             wrapper.appendChild(makeRow('Listing Side Commission', info.listing_side_commission));
@@ -1354,12 +1354,12 @@ if (addPlaceholderForm) {
 
         if (info.special_provisions) {
             var divider = document.createElement('div');
-            divider.className = 'pt-3 mt-3 border-t border-slate-100';
+            divider.className = 'mt-3 border-t border-[color:var(--hairline)] pt-3';
             var spLabel = document.createElement('span');
-            spLabel.className = 'info-label block mb-1';
+            spLabel.className = 'info-label mb-1 block';
             spLabel.textContent = 'Special Provisions';
             var spText = document.createElement('p');
-            spText.className = 'text-sm text-slate-700 leading-relaxed';
+            spText.className = 'text-sm leading-relaxed text-[color:var(--ink-2)]';
             spText.textContent = info.special_provisions;
             divider.appendChild(spLabel);
             divider.appendChild(spText);

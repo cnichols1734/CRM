@@ -9,6 +9,8 @@ export default class extends Controller {
     "dialog",
     "form",
     "file",
+    "fileLabel",
+    "dropzone",
     "scope",
     "slug",
     "offerFields",
@@ -18,6 +20,8 @@ export default class extends Controller {
     "status",
     "submit",
   ];
+
+  static FILE_HINT = "or choose files · 20 max, 25 MB each";
 
   static values = {
     uploadUrl: String,
@@ -37,6 +41,7 @@ export default class extends Controller {
     if (this.hasDialogTarget) {
       this.dialogTarget.addEventListener("cancel", this._onCancel);
     }
+    this._bindDropzone();
     this._lastFocused = null;
   }
 
@@ -44,6 +49,7 @@ export default class extends Controller {
     if (this.hasDialogTarget && this._onCancel) {
       this.dialogTarget.removeEventListener("cancel", this._onCancel);
     }
+    this._unbindDropzone();
     if (this._statusTimer) {
       window.clearTimeout(this._statusTimer);
       this._statusTimer = null;
@@ -76,6 +82,7 @@ export default class extends Controller {
     if (this.hasFileTarget) {
       this.fileTarget.value = "";
     }
+    this.#setFileLabel(this.constructor.FILE_HINT);
     this.scopeChanged();
     this.createNewOfferChanged();
 
@@ -107,6 +114,19 @@ export default class extends Controller {
       this.submitTarget.disabled = false;
       this.#clearError();
     }
+  }
+
+  filesChanged() {
+    const files = this.hasFileTarget ? Array.from(this.fileTarget.files || []) : [];
+    if (!files.length) {
+      this.#setFileLabel(this.constructor.FILE_HINT);
+      return;
+    }
+    this.#setFileLabel(
+      files.length === 1
+        ? files[0].name
+        : `${files.length} PDFs selected`,
+    );
   }
 
   createNewOfferChanged() {
@@ -261,5 +281,41 @@ export default class extends Controller {
     if (!this.hasStatusTarget) return;
     this.statusTarget.textContent = message;
     this.statusTarget.classList.remove("hidden");
+  }
+
+  #setFileLabel(text) {
+    if (this.hasFileLabelTarget) this.fileLabelTarget.textContent = text;
+  }
+
+  _bindDropzone() {
+    if (!this.hasDropzoneTarget) return;
+    this._onDragOver = (event) => {
+      event.preventDefault();
+      this.dropzoneTarget.classList.add("is-active");
+    };
+    this._onDragLeave = (event) => {
+      if (this.dropzoneTarget.contains(event.relatedTarget)) return;
+      this.dropzoneTarget.classList.remove("is-active");
+    };
+    this._onDrop = (event) => {
+      event.preventDefault();
+      this.dropzoneTarget.classList.remove("is-active");
+      const files = event.dataTransfer?.files;
+      if (!files?.length || !this.hasFileTarget) return;
+      const transfer = new DataTransfer();
+      Array.from(files).forEach((file) => transfer.items.add(file));
+      this.fileTarget.files = transfer.files;
+      this.filesChanged();
+    };
+    this.dropzoneTarget.addEventListener("dragover", this._onDragOver);
+    this.dropzoneTarget.addEventListener("dragleave", this._onDragLeave);
+    this.dropzoneTarget.addEventListener("drop", this._onDrop);
+  }
+
+  _unbindDropzone() {
+    if (!this.hasDropzoneTarget) return;
+    if (this._onDragOver) this.dropzoneTarget.removeEventListener("dragover", this._onDragOver);
+    if (this._onDragLeave) this.dropzoneTarget.removeEventListener("dragleave", this._onDragLeave);
+    if (this._onDrop) this.dropzoneTarget.removeEventListener("drop", this._onDrop);
   }
 }

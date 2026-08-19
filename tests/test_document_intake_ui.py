@@ -10,6 +10,7 @@ from models import (
     SellerAcceptedContract,
     Transaction,
     TransactionDocument,
+    TransactionRequirement,
     User,
     db,
 )
@@ -82,6 +83,9 @@ def test_list_and_inbox_use_document_first_copy(app, seed, owner_a_client):
     assert 'name="files"' in inbox_html
     assert 'multiple' in inbox_html
     assert 'Drop PDFs here' in inbox_html
+    assert 'What happens next' in inbox_html
+    assert 'bg-[color:var(--paper-2)]' in inbox_html
+    assert 'aria-label="What happens next"' in inbox_html
     assert 'listing agreement' in inbox_html.lower()
     assert 'hoa' in inbox_html.lower() or 'disclosure' in inbox_html.lower()
     assert 'executed contract intake' not in inbox_html.lower()
@@ -119,6 +123,8 @@ def test_seller_listing_review_shows_create_seller_listing_cta(app, seed, owner_
     assert 'Identified as' in html
     assert 'TXR-1101' in html
     assert 'Create seller listing' in html
+    assert 'js-review-side crm-segment__item' in html
+    assert 'border-orange-500 bg-orange-50' not in html
     assert 'High confidence' in html or 'Needs confirmation' in html
     assert 'Contract dates and money' not in html
     assert 'Listing dates and terms' in html
@@ -289,6 +295,9 @@ def test_seller_detail_lists_offers_contract_tabs_always(app, seed, owner_a_clie
         assert 'Contract workspace' in html or 'No controlling contract yet' in html
     finally:
         with app.app_context():
+            TransactionRequirement.query.filter_by(transaction_id=tx_id).delete(
+                synchronize_session=False,
+            )
             TransactionDocument.query.filter_by(transaction_id=tx_id).delete(
                 synchronize_session=False,
             )
@@ -328,6 +337,9 @@ def test_buyer_detail_has_no_listing_package_wording(app, seed, owner_a_client):
         assert 'This list keeps legacy actions' not in html
     finally:
         with app.app_context():
+            TransactionRequirement.query.filter_by(transaction_id=tx_id).delete(
+                synchronize_session=False,
+            )
             Transaction.query.filter_by(id=tx_id).delete(synchronize_session=False)
             db.session.commit()
 
@@ -364,6 +376,9 @@ def test_seller_detail_has_one_upload_hub(app, seed, owner_a_client):
         assert 'This list keeps legacy actions' not in html
     finally:
         with app.app_context():
+            TransactionRequirement.query.filter_by(transaction_id=tx_id).delete(
+                synchronize_session=False,
+            )
             TransactionDocument.query.filter_by(transaction_id=tx_id).delete(
                 synchronize_session=False,
             )
@@ -646,13 +661,11 @@ def test_classification_panel_choices_on_review_workspace(app, seed, owner_a_cli
         response = owner_a_client.get(f'/transactions/{tx_id}/documents/{doc_id}/review')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert 'File this document' in html
-        assert 'Filing does not change transaction terms' in html
-        assert 'Confirm filing' in html
-        assert 'data-document-review-workspace-confirm-url-value=' in html
-        assert 'value="listing-agreement" selected' in html or 'selected">Listing agreement' in html
-        assert 'value="listing"' in html
-        assert 'Choose a destination' not in html or 'listing-agreement' in html
+        assert 'Document identity' in html
+        assert 'Residential Real Estate Listing Agreement' in html
+        assert 'File this document' not in html
+        assert 'Confirm filing' not in html
+        assert 'Choose a destination' not in html
     finally:
         with app.app_context():
             doc = db.session.get(TransactionDocument, seed['doc_a'])

@@ -370,8 +370,11 @@
                                 <div>
                                     <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Related Contact</label>
                                     <select name="contact_id" class="crm-select">
+                                        {% if not task.contact %}
+                                        <option value="" selected>Select a contact</option>
+                                        {% endif %}
                                         {% for contact in contacts %}
-                                        <option value="{{ contact.id }}" {% if task.contact.id==contact.id %}selected{% endif %}>
+                                        <option value="{{ contact.id }}" {% if task.contact and task.contact.id == contact.id %}selected{% endif %}>
                                             {{ contact.first_name }} {{ contact.last_name }}
                                         </option>
                                         {% endfor %}
@@ -446,10 +449,14 @@
                             <div class="detail-grid">
                                 <div class="detail-cell">
                                     <div class="detail-cell__label">Related Contact</div>
+                                    {% if task.contact %}
                                     <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
                                        class="detail-cell__value hover:underline" style="color: var(--accent-ink);">
                                         {{ task.contact.first_name }} {{ task.contact.last_name }}
                                     </a>
+                                    {% else %}
+                                    <div class="detail-cell__value">—</div>
+                                    {% endif %}
                                 </div>
                                 {% if task.property_address %}
                                 <div class="detail-cell">
@@ -484,6 +491,7 @@
                             <h2 class="section-title m-0">Related Contact</h2>
                         </div>
                     </div>
+                    {% if task.contact %}
                     <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}" class="related-card">
                         <span class="crm-avatar crm-avatar-md crm-avatar-serif">
                             {{ task.contact.first_name[0]|upper }}{{ task.contact.last_name[0]|upper }}
@@ -507,6 +515,11 @@
                         </div>
                         <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
                     </a>
+                    {% else %}
+                    <div class="crm-surface-body">
+                        <p class="text-sm" style="color: var(--ink-3);">No related contact</p>
+                    </div>
+                    {% endif %}
                 </section>
 
                 {# Quick Actions #}
@@ -522,14 +535,14 @@
                             </span>
                             <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
                         </button>
-                        {% if task.contact.phone %}
+                        {% if task.contact and task.contact.phone %}
                         <a href="tel:{{ task.contact.phone }}" class="quick-action">
                             <span class="quick-action__glyph"><i class="fas fa-phone"></i></span>
                             <span class="quick-action__label">Call Contact</span>
                             <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
                         </a>
                         {% endif %}
-                        {% if task.contact.email %}
+                        {% if task.contact and task.contact.email %}
                         <button type="button" onclick="openEmailToTaskContact()" class="quick-action">
                             <span class="quick-action__glyph"><i class="fas fa-envelope"></i></span>
                             <span class="quick-action__label">Email Contact</span>

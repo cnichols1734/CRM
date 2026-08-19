@@ -87,24 +87,25 @@
         justify-content: space-between;
         gap: 0.75rem;
         padding: 0.5rem 0;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--hairline);
         font-size: 0.875rem;
     }
     .info-row:last-child { border-bottom: none; }
-    .info-label { color: #64748b; }
-    .info-value { color: #0f172a; font-weight: 500; text-align: right; }
+    .info-label { color: var(--ink-3); }
+    .info-value { color: var(--ink); font-weight: 500; text-align: right; }
+    .info-value--price { color: var(--positive); font-weight: 600; }
 
     .intel-row {
         display: flex;
         justify-content: space-between;
         gap: 0.75rem;
         padding: 0.375rem 0;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--hairline);
         font-size: 0.8125rem;
     }
     .intel-row:last-child { border-bottom: none; }
-    .intel-label { color: #64748b; }
-    .intel-value { color: #0f172a; font-weight: 500; text-align: right; }
+    .intel-label { color: var(--ink-3); }
+    .intel-value { color: var(--ink); font-weight: 500; text-align: right; }
 
     .collapsible-content {
         max-height: 0;
@@ -146,18 +147,13 @@
             </a>
             {% endif %}
             <div class="flex items-center gap-2">
-                {% if document_review_attention or pending_change_proposals %}
-                <button type="button" class="crm-btn crm-btn-accent"
-                        onclick="document.getElementById('bob-review-details').open = true; document.getElementById('document-review-inbox').scrollIntoView({behavior: 'smooth'});">
-                    {% if document_review_attention %}Review finding{% else %}Review suggestion{% endif %}
-                </button>
-                {% elif document_packages %}
+                {% if document_packages %}
                 <button type="button"
                         class="crm-btn crm-btn-accent"
                         data-action="document-upload-hub#open"
-                        data-document-upload-hub-scope-param="{{ 'listing' if tx_type_name == 'seller' and not has_listing_agreement else 'other' }}"
-                        data-document-upload-hub-slug-param="{{ 'listing-agreement' if tx_type_name == 'seller' and not has_listing_agreement else '' }}"
-                        data-document-upload-hub-label-param="{{ 'Listing agreement' if tx_type_name == 'seller' and not has_listing_agreement else 'Document' }}"
+                        data-document-upload-hub-scope-param="other"
+                        data-document-upload-hub-slug-param=""
+                        data-document-upload-hub-label-param="Document"
                         data-listing-cta-scope="{{ 'listing' if tx_type_name == 'seller' and not has_listing_agreement else '' }}"
                         data-listing-cta-slug="{{ 'listing-agreement' if tx_type_name == 'seller' and not has_listing_agreement else '' }}">
                     {% if tx_type_name == 'seller' and not has_listing_agreement %}
@@ -277,7 +273,9 @@
                     </div>
                     <span class="hidden shrink-0 text-xs font-medium text-slate-700 sm:inline">{{ stage.label }}</span>
                 </div>
+                {% if stage.summary %}
                 <p class="min-w-0 text-xs text-slate-500 sm:max-w-md sm:text-right">{{ stage.summary }}</p>
+                {% endif %}
             </div>
             {% else %}
             <div class="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -286,11 +284,11 @@
             {% endif %}
 
             <nav class="mt-5 flex gap-5 overflow-x-auto border-t border-slate-100 pt-4 text-sm" aria-label="Transaction sections">
-                {% if vtc_pilot or checklist or control_tower_requirements %}
-                <a href="#control-tower" class="shrink-0 font-semibold text-slate-950 hover:text-orange-700">Coordination</a>
-                {% endif %}
-                {% if document_review_reports or pending_change_proposals %}
-                <a href="#document-review-inbox" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Document review</a>
+                {% set show_listing_prep_nav = listing_prep_groups and tx_type_name == 'seller' and transaction.status == 'preparing_to_list' %}
+                {% set show_deadline_nav = checklist and tx_type_name != 'seller' %}
+                {% set show_seller_deadline_nav = tx_type_name == 'seller' and transaction.status != 'preparing_to_list' and (checklist|selectattr('due_at')|list) %}
+                {% if show_listing_prep_nav or show_deadline_nav or show_seller_deadline_nav %}
+                <a href="#transaction-checklist" class="shrink-0 font-semibold text-slate-950 hover:text-orange-700">Checklist</a>
                 {% endif %}
                 <a href="{{ documents_nav_href }}" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Documents</a>
                 <a href="#people-and-work" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">People &amp; work</a>
@@ -323,307 +321,6 @@
         </div>
         {% endif %}
 
-        {# ===== Control tower: merged checklist + file pulse ===== #}
-        {% if vtc_pilot or checklist or document_review_attention or pending_change_proposals or control_tower_summary.missing_documents %}
-        <section id="control-tower" class="mb-6 scroll-mt-20">
-            <div class="crm-surface overflow-hidden">
-                <div class="grid lg:grid-cols-[minmax(0,1fr)_340px]">
-                    <div class="min-w-0">
-                        {% set attention_focus = control_tower_focus|selectattr('kind', 'in', ['document_review', 'proposal'])|list %}
-                        {% if attention_focus %}
-                        <div class="border-b border-slate-200">
-                            <div class="px-5 pt-4 sm:px-6">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Needs attention</p>
-                            </div>
-                            <ol class="divide-y divide-slate-100">
-                                {% for item in attention_focus %}
-                                <li class="grid gap-3 px-5 py-3 sm:grid-cols-[78px_minmax(0,1fr)_auto] sm:items-center sm:px-6">
-                                    <div class="text-xs font-semibold tabular-nums {% if item.kind == 'document_review' and item.report.severity == 'critical' %}text-red-700{% elif item.kind == 'document_review' %}text-amber-700{% else %}text-orange-700{% endif %}">
-                                        Now
-                                    </div>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-slate-950">{{ item.title }}</p>
-                                        <p class="mt-1 text-xs text-slate-500">{{ item.subtitle }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-2 sm:justify-end">
-                                        {% if item.kind == 'document_review' %}
-                                        <span class="text-xs font-semibold {% if item.report.severity == 'critical' %}text-red-700{% else %}text-amber-700{% endif %}">{{ item.status_label }}</span>
-                                        <button type="button" class="text-xs font-semibold text-orange-700 hover:underline" onclick="openDocumentReview({{ item.report.id }})">Review</button>
-                                        {% else %}
-                                        <span class="text-xs font-semibold text-orange-700">{{ item.status_label }}</span>
-                                        <button type="button" class="text-xs font-semibold text-orange-700 hover:underline" onclick="openReviewAndApply()">Review</button>
-                                        {% endif %}
-                                    </div>
-                                </li>
-                                {% endfor %}
-                            </ol>
-                        </div>
-                        {% endif %}
-
-                        {% include 'transactions/_checklist.html' %}
-                    </div>
-
-                    <aside class="border-t border-slate-200 bg-slate-50 px-5 py-5 lg:border-l lg:border-t-0 sm:px-6">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <p class="crm-eyebrow">File pulse</p>
-                                <h2 class="mt-1 text-base font-semibold text-slate-950">{{ control_tower_summary.open }} open item{{ 's' if control_tower_summary.open != 1 else '' }}</h2>
-                            </div>
-                            {% if control_tower_summary.overdue %}
-                            <span class="flex h-9 w-9 items-center justify-center rounded bg-red-100 text-red-700" aria-label="File needs attention">
-                                <i class="fas fa-exclamation" aria-hidden="true"></i>
-                            </span>
-                            {% else %}
-                            <span class="flex h-9 w-9 items-center justify-center rounded bg-emerald-100 text-emerald-700" aria-label="File is on track">
-                                <i class="fas fa-check" aria-hidden="true"></i>
-                            </span>
-                            {% endif %}
-                        </div>
-
-                        <dl class="mt-5 divide-y divide-slate-200 border-y border-slate-200 text-sm">
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-slate-500">Completed</dt>
-                                <dd class="font-semibold tabular-nums text-slate-950">{{ control_tower_summary.completed }}</dd>
-                            </div>
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-slate-500">Documents</dt>
-                                <dd class="font-semibold tabular-nums text-slate-950">{{ documents|length }}</dd>
-                            </div>
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-slate-500">Tasks waiting</dt>
-                                <dd class="font-semibold tabular-nums text-slate-950">{{ transaction_tasks|selectattr('status', 'equalto', 'pending')|list|length }}</dd>
-                            </div>
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-slate-500">Review items</dt>
-                                <dd class="font-semibold tabular-nums {% if document_review_attention or pending_change_proposals %}text-red-700{% else %}text-slate-950{% endif %}">
-                                    {{ document_review_attention|length + pending_change_proposals|length }}
-                                </dd>
-                            </div>
-                        </dl>
-
-                        <div class="mt-5">
-                            <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-slate-950">Coordination team</h3>
-                                <span class="text-xs text-slate-500">{{ transaction_assignments|length }} assigned</span>
-                            </div>
-                            {% if transaction_assignments %}
-                            <ul class="mt-3 space-y-2">
-                                {% for assignment in transaction_assignments[:3] %}
-                                <li class="flex items-center justify-between gap-3 text-sm">
-                                    <span class="truncate font-medium text-slate-800">
-                                        {% if assignment.user %}{{ assignment.user.first_name }} {{ assignment.user.last_name }}{% else %}User {{ assignment.user_id }}{% endif %}
-                                    </span>
-                                    <span class="shrink-0 text-xs text-slate-500">{{ assignment.role|replace('_', ' ')|title }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <p class="mt-2 text-sm text-slate-500">No one is assigned yet.</p>
-                            {% endif %}
-                        </div>
-                    </aside>
-                </div>
-            </div>
-        </section>
-
-        {# ===== Assignments panel ===== #}
-        <section id="transaction-assignments" class="mb-6 scroll-mt-20"
-                 data-list-url="{{ url_for('transactions.list_transaction_assignments', id=transaction.id) }}"
-                 data-set-url="{{ url_for('transactions.set_transaction_assignment', id=transaction.id) }}">
-            <details class="group rounded-md border border-slate-200 bg-white">
-                <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                    <span>Manage coordination team</span>
-                    <span class="flex items-center gap-3 text-xs font-normal text-slate-500">
-                        {{ transaction_assignments|length }} assigned
-                        <i class="fas fa-chevron-down text-[10px] transition-transform group-open:rotate-180" aria-hidden="true"></i>
-                    </span>
-                </summary>
-                <div class="divide-y divide-slate-100 border-t border-slate-200" id="assignment-rows">
-                    {% if transaction_assignments %}
-                        {% for a in transaction_assignments %}
-                        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3" data-assignment-id="{{ a.id }}">
-                            <div class="min-w-0">
-                                <p class="text-sm font-medium text-slate-900">
-                                    {% if a.user %}{{ a.user.first_name }} {{ a.user.last_name }}{% else %}User {{ a.user_id }}{% endif %}
-                                </p>
-                                <p class="text-xs text-slate-500">{{ a.role|replace('_', ' ') }}</p>
-                            </div>
-                            {% if can_assign_roles %}
-                            <button type="button"
-                                    class="crm-btn crm-btn-secondary crm-btn-sm"
-                                    onclick="removeTransactionAssignment({{ a.id }})">
-                                Remove
-                            </button>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="px-4 py-5 text-sm text-slate-500" id="assignments-empty">No assignments yet.</p>
-                    {% endif %}
-                </div>
-                {% if can_assign_roles %}
-                <div class="flex flex-wrap items-end gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4">
-                    <label class="block min-w-[12rem] flex-1">
-                        <span class="mb-1 block text-xs font-medium text-slate-600">Person</span>
-                        <select id="assign-user-id" class="crm-input">
-                            <option value="">Select…</option>
-                            {% for u in org_assignable_users %}
-                            <option value="{{ u.id }}">{{ u.first_name }} {{ u.last_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <label class="block min-w-[11rem]">
-                        <span class="mb-1 block text-xs font-medium text-slate-600">Role</span>
-                        <select id="assign-role" class="crm-input">
-                            <option value="lead_agent">Lead agent</option>
-                            <option value="transaction_coordinator">Transaction coordinator</option>
-                            <option value="collaborator">Collaborator</option>
-                        </select>
-                    </label>
-                    <button type="button" class="crm-btn crm-btn-primary" onclick="saveTransactionAssignment()">
-                        Assign
-                    </button>
-                </div>
-                {% endif %}
-            </details>
-        </section>
-        {% endif %}
-
-        {# ===== BOB document-review inbox ===== #}
-        <section id="document-review-inbox" class="mb-6 scroll-mt-20 {% if not document_review_reports and not pending_change_proposals %}hidden{% endif %}">
-            <details id="bob-review-details" class="group crm-surface overflow-hidden">
-                <summary class="flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 hover:bg-slate-50 sm:px-6 [&::-webkit-details-marker]:hidden">
-                    <div class="flex min-w-0 items-start gap-3">
-                        <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border {% if document_review_attention %}border-red-100 bg-red-50 text-red-700{% else %}border-orange-100 bg-orange-50 text-orange-700{% endif %}">
-                            <span class="text-[10px] font-bold tracking-wide">BOB</span>
-                        </span>
-                        <div class="min-w-0">
-                            <p class="crm-eyebrow">Document review</p>
-                            <h2 id="bob-review-count" class="mt-1 text-base font-semibold text-slate-950">
-                                {% if document_review_attention %}
-                                {{ document_review_attention|length }} finding{{ 's' if document_review_attention|length != 1 else '' }} {{ 'need' if document_review_attention|length != 1 else 'needs' }} your attention
-                                {% elif pending_change_proposals %}
-                                {{ pending_change_proposals|length }} suggested change{{ 's' if pending_change_proposals|length != 1 else '' }} waiting
-                                {% else %}
-                                Review completed
-                                {% endif %}
-                            </h2>
-                            <p id="bob-review-description" class="mt-1 text-sm text-slate-500">
-                                Findings are tied to each uploaded file. No transaction changes applied.
-                            </p>
-                        </div>
-                    </div>
-                    <span class="flex shrink-0 items-center gap-2 pt-1 text-sm font-semibold text-orange-700">
-                        Review
-                        <i class="fas fa-chevron-down text-[10px] transition-transform group-open:rotate-180" aria-hidden="true"></i>
-                    </span>
-                </summary>
-
-        {% include 'transactions/_document_review_reports.html' %}
-
-        {# ===== Review and Apply — pending change proposals ===== #}
-        <section id="review-and-apply" class="scroll-mt-20"
-                 data-approve-base="{{ url_for('transactions.approve_selected_fields', id=transaction.id, proposal_id=0) | replace('/0/approve-selected', '') }}">
-            <div class="border-t border-slate-200">
-                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-900">Suggested CRM changes</h2>
-                        <p class="mt-0.5 text-xs text-slate-500">
-                            Check the values, then approve or reject the suggestion.
-                        </p>
-                    </div>
-                    {% if pending_change_proposals %}
-                    <span class="inline-flex items-center rounded bg-orange-600 px-2 py-1 text-xs font-bold uppercase tracking-wide text-white">
-                        {{ pending_change_proposals|length }} pending
-                    </span>
-                    {% endif %}
-                </div>
-                <div id="review-apply-flash" class="hidden border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800"></div>
-                <div class="divide-y divide-slate-100">
-                    {% if pending_change_proposals %}
-                        {% for proposal in pending_change_proposals %}
-                        <article class="px-4 py-4" id="proposal-{{ proposal.id }}" data-proposal-id="{{ proposal.id }}">
-                            <div class="mb-3 flex flex-wrap items-start justify-between gap-2">
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-900">
-                                        {{ proposal.change_type|replace('_', ' ')|title }}
-                                    </p>
-                                    {% if proposal.rationale %}
-                                    <p class="mt-0.5 text-xs text-slate-500">{{ proposal.rationale }}</p>
-                                    {% endif %}
-                                </div>
-                                <div class="flex gap-2">
-                                    <button type="button"
-                                            class="crm-btn crm-btn-sm crm-btn-secondary js-proposal-select-all"
-                                            data-proposal-id="{{ proposal.id }}">Select all</button>
-                                    <button type="button"
-                                            class="crm-btn crm-btn-sm crm-btn-secondary js-proposal-select-none"
-                                            data-proposal-id="{{ proposal.id }}">Select none</button>
-                                </div>
-                            </div>
-                            {% set changes = proposal.proposed_changes or {} %}
-                            {% if changes %}
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500">
-                                            <th class="w-10 py-2 pr-2">Apply</th>
-                                            <th class="py-2 pr-2">Field</th>
-                                            <th class="py-2">Value / correction</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for key, value in changes.items() %}
-                                        <tr class="border-b border-slate-50">
-                                            <td class="py-2 pr-2 align-top">
-                                                <input type="checkbox"
-                                                       class="js-proposal-field"
-                                                       data-proposal-id="{{ proposal.id }}"
-                                                       data-key="{{ key }}"
-                                                       checked>
-                                            </td>
-                                            <td class="py-2 pr-2 align-top font-medium text-slate-800">{{ key|replace('_', ' ')|title }}</td>
-                                            <td class="py-2 align-top">
-                                                <input type="text"
-                                                       class="crm-input js-proposal-value w-full max-w-md"
-                                                       data-proposal-id="{{ proposal.id }}"
-                                                       data-key="{{ key }}"
-                                                       value="{% if value is mapping or value is iterable and value is not string %}{{ value|tojson }}{% elif value is not none %}{{ value }}{% endif %}">
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <button type="button"
-                                        class="crm-btn crm-btn-accent js-proposal-approve"
-                                        data-proposal-id="{{ proposal.id }}"
-                                        data-url="{{ url_for('transactions.approve_selected_fields', id=transaction.id, proposal_id=proposal.id) }}">
-                                    Approve selected fields
-                                </button>
-                                <button type="button"
-                                        class="crm-btn crm-btn-secondary js-proposal-reject"
-                                        data-proposal-id="{{ proposal.id }}"
-                                        data-url="{{ url_for('transactions.reject_proposal', id=transaction.id, proposal_id=proposal.id) }}">
-                                    Reject proposal
-                                </button>
-                            </div>
-                            {% else %}
-                            <p class="text-sm text-slate-500">No fields in this proposal.</p>
-                            {% endif %}
-                        </article>
-                        {% endfor %}
-                    {% else %}
-                        <p class="px-4 py-6 text-sm text-slate-500">
-                            No pending proposals. After extraction finishes, proposed field updates will appear here for approval.
-                        </p>
-                    {% endif %}
-                </div>
-            </div>
-        </section>
-            </details>
-        </section>
 
         {# ===== Main grid ===== #}
         <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -632,7 +329,7 @@
 
                 {% if transaction.transaction_type.name == 'seller' %}
                 {# ----- Property details card (seller: above workspace) ----- #}
-                <section id="property-details" class="crm-surface scroll-mt-28" data-seller-listing-tab-content>
+                <section id="property-details" class="crm-surface scroll-mt-28">
                     <div class="crm-surface-header">
                         {{ section_header('Property details') }}
                     </div>
@@ -681,19 +378,6 @@
                                 <div class="mt-0.5 text-sm font-semibold text-emerald-700">{{ transaction.actual_close_date.strftime('%B %d, %Y') }}</div>
                             </div>
                             {% endif %}
-                        </div>
-                    </div>
-                </section>
-
-                {# ----- Client portal link ----- #}
-                <section class="crm-surface scroll-mt-28" id="client-portal-card"
-                         data-portal-card data-transaction-id="{{ transaction.id }}">
-                    <div class="crm-surface-header">
-                        {{ section_header('Client portal', 'A private, live status page your seller can check anytime — no login required.') }}
-                    </div>
-                    <div class="crm-surface-body">
-                        <div data-portal-list class="space-y-3">
-                            <div class="text-sm text-slate-500">Loading…</div>
                         </div>
                     </div>
                 </section>
@@ -1446,6 +1130,8 @@
                     </section>
                 </div>{# /content-intelligence #}
                 {% endif %}
+
+                {% include 'transactions/_checklist.html' %}
             </div>
 
             {# ===== Right column ===== #}
@@ -1503,241 +1189,10 @@
                             <p class="text-sm text-slate-500">No participants added yet.</p>
                         </div>
                         {% endif %}
+                        {% include 'transactions/_transaction_assignments.html' %}
                     </div>
                 </section>
 
-                {# ----- Tasks card ----- #}
-                <section class="crm-surface">
-                    <div class="crm-surface-header">
-                        <div class="flex items-center gap-2">
-                            {{ section_header('Tasks') }}
-                            {% if transaction_tasks %}
-                            <span class="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">
-                                {{ transaction_tasks|selectattr('status', 'equalto', 'pending')|list|length }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% set seller_contact = participants|selectattr('role', 'in', ['seller', 'co_seller'])|selectattr('contact_id')|first %}
-                        <a href="{{ url_for('tasks.create_task') }}?transaction_id={{ transaction.id }}{% if seller_contact %}&contact_id={{ seller_contact.contact_id }}{% endif %}"
-                           class="crm-btn crm-btn-secondary">
-                            <i class="fas fa-plus text-xs text-slate-400"></i>
-                            Add
-                        </a>
-                    </div>
-                    <div class="crm-surface-body">
-                        {% if transaction_tasks %}
-                        <div class="max-h-80 space-y-2 overflow-y-auto">
-                            {% for task in transaction_tasks %}
-                            {% set is_overdue = task.status == 'pending' and task.due_date and task.due_date < now %}
-                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
-                               class="group flex items-start gap-3 rounded-md border border-slate-200 px-3 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50">
-                                {% if task.status == 'completed' %}
-                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400"></span>
-                                {% elif is_overdue %}
-                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-red-400"></span>
-                                {% else %}
-                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-orange-400"></span>
-                                {% endif %}
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="truncate text-sm font-medium {% if task.status == 'completed' %}text-slate-400 line-through{% elif is_overdue %}text-red-700{% else %}text-slate-900{% endif %}">
-                                            {{ task.subject }}
-                                        </span>
-                                        {% if task.is_auto_checkin %}
-                                        <span class="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-sky-600">Auto</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
-                                        {% if task.due_date %}
-                                        <span class="{% if is_overdue %}font-medium text-red-600{% endif %}">
-                                            {% if is_overdue %}Overdue{% else %}Due{% endif %} {{ task.due_date.strftime('%b %d') }}
-                                        </span>
-                                        {% endif %}
-                                        {% if task.assigned_to %}
-                                        <span class="text-slate-300">&middot;</span>
-                                        <span class="truncate">{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name[:1] }}.</span>
-                                        {% endif %}
-                                    </div>
-                                    {% if task.status == 'completed' and task.outcome %}
-                                    <p class="mt-1 line-clamp-2 text-xs text-slate-400">{{ task.outcome }}</p>
-                                    {% endif %}
-                                </div>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="py-6 text-center">
-                            <p class="text-sm text-slate-500">No tasks linked to this transaction.</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </section>
-
-                {# ----- Contact files card ----- #}
-                {% if contact_files %}
-                <section class="crm-surface">
-                    <div class="crm-surface-header">
-                        <div>
-                            {{ section_header('Contact files') }}
-                            <p class="mt-1 text-xs text-slate-500">Files from associated contacts</p>
-                        </div>
-                    </div>
-                    <div class="crm-surface-body">
-                        <div class="max-h-64 space-y-2 overflow-y-auto">
-                            {% for file in contact_files %}
-                            <div class="group flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2.5">
-                                <div class="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md
-                                    {% if file.is_image %}bg-rose-50 text-rose-600
-                                    {% elif file.file_extension == 'pdf' %}bg-red-50 text-red-600
-                                    {% elif file.file_extension in ['doc', 'docx'] %}bg-sky-50 text-sky-600
-                                    {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}bg-emerald-50 text-emerald-600
-                                    {% else %}bg-slate-100 text-slate-500{% endif %}">
-                                    <i class="fas
-                                        {% if file.is_image %}fa-file-image
-                                        {% elif file.file_extension == 'pdf' %}fa-file-pdf
-                                        {% elif file.file_extension in ['doc', 'docx'] %}fa-file-word
-                                        {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}fa-file-excel
-                                        {% else %}fa-file{% endif %} text-sm"></i>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium text-slate-900">{{ file.original_filename }}</p>
-                                    <div class="flex items-center gap-2 text-xs text-slate-500">
-                                        <span class="truncate">{{ file.contact.first_name }} {{ file.contact.last_name }}</span>
-                                        <span class="text-slate-300">&middot;</span>
-                                        <span>{{ file.human_file_size }}</span>
-                                    </div>
-                                </div>
-                                <button onclick="downloadContactFileFromTx({{ file.contact_id }}, {{ file.id }})" type="button"
-                                        class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100"
-                                        title="Download">
-                                    <i class="fas fa-download text-sm"></i>
-                                </button>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </section>
-                {% endif %}
-
-                {% if contract_terms %}
-                {% set contract_sources = contract_terms._sources or {} %}
-                {% set contract_source_labels = {
-                    'contract_document': 'from contract PDF',
-                    'override': 'edited'
-                } %}
-                <section class="crm-surface" id="contract-terms-card"
-                         {% if transaction.transaction_type.name == 'seller' %}data-seller-listing-tab-content{% endif %}>
-                    <div class="crm-surface-header">
-                        <div class="flex w-full items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                {{ section_header('Contract terms') }}
-                                {% if 'accepted_contract' in contract_sources.values() %}
-                                {{ badge('Executed contract', 'success') }}
-                                {% else %}
-                                {{ badge('From uploaded contract', 'info') }}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="crm-surface-body">
-                        <div class="space-y-0">
-                            <div class="info-row">
-                                <span class="info-label">Sales Price{% set _src = contract_sources.get('sales_price') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value text-emerald-700 font-semibold">{{ contract_terms.sales_price or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Effective Date{% set _src = contract_sources.get('effective_date') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.effective_date or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Closing Date{% set _src = contract_sources.get('closing_date') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.closing_date or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Option Fee{% set _src = contract_sources.get('option_fee') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.option_fee or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Option Period{% set _src = contract_sources.get('option_period_days') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{% if contract_terms.option_period_days %}{{ contract_terms.option_period_days }} days{% else %}—{% endif %}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Earnest Money{% set _src = contract_sources.get('earnest_money') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.earnest_money or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Financing{% set _src = contract_sources.get('financing_type') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.financing_type or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Title Company{% set _src = contract_sources.get('title_company') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.title_company or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Escrow Officer{% set _src = contract_sources.get('escrow_officer') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.escrow_officer or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Survey{% set _src = contract_sources.get('survey_choice') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.survey_choice or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">HOA Required{% set _src = contract_sources.get('has_hoa') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.has_hoa or '—' }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Buyer Side Commission{% set _src = contract_sources.get('buyer_commission') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
-                                <span class="info-value">{{ contract_terms.buyer_commission or '—' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-                {% endif %}
-
-                {% if amendments is defined and amendments is not none %}
-                <section class="crm-surface" id="amendments-card"
-                         {% if transaction.transaction_type.name == 'seller' %}data-seller-listing-tab-content{% endif %}>
-                    <div class="crm-surface-header">
-                        <div class="flex w-full items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                {{ section_header('Amendments') }}
-                                {% if amendments %}
-                                {% set pending_amendments = amendments|selectattr('status', 'in', ['received', 'reviewing', 'countered'])|list %}
-                                {% if pending_amendments %}
-                                {{ badge(pending_amendments|length ~ ' pending', 'warning') }}
-                                {% endif %}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="crm-surface-body">
-                        {% if amendments %}
-                        <div class="space-y-0">
-                            {% for item in amendments %}
-                            <a href="{{ url_for('transactions.amendment_review', id=transaction.id, amendment_id=item.id) }}"
-                               class="info-row group block no-underline hover:bg-slate-50 -mx-1 px-1 rounded-md transition-colors">
-                                <span class="info-label">
-                                    {{ item.label }}
-                                    {% if item.changed_count %}
-                                    <span class="ml-1 text-[10px] text-slate-400">{{ item.changed_count }} change{{ 's' if item.changed_count != 1 else '' }}</span>
-                                    {% endif %}
-                                </span>
-                                <span class="info-value flex items-center gap-2">
-                                    <span class="text-xs capitalize text-slate-500">{{ item.status }}</span>
-                                    {% if item.created_at %}
-                                    <span class="text-[11px] text-slate-400">{{ item.created_at.strftime('%b %d') }}</span>
-                                    {% endif %}
-                                    <i class="fas fa-chevron-right text-[10px] text-slate-300 group-hover:text-slate-500" aria-hidden="true"></i>
-                                </span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="text-sm text-slate-500">No amendments on this contract.</p>
-                        {% endif %}
-                    </div>
-                </section>
-                {% endif %}
 
                 {% if transaction.transaction_type.name == 'seller' %}
                 {# ----- Listing info card (seller only) ----- #}
@@ -1751,7 +1206,7 @@
                     'intake': 'from questionnaire',
                     'override': 'edited'
                 } %}
-                <section class="crm-surface" id="listing-info-card" data-seller-listing-tab-content
+                <section class="crm-surface" id="listing-info-card"
                          data-transaction-id="{{ transaction.id }}"
                          data-extraction-status="{{ listing_extraction_status or '' }}">
                     <div class="crm-surface-header">
@@ -1772,9 +1227,17 @@
                                 {% endif %}
                                 </span>
                             </div>
-                            <button type="button" id="listingInfoEditToggleBtn" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs">
-                                Edit
-                            </button>
+                            <div class="flex items-center gap-2">
+                                {% if listing_source_documents %}
+                                <button type="button" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs" data-listing-info-compare-open>
+                                    Review with PDF
+                                </button>
+                                {% else %}
+                                <button type="button" id="listingInfoEditToggleBtn" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs">
+                                    Edit
+                                </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     <div class="crm-surface-body">
@@ -1812,67 +1275,12 @@
                             {% elif listing_extraction_status == 'failed' %}
                             <div class="mb-4 flex items-start gap-2 border-b border-amber-100 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
                                 <i class="fas fa-exclamation-triangle mt-0.5" aria-hidden="true"></i>
-                                <span>Couldn’t finish reviewing this PDF. The file is saved — check Document review or enter the remaining terms.</span>
+                                <span>Couldn’t finish reviewing this PDF. The file is saved — enter the remaining terms or use Review with PDF.</span>
                             </div>
                             {% endif %}
                             <div class="space-y-0">
-                                <div class="info-row">
-                                    <span class="info-label">List Price{% set _src = listing_sources.get('list_price') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value text-emerald-700 font-semibold">{{ listing_info.list_price or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Go-live Date{% set _src = listing_sources.get('go_live_date') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.go_live_date or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Listing Start Date{% set _src = listing_sources.get('listing_start_date') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.listing_start_date or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Listing Expiration Date{% set _src = listing_sources.get('listing_end_date') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.listing_end_date or '—' }}</span>
-                                </div>
-                                {% if listing_info.commission_type == '5b' %}
-                                <div class="info-row">
-                                    <span class="info-label">Broker's Fee (Origen Realty){% set _src = listing_sources.get('broker_fee') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.broker_fee or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Buyer Side Commission</span>
-                                    <span class="info-value text-slate-400 italic">N/A — Listing Broker Only (Section 5B)</span>
-                                </div>
-                                {% else %}
-                                <div class="info-row">
-                                    <span class="info-label">Total Commission{% set _src = listing_sources.get('total_commission') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.total_commission or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Listing Side Commission{% set _src = listing_sources.get('listing_side_commission') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.listing_side_commission or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Buyer Side Commission{% set _src = listing_sources.get('buyer_commission') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.buyer_commission or '—' }}</span>
-                                </div>
-                                {% endif %}
-                                <div class="info-row">
-                                    <span class="info-label">Protection Period{% set _src = listing_sources.get('protection_period_days') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{% if listing_info.protection_period_days %}{{ listing_info.protection_period_days }} days{% else %}—{% endif %}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Accepted Financing{% set _src = listing_sources.get('financing_types') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.financing_types or '—' }}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">HOA Required{% set _src = listing_sources.get('has_hoa') %}{% if _src and listing_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ listing_source_labels[_src] }}">{{ listing_source_labels[_src] }}</span>{% endif %}</span>
-                                    <span class="info-value">{{ listing_info.has_hoa or '—' }}</span>
-                                </div>
-                                {% if listing_info.special_provisions %}
-                                <div class="mt-3 border-t border-slate-100 pt-3">
-                                    <span class="info-label mb-1 block">Special Provisions</span>
-                                    <p class="text-sm leading-relaxed text-slate-700">{{ listing_info.special_provisions }}</p>
-                                </div>
-                                {% endif %}
+                                {% set listing_info_mode = 'display' %}
+                                {% include 'transactions/_listing_info_fields.html' %}
                             </div>
                             {% elif listing_extraction_status in ('pending', 'processing') %}
                             <div class="mb-4 py-6 text-center" id="extraction-loading">
@@ -1888,7 +1296,7 @@
                                     <i class="fas fa-exclamation-triangle"></i>
                                 </div>
                                 <p class="text-sm font-medium text-slate-700">Couldn’t finish reviewing this PDF.</p>
-                                <p class="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">The file is saved. Check Document review for the specific finding, or enter listing terms manually.</p>
+                                <p class="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">The file is saved. Enter the remaining terms or try Review with PDF.</p>
                             </div>
                             {% else %}
                             <div class="mb-4 py-6 text-center">
@@ -1908,49 +1316,11 @@
                             {% endif %}
                         </div>
 
+                        {% if not listing_source_documents %}
                         <form id="listingInfoEditForm" class="mt-4 hidden space-y-3 border-t border-slate-100 pt-4">
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">List Price</span>
-                                    <input name="list_price" class="crm-input mt-1" placeholder="$335,000" value="{{ listing_override_values.get('list_price', listing_info.list_price if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">Listing Start Date</span>
-                                    <input name="listing_start_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('listing_start_date', listing_info.listing_start_date if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">Listing Expiration Date</span>
-                                    <input name="listing_end_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('listing_end_date', listing_info.listing_end_date if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">Protection Period (days)</span>
-                                    <input name="protection_period_days" class="crm-input mt-1" placeholder="180" value="{{ listing_override_values.get('protection_period_days', listing_info.protection_period_days if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">Total Commission</span>
-                                    <input name="total_commission" class="crm-input mt-1" placeholder="6%" value="{{ listing_override_values.get('total_commission', listing_info.total_commission if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">Listing Side Commission</span>
-                                    <input name="listing_side_commission" class="crm-input mt-1" placeholder="3%" value="{{ listing_override_values.get('listing_side_commission', listing_info.listing_side_commission if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">Buyer Side Commission</span>
-                                    <input name="buyer_commission" class="crm-input mt-1" placeholder="3%" value="{{ listing_override_values.get('buyer_commission', listing_info.buyer_commission if listing_info else '') }}">
-                                </label>
-                                <label class="block">
-                                    <span class="text-xs font-medium text-slate-600">HOA Required</span>
-                                    {% set has_hoa_override = listing_override_values.get('has_hoa', listing_info.has_hoa if listing_info else '') %}
-                                    <select name="has_hoa" class="crm-select mt-1">
-                                        <option value="">—</option>
-                                        <option value="Yes" {% if has_hoa_override == 'Yes' %}selected{% endif %}>Yes</option>
-                                        <option value="No" {% if has_hoa_override == 'No' %}selected{% endif %}>No</option>
-                                    </select>
-                                </label>
-                                <label class="block sm:col-span-2">
-                                    <span class="text-xs font-medium text-slate-600">Accepted Financing</span>
-                                    <input name="financing_types" class="crm-input mt-1" placeholder="Conventional, VA, FHA, Cash" value="{{ listing_override_values.get('financing_types', listing_info.financing_types if listing_info else '') }}">
-                                </label>
+                                {% set listing_info_mode = 'edit' %}
+                                {% include 'transactions/_listing_info_fields.html' %}
                             </div>
                             <div class="flex items-center justify-end gap-2">
                                 <button type="button" id="listingInfoEditCancelBtn" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs">Cancel</button>
@@ -1958,11 +1328,12 @@
                             </div>
                             <p class="text-xs text-slate-500">These values override extracted listing details for this transaction.</p>
                         </form>
+                        {% endif %}
 
                         {# Lockbox combo (always editable) #}
                         <div class="{% if listing_info %}mt-4 border-t border-slate-100 pt-4{% endif %}">
                             <div class="flex items-center justify-between gap-3">
-                                <span class="text-sm text-slate-600">Lockbox combo</span>
+                                <span class="text-sm text-[color:var(--ink-3)]">Lockbox combo</span>
                                 <div class="flex items-center gap-2">
                                     <input type="text"
                                            id="lockboxComboInput"
@@ -2110,8 +1481,244 @@
                     };
                 })();
                 </script>
+                {% endif %}
 
-                {% else %}
+
+                {# ----- Tasks card ----- #}
+                {% set pending_task_count = transaction_tasks|selectattr('status', 'equalto', 'pending')|list|length %}
+                <section class="crm-surface" id="transaction-tasks" data-transaction-tasks>
+                    <div class="crm-surface-header">
+                        <div class="flex items-center gap-2">
+                            {{ section_header('Tasks') }}
+                            <span class="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600{% if not pending_task_count %} hidden{% endif %}"
+                                  data-task-count>
+                                {{ pending_task_count }}
+                            </span>
+                        </div>
+                        {% set seller_contact = participants|selectattr('role', 'in', ['seller', 'co_seller'])|selectattr('contact_id')|first %}
+                        <a href="{{ url_for('tasks.create_task') }}?transaction_id={{ transaction.id }}{% if seller_contact %}&contact_id={{ seller_contact.contact_id }}{% endif %}"
+                           class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-plus text-xs text-slate-400"></i>
+                            Add
+                        </a>
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="max-h-80 space-y-2 overflow-y-auto{% if not transaction_tasks %} hidden{% endif %}" data-task-list>
+                            {% for task in transaction_tasks %}
+                            {% set is_overdue = task.status == 'pending' and task.due_date and task.due_date < now %}
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
+                               class="group flex items-start gap-3 rounded-md border border-slate-200 px-3 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                               data-task-row
+                               data-task-id="{{ task.id }}"
+                               data-task-status="{{ task.status }}">
+                                {% if task.status == 'completed' %}
+                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" data-task-dot></span>
+                                {% elif is_overdue %}
+                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-red-400" data-task-dot></span>
+                                {% else %}
+                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-orange-400" data-task-dot></span>
+                                {% endif %}
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="truncate text-sm font-medium {% if task.status == 'completed' %}text-slate-400 line-through{% elif is_overdue %}text-red-700{% else %}text-slate-900{% endif %}"
+                                              data-task-subject>
+                                            {{ task.subject }}
+                                        </span>
+                                        {% if task.is_auto_checkin %}
+                                        <span class="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-sky-600">Auto</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500" data-task-meta>
+                                        {% if task.due_date %}
+                                        <span class="{% if is_overdue %}font-medium text-red-600{% endif %}" data-task-due>
+                                            {% if is_overdue %}Overdue{% else %}Due{% endif %} {{ task.due_date.strftime('%b %d') }}
+                                        </span>
+                                        {% endif %}
+                                        {% if task.assigned_to %}
+                                        <span class="text-slate-300" data-task-dot-sep>&middot;</span>
+                                        <span class="truncate" data-task-assignee>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name[:1] }}.</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if task.status == 'completed' and task.outcome %}
+                                    <p class="mt-1 line-clamp-2 text-xs text-slate-400">{{ task.outcome }}</p>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        <div class="py-6 text-center{% if transaction_tasks %} hidden{% endif %}" data-task-empty>
+                            <p class="text-sm text-slate-500">No tasks linked to this transaction.</p>
+                        </div>
+                    </div>
+                </section>
+
+                {# ----- Contact files card ----- #}
+                {% if contact_files %}
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        <div>
+                            {{ section_header('Contact files') }}
+                            <p class="mt-1 text-xs text-slate-500">Files from associated contacts</p>
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="max-h-64 space-y-2 overflow-y-auto">
+                            {% for file in contact_files %}
+                            <div class="group flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2.5">
+                                <div class="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md
+                                    {% if file.is_image %}bg-rose-50 text-rose-600
+                                    {% elif file.file_extension == 'pdf' %}bg-red-50 text-red-600
+                                    {% elif file.file_extension in ['doc', 'docx'] %}bg-sky-50 text-sky-600
+                                    {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}bg-emerald-50 text-emerald-600
+                                    {% else %}bg-slate-100 text-slate-500{% endif %}">
+                                    <i class="fas
+                                        {% if file.is_image %}fa-file-image
+                                        {% elif file.file_extension == 'pdf' %}fa-file-pdf
+                                        {% elif file.file_extension in ['doc', 'docx'] %}fa-file-word
+                                        {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}fa-file-excel
+                                        {% else %}fa-file{% endif %} text-sm"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-slate-900">{{ file.original_filename }}</p>
+                                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                                        <span class="truncate">{{ file.contact.first_name }} {{ file.contact.last_name }}</span>
+                                        <span class="text-slate-300">&middot;</span>
+                                        <span>{{ file.human_file_size }}</span>
+                                    </div>
+                                </div>
+                                <button onclick="downloadContactFileFromTx({{ file.contact_id }}, {{ file.id }})" type="button"
+                                        class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100"
+                                        title="Download">
+                                    <i class="fas fa-download text-sm"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+
+                {% if contract_terms %}
+                {% set contract_sources = contract_terms._sources or {} %}
+                {% set contract_source_labels = {
+                    'contract_document': 'from contract PDF',
+                    'override': 'edited'
+                } %}
+                <section class="crm-surface" id="contract-terms-card"
+                         {% if transaction.transaction_type.name == 'seller' %}data-seller-listing-tab-content{% endif %}>
+                    <div class="crm-surface-header">
+                        <div class="flex w-full items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                {{ section_header('Contract terms') }}
+                                {% if 'accepted_contract' in contract_sources.values() %}
+                                {{ badge('Executed contract', 'success') }}
+                                {% else %}
+                                {{ badge('From uploaded contract', 'info') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="space-y-0">
+                            <div class="info-row">
+                                <span class="info-label">Sales Price{% set _src = contract_sources.get('sales_price') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value info-value--price">{{ contract_terms.sales_price or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Effective Date{% set _src = contract_sources.get('effective_date') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.effective_date or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Closing Date{% set _src = contract_sources.get('closing_date') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.closing_date or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Option Fee{% set _src = contract_sources.get('option_fee') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.option_fee or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Option Period{% set _src = contract_sources.get('option_period_days') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{% if contract_terms.option_period_days %}{{ contract_terms.option_period_days }} days{% else %}—{% endif %}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Earnest Money{% set _src = contract_sources.get('earnest_money') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.earnest_money or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Financing{% set _src = contract_sources.get('financing_type') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.financing_type or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Title Company{% set _src = contract_sources.get('title_company') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.title_company or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Escrow Officer{% set _src = contract_sources.get('escrow_officer') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.escrow_officer or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Survey{% set _src = contract_sources.get('survey_choice') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.survey_choice or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">HOA Required{% set _src = contract_sources.get('has_hoa') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.has_hoa or '—' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Buyer Side Commission{% set _src = contract_sources.get('buyer_commission') %}{% if _src and contract_source_labels.get(_src) %}<span class="ml-1 text-[10px] text-slate-400" title="{{ contract_source_labels[_src] }}">{{ contract_source_labels[_src] }}</span>{% endif %}</span>
+                                <span class="info-value">{{ contract_terms.buyer_commission or '—' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+
+                {% if amendments %}
+                <section class="crm-surface" id="amendments-card"
+                         {% if transaction.transaction_type.name == 'seller' %}data-seller-listing-tab-content{% endif %}>
+                    <div class="crm-surface-header">
+                        <div class="flex w-full items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                {{ section_header('Amendments') }}
+                                {% if amendments %}
+                                {% set pending_amendments = amendments|selectattr('status', 'in', ['received', 'reviewing', 'countered'])|list %}
+                                {% if pending_amendments %}
+                                {{ badge(pending_amendments|length ~ ' pending', 'warning') }}
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        {% if amendments %}
+                        <div class="space-y-0">
+                            {% for item in amendments %}
+                            <a href="{{ url_for('transactions.amendment_review', id=transaction.id, amendment_id=item.id) }}"
+                               class="info-row group block no-underline hover:bg-slate-50 -mx-1 px-1 rounded-md transition-colors">
+                                <span class="info-label">
+                                    {{ item.label }}
+                                    {% if item.changed_count %}
+                                    <span class="ml-1 text-[10px] text-slate-400">{{ item.changed_count }} change{{ 's' if item.changed_count != 1 else '' }}</span>
+                                    {% endif %}
+                                </span>
+                                <span class="info-value flex items-center gap-2">
+                                    <span class="text-xs capitalize text-slate-500">{{ item.status }}</span>
+                                    {% if item.created_at %}
+                                    <span class="text-[11px] text-slate-400">{{ item.created_at.strftime('%b %d') }}</span>
+                                    {% endif %}
+                                    <i class="fas fa-chevron-right text-[10px] text-slate-300 group-hover:text-slate-500" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500">No amendments on this contract.</p>
+                        {% endif %}
+                    </div>
+                </section>
+                {% endif %}
+
+                {% if transaction.transaction_type.name != 'seller' %}
                 {# ----- Recent activity card (non-seller) ----- #}
                 <section id="transaction-activity" class="crm-surface scroll-mt-28">
                     <div class="crm-surface-header">
@@ -2216,6 +1823,8 @@
                 })();
                 </script>
                 {% endif %}
+
+                {% include 'transactions/_bob_checks.html' %}
             </div>
         </div>
         {% if document_packages %}
@@ -2225,6 +1834,7 @@
 </div>
 
 {% include 'transactions/_transaction_modals.html' %}
+{% include 'transactions/_listing_info_compare.html' %}
 
 
 {# ----- Toast notification ----- #}
@@ -2249,135 +1859,524 @@
 <script src="{{ url_for('static', filename='js/transaction_doc_actions.js') }}"></script>
 
 <script>
-// ----- Client portal link management (agent-side) -----
 (function () {
-    const card = document.querySelector('[data-portal-card]');
-    if (!card) return;
-    const txId = card.dataset.transactionId;
-    const base = `/transactions/${txId}/portal`;
-    const list = card.querySelector('[data-portal-list]');
+    const txId = window.TX_CONFIG && window.TX_CONFIG.transactionId;
+    const root = document.getElementById('transaction-checklist');
+    if (!txId || !root) return;
 
-    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
-        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-    ));
+    function jsonHeaders(extra) {
+        return Object.assign({
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        }, extra || {});
+    }
 
-    async function api(url, method) {
-        const res = await fetch(url, {
-            method: method || 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function dueDateValue(iso) {
+        return iso ? String(iso).slice(0, 10) : '';
+    }
+
+    function formatDueLabel(isoDate) {
+        const value = dueDateValue(isoDate);
+        if (!value) return 'Add date';
+        const parts = value.split('-').map(Number);
+        if (parts.length !== 3 || parts.some(function (part) { return Number.isNaN(part); })) {
+            return value;
+        }
+        return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
         });
-        return res.json();
     }
 
-    function roleLabel(role) {
-        return role === 'co_seller' ? 'Co-seller' : 'Seller';
+    function updateChecklistCount() {
+        const items = root.querySelectorAll('[data-checklist-item]');
+        const done = Array.prototype.filter.call(items, function (item) {
+            return item.dataset.done === 'true';
+        }).length;
+        const count = root.querySelector('[data-checklist-count]');
+        if (count) count.textContent = done + ' of ' + items.length;
     }
 
-    function row(s) {
-        const meta = s.has_link
-            ? `${s.view_count} view${s.view_count === 1 ? '' : 's'}${s.last_viewed ? ' · last opened ' + esc(s.last_viewed) : ' · not opened yet'}`
-            : 'No link yet';
-        const head = `
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <div class="text-sm font-semibold text-slate-900">${esc(s.name)}</div>
-                    <div class="text-xs text-slate-500">${roleLabel(s.role)} · ${esc(meta)}</div>
-                </div>
-            </div>`;
-        let body;
-        if (s.has_link) {
-            body = `
-                <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <input type="text" readonly value="${esc(s.url)}"
-                           class="crm-input flex-1 text-xs" data-portal-url
-                           onclick="this.select()">
-                    <div class="flex gap-2">
-                        <button type="button" class="crm-btn crm-btn-primary" data-act="copy" data-url="${esc(s.url)}">
-                            <i class="fas fa-copy text-xs"></i> Copy
-                        </button>
-                        <button type="button" class="crm-btn crm-btn-secondary" data-act="rotate" data-access="${s.access_id}" title="Issue a new link and disable the old one">
-                            <i class="fas fa-rotate text-xs"></i>
-                        </button>
-                        <button type="button" class="crm-btn crm-btn-danger" data-act="revoke" data-access="${s.access_id}" title="Turn off this link">
-                            <i class="fas fa-ban text-xs"></i>
-                        </button>
-                    </div>
-                </div>`;
-        } else {
-            const disabled = s.email ? '' : 'disabled';
-            const note = s.email ? '' : '<div class="mt-1 text-xs text-amber-600">Add an email to this seller first.</div>';
-            body = `
-                <div class="mt-3">
-                    <button type="button" class="crm-btn crm-btn-primary" data-act="create" data-participant="${s.participant_id}" ${disabled}>
-                        <i class="fas fa-link text-xs"></i> Generate portal link
-                    </button>
-                    ${note}
-                </div>`;
+    function applyDone(item, done) {
+        item.dataset.done = done ? 'true' : 'false';
+        const box = item.querySelector('[data-checklist-toggle], [data-checklist-box]');
+        const title = item.querySelector('[data-checklist-title]');
+        if (box) {
+            box.classList.toggle('border-emerald-600', done);
+            box.classList.toggle('bg-emerald-600', done);
+            box.classList.toggle('text-white', done);
+            box.classList.toggle('border-slate-300', !done);
+            box.classList.toggle('bg-white', !done);
+            box.classList.toggle('text-transparent', !done);
         }
-        return `<div class="rounded-md border border-slate-200 p-4" data-portal-row="${s.participant_id}">${head}${body}</div>`;
+        const toggle = item.querySelector('[data-checklist-toggle]');
+        if (toggle) {
+            toggle.setAttribute('aria-pressed', done ? 'true' : 'false');
+            const name = title ? title.textContent.trim() : 'item';
+            toggle.setAttribute('aria-label', (done ? 'Mark incomplete: ' : 'Mark complete: ') + name);
+        }
+        if (title) {
+            title.classList.toggle('line-through', done);
+            title.classList.toggle('text-[color:var(--ink-3)]', done);
+            title.classList.toggle('text-[color:var(--ink)]', !done);
+        }
+        updateChecklistCount();
     }
 
-    function render(sellers) {
-        if (!sellers || !sellers.length) {
-            list.innerHTML = '<div class="text-sm text-slate-500">Add a seller participant to this transaction to share a client portal.</div>';
+    function applyDueDate(item, isoDate) {
+        const button = item.querySelector('[data-checklist-date-button]');
+        const input = item.querySelector('[data-checklist-date-input]');
+        const value = dueDateValue(isoDate);
+        if (button) {
+            button.dataset.due = value;
+            button.textContent = formatDueLabel(value);
+            button.classList.toggle('tabular-nums', Boolean(value));
+            button.classList.toggle('is-set', Boolean(value));
+            button.classList.toggle('text-[color:var(--ink-3)]', !value);
+            button.classList.toggle('hover:text-[color:var(--ink)]', !value);
+        }
+        if (input) input.value = value;
+    }
+
+    function taskIsOverdue(task) {
+        if (!task || task.status !== 'pending' || !task.due_at) return false;
+        const value = dueDateValue(task.due_at);
+        if (!value) return false;
+        const parts = value.split('-').map(Number);
+        const due = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59);
+        return due < new Date();
+    }
+
+    function refreshTaskCount() {
+        const card = document.getElementById('transaction-tasks');
+        if (!card) return;
+        const pending = card.querySelectorAll('[data-task-row][data-task-status="pending"]').length;
+        const count = card.querySelector('[data-task-count]');
+        const list = card.querySelector('[data-task-list]');
+        const empty = card.querySelector('[data-task-empty]');
+        const total = card.querySelectorAll('[data-task-row]').length;
+        if (count) {
+            count.textContent = String(pending);
+            count.classList.toggle('hidden', pending === 0);
+        }
+        if (list) list.classList.toggle('hidden', total === 0);
+        if (empty) empty.classList.toggle('hidden', total !== 0);
+    }
+
+    function taskRowHtml(task) {
+        const overdue = taskIsOverdue(task);
+        const completed = task.status === 'completed';
+        const dot = completed ? 'bg-emerald-400' : (overdue ? 'bg-red-400' : 'bg-orange-400');
+        const titleClass = completed
+            ? 'text-slate-400 line-through'
+            : (overdue ? 'text-red-700' : 'text-slate-900');
+        const due = task.due_label || formatDueLabel(task.due_at);
+        let meta = '';
+        if (due && due !== 'Add date') {
+            meta += '<span class="' + (overdue ? 'font-medium text-red-600' : '') + '" data-task-due>'
+                + (overdue ? 'Overdue ' : 'Due ') + escapeHtml(due) + '</span>';
+        }
+        if (task.assigned_to) {
+            if (meta) meta += '<span class="text-slate-300" data-task-dot-sep>&middot;</span>';
+            meta += '<span class="truncate" data-task-assignee>' + escapeHtml(task.assigned_to) + '</span>';
+        }
+        return ''
+            + '<span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full ' + dot + '" data-task-dot></span>'
+            + '<div class="min-w-0 flex-1">'
+            + '  <div class="flex items-center gap-2">'
+            + '    <span class="truncate text-sm font-medium ' + titleClass + '" data-task-subject">' + escapeHtml(task.subject || 'Task') + '</span>'
+            + '  </div>'
+            + '  <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500" data-task-meta>' + meta + '</div>'
+            + '</div>';
+    }
+
+    function upsertTransactionTask(task) {
+        const card = document.getElementById('transaction-tasks');
+        if (!card || !task || !task.id) return;
+        const list = card.querySelector('[data-task-list]');
+        if (!list) return;
+        if (task.status === 'cancelled') {
+            const existing = list.querySelector('[data-task-id="' + task.id + '"]');
+            if (existing) existing.remove();
+            refreshTaskCount();
             return;
         }
-        list.innerHTML = sellers.map(row).join('');
-    }
-
-    async function load() {
-        try {
-            const data = await api(`${base}/status`);
-            if (data.success) render(data.sellers);
-            else list.innerHTML = '<div class="text-sm text-red-600">Could not load portal status.</div>';
-        } catch (e) {
-            list.innerHTML = '<div class="text-sm text-red-600">Could not load portal status.</div>';
+        let row = list.querySelector('[data-task-id="' + task.id + '"]');
+        const created = !row;
+        if (!row) {
+            row = document.createElement('a');
+            row.className = 'group flex items-start gap-3 rounded-md border border-slate-200 px-3 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50';
+            row.setAttribute('data-task-row', '');
+            list.prepend(row);
         }
+        row.href = task.url || ('/tasks/' + task.id);
+        row.dataset.taskId = String(task.id);
+        row.dataset.taskStatus = task.status || 'pending';
+        row.innerHTML = taskRowHtml(task);
+        if (created) row.scrollIntoView({ block: 'nearest' });
+        refreshTaskCount();
     }
 
-    list.addEventListener('click', async (e) => {
-        const btn = e.target.closest('button[data-act]');
-        if (!btn) return;
-        const act = btn.dataset.act;
+    function aiDraftBadgeHtml() {
+        return '<span class="crm-badge crm-badge-info">AI draft</span>';
+    }
 
-        if (act === 'copy') {
-            const url = btn.dataset.url;
+    function setAiDraftBadges(item, show) {
+        const html = show ? aiDraftBadgeHtml() : '';
+        item.querySelectorAll('[data-listing-description-badge], [data-listing-description-composer-badge]').forEach(function (slot) {
+            slot.innerHTML = html;
+        });
+    }
+
+    function ensureCustomRows() {
+        let group = root.querySelector('[data-checklist-group="custom"]');
+        if (!group) {
+            group = document.createElement('div');
+            group.setAttribute('data-checklist-group', 'custom');
+            group.innerHTML = '<h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Your items</h3>'
+                + '<ul class="mt-2 divide-y divide-slate-100" data-checklist-rows></ul>';
+            const form = root.querySelector('[data-checklist-add]');
+            if (form && form.parentElement) {
+                form.parentElement.insertBefore(group, form);
+            } else {
+                root.appendChild(group);
+            }
+        }
+        return group.querySelector('[data-checklist-rows]');
+    }
+
+    function customRowHtml(data) {
+        const title = escapeHtml(data.title || 'Item');
+        const due = dueDateValue(data.due_at);
+        const dueLabel = formatDueLabel(due);
+        const dueClass = due
+            ? 'tabular-nums is-set'
+            : 'text-[color:var(--ink-3)] hover:text-[color:var(--ink)]';
+        return ''
+            + '<div class="flex items-start gap-3">'
+            + '  <button type="button" class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-slate-300 bg-white text-transparent hover:border-slate-400" data-checklist-toggle aria-pressed="false" aria-label="Mark complete: ' + title + '">'
+            + '    <i class="fas fa-check text-[10px]"></i>'
+            + '  </button>'
+            + '  <div class="min-w-0 flex-1">'
+            + '    <div class="flex items-center justify-between gap-3">'
+            + '      <div class="min-w-0 flex items-center gap-2">'
+            + '        <p class="truncate text-sm font-medium text-[color:var(--ink)]" data-checklist-title>' + title + '</p>'
+            + '      </div>'
+            + '      <div class="flex shrink-0 items-center gap-2">'
+            + '        <div class="relative" data-checklist-due>'
+            + '          <button type="button" class="text-xs font-medium ' + dueClass + '" data-checklist-date-button data-requirement-id="' + data.requirement_id + '" data-due="' + due + '">' + dueLabel + '</button>'
+            + '          <input type="date" class="crm-input absolute right-0 top-0 hidden w-[9.5rem] py-1 text-xs" data-checklist-date-input value="' + due + '">'
+            + '        </div>'
+            + '        <button type="button" class="text-xs text-[color:var(--ink-3)] hover:text-[color:var(--ink)]" data-checklist-remove aria-label="Remove ' + title + '">Remove</button>'
+            + '      </div>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+    }
+
+    function appendCustomItem(data) {
+        const list = ensureCustomRows();
+        const item = document.createElement('li');
+        item.className = 'py-2.5 first:pt-0 last:pb-0';
+        item.setAttribute('data-checklist-item', '');
+        item.dataset.requirementId = String(data.requirement_id);
+        item.dataset.itemKey = data.key || '';
+        item.dataset.auto = 'false';
+        item.dataset.custom = 'true';
+        item.dataset.done = 'false';
+        item.innerHTML = customRowHtml(data);
+        list.appendChild(item);
+        updateChecklistCount();
+        item.scrollIntoView({ block: 'nearest' });
+        return item;
+    }
+
+    function removeCustomItem(item) {
+        const group = item.closest('[data-checklist-group]');
+        item.remove();
+        if (group && group.dataset.checklistGroup === 'custom') {
+            const rows = group.querySelectorAll('[data-checklist-item]');
+            if (!rows.length) group.remove();
+        }
+        updateChecklistCount();
+    }
+
+    async function postJson(url, body) {
+        const options = {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: body === undefined ? jsonHeaders() : jsonHeaders({ 'Content-Type': 'application/json' }),
+        };
+        if (body !== undefined) options.body = JSON.stringify(body);
+        const res = await fetch(url, options);
+        const data = await res.json().catch(function () { return {}; });
+        if (!res.ok || data.success === false) {
+            throw new Error(data.error || 'That did not save.');
+        }
+        return data;
+    }
+
+    function openDateEditor(button) {
+        const cell = button.parentElement;
+        const input = cell && cell.querySelector('[data-checklist-date-input]');
+        if (!input) return;
+        button.classList.add('hidden');
+        input.classList.remove('hidden');
+        input.focus();
+
+        let settled = false;
+        const finish = async function (save) {
+            if (settled) return;
+            settled = true;
+            input.classList.add('hidden');
+            button.classList.remove('hidden');
+            if (!save || input.value === button.dataset.due) return;
+            const item = button.closest('[data-checklist-item]');
             try {
-                await navigator.clipboard.writeText(url);
-            } catch (_) {
-                const input = btn.closest('[data-portal-row]').querySelector('[data-portal-url]');
-                if (input) { input.select(); document.execCommand('copy'); }
+                const data = await postJson(
+                    `/transactions/${txId}/requirements/${button.dataset.requirementId}/due-date`,
+                    { due_date: input.value || '' },
+                );
+                applyDueDate(item, data.due_at || input.value || '');
+                if (item && data.task_id) item.dataset.taskId = String(data.task_id);
+                upsertTransactionTask(data.task);
+            } catch (err) {
+                input.value = button.dataset.due || '';
+                alert(err.message || 'Could not update the due date.');
             }
-            const label = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check text-xs"></i> Copied';
-            setTimeout(() => { btn.innerHTML = label; }, 1600);
+        };
+
+        input.onchange = function () { finish(true); };
+        input.onblur = function () { finish(true); };
+        input.onkeydown = function (event) {
+            if (event.key === 'Escape') {
+                input.value = button.dataset.due || '';
+                finish(false);
+            } else if (event.key === 'Enter') {
+                finish(true);
+            }
+        };
+    }
+
+    root.addEventListener('click', async function (event) {
+        const dateButton = event.target.closest('[data-checklist-date-button]');
+        if (dateButton && root.contains(dateButton)) {
+            event.preventDefault();
+            openDateEditor(dateButton);
             return;
         }
 
-        btn.disabled = true;
-        try {
-            if (act === 'create') {
-                await fetch(`${base}/create`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ participant_id: btn.dataset.participant }),
-                });
-            } else if (act === 'rotate') {
-                if (!confirm('Issue a new link? The current link will stop working.')) { btn.disabled = false; return; }
-                await api(`${base}/${btn.dataset.access}/rotate`, 'POST');
-            } else if (act === 'revoke') {
-                if (!confirm('Turn off this portal link? The seller will no longer be able to open it.')) { btn.disabled = false; return; }
-                await api(`${base}/${btn.dataset.access}/revoke`, 'POST');
+        const toggle = event.target.closest('[data-checklist-toggle]');
+        if (toggle && root.contains(toggle)) {
+            const item = toggle.closest('[data-checklist-item]');
+            const reqId = item && item.dataset.requirementId;
+            if (!reqId) return;
+            toggle.disabled = true;
+            try {
+                const data = await postJson(`/transactions/${txId}/requirements/${reqId}/toggle`);
+                applyDone(item, Boolean(data.done));
+                upsertTransactionTask(data.task);
+            } catch (err) {
+                alert(err.message || 'Could not update this item.');
+            } finally {
+                toggle.disabled = false;
             }
-            await load();
-        } catch (_) {
-            btn.disabled = false;
+            return;
+        }
+
+        const remove = event.target.closest('[data-checklist-remove]');
+        if (remove && root.contains(remove)) {
+            const item = remove.closest('[data-checklist-item]');
+            const reqId = item && item.dataset.requirementId;
+            if (!reqId) return;
+            remove.disabled = true;
+            try {
+                const data = await postJson(`/transactions/${txId}/requirements/${reqId}/remove`);
+                removeCustomItem(item);
+                upsertTransactionTask(data.task);
+            } catch (err) {
+                remove.disabled = false;
+                alert(err.message || 'Could not remove this item.');
+            }
         }
     });
 
-    load();
+    const addForm = root.querySelector('[data-checklist-add]');
+    if (addForm) {
+        addForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const titleInput = addForm.querySelector('[name="title"]');
+            const dateInput = addForm.querySelector('[name="due_date"]');
+            const submit = addForm.querySelector('button[type="submit"]');
+            if (!titleInput || !titleInput.value.trim()) return;
+            if (submit) submit.disabled = true;
+            try {
+                const data = await postJson(`/transactions/${txId}/requirements`, {
+                    title: titleInput.value.trim(),
+                    due_date: dateInput && dateInput.value ? dateInput.value : '',
+                });
+                const added = appendCustomItem(data);
+                if (data.task_id) added.dataset.taskId = String(data.task_id);
+                upsertTransactionTask(data.task);
+                titleInput.value = '';
+                if (dateInput) dateInput.value = '';
+            } catch (err) {
+                alert(err.message || 'Could not add this item.');
+            } finally {
+                if (submit) submit.disabled = false;
+                titleInput.focus();
+            }
+        });
+    }
+
+    const desc = root.querySelector('[data-listing-description]');
+    const descToggle = root.querySelector('[data-listing-description-toggle]');
+    const descLaunch = root.querySelector('[data-listing-description-launch]');
+    const descCancel = root.querySelector('[data-listing-description-cancel]');
+    const descItem = desc && desc.closest('[data-checklist-item]');
+    const textarea = desc && desc.querySelector('textarea');
+    const saveBtn = desc && desc.querySelector('[data-listing-description-save]');
+    const draftBtn = desc && desc.querySelector('[data-listing-description-draft]');
+    const descAiReady = Boolean(draftBtn);
+
+    function setLaunchLabel(hasText) {
+        if (!descToggle) return;
+        if (descAiReady && !hasText) {
+            descToggle.innerHTML = '<i class="fas fa-wand-magic-sparkles text-[10px]" aria-hidden="true"></i>'
+                + '<span data-listing-description-toggle-label>Draft listing description</span>';
+            return;
+        }
+        descToggle.innerHTML = '<span data-listing-description-toggle-label>'
+            + (hasText ? 'Edit remarks' : 'Add listing description')
+            + '</span>';
+    }
+
+    function savedDescription() {
+        const preview = descItem && descItem.querySelector('[data-listing-description-preview]');
+        return preview ? preview.textContent.trim() : '';
+    }
+
+    function fitListingRemarks() {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        const min = parseFloat(textarea.dataset.minHeight || '0');
+        if (!min) {
+            const computed = window.getComputedStyle(textarea).minHeight;
+            textarea.dataset.minHeight = String(parseFloat(computed) || textarea.scrollHeight || 0);
+        }
+        const floor = parseFloat(textarea.dataset.minHeight || '0');
+        textarea.style.height = Math.max(textarea.scrollHeight, floor) + 'px';
+    }
+
+    function openListingDescription() {
+        if (!desc) return;
+        desc.hidden = false;
+        desc.classList.remove('hidden');
+        if (descLaunch) descLaunch.classList.add('hidden');
+        if (textarea) {
+            fitListingRemarks();
+            textarea.focus();
+        }
+    }
+    function closeListingDescription(hasText) {
+        if (!desc) return;
+        desc.hidden = true;
+        desc.classList.add('hidden');
+        if (descLaunch) descLaunch.classList.remove('hidden');
+        setLaunchLabel(Boolean(hasText));
+    }
+    if (descToggle && desc) {
+        descToggle.addEventListener('click', function () {
+            const empty = !(textarea && textarea.value.trim());
+            openListingDescription();
+            if (empty && draftBtn) draftBtn.click();
+        });
+    }
+    if (descCancel && desc) {
+        descCancel.addEventListener('click', function () {
+            if (textarea) textarea.value = savedDescription();
+            closeListingDescription(savedDescription());
+        });
+    }
+
+    if (!desc) return;
+
+    function applyDescription(text, source) {
+        const value = (text || '').trim();
+        desc.dataset.listingDescriptionSource = source || '';
+        let preview = descItem && descItem.querySelector('[data-listing-description-preview]');
+        if (value) {
+            if (!preview && descItem) {
+                preview = document.createElement('p');
+                preview.className = 'mt-1 truncate text-xs text-[color:var(--ink-3)]';
+                preview.setAttribute('data-listing-description-preview', '');
+                const launch = descItem.querySelector('[data-listing-description-launch]');
+                if (launch) launch.insertAdjacentElement('beforebegin', preview);
+                else desc.insertAdjacentElement('beforebegin', preview);
+            }
+            if (preview) preview.textContent = value;
+        } else if (preview) {
+            preview.remove();
+        }
+        if (descItem) {
+            setAiDraftBadges(descItem, value && source === 'ai');
+            applyDone(descItem, Boolean(value));
+        }
+        if (textarea) textarea.value = value;
+        closeListingDescription(Boolean(value));
+    }
+
+    if (saveBtn && textarea) {
+        saveBtn.addEventListener('click', async function () {
+            saveBtn.disabled = true;
+            try {
+                const data = await postJson(`/transactions/${txId}/listing-description`, {
+                    listing_description: textarea.value,
+                    source: desc.dataset.listingDescriptionSource || 'manual',
+                });
+                applyDescription(data.listing_description, data.source || desc.dataset.listingDescriptionSource);
+            } catch (err) {
+                alert(err.message || 'Could not save remarks.');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        });
+    }
+
+    if (textarea) {
+        textarea.addEventListener('input', fitListingRemarks);
+    }
+
+    if (draftBtn && textarea) {
+        draftBtn.addEventListener('click', async function () {
+            openListingDescription();
+            draftBtn.disabled = true;
+            const label = draftBtn.innerHTML;
+            draftBtn.setAttribute('aria-busy', 'true');
+            draftBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><span>Drafting…</span>';
+            try {
+                const data = await postJson(`/transactions/${txId}/listing-description/draft`);
+                textarea.value = data.draft || '';
+                desc.dataset.listingDescriptionSource = 'ai';
+                fitListingRemarks();
+                textarea.focus();
+            } catch (err) {
+                alert(err.message || 'Could not draft remarks.');
+            } finally {
+                draftBtn.disabled = false;
+                draftBtn.removeAttribute('aria-busy');
+                draftBtn.innerHTML = label;
+            }
+        });
+    }
 })();
 </script>
 
@@ -2479,202 +2478,23 @@ async function createExpectedDocumentSlot(button) {
     }
 }
 
-function editChecklistDueDate(button) {
-    const cell = button.parentElement;
-    const input = cell.querySelector('[data-checklist-date-input]');
-    if (!input) return;
-    button.classList.add('hidden');
-    input.classList.remove('hidden');
-    input.focus();
-
-    let settled = false;
-    const finish = async (save) => {
-        if (settled) return;
-        settled = true;
-        input.classList.add('hidden');
-        button.classList.remove('hidden');
-        if (!save || input.value === button.dataset.due) return;
-        try {
-            const res = await fetch(
-                `/transactions/{{ transaction.id }}/requirements/${button.dataset.requirementId}/due-date`,
-                {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: JSON.stringify({ due_date: input.value || '' }),
-                },
-            );
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                throw new Error(data.error || 'Could not update the due date.');
-            }
-            window.location.reload();
-        } catch (err) {
-            input.value = button.dataset.due || '';
-            alert(err.message || 'Could not update the due date.');
-        }
-    };
-
-    input.onchange = () => finish(true);
-    input.onblur = () => finish(true);
-    input.onkeydown = (event) => {
-        if (event.key === 'Escape') {
-            input.value = button.dataset.due || '';
-            finish(false);
-        } else if (event.key === 'Enter') {
-            finish(true);
-        }
-    };
-}
-
-function openDocumentReview(reportId) {
-    const report = document.getElementById(`review-report-${reportId}`);
-    const documentId = report?.dataset?.documentId;
-    if (documentId) {
-        window.location.href = `/transactions/{{ transaction.id }}/documents/${documentId}/review`;
-        return;
-    }
-    const details = document.getElementById('bob-review-details');
-    if (details) details.open = true;
-    (report || document.getElementById('document-review-inbox'))?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-    });
-}
-
-function openReviewAndApply() {
-    const details = document.getElementById('bob-review-details');
-    if (details) details.open = true;
-    const reviewRoot = document.getElementById('review-and-apply');
-    if (reviewRoot && !reviewRoot.querySelector('[data-proposal-id]')) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('review', 'latest');
-        url.hash = 'review-and-apply';
-        window.location.href = url.toString();
-        return;
-    }
-    reviewRoot?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-    });
-}
-
-(function openLinkedDocumentReview() {
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has('review') && window.location.hash !== '#review-and-apply') return;
-    const details = document.getElementById('bob-review-details');
-    if (details) details.open = true;
-    window.requestAnimationFrame(function () {
-        document.getElementById('review-and-apply')?.scrollIntoView({ block: 'start' });
-    });
-})();
-
-async function markDocumentReviewResolved(reportId, button) {
-    button.disabled = true;
-    button.textContent = 'Saving…';
-    try {
-        const response = await fetch(
-            `/transactions/{{ transaction.id }}/document-reviews/${reportId}/resolve`,
-            {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            },
-        );
-        if (!response.ok) throw new Error('resolve failed');
-        window.dispatchEvent(new CustomEvent('transaction:refresh'));
-    } catch (error) {
-        button.disabled = false;
-        button.textContent = 'Mark reviewed';
-        alert('Couldn’t mark this finding reviewed. Try again.');
-    }
-}
 </script>
 
 {% set initial_document_review_toast = document_review_toasts[0].to_dict() if document_review_toasts else none %}
-{# Live BOB document alert. The report remains in Coordination after this alert is closed. #}
 <div id="bob-document-review-toast"
      class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-900/45 p-4"
      role="alertdialog"
      aria-modal="true"
      aria-labelledby="bob-review-toast-title"
      aria-describedby="bob-review-toast-description">
-    <div class="w-full max-w-xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-        <div class="flex items-start gap-3 border-b border-red-100 bg-red-50 px-5 py-4 sm:px-6">
-            <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-200 bg-white text-red-700" aria-hidden="true">
-                <i class="fas fa-file-circle-exclamation text-sm"></i>
-            </span>
-            <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-700">Document review</p>
-                    <span id="bob-review-toast-severity" class="rounded-md border border-red-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">Needs review</span>
-                </div>
-                <h2 id="bob-review-toast-title" class="mt-1 text-lg font-semibold leading-snug text-slate-950">
-                    Item to check
-                </h2>
-                <p id="bob-review-toast-description" class="mt-1 text-xs leading-5 text-slate-600">
-                    No transaction changes applied.
-                </p>
-            </div>
-            <button type="button"
-                    id="bob-review-toast-close"
-                    class="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-white hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-300"
-                    aria-label="Close document review alert">
-                <i class="fas fa-xmark" aria-hidden="true"></i>
-            </button>
+    <div class="w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+        <div class="px-5 py-4">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">BOB check</p>
+            <h2 id="bob-review-toast-title" class="mt-1 text-base font-semibold text-slate-950">Uploaded document</h2>
+            <p id="bob-review-toast-description" class="mt-1 text-sm leading-6 text-slate-600">BOB reviewed this file.</p>
         </div>
-        <div class="max-h-[58vh] overflow-y-auto px-5 py-5 sm:px-6">
-            <div class="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <i class="fas fa-file-pdf mt-0.5 shrink-0 text-sm text-slate-500" aria-hidden="true"></i>
-                <div class="min-w-0">
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Uploaded file</p>
-                    <p id="bob-review-toast-file" class="mt-0.5 break-words text-sm font-semibold leading-5 text-slate-950">Uploaded document</p>
-                    <dl class="mt-1.5 space-y-0.5 text-xs leading-5 text-slate-600">
-                        <div class="flex flex-wrap gap-x-1">
-                            <dt>Document type:</dt>
-                            <dd id="bob-review-toast-type" class="font-medium text-slate-800">Uploaded document</dd>
-                        </div>
-                        <div id="bob-review-toast-form-row" class="hidden flex-wrap gap-x-1">
-                            <dt>Form:</dt>
-                            <dd id="bob-review-toast-form" class="font-medium text-slate-800"></dd>
-                        </div>
-                        <div class="flex flex-wrap gap-x-1">
-                            <dt>Transaction:</dt>
-                            <dd id="bob-review-toast-transaction" class="font-medium text-slate-800"></dd>
-                        </div>
-                    </dl>
-                </div>
-            </div>
-
-            <div class="mt-5">
-                <p id="bob-review-toast-findings-label" class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Findings</p>
-                <ul id="bob-review-toast-findings" class="mt-2 space-y-2.5"></ul>
-                <p id="bob-review-toast-summary" class="hidden text-sm leading-6 text-slate-700"></p>
-            </div>
-
-            <p class="mt-5 flex items-start gap-2 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
-                <i class="fas fa-shield-halved mt-0.5 shrink-0 text-slate-400" aria-hidden="true"></i>
-                <span>Operational review only — not a legal determination.</span>
-            </p>
-        </div>
-        <div class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-            <button type="button"
-                    id="bob-review-toast-later"
-                    class="crm-btn crm-btn-secondary w-full justify-center sm:w-auto">
-                Close
-            </button>
-            <button type="button"
-                    id="bob-review-toast-review"
-                    class="crm-btn crm-btn-critical w-full justify-center sm:w-auto">
-                Review findings
-            </button>
+        <div class="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-3">
+            <button type="button" id="bob-review-toast-ok" class="crm-btn crm-btn-primary">OK</button>
         </div>
     </div>
 </div>
@@ -2683,74 +2503,24 @@ async function markDocumentReviewResolved(reportId, button) {
     const overlay = document.getElementById('bob-document-review-toast');
     if (!overlay) return;
     const initialToast = {{ initial_document_review_toast|tojson }};
-    const closeBtn = document.getElementById('bob-review-toast-close');
-    const laterBtn = document.getElementById('bob-review-toast-later');
-    const reviewBtn = document.getElementById('bob-review-toast-review');
-    const fileEl = document.getElementById('bob-review-toast-file');
-    const typeEl = document.getElementById('bob-review-toast-type');
-    const formRow = document.getElementById('bob-review-toast-form-row');
-    const formEl = document.getElementById('bob-review-toast-form');
-    const transactionEl = document.getElementById('bob-review-toast-transaction');
-    const findingsEl = document.getElementById('bob-review-toast-findings');
-    const summaryEl = document.getElementById('bob-review-toast-summary');
-    const findingsLabel = document.getElementById('bob-review-toast-findings-label');
+    const okBtn = document.getElementById('bob-review-toast-ok');
     const titleEl = document.getElementById('bob-review-toast-title');
-    const severityEl = document.getElementById('bob-review-toast-severity');
+    const descriptionEl = document.getElementById('bob-review-toast-description');
     let activeReport = null;
     let returnFocus = null;
-    let reportSignature = null;
 
     function showReport(report) {
         if (!report || activeReport?.id === report.id) return;
         activeReport = report;
         returnFocus = document.activeElement;
-        const findings = Array.isArray(report.findings) ? report.findings.slice(0, 10) : [];
-
-        titleEl.textContent = `${findings.length || 1} ${findings.length === 1 ? 'item' : 'items'} to check`;
-        severityEl.textContent = report.severity === 'critical' ? 'Critical check' : 'Needs review';
-        fileEl.textContent = report.document_name || 'Uploaded document';
-        typeEl.textContent = report.document_type || 'Uploaded document';
-        transactionEl.textContent = report.transaction_address || `Transaction ${report.transaction_id}`;
-
-        if (report.document_form) {
-            formEl.textContent = report.document_form;
-            formRow.classList.remove('hidden');
-            formRow.classList.add('flex');
-        } else {
-            formRow.classList.add('hidden');
-            formRow.classList.remove('flex');
-            formEl.textContent = '';
-        }
-
-        findingsEl.replaceChildren();
-        findings.forEach(function (finding) {
-            const item = document.createElement('li');
-            item.className = 'flex items-start gap-2.5 text-sm leading-6 text-slate-700';
-            const icon = document.createElement('i');
-            icon.className = `fas fa-circle-exclamation mt-1.5 shrink-0 text-[11px] ${finding.severity === 'critical' ? 'text-red-600' : 'text-amber-600'}`;
-            icon.setAttribute('aria-hidden', 'true');
-            const message = document.createElement('span');
-            message.textContent = finding.message || 'Needs review.';
-            item.append(icon, message);
-            if (finding.page) {
-                const page = document.createElement('span');
-                page.className = 'mt-0.5 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600';
-                page.textContent = `Page ${finding.page}`;
-                item.append(page);
-            }
-            findingsEl.append(item);
-        });
-
-        const hasFindings = findings.length > 0;
-        findingsLabel.classList.toggle('hidden', !hasFindings);
-        findingsEl.classList.toggle('hidden', !hasFindings);
-        summaryEl.classList.toggle('hidden', hasFindings);
-        summaryEl.textContent = hasFindings ? '' : (report.summary || 'Review this document in Coordination.');
-
+        const findings = Array.isArray(report.findings) ? report.findings : [];
+        const firstFinding = findings[0] && findings[0].message;
+        titleEl.textContent = report.document_name || 'Uploaded document';
+        descriptionEl.textContent = report.summary || firstFinding || 'BOB reviewed this file.';
         overlay.classList.remove('hidden');
         overlay.classList.add('flex');
         document.body.classList.add('overflow-hidden');
-        window.setTimeout(() => reviewBtn.focus(), 0);
+        window.setTimeout(function () { okBtn && okBtn.focus(); }, 0);
     }
 
     function hideReport() {
@@ -2761,12 +2531,10 @@ async function markDocumentReviewResolved(reportId, button) {
         if (returnFocus && typeof returnFocus.focus === 'function') returnFocus.focus();
     }
 
-    async function dismissReport(reviewNow) {
+    async function dismissReport() {
         if (!activeReport) return;
         const report = activeReport;
-        closeBtn.disabled = true;
-        laterBtn.disabled = true;
-        reviewBtn.disabled = true;
+        if (okBtn) okBtn.disabled = true;
         try {
             const res = await fetch(`/transactions/{{ transaction.id }}/document-reviews/${report.id}/dismiss-toast`, {
                 method: 'POST',
@@ -2779,182 +2547,41 @@ async function markDocumentReviewResolved(reportId, button) {
             if (!res.ok) throw new Error('dismiss failed');
             hideReport();
             window.dispatchEvent(new CustomEvent('transaction:refresh'));
-            if (reviewNow) {
-                if (report.document_id) {
-                    window.location.href = `/transactions/{{ transaction.id }}/documents/${report.document_id}/review`;
-                    return;
-                }
-                const details = document.getElementById('bob-review-details');
-                if (details) details.open = true;
-                const reportEl = document.getElementById(`review-report-${report.id}`);
-                (reportEl || document.getElementById('document-review-inbox'))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
         } catch (err) {
-            alert('Couldn’t close this alert. Try again.');
+            alert('Couldn’t close this notice. Try again.');
         } finally {
-            closeBtn.disabled = false;
-            laterBtn.disabled = false;
-            reviewBtn.disabled = false;
+            if (okBtn) okBtn.disabled = false;
         }
     }
 
-    function updateInbox(data) {
-        if (!data || typeof data.html !== 'string') return;
-        const currentList = document.getElementById('document-review-report-list');
-        if (currentList) currentList.outerHTML = data.html;
-
-        const inbox = document.getElementById('document-review-inbox');
-        if (inbox && data.report_count > 0) inbox.classList.remove('hidden');
-        const count = document.getElementById('bob-review-count');
-        if (count && data.attention_count > 0) {
-            count.textContent = `${data.attention_count} ${data.attention_count === 1 ? 'finding needs' : 'findings need'} your attention`;
-        }
-    }
-
-    function applyLiveData(data, allowToast = true) {
+    function applyLiveData(data) {
         if (!data || !data.reviews) return;
-        const reviews = data.reviews;
         try {
-            if (data.version !== reportSignature) {
-                reportSignature = data.version;
-                updateInbox(reviews);
-            }
-            if (allowToast && !activeReport && reviews.pending_toasts?.length) {
-                showReport(reviews.pending_toasts[0]);
+            if (!activeReport && data.reviews.pending_toasts && data.reviews.pending_toasts.length) {
+                showReport(data.reviews.pending_toasts[0]);
             }
         } catch (error) {
             // Live updates should never block the page.
         }
     }
 
-    closeBtn.addEventListener('click', () => dismissReport(false));
-    laterBtn.addEventListener('click', () => dismissReport(false));
-    reviewBtn.addEventListener('click', () => dismissReport(true));
+    if (okBtn) okBtn.addEventListener('click', dismissReport);
     overlay.addEventListener('click', function (event) {
-        if (event.target === overlay) dismissReport(false);
+        if (event.target === overlay) dismissReport();
     });
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && !overlay.classList.contains('hidden')) {
-            dismissReport(false);
+            dismissReport();
         }
     });
     window.addEventListener('transaction:live', function (event) {
-        applyLiveData(event.detail, true);
+        applyLiveData(event.detail);
     });
 
     if (initialToast) showReport(initialToast);
 })();
 </script>
 
-<script>
-(function () {
-    const root = document.getElementById('review-and-apply');
-    if (!root) return;
-    const flash = document.getElementById('review-apply-flash');
-
-    function showError(msg) {
-        if (!flash) {
-            alert(msg || 'Something went wrong.');
-            return;
-        }
-        flash.textContent = msg || 'Something went wrong.';
-        flash.classList.remove('hidden');
-    }
-
-    async function postJson(url, body) {
-        const res = await fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: JSON.stringify(body),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.ok === false) {
-            throw new Error(data.error || ('Request failed (' + res.status + ')'));
-        }
-        return data;
-    }
-
-    function collectFields(proposalId) {
-        const selected = {};
-        const corrections = {};
-        root.querySelectorAll('.js-proposal-field[data-proposal-id="' + proposalId + '"]').forEach((cb) => {
-            const key = cb.dataset.key;
-            selected[key] = !!cb.checked;
-            if (cb.checked) {
-                const input = root.querySelector(
-                    '.js-proposal-value[data-proposal-id="' + proposalId + '"][data-key="' + CSS.escape(key) + '"]'
-                );
-                if (input) {
-                    let val = input.value;
-                    try {
-                        if (val.trim().startsWith('{') || val.trim().startsWith('[')) {
-                            val = JSON.parse(val);
-                        }
-                    } catch (e) { /* keep string */ }
-                    corrections[key] = val;
-                }
-            }
-        });
-        return { selected, corrections };
-    }
-
-    root.querySelectorAll('.js-proposal-select-all').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const id = btn.dataset.proposalId;
-            root.querySelectorAll('.js-proposal-field[data-proposal-id="' + id + '"]').forEach((cb) => {
-                cb.checked = true;
-            });
-        });
-    });
-    root.querySelectorAll('.js-proposal-select-none').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const id = btn.dataset.proposalId;
-            root.querySelectorAll('.js-proposal-field[data-proposal-id="' + id + '"]').forEach((cb) => {
-                cb.checked = false;
-            });
-        });
-    });
-
-    root.querySelectorAll('.js-proposal-approve').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const proposalId = btn.dataset.proposalId;
-            const url = btn.dataset.url;
-            const { selected, corrections } = collectFields(proposalId);
-            if (!Object.values(selected).some(Boolean)) {
-                showError('Select at least one field to apply.');
-                return;
-            }
-            btn.disabled = true;
-            try {
-                await postJson(url, { selected, corrections });
-                window.location.reload();
-            } catch (err) {
-                btn.disabled = false;
-                showError(err.message);
-            }
-        });
-    });
-
-    root.querySelectorAll('.js-proposal-reject').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            if (!window.confirm('Reject this entire proposal?')) return;
-            btn.disabled = true;
-            try {
-                await postJson(btn.dataset.url, {});
-                window.location.reload();
-            } catch (err) {
-                btn.disabled = false;
-                showError(err.message);
-            }
-        });
-    });
-})();
-</script>
 <script>
 (function () {
     // One-shot Bob setup briefing after bootstrap / questionnaire landing.

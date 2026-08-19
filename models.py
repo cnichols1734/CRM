@@ -1023,6 +1023,45 @@ class Transaction(db.Model):
             (p for p in self.participants.all() if p.role == 'seller' and p.is_primary),
             None
         )
+
+    @property
+    def primary_client_contact_id(self):
+        """Contact id for the main client on this transaction."""
+        participants = list(self.participants.all())
+        if not participants:
+            return None
+        type_name = self.transaction_type.name if self.transaction_type else None
+        preferred = {
+            'seller': 'seller',
+            'buyer': 'buyer',
+            'landlord': 'landlord',
+            'tenant': 'tenant',
+            'referral': 'referral_client',
+        }.get(type_name)
+        client_roles = ('seller', 'buyer', 'landlord', 'tenant', 'referral_client')
+
+        def _pick(role=None, primary_only=False):
+            for participant in participants:
+                if not participant.contact_id:
+                    continue
+                if role and participant.role != role:
+                    continue
+                if role is None and participant.role not in client_roles:
+                    continue
+                if primary_only and not participant.is_primary:
+                    continue
+                return participant.contact_id
+            return None
+
+        if preferred:
+            found = _pick(preferred, primary_only=True) or _pick(preferred)
+            if found:
+                return found
+        return (
+            _pick(primary_only=True)
+            or _pick()
+            or next((p.contact_id for p in participants if p.contact_id), None)
+        )
     
     @property
     def sellers(self):
