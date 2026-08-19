@@ -47,9 +47,10 @@ def test_contract_upload_queues_processing_instead_of_extracting_in_request(
         )
 
     assert response.status_code == 302
-    assert response.headers['Location'].endswith('/transactions/bootstrap/412/review')
+    assert '/transactions/bootstrap/batch/' in response.headers['Location']
     assert process_upload.call_args.kwargs['run_extraction'] is False
     assert process_upload.call_args.kwargs['confirmed_side'] == 'buyer'
+    assert process_upload.call_args.kwargs['upload_batch_id']
     enqueue.assert_called_once_with(session_id=412, org_id=seed['org_a'])
 
 
@@ -74,8 +75,9 @@ def test_contract_upload_without_side_lets_bob_decide(app, seed, owner_a_client)
         )
 
     assert response.status_code == 302
-    assert response.headers['Location'].endswith('/transactions/bootstrap/413/review')
+    assert '/transactions/bootstrap/batch/' in response.headers['Location']
     assert process_upload.call_args.kwargs['confirmed_side'] is None
+    assert process_upload.call_args.kwargs['upload_batch_id']
 
 
 def test_contract_inbox_accepts_multiple_pdfs(app, seed, owner_a_client):

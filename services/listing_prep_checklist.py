@@ -49,7 +49,7 @@ AUTO_KEYS = frozenset({
 TITLES = {
     'listing_agreement': 'Sign Listing Agreement',
     'seller_disclosures': "Complete Seller's Disclosure",
-    'listing_docs_complete': 'Upload Listing Documents',
+    'listing_docs_complete': 'Upload Remaining Listing Documents',
     'confirm_property_details': 'Confirm Property Details with Seller',
     'verify_room_sizes': 'Verify Room Sizes, Features & Amenities',
     'schedule_photography': 'Schedule Photography',
@@ -69,6 +69,12 @@ FALLBACK_LISTING_SLUGS = (
     'wire-fraud-warning',
     'seller-net-proceeds',
 )
+
+# Own checklist rows — the remaining-docs item is everything else.
+OWN_LISTING_CHECKLIST_SLUGS = frozenset({
+    'listing-agreement',
+    'sellers-disclosure',
+})
 
 HIDDEN_KEYS = frozenset({'photos_ready', 'offer_intake_ready'})
 
@@ -112,7 +118,7 @@ def listing_description_source(profile: Optional[SellerListingProfile]) -> str:
 
 
 def expected_listing_slugs(transaction: Transaction) -> list[str]:
-    """Slugs that must be on file for 'Upload Listing Documents'."""
+    """Slugs the questionnaire (or fallback pack) expects on a listing file."""
     from services.intake_service import evaluate_document_rules, get_intake_schema
 
     type_name = getattr(getattr(transaction, 'transaction_type', None), 'name', '') or 'seller'
@@ -135,6 +141,15 @@ def expected_listing_slugs(transaction: Transaction) -> list[str]:
         if slugs:
             return slugs
     return list(FALLBACK_LISTING_SLUGS)
+
+
+def remaining_listing_slugs(transaction: Transaction) -> list[str]:
+    """Supporting listing forms still needed after agreement and disclosure."""
+    return [
+        slug
+        for slug in expected_listing_slugs(transaction)
+        if slug not in OWN_LISTING_CHECKLIST_SLUGS
+    ]
 
 
 def _uploaded_slugs(documents: Iterable[TransactionDocument]) -> set[str]:
@@ -218,8 +233,8 @@ def sync_listing_prep_checklist(
         organization_id=org_id,
     ).first()
 
-    expected = expected_listing_slugs(transaction)
-    listing_docs_done = bool(expected) and all(slug in uploaded for slug in expected)
+    remaining = remaining_listing_slugs(transaction)
+    listing_docs_done = all(slug in uploaded for slug in remaining)
 
     done_by_key = {
         'listing_agreement': 'listing-agreement' in uploaded,
@@ -246,6 +261,7 @@ def _row_payload(
     req: TransactionRequirement,
     *,
     description: Optional[str] = None,
+    remaining_count: Optional[int] = None,
 ) -> dict[str, Any]:
     status = (req.work_status or 'pending').lower()
     custom = req.source == 'manual' and req.phase_key == 'custom'
@@ -261,6 +277,9 @@ def _row_payload(
         'task_id': req.task_id,
         'source': req.source,
         'description': description if req.requirement_key == 'listing_description' else None,
+        'remaining_count': (
+            remaining_count if req.requirement_key == 'listing_docs_complete' else None
+        ),
     }
 
 
@@ -285,6 +304,11 @@ def listing_prep_groups(transaction: Transaction) -> list[dict[str, Any]]:
         organization_id=transaction.organization_id,
     ).first()
     description = listing_description_text(profile)
+    documents = TransactionDocument.query.filter_by(transaction_id=transaction.id).all()
+    uploaded = _uploaded_slugs(documents)
+    remaining_count = sum(
+        1 for slug in remaining_listing_slugs(transaction) if slug not in uploaded
+    )
 
     groups = []
     for phase_key, label in LISTING_PREP_PHASES:
@@ -296,7 +320,11 @@ def listing_prep_groups(transaction: Transaction) -> list[dict[str, Any]]:
                 req = reqs.get(key)
                 if not req or KEY_PHASE.get(key) != phase_key:
                     continue
-                items.append(_row_payload(req, description=description))
+                items.append(_row_payload(
+                    req,
+                    description=description,
+                    remaining_count=remaining_count,
+                ))
         if items:
             groups.append({
                 'key': phase_key,

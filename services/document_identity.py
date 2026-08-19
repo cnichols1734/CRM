@@ -356,13 +356,13 @@ _FORM_RULES: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
     (
         (
             r"seller'?s? estimated net proceeds",
-            r'\bnet proceeds\b',
+            r'\btxr[-\s]?1935\b',
             r'\btxr[-\s]?2001\b',
         ),
         {
             'kind': KIND_OTHER,
             'template_slug': 'seller-net-proceeds',
-            'form_number': None,
+            'form_number': 'TXR-1935',
             'label': "Seller's Estimated Net Proceeds",
             'scopes': (SCOPE_LISTING,),
             'base_confidence': 0.9,
@@ -1055,6 +1055,30 @@ _AI_SEGMENT_TO_IDENTITY: dict[str, dict[str, Any]] = {
         'template_slug': 'referral-agreement',
         'label': 'Referral Agreement',
         'addendum_key': 'referral_agreement',
+        'scopes': (SCOPE_LISTING,),
+    },
+    'seller_estimated_net_proceeds': {
+        'kind': KIND_OTHER,
+        'template_slug': 'seller-net-proceeds',
+        'form_number': 'TXR-1935',
+        'label': "Seller's Estimated Net Proceeds",
+        'addendum_key': 'seller_net_proceeds',
+        'scopes': (SCOPE_LISTING,),
+    },
+    'sellers_estimated_net_proceeds': {
+        'kind': KIND_OTHER,
+        'template_slug': 'seller-net-proceeds',
+        'form_number': 'TXR-1935',
+        'label': "Seller's Estimated Net Proceeds",
+        'addendum_key': 'seller_net_proceeds',
+        'scopes': (SCOPE_LISTING,),
+    },
+    'seller_net_proceeds': {
+        'kind': KIND_OTHER,
+        'template_slug': 'seller-net-proceeds',
+        'form_number': 'TXR-1935',
+        'label': "Seller's Estimated Net Proceeds",
+        'addendum_key': 'seller_net_proceeds',
         'scopes': (SCOPE_LISTING,),
     },
     'residential_contract': {

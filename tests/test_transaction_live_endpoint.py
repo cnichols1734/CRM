@@ -39,6 +39,10 @@ def test_live_returns_stable_version_and_idle_state(app, seed, owner_a_client):
     }
     assert isinstance(payload['version'], str) and len(payload['version']) == 40
     assert isinstance(payload['in_flight'], bool)
+    assert isinstance(payload['extraction']['documents'], list)
+    if payload['extraction']['documents']:
+        row = payload['extraction']['documents'][0]
+        assert {'id', 'status', 'template_slug', 'template_name', 'parent_id'} <= set(row)
 
     second = owner_a_client.get(f'/transactions/{seed["tx_a"]}/live')
     assert second.get_json()['version'] == payload['version']
@@ -54,6 +58,10 @@ def test_live_reports_in_flight_while_extraction_pending(app, seed, owner_a_clie
         assert payload['in_flight'] is True
         assert payload['extraction']['listing_status'] == 'processing'
         assert payload['extraction']['processing_count'] >= 1
+        assert any(
+            row['status'] == 'processing'
+            for row in payload['extraction']['documents']
+        )
 
         with app.app_context():
             _set_extraction_status(seed, 'complete')

@@ -534,12 +534,45 @@ def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) 
     }
 
 
-def post_upload_processing(doc):
+def _split_listing_package(doc, file_bytes=None, *, require_confident=True):
+    """Slice a listing packet into child documents. Never fails the upload."""
+    import logging
+
+    try:
+        from models import db as _db
+        from services.seller_workflow import ensure_listing_package_split
+
+        children = ensure_listing_package_split(
+            doc, file_bytes=file_bytes, require_confident=require_confident,
+        )
+        if children:
+            _db.session.commit()
+            logging.getLogger(__name__).info(
+                'Split listing packet doc %s into %d child document(s)',
+                doc.id, len(children),
+            )
+        return children
+    except Exception:
+        logging.getLogger(__name__).exception(
+            'Listing package split failed for doc %s', getattr(doc, 'id', None),
+        )
+        try:
+            from models import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return []
+
+
+def post_upload_processing(doc, file_bytes=None):
     """
-    Enqueue background AI extraction for fulfilled placeholder documents.
+    Split mixed packets, then enqueue background AI extraction.
 
     Non-fatal: if Redis/RQ is unavailable the upload still succeeds and
     extraction runs in a local background thread as a dev fallback.
+
+    ``file_bytes`` lets an upload route hand over the PDF it already has in
+    memory so the splitter does not re-download it from storage.
     """
     import logging
     import os
@@ -617,11 +650,32 @@ def post_upload_processing(doc):
             'Failed to apply sensitivity for doc %s', doc_id,
         )
 
+    # A single upload is often a whole listing packet. Slice the supporting
+    # forms into their own documents before extraction so each one is a real
+    # file the agent can open, and so the listing PDF holds listing pages only.
+    # Packets we cannot fully account for wait for the AI pass in extraction.
+    for child in _split_listing_package(doc, file_bytes):
+        try:
+            post_upload_processing(child)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                'Post-upload processing failed for split child doc %s', child.id,
+            )
+
     if not may_use_in_llm(doc):
         logging.getLogger(__name__).info(
             'Skipping extraction enqueue for doc %s (privacy)',
             doc_id,
         )
+        # No AI pass is coming for this document, so this is the last chance to
+        # file the packet. Split best-effort and flag what we could not name.
+        for child in _split_listing_package(doc, file_bytes, require_confident=False):
+            try:
+                post_upload_processing(child)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    'Post-upload processing failed for split child doc %s', child.id,
+                )
         from models import db
         doc.extraction_status = 'failed'
         doc.extraction_error = 'BOB review skipped because this document is restricted by privacy controls.'

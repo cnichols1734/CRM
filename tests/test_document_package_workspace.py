@@ -191,14 +191,13 @@ def test_buyer_controlling_contract_package(app, seed):
         ).lower()
         assert packages['controlling_contract_package'] is not None
         assert packages['controlling_contract_package']['closing_date'] == '2026-09-10'
-        # Cash: POF should remain optional / may apply, not hard NA without stronger terms.
+        # Cash: POF is never presented as something the file is waiting on.
+        # No stronger terms means no row at all — agents add it by hand.
         rows = packages['controlling_contract_package']['documents']
-        pof = next(
+        assert not [
             r for r in rows
             if r.get('canonical_slug') == 'pre-approval-or-proof-of-funds'
-        )
-        assert pof['applicability'] != 'not_applicable'
-        assert 'legally required' not in (pof.get('reason') or '').lower()
+        ]
         db.session.rollback()
 
 
@@ -371,4 +370,99 @@ def test_placeholder_without_file_is_needed_not_uploaded(app, seed):
         assert iabs_row['state'] == 'missing'
         assert iabs_row['doc_url'] is None
         assert iabs_row['is_placeholder'] is True
+        db.session.rollback()
+
+
+def test_listing_packet_embeds_surface_over_empty_placeholders(app, seed):
+    """AI/fingerprint packet members must not look Needed behind empty slots."""
+    from services.document_identity import (
+        KIND_LISTING_AGREEMENT,
+        DocumentIdentity,
+        persist_identity_on_field_data,
+    )
+
+    with app.app_context():
+        tx = Transaction(
+            organization_id=seed['org_a'],
+            created_by_id=seed['owner_a'],
+            transaction_type_id=seed['tx_type_a'],
+            street_address='6048 Heritage Creek Lane',
+            status='preparing_to_list',
+            intake_data={'has_hoa': True},
+        )
+        db.session.add(tx)
+        db.session.flush()
+        identity = DocumentIdentity(
+            kind=KIND_LISTING_AGREEMENT,
+            template_slug='listing-agreement',
+            form_number='TXR-1101',
+            confidence=0.95,
+        )
+        field_data = persist_identity_on_field_data(
+            {
+                'has_hoa': True,
+                'detected_documents': [
+                    {
+                        'document_type': 'listing_agreement',
+                        'start_page': 1,
+                        'end_page': 11,
+                    },
+                    {
+                        'document_type': 'iabs',
+                        'start_page': 13,
+                        'end_page': 13,
+                    },
+                    {
+                        'document_type': 'hoa_addendum',
+                        'start_page': 14,
+                        'end_page': 14,
+                    },
+                ],
+            },
+            identity,
+        )
+        listing = TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=tx.id,
+            template_slug='listing-agreement',
+            template_name='Listing Agreement',
+            status='signed',
+            document_source='completed',
+            signed_file_path='transactions/1/external/listing.pdf',
+            is_placeholder=False,
+            field_data=field_data,
+        )
+        iabs = TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=tx.id,
+            template_slug='iabs',
+            template_name='Information About Brokerage Services',
+            status='pending',
+            document_source='placeholder',
+            is_placeholder=True,
+        )
+        hoa = TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=tx.id,
+            template_slug='hoa-addendum',
+            template_name='HOA Addendum',
+            status='pending',
+            document_source='placeholder',
+            is_placeholder=True,
+        )
+        db.session.add_all([listing, iabs, hoa])
+        db.session.flush()
+
+        packages = build_document_packages(tx)
+        rows = (packages.get('listing_package') or {}).get('documents') or []
+        by_slug = {
+            (r.get('canonical_slug') or r.get('template_slug')): r for r in rows
+        }
+        assert by_slug['listing-agreement']['state'] == 'uploaded'
+        assert by_slug['iabs']['state'] == 'detected_in_package'
+        assert by_slug['iabs']['detected_in_package'] is True
+        assert by_slug['iabs']['parent_document_id'] == listing.id
+        assert by_slug['iabs']['document_id'] == iabs.id
+        assert by_slug['hoa-addendum']['state'] == 'detected_in_package'
+        assert by_slug['hoa-addendum']['parent_document_id'] == listing.id
         db.session.rollback()

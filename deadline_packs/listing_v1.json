@@ -62,8 +62,8 @@
     },
     "listing_docs_complete": {
       "phase": "listing_docs",
-      "title": "Upload Listing Documents",
-      "description": "Every expected listing form is on file",
+      "title": "Upload Remaining Listing Documents",
+      "description": "Supporting listing forms still needed after the listing agreement and seller's disclosure",
       "responsibility": "agent",
       "required": true,
       "auto_check": "listing_package"

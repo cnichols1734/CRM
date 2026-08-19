@@ -152,6 +152,7 @@ function showAddDocumentPicker() {
 }
 
 function closeAddDocumentModal() {
+    if (window.__txUploadBusy) return;
     document.getElementById('addDocumentModal').classList.add('hidden');
     resetAddDocumentModal();
 }

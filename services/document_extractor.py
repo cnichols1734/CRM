@@ -249,6 +249,7 @@ EXTRACTION_SCHEMAS = {
                 'JSON array of every distinct document identified inside this PDF, in the order they appear. '
                 'Each item must include "document_type" using one of these labels: '
                 'listing_agreement (TXR-1101 Residential Real Estate Listing Agreement), '
+                'seller_estimated_net_proceeds (TXR-1935 / TXR-2001 Seller\'s Estimated Net Proceeds), '
                 'iabs (Information About Brokerage Services / TXR-2501 / TREC IABS 1-0), '
                 'sellers_disclosure (Seller\'s Disclosure Notice / TXR-1406), '
                 'lead_based_paint (Lead-Based Paint Addendum or Disclosure), '
@@ -259,8 +260,11 @@ EXTRACTION_SCHEMAS = {
                 'special_tax_district_notice (MUD / PID / special taxing district notice), '
                 'sewer_facility (notice regarding on-site sewer facility / septic), '
                 'referral_agreement (broker referral fee agreement), '
-                'other (anything else, include a descriptive title). '
-                'Each item must also include 1-based "start_page" and "end_page" integers indicating the page range inside this PDF, and an optional human "title". '
+                'other (ANY document that does not match a label above — a survey, lender letter, '
+                'brokerage-specific addendum, out-of-state form, or anything unfamiliar). '
+                'Never force an unfamiliar document into a label that does not fit; use other instead. '
+                'Each item must also include 1-based "start_page" and "end_page" integers indicating the page range inside this PDF, and a human "title". '
+                'The "title" is REQUIRED when document_type is other: name the form as printed on the page. '
                 'Page ranges must be contiguous and stay within the total number of pages in this PDF. '
                 'Always include the listing agreement first when present. '
                 'If the PDF contains only the listing agreement, return a single-item array.'
@@ -271,6 +275,8 @@ EXTRACTION_SCHEMAS = {
             "A single uploaded PDF may be a listing package that also contains the Information About Brokerage Services form, "
             "Seller's Disclosure Notice, lead-based paint documents, HOA or tax district notices, and similar listing paperwork. "
             "Always populate detected_documents with one entry per distinct document found in the PDF, including accurate 1-based start_page and end_page values. "
+            "The listing_agreement range must contain ONLY listing-agreement pages — never IABS, Seller's Estimated Net Proceeds, wire-fraud, HOA, or disclosure pages. "
+            "Seller's Estimated Net Proceeds (TXR-1935 / TXR-2001) is its own document even when it is a single page in the middle or at the end of the packet. "
             "Only list documents that are actually present as pages in this PDF. "
             "Do NOT invent forms that are merely checked or listed as addenda on the listing agreement. "
             "Extract ONLY the values explicitly written on the document. "
@@ -357,10 +363,12 @@ EXTRACTION_SCHEMAS = {
                 'pre_approval (lender pre-approval letter or proof of funds), '
                 'backup_addendum (Back-Up Contract addendum), '
                 'lead_based_paint (Lead-Based Paint Disclosure/Addendum), '
+                'appraisal_termination (Addendum Concerning Right to Terminate Due to '
+                'Lender\'s Appraisal / TREC 49 / TXR 1948), '
                 'sale_of_other_property (Addendum for Sale of Other Property), '
                 'temporary_lease (Seller\'s/Buyer\'s Temporary Residential Lease), '
-                'compensation_agreement (broker compensation/cooperation agreement), '
-                'other (anything else, include a descriptive title). '
+                'compensation_agreement (broker compensation/cooperation agreement / TXR 2402), '
+                'other (anything else — a descriptive "title" is REQUIRED). '
                 'Each item must also include 1-based "start_page" and "end_page" integers indicating the page range inside this PDF, an optional human "title" (e.g. "TREC One to Four Family Residential Contract"), and an optional "notes" string. '
                 'Page ranges must be contiguous and stay within the total number of pages in this PDF. '
                 'Always include the main contract first when present.'
@@ -589,7 +597,12 @@ UNIVERSAL_EXTRACTION_FIELDS = {
     'option_fee': 'Option fee explicitly shown (digits only).',
     'amendment_number': 'Amendment/version number explicitly shown.',
     'referenced_contract_date': 'Effective date of a referenced underlying contract (YYYY-MM-DD).',
-    'buyer_signature_detected': 'True only if a buyer/tenant signature is visibly present; false only if the applicable signature area is visibly blank; null if not applicable or unclear.',
+    'buyer_signature_detected': (
+        'True only if a buyer/tenant signature is visibly present AND this filing '
+        'expects a buyer signature (offer or contract). False only if a buyer '
+        'signature block applies to this filing and is visibly blank. Null if this '
+        'is listing-stage paperwork, the form has no buyer signature block, or it is unclear.'
+    ),
     'seller_signature_detected': 'True only if a seller/landlord signature is visibly present; false only if the applicable signature area is visibly blank; null if not applicable or unclear.',
     'document_summary': 'One or two factual sentences describing what this document appears to do. No legal conclusions.',
     'authoritative_deadlines': (
@@ -604,7 +617,10 @@ UNIVERSAL_EXTRACTION_FIELDS = {
         'contradictory dates/amounts inside the document, or a document that does not match its '
         'upload slot. Do NOT flag buyer names that differ from listing CRM parties — inbound offers '
         'introduce new buyers. Do NOT flag blank/unsigned seller signature lines on buyer-offer '
-        'packages or offer addenda. Use an empty array when no concrete issue is visible.'
+        'packages or offer addenda. Do NOT flag a missing buyer signature on listing-stage '
+        'paperwork (listing agreement, seller disclosure, IABS, net sheet, wire-fraud warning, '
+        'and other listing-file documents) — buyer acknowledgements stay blank until an offer '
+        'or contract. Use an empty array when no concrete issue is visible.'
     ),
     'unreadable_pages': 'Array of 1-based page numbers that cannot be read reliably, or an empty array.',
 }
@@ -878,16 +894,17 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
         user_prompt = _build_extraction_prompt(prompt_schema)
         try:
             from models import Transaction as _Tx
-            from services.offer_side import side_for_transaction as _side_for_tx
+            from services.document_signature_policy import extraction_review_context
             _tx = _Tx.query.filter_by(
                 id=doc.transaction_id,
                 organization_id=org_id,
             ).first() if doc.transaction_id else None
-            if _tx and _side_for_tx(_tx) == 'seller':
-                user_prompt = f"{user_prompt}\n\n{SELLER_LISTING_INBOUND_CONTEXT}"
+            extra_context = extraction_review_context(_tx, doc) if _tx else ''
+            if extra_context:
+                user_prompt = f"{user_prompt}\n\n{extra_context}"
         except Exception:
             logger.exception(
-                'Failed to attach seller-listing review context for doc %s', doc_id,
+                'Failed to attach filing-purpose review context for doc %s', doc_id,
             )
         if pdf_text:
             user_prompt = (
@@ -1152,6 +1169,7 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
                     )
 
         split_warning = None
+        children = []
         try:
             _set_rls(org_id)
             from services.seller_workflow import (
@@ -1161,7 +1179,11 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
             )
             children = split_offer_package_into_children(doc_id, file_data)
             children.extend(split_contract_package_into_children(doc_id, file_data))
-            children.extend(split_listing_package_into_children(doc_id, file_data))
+            # AI has now had its say, so this pass files the packet even where
+            # pages stayed unidentified — those become their own flagged rows.
+            children.extend(split_listing_package_into_children(
+                doc_id, file_data, require_confident=False,
+            ))
             if children:
                 db.session.commit()
                 logger.info(
@@ -1169,6 +1191,7 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
                 )
         except Exception as split_error:
             db.session.rollback()
+            children = []
             split_warning = f"Document split warning: {split_error}"
             logger.error(
                 f"Failed to create split child documents for doc {doc_id}", exc_info=True,
@@ -1181,6 +1204,7 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
             doc.extraction_error = split_warning[:500] if split_warning else None
             db.session.commit()
             logger.info(f"Extraction complete for doc {doc_id}: {len(doc.field_data or {})} fields populated")
+            child_ids = [child.id for child in children] if children else []
             try:
                 from services.document_review import finalize_document_review
                 finalize_document_review(
@@ -1194,6 +1218,23 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
                     'Document review finalize failed after successful extraction doc=%s',
                     doc_id,
                 )
+            # Split children (listing packet, offer packet) keep their known
+            # template slugs — run the same extraction/review path as a
+            # table-row upload so Bob sees type + stage.
+            if child_ids:
+                from services.intake_service import post_upload_processing
+                from models import TransactionDocument as _TxDoc
+                for child_id in child_ids:
+                    child = _TxDoc.query.get(child_id)
+                    if child is None:
+                        continue
+                    try:
+                        post_upload_processing(child)
+                    except Exception:
+                        logger.exception(
+                            'Post-upload processing failed for split child doc=%s',
+                            child_id,
+                        )
 
     except Exception as e:
         db.session.rollback()
@@ -1235,5 +1276,23 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
                     )
         except Exception:
             logger.error(f"Failed to update extraction_status for doc {doc_id}", exc_info=True)
+
+        # AI is not coming back for this document. A packet that was held back
+        # waiting for classification would otherwise never be filed at all, so
+        # split on fingerprints alone and flag whatever stayed unidentified.
+        try:
+            _set_rls(org_id)
+            from services.seller_workflow import split_listing_package_into_children
+
+            if split_listing_package_into_children(
+                doc_id, file_data, require_confident=False,
+            ):
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception(
+                'Best-effort listing split failed after extraction error doc=%s',
+                doc_id,
+            )
 
         logger.error(f"Document extraction failed for doc {doc_id}: {e}", exc_info=True)

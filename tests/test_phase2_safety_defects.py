@@ -719,10 +719,10 @@ def test_package_includes_unmatched_and_embedded(app, seed):
         }
         assert {primary.id, generic.id, custom.id, extra.id} <= seen_ids
 
-        pof = next(
+        # POF is never presented as required; with nothing calling for it, the
+        # speculative row stays out of the package entirely.
+        assert not [
             r for r in contract_rows
             if r.get('canonical_slug') == 'pre-approval-or-proof-of-funds'
-        )
-        assert pof['applicability'] != 'not_applicable'
-        assert 'legally required' not in (pof.get('reason') or '').lower()
+        ]
         db.session.rollback()

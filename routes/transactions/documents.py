@@ -884,6 +884,11 @@ def fulfill_placeholder_document(id, doc_id):
     documents externally (e.g. in ZipForms) then upload the finished PDF here.
     Sets status='signed', document_source='completed' so the document counts
     as terminal/complete in progress tracking.
+
+    This path already knows the template slug and transaction stage. Post-upload
+    processing runs the same extraction + Bob review as the main upload button,
+    so listing-slot uploads (listing agreement, seller disclosure, etc.) are
+    reviewed as listing paperwork, not as buyer-offer packages.
     """
     from datetime import datetime
     from services.supabase_storage import upload_external_document as upload_storage, delete_transaction_document as delete_storage

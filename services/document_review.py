@@ -51,6 +51,13 @@ _SELLER_SIG_CODE_HINTS = (
     'seller_signatures',
     'unsigned_seller',
 )
+_BUYER_SIG_CODE_HINTS = (
+    'buyer_signature',
+    'missing_buyer_signature',
+    'buyer_signatures',
+    'unsigned_buyer',
+    'buyer_acknowledgement',
+)
 _PARTY_CRM_HINTS = (
     'crm contact',
     'crm party',
@@ -66,11 +73,14 @@ def _is_inbound_seller_offer_document(
     """True when this PDF is on a seller inbound offer (not controlling yet)."""
     if side_for_transaction(transaction) != 'seller':
         return False
-    link = SellerOfferDocument.query.filter_by(
-        organization_id=transaction.organization_id,
-        transaction_id=transaction.id,
-        transaction_document_id=document.id,
-    ).first()
+    try:
+        link = SellerOfferDocument.query.filter_by(
+            organization_id=transaction.organization_id,
+            transaction_id=transaction.id,
+            transaction_document_id=document.id,
+        ).first()
+    except Exception:
+        return False
     return link is not None
 
 
@@ -80,6 +90,34 @@ def _sanity_is_scale_noise(flag: dict) -> bool:
         return True
     message = str(flag.get('message') or '').lower()
     return any(hint in message for hint in _SCALE_MESSAGE_HINTS)
+
+
+def _sanity_is_buyer_signature_noise(flag: dict) -> bool:
+    """Buyer signature/ack lines are blank on listing-stage paperwork."""
+    code = str(flag.get('code') or '').strip().lower()
+    field_key = str(flag.get('field_key') or '').strip().lower()
+    message = str(flag.get('message') or '').strip().lower()
+    if any(hint in code for hint in _BUYER_SIG_CODE_HINTS):
+        return True
+    if 'buyer_signature' in field_key or 'buyer_acknowledg' in field_key:
+        return True
+    if 'buyer' not in message:
+        return False
+    if 'signature' not in message and 'sign' not in message and 'acknowledg' not in message:
+        return False
+    return any(
+        token in message
+        for token in (
+            'blank',
+            'unsigned',
+            'not signed',
+            'not confirm',
+            'could not confirm',
+            'missing',
+            'not present',
+            'no buyer',
+        )
+    )
 
 
 def _sanity_is_seller_signature_noise(flag: dict) -> bool:
@@ -336,6 +374,8 @@ def build_findings(
         return findings, field_count
 
     inbound_offer = _is_inbound_seller_offer_document(transaction, document)
+    from services.document_signature_policy import signature_expectations
+    expectations = signature_expectations(transaction, document)
 
     # AI-observed operational flags must be concrete, page-cited when possible,
     # and remain suggestions. Deterministic CRM comparisons below still run.
@@ -346,6 +386,10 @@ def build_findings(
         if not message:
             continue
         field_key = str(raw_flag.get('field_key') or '')
+        if not expectations.expect_buyer and _sanity_is_buyer_signature_noise(raw_flag):
+            continue
+        if not expectations.expect_seller and _sanity_is_seller_signature_noise(raw_flag):
+            continue
         if inbound_offer:
             # Blank/unsigned seller lines and buyer≠listing-party CRM mismatches
             # are noise on inbound offer packages (buyers are new to the deal).
@@ -541,7 +585,11 @@ def build_findings(
             continue
         if value in (False, 'false', 'no', 'absent', 0, '0'):
             role = 'buyer' if 'buyer' in key else 'seller' if 'seller' in key else 'party'
-            # Inbound offers are buyer-signed packages; blank seller lines are expected.
+            # Listing-stage files have no buyer; inbound offers have no seller execution yet.
+            if role == 'buyer' and not expectations.expect_buyer:
+                continue
+            if role == 'seller' and not expectations.expect_seller:
+                continue
             if inbound_offer and role == 'seller':
                 continue
             page = _page_hint(field_meta, key)

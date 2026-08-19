@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import page_header, badge %}
 
-{% block title %}Review document - AgentFlow{% endblock %}
+{% block title %}{% if session.status in ('uploaded', 'processing') %}Reading your upload{% else %}Review document{% endif %} - AgentFlow{% endblock %}
 
 {% block content %}
 {% set classification = review.classification or {} %}
@@ -35,69 +35,41 @@
      data-approve-url="{{ url_for('transactions.bootstrap_approve', session_id=session.id) }}"
      data-needs-destination="{{ 'true' if needs_destination else 'false' }}"
      data-approve-cta="{{ approve_cta_label }}">
-    <div class="crm-page__inner max-w-[1180px]">
+    <div class="crm-page__inner {% if is_processing %}max-w-[720px]{% else %}max-w-[1180px]{% endif %}">
         {% call page_header(
-            'Review document',
-            session.original_filename or 'Uploaded PDF',
+            'Reading your upload' if is_processing else 'Review document',
+            '' if is_processing else (session.original_filename or 'Uploaded PDF'),
             'Document intake'
         ) %}
-            <a href="{{ url_for('transactions.bootstrap_inbox') }}" class="crm-btn crm-btn-secondary">Document uploads</a>
+            <a href="{{ url_for('transactions.bootstrap_inbox') }}" class="crm-btn crm-btn-secondary">
+                {{ 'Back to inbox' if is_processing else 'Document uploads' }}
+            </a>
         {% endcall %}
 
         <div id="contract-review-error" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert"></div>
 
         {% if is_processing %}
-        <section class="crm-surface mx-auto w-full max-w-2xl overflow-hidden" aria-labelledby="processing-heading">
-            <div class="grid lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div class="crm-surface-body p-6 sm:p-8">
-                    <div class="flex items-start gap-4">
-                        <span class="crm-bob-mark">BOB</span>
-                        <div>
-                            <h1 id="processing-heading" class="text-xl font-semibold text-slate-950">Identifying the form and extracting fields.</h1>
-                            <p class="mt-2 max-w-[62ch] text-sm leading-6 text-slate-600">
-                                You can leave this page. You’ll get a notification when review is ready.
-                            </p>
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                {{ badge(side_label ~ ' representation', 'accent') }}
-                                {{ badge((session.page_count or 0) ~ ' page' ~ ('s' if session.page_count != 1 else ''), 'neutral') }}
-                                {% if identification.label %}
-                                {{ badge(identification.label ~ ((' · ' ~ identification.form_number) if identification.form_number else ''), 'neutral') }}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-8 max-w-[620px] space-y-1" aria-live="polite">
-                        <div class="flex items-center gap-3 rounded-md px-3 py-3">
-                            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs text-emerald-700"><i class="fas fa-check" aria-hidden="true"></i></span>
-                            <span class="text-sm font-medium text-slate-800">Document uploaded</span>
-                        </div>
-                        <div class="flex items-center gap-3 rounded-md bg-orange-50 px-3 py-3">
-                            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-orange-100 text-xs text-orange-700"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i></span>
-                            <div>
-                                <p class="text-sm font-semibold text-slate-900">Identifying form and extracting fields</p>
-                                <p class="mt-0.5 text-xs text-slate-600">This usually takes less than a minute.</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3 rounded-md px-3 py-3 text-slate-400">
-                            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-xs">3</span>
-                            <span class="text-sm font-medium">Checking for conflicts and missing information</span>
-                        </div>
-                        <div class="flex items-center gap-3 rounded-md px-3 py-3 text-slate-400">
-                            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-xs">4</span>
-                            <span class="text-sm font-medium">Preparing your review</span>
-                        </div>
+        <section class="crm-surface" aria-labelledby="processing-heading">
+            <div class="crm-surface-body p-5 sm:p-7">
+                <div class="flex items-start gap-3">
+                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-orange-50 text-orange-700" aria-hidden="true">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </span>
+                    <div>
+                        <h1 id="processing-heading" class="text-lg font-semibold text-slate-950">Reading this PDF</h1>
+                        <p class="mt-1 max-w-[60ch] text-sm leading-6 text-slate-600">Extracting details.</p>
                     </div>
                 </div>
-                <aside class="border-t border-slate-200 bg-slate-50 px-6 py-6 lg:border-l lg:border-t-0">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Nothing changes yet</p>
-                    <p class="mt-3 text-sm leading-6 text-slate-700">
-                        The transaction, contacts, dates, and deadlines stay as-is until you approve.
-                    </p>
-                    <a href="{{ url_for('transactions.list_transactions') }}" class="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-950">
-                        Return to transactions
-                    </a>
-                </aside>
+
+                <ul class="mt-6 divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
+                    <li class="flex items-center justify-between gap-3 px-4 py-3">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium text-slate-900">{{ session.original_filename or 'Uploaded PDF' }}</p>
+                            <p class="mt-0.5 text-xs text-slate-500">{{ identification.label or 'Extracting details…' }}</p>
+                        </div>
+                        <span class="shrink-0 text-xs font-medium text-orange-700">Reading…</span>
+                    </li>
+                </ul>
             </div>
         </section>
 

@@ -41,6 +41,11 @@ class ExpectedDocument:
     reason: str
     source: str
     form_number: Optional[str] = None
+    # A form that some deals include but nothing about this one calls for.
+    # It earns a slot only once the form actually turns up in the package;
+    # otherwise agents add it by hand. Distinct from OPTIONAL applicability,
+    # which also marks an anchor slot that is already satisfied.
+    speculative: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -137,6 +142,48 @@ def merge_listing_package_terms(
         terms['seller_disclosure_required'] = True
 
     return terms
+
+
+# Facts about the property itself rather than a negotiated term. The
+# questionnaire is human-confirmed, so it decides these at every scope.
+_PROPERTY_FACT_INTAKE_KEYS = ('built_before_1978',)
+
+# Deal-shaped keys where the questionnaire only fills a gap in extraction.
+_OFFER_INTAKE_FALLBACK_KEYS = (
+    'has_hoa',
+    'hoa_applicable',
+    'flood_hazard',
+    'special_districts',
+    'has_septic',
+)
+
+
+def merge_offer_package_terms(
+    *,
+    terms: dict[str, Any] | None = None,
+    intake_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Overlay questionnaire answers onto offer / contract terms.
+
+    Year built is a property fact, so a questionnaire answer of "built after
+    1978" settles lead-paint applicability even when the offer package says
+    nothing. Deal-shaped answers only fill gaps, since an addendum actually
+    attached to the offer is stronger evidence than an intake checkbox.
+    """
+    merged = dict(terms or {})
+    intake = intake_data if isinstance(intake_data, dict) else {}
+    if not intake:
+        return merged
+
+    for key in _PROPERTY_FACT_INTAKE_KEYS:
+        if intake.get(key) not in (None, ''):
+            merged[key] = intake[key]
+
+    for key in _OFFER_INTAKE_FALLBACK_KEYS:
+        if key not in merged and intake.get(key) not in (None, ''):
+            merged[key] = intake[key]
+
+    return merged
 
 
 def _financing_suggests_tpf(terms: dict[str, Any]) -> bool | None:
@@ -401,8 +448,11 @@ def expected_documents_for_context(
             form_number='TXR-1406',
         ))
 
-        lead = _truthy(
-            _first_present(terms, 'lead_based_paint_required', 'built_before_1978')
+        # Year built decides this federally, so it outranks a checkbox on the
+        # offer package — a post-1978 property never needs the disclosure.
+        year_built = _truthy(_first_present(terms, 'built_before_1978'))
+        lead = year_built if year_built is not None else _truthy(
+            _first_present(terms, 'lead_based_paint_required')
         )
         add(ExpectedDocument(
             key='lead_based_paint',
@@ -415,7 +465,11 @@ def expected_documents_for_context(
                 else UNKNOWN
             ),
             reason=(
-                'Lead-based paint disclosure indicated by extracted terms.'
+                'Property built before 1978 — federal lead-based paint disclosure applies.'
+                if year_built is True
+                else 'Property not built before 1978 — lead-based paint disclosure does not apply.'
+                if year_built is False
+                else 'Lead-based paint disclosure indicated by extracted terms.'
                 if lead is True
                 else 'Lead-based paint indicated as not applicable.'
                 if lead is False
@@ -444,6 +498,7 @@ def expected_documents_for_context(
                 applicability=OPTIONAL,
                 reason='Only applicable when the offer is accepted as backup.',
                 source='offer_lifecycle',
+                speculative=True,
             ))
 
         # Cash often needs proof of funds; financed offers may use pre-approval.
@@ -470,6 +525,7 @@ def expected_documents_for_context(
             applicability=OPTIONAL,
             reason=pof_reason,
             source='offer_practice',
+            speculative=True,
         ))
 
         if scope_norm == SCOPE_OFFER:
@@ -482,6 +538,7 @@ def expected_documents_for_context(
                 reason='Often included with financed offers; present when uploaded with the package.',
                 source='offer_practice',
                 form_number='TREC 49',
+                speculative=True,
             ))
             add(ExpectedDocument(
                 key='broker_compensation',
@@ -492,6 +549,7 @@ def expected_documents_for_context(
                 reason='Broker-to-broker compensation agreements may accompany an offer package.',
                 source='offer_practice',
                 form_number='TXR 2402',
+                speculative=True,
             ))
 
         add(ExpectedDocument(

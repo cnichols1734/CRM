@@ -124,6 +124,7 @@
      {% if document_packages %}
      id="transaction-document-hub"
      data-document-upload-hub-upload-url-value="{{ url_for('transactions.upload_completed_document', id=transaction.id) }}"
+     data-document-upload-hub-live-url-value="{{ url_for('transactions.transaction_live', id=transaction.id) }}"
      data-document-upload-hub-has-baseline-value="{{ 'true' if hub_has_baseline else 'false' }}"
      data-document-upload-hub-side-value="{{ document_packages.side or tx_type_name or '' }}"
      {% endif %}

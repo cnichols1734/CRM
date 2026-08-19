@@ -40,6 +40,7 @@
             <p class="mt-0.5 text-xs" style="color: var(--ink-3);">{{ package.status|replace('_', ' ')|title }}</p>
             {% endif %}
         </div>
+        {% set needed_count = rows | selectattr('state', 'equalto', 'missing') | list | length %}
         <button type="button"
                 class="crm-btn crm-btn-secondary crm-btn-sm min-h-11"
                 data-action="document-upload-hub#open"
@@ -47,7 +48,11 @@
                 data-document-upload-hub-scope-id-param="{{ package.scope_id or '' }}"
                 data-document-upload-hub-label-param="{{ pkg_label }}">
             <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+            {% if pkg_key == 'listing_package' and needed_count > 1 %}
+            Upload remaining
+            {% else %}
             Upload document
+            {% endif %}
         </button>
     </div>
 {% endif %}
@@ -99,16 +104,14 @@
                     <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">File document</a>
                     {% endif %}
                     {% if row.doc_url %}
-                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">Open PDF</a>
+                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">View document</a>
                     {% endif %}
                     {% elif row.document_id and row.doc_url %}
-                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">Open PDF</a>
+                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">View document</a>
                     {% if row.offer_package_review and row.review_url %}
                     <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open in offer review</a>
                     {% elif row.has_review_findings and row.review_url %}
                     <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Review findings</a>
-                    {% elif row.review_url %}
-                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open review</a>
                     {% endif %}
                     {% elif row.document_id and row.is_placeholder %}
                     <button type="button"

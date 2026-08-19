@@ -38,6 +38,16 @@ class SplitResult:
     page_count: int
 
 
+def _coerce_page(raw: dict, *keys) -> Optional[int]:
+    """Return the first present integer page value from ``raw``."""
+    for key in keys:
+        value = raw.get(key)
+        if value is None:
+            continue
+        return int(value)
+    return None
+
+
 def get_pdf_page_count(file_data: bytes) -> int:
     """Return the number of pages in a PDF byte stream."""
     if not file_data:
@@ -70,8 +80,12 @@ def normalize_segments(
         if not isinstance(raw, dict):
             continue
         try:
-            start = int(raw.get('start_page')) if raw.get('start_page') is not None else None
-            end = int(raw.get('end_page')) if raw.get('end_page') is not None else None
+            start = _coerce_page(
+                raw, 'start_page', 'start_page', 'page_start', 'page_start',
+            )
+            end = _coerce_page(
+                raw, 'end_page', 'end_page', 'page_end', 'page_end',
+            )
         except (TypeError, ValueError):
             continue
         if start is None or end is None:
@@ -84,12 +98,16 @@ def normalize_segments(
             continue
 
         document_type = raw.get('document_type')
+        if document_type is None:
+            document_type = raw.get('document_type')
+        if document_type is None:
+            document_type = raw.get('type')
         if isinstance(document_type, str):
             document_type = document_type.strip().lower() or None
         else:
             document_type = None
 
-        title = raw.get('title')
+        title = raw.get('title') or raw.get('label')
         if isinstance(title, str):
             title = title.strip() or None
         else:
@@ -123,6 +141,25 @@ def normalize_segments(
     return deduped
 
 
+def _extract_page_range(file_data: bytes, start_page: int, end_page: int) -> bytes:
+    """Return a PDF holding 1-based pages ``start_page``..``end_page``.
+
+    Keeps the source document and drops the other pages rather than grafting
+    pages into an empty document. Real estate forms are fillable AcroForm PDFs,
+    and grafting them is both lossy and, on some PyMuPDF releases, raises while
+    copying widgets for any range that does not start at page 1. Selecting
+    pages in place preserves each field's value and appearance.
+    """
+    child = fitz.open(stream=file_data, filetype="pdf")
+    try:
+        child.select(list(range(start_page - 1, end_page)))
+        if child.page_count <= 0:
+            return b''
+        return child.tobytes(garbage=3, deflate=True)
+    finally:
+        child.close()
+
+
 def split_pdf_by_segments(
     file_data: bytes,
     segments: Iterable[SplitSegment],
@@ -141,34 +178,41 @@ def split_pdf_by_segments(
     if not seg_list:
         return []
 
-    results: List[SplitResult] = []
     source = fitz.open(stream=file_data, filetype="pdf")
     try:
         total_pages = source.page_count
-        for seg in seg_list:
-            if seg.start_page < 1 or seg.end_page > total_pages or seg.end_page < seg.start_page:
-                logger.warning(
-                    "Skipping invalid PDF split segment %s-%s (total pages=%s)",
-                    seg.start_page, seg.end_page, total_pages,
-                )
-                continue
-            child = fitz.open()
-            try:
-                child.insert_pdf(
-                    source,
-                    from_page=seg.start_page - 1,
-                    to_page=seg.end_page - 1,
-                )
-                if child.page_count <= 0:
-                    continue
-                pdf_bytes = child.tobytes()
-            finally:
-                child.close()
-            results.append(SplitResult(
-                segment=seg,
-                pdf_bytes=pdf_bytes,
-                page_count=(seg.end_page - seg.start_page + 1),
-            ))
     finally:
         source.close()
+
+    results: List[SplitResult] = []
+    for seg in seg_list:
+        if seg.start_page < 1 or seg.end_page > total_pages or seg.end_page < seg.start_page:
+            logger.warning(
+                "Skipping invalid PDF split segment %s-%s (total pages=%s)",
+                seg.start_page, seg.end_page, total_pages,
+            )
+            continue
+        try:
+            pdf_bytes = _extract_page_range(file_data, seg.start_page, seg.end_page)
+        except Exception:
+            logger.exception(
+                "Failed to extract PDF pages %s-%s", seg.start_page, seg.end_page,
+            )
+            continue
+        if not pdf_bytes:
+            continue
+        results.append(SplitResult(
+            segment=seg,
+            pdf_bytes=pdf_bytes,
+            page_count=(seg.end_page - seg.start_page + 1),
+        ))
     return results
+
+
+def slice_pdf_pages(file_data: bytes, start_page: int, end_page: int) -> bytes:
+    """Return a PDF containing 1-based pages ``start_page`` through ``end_page``."""
+    results = split_pdf_by_segments(
+        file_data,
+        [SplitSegment(start_page=start_page, end_page=end_page)],
+    )
+    return results[0].pdf_bytes if results else b''

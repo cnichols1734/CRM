@@ -80,7 +80,8 @@ def test_seller_preparing_to_list_renders_grouped_checklist(app, seed, owner_a_c
         assert 'MLS Setup' in html
         assert 'Sign Listing Agreement' in html
         assert 'Seller&#39;s Disclosure' in html or "Seller's Disclosure" in html
-        assert 'Upload Listing Documents' in html
+        assert 'Upload Remaining Listing Documents' in html
+        assert 'still needed' in html
         assert 'Confirm Property Details with Seller' in html
         assert 'Add Property Description' in html
         assert 'data-listing-description-toggle' in html

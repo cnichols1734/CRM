@@ -480,14 +480,24 @@ def transaction_live(id):
         TransactionDocument.id,
         TransactionDocument.extraction_status,
         TransactionDocument.template_slug,
+        TransactionDocument.template_name,
+        TransactionDocument.parent_document_id,
     ).filter_by(transaction_id=tx.id).all()
 
     doc_states = []
+    documents = []
     listing_status = None
     pending_count = 0
     processing_count = 0
-    for doc_id, extraction_status, template_slug in doc_rows:
-        doc_states.append((doc_id, extraction_status))
+    for doc_id, extraction_status, template_slug, template_name, parent_id in doc_rows:
+        doc_states.append((doc_id, extraction_status, template_slug or ''))
+        documents.append({
+            'id': doc_id,
+            'status': extraction_status,
+            'template_slug': template_slug,
+            'template_name': template_name,
+            'parent_id': parent_id,
+        })
         if template_slug == 'listing-agreement':
             listing_status = extraction_status
         if extraction_status == 'pending':
@@ -496,7 +506,7 @@ def transaction_live(id):
             processing_count += 1
 
     in_flight = any(
-        status in ('pending', 'processing') for _, status in doc_states
+        status in ('pending', 'processing') for _, status, _ in doc_states
     )
 
     offers_pending = (
@@ -518,7 +528,10 @@ def transaction_live(id):
     fingerprint = '|'.join([
         ','.join(f'{r.id}:{r.status}:{r.severity}' for r in sorted_reports),
         ','.join(str(p.id) for p in sorted_proposals),
-        ','.join(f'{d_id}:{d_status}' for d_id, d_status in sorted(doc_states)),
+        ','.join(
+            f'{d_id}:{d_status}:{d_slug}'
+            for d_id, d_status, d_slug in sorted(doc_states)
+        ),
     ])
     version = hashlib.sha1(fingerprint.encode('utf-8')).hexdigest()
 
@@ -546,6 +559,7 @@ def transaction_live(id):
             'listing_status': listing_status,
             'pending_count': pending_count,
             'processing_count': processing_count,
+            'documents': documents,
         },
         'offers': {
             'pending_extraction_count': int(offers_pending),
