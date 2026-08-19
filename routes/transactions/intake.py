@@ -509,11 +509,6 @@ def generate_document_package(id):
             flash(f'Warning: Could not remove {", ".join(blocked_names)} because they are already sent/signed. Void them first if needed.', 'warning')
 
         flash(f'File setup complete: {", ".join(messages)}.', 'success')
-        if bootstrap_session:
-            return redirect(url_for(
-                'transactions.bootstrap_complete',
-                session_id=bootstrap_session.id,
-            ))
         return redirect(url_for('transactions.view_transaction', id=id))
         
     except Exception as e:

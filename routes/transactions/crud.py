@@ -440,6 +440,14 @@ def create_transaction():
         for participant in transaction.participants.all():
             audit_service.log_participant_added(transaction, participant)
 
+        if tx_type and tx_type.name == 'seller':
+            from services.listing_prep_checklist import seed_listing_prep_checklist
+            seed_listing_prep_checklist(
+                transaction,
+                current_user.organization_id,
+                actor_id=current_user.id,
+            )
+
         db.session.commit()
 
         flash('Transaction created successfully!', 'success')
@@ -900,9 +908,33 @@ def view_transaction(id):
     # Merged checklist: requirements + folded document placeholders as one list.
     checklist = []
     checklist_folded_doc_ids = set()
+    listing_prep_groups = []
+    listing_description = ''
+    listing_description_source = ''
+    listing_description_ai_ready = False
     try:
         from services.checklist_service import build_checklist
+        from services.listing_prep_checklist import (
+            listing_description_source as description_source_for,
+            listing_description_text,
+            listing_prep_groups as build_listing_prep_groups,
+            sync_listing_prep_checklist,
+        )
         from services.requirements_service import RequirementsService as _ReqSvc
+        from config import Config
+
+        tx_side_name = (transaction.transaction_type.name or '').lower()
+        if tx_side_name == 'seller':
+            sync_listing_prep_checklist(
+                transaction,
+                actor_id=current_user.id,
+                documents=documents,
+            )
+            db.session.commit()
+            listing_prep_groups = build_listing_prep_groups(transaction)
+            listing_description = listing_description_text(seller_listing_profile)
+            listing_description_source = description_source_for(seller_listing_profile)
+            listing_description_ai_ready = bool(Config.OPENAI_API_KEY)
 
         checklist = build_checklist(transaction, current_user.organization_id)
         now_utc = dt.utcnow()
@@ -918,6 +950,7 @@ def view_transaction(id):
         logger.exception('Checklist load failed for tx=%s', transaction.id)
         checklist = []
         checklist_folded_doc_ids = set()
+        listing_prep_groups = []
 
     # Amendments card: only when an active primary accepted contract exists.
     amendments = None
@@ -973,26 +1006,34 @@ def view_transaction(id):
         logger.exception('document_packages build failed for tx=%s', transaction.id)
         document_packages = None
 
-    # One "what do I do next" pointer for the workspace banner. Priority:
-    # pending document review → questionnaire → missing docs → overdue work.
+    # One "what do I do next" pointer. Preparing-to-list checklist first,
+    # then questionnaire, then overdue contract dates.
     next_step = None
     try:
+        from services.listing_prep_checklist import first_open_listing_prep_item
+
         tx_side_name = (transaction.transaction_type.name or '').lower()
-        review_doc_id = None
-        if document_review_reports:
-            review_doc_id = document_review_reports[0].document_id
-        elif pending_change_proposals:
-            review_doc_id = pending_change_proposals[0].source_document_id
-        if review_doc_id:
+        open_prep = (
+            first_open_listing_prep_item(listing_prep_groups)
+            if tx_side_name == 'seller' and transaction.status == 'preparing_to_list'
+            else None
+        )
+        dated_deadlines = [
+            item for item in checklist
+            if item.get('kind') == 'requirement' and item.get('due_at')
+        ]
+        has_checklist_target = bool(
+            (tx_side_name == 'seller' and transaction.status == 'preparing_to_list' and listing_prep_groups)
+            or (tx_side_name == 'seller' and transaction.status != 'preparing_to_list' and dated_deadlines)
+            or (tx_side_name != 'seller' and any(item.get('kind') == 'requirement' for item in checklist))
+        )
+
+        if open_prep:
             next_step = {
-                'title': 'Review the latest uploaded document',
-                'description': 'Bob checked it and pulled the key terms. Confirm them side by side with the PDF.',
-                'cta': 'Open review',
-                'url': url_for(
-                    'transactions.document_review_workspace',
-                    id=transaction.id,
-                    doc_id=review_doc_id,
-                ),
+                'title': open_prep['title'],
+                'description': 'Next item on the Preparing to List checklist.',
+                'cta': 'Open checklist',
+                'url': '#transaction-checklist',
             }
         elif (
             tx_side_name == 'seller'
@@ -1001,35 +1042,36 @@ def view_transaction(id):
         ):
             next_step = {
                 'title': 'Finish the property questionnaire',
-                'description': 'A few quick questions build the required-document list for this listing.',
+                'description': 'A few questions about HOA, year built, and districts.',
                 'cta': 'Start questionnaire',
                 'url': url_for('transactions.intake_questionnaire', id=transaction.id),
             }
-        elif missing_documents:
-            count = len(missing_documents)
-            names = ', '.join(
-                (d.template_name or d.template_slug or 'document')
-                for d in missing_documents[:3]
-            )
-            if count > 3:
-                names += f', and {count - 3} more'
-            next_step = {
-                'title': f'{count} required document{"s" if count != 1 else ""} still needed',
-                'description': f'Missing: {names}. Drop the PDFs in and the system identifies and files them for you.',
-                'cta': 'Upload documents',
-                'url': '#transaction-required-documents',
-            }
-        elif control_tower_summary.get('overdue'):
+        elif control_tower_summary.get('overdue') and has_checklist_target:
             overdue = control_tower_summary['overdue']
             next_step = {
                 'title': f'{overdue} deadline{"s are" if overdue != 1 else " is"} overdue',
-                'description': 'Update the date or mark the item done in the deadlines list.',
-                'cta': 'Open deadlines',
+                'description': 'Update the date or mark the item done.',
+                'cta': 'Open checklist',
                 'url': '#transaction-checklist',
             }
     except Exception:
         logger.exception('Next-step banner failed for tx=%s', transaction.id)
         next_step = None
+
+    listing_source_documents = []
+    if transaction.transaction_type.name == 'seller':
+        listing_source_documents = [
+            doc for doc in documents
+            if doc.template_slug == 'listing-agreement'
+            and (doc.signed_file_path or doc.source_file_path)
+        ]
+        listing_source_documents.sort(
+            key=lambda d: (
+                1 if isinstance(d.field_data, dict) and d.field_data else 0,
+                d.created_at or dt.min,
+            ),
+            reverse=True,
+        )
 
     return render_template(
         'transactions/detail.html',
@@ -1042,6 +1084,11 @@ def view_transaction(id):
         listing_info=listing_info,
         listing_extraction_status=listing_extraction_status,
         listing_info_overrides=listing_info_overrides,
+        listing_source_documents=listing_source_documents,
+        listing_prep_groups=listing_prep_groups,
+        listing_description=listing_description,
+        listing_description_source=listing_description_source,
+        listing_description_ai_ready=listing_description_ai_ready,
         has_listing_agreement=has_listing_agreement,
         header_price=header_price,
         contract_terms=contract_terms,

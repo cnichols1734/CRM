@@ -24,10 +24,10 @@
 
                         <div id="upload-step">
                             <div class="mb-5 flex items-start gap-3">
-                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-slate-900 text-sm font-semibold text-white">1</span>
+                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[color:var(--ink)] text-sm font-semibold text-[color:var(--paper)]">1</span>
                                 <div>
-                                    <h2 id="document-upload-heading" class="text-base font-semibold text-slate-950">Upload PDFs</h2>
-                                    <p class="mt-1 max-w-[60ch] text-sm leading-6 text-slate-600">
+                                    <h2 id="document-upload-heading" class="text-base font-semibold text-[color:var(--ink)]">Upload PDFs</h2>
+                                    <p class="mt-1 max-w-[60ch] text-sm leading-6 text-[color:var(--ink-2)]">
                                         Listing agreement, HOA, flood/MUD notice, seller disclosure, offer — one file or a stack.
                                     </p>
                                 </div>
@@ -35,13 +35,13 @@
 
                             <label id="contract-dropzone"
                                    for="contract-file"
-                                   class="group flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center transition-colors hover:border-slate-500 hover:bg-slate-100 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-200">
-                                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded bg-white text-slate-600 ring-1 ring-slate-200">
+                                   class="group flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-[color:var(--hairline-strong)] bg-[color:var(--paper-2)] px-5 py-8 text-center transition-colors hover:border-[color:var(--ink-4)] hover:bg-[color:var(--paper-3)] focus-within:border-[color:var(--accent)] focus-within:ring-2 focus-within:ring-[color:var(--accent-soft)]">
+                                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded bg-[color:var(--paper)] text-[color:var(--ink-2)] ring-1 ring-[color:var(--hairline)]">
                                     <i class="fas fa-file-arrow-up text-lg" aria-hidden="true"></i>
                                 </span>
-                                <span class="text-sm font-semibold text-slate-950">Drop PDFs here</span>
-                                <span class="mt-1 text-sm text-slate-500">or choose one or more files from your device</span>
-                                <span class="mt-4 text-xs text-slate-400">PDF, up to 25 MB each · max 20 files</span>
+                                <span class="text-sm font-semibold text-[color:var(--ink)]">Drop PDFs here</span>
+                                <span class="mt-1 text-sm text-[color:var(--ink-3)]">or choose one or more files from your device</span>
+                                <span class="mt-4 text-xs text-[color:var(--ink-4)]">PDF, up to 25 MB each · max 20 files</span>
                                 <input id="contract-file"
                                        type="file"
                                        name="files"
@@ -53,17 +53,17 @@
 
                             <div id="selected-files" class="mt-4 hidden space-y-2">
                                 <div class="flex items-center justify-between gap-3">
-                                    <p id="selected-files-summary" class="text-sm font-medium text-slate-900"></p>
+                                    <p id="selected-files-summary" class="text-sm font-medium text-[color:var(--ink)]"></p>
                                     <button type="button" id="change-file" class="crm-btn crm-btn-sm crm-btn-secondary min-h-11">Change</button>
                                 </div>
-                                <ul id="selected-files-list" class="divide-y divide-slate-100 rounded-md border border-slate-200 bg-white"></ul>
+                                <ul id="selected-files-list" class="divide-y divide-[color:var(--hairline)] rounded-md border border-[color:var(--hairline)] bg-[color:var(--paper)]"></ul>
                             </div>
                             <p id="file-error" class="mt-2 hidden text-sm text-red-700" role="alert"></p>
                         </div>
 
-                        <div id="upload-actions" class="mt-8 hidden border-t border-slate-200 pt-6">
+                        <div id="upload-actions" class="mt-8 hidden border-t border-[color:var(--hairline)] pt-6">
                             <div class="flex flex-wrap items-center justify-between gap-3">
-                                <p class="max-w-[52ch] text-sm leading-5 text-slate-600">
+                                <p class="max-w-[52ch] text-sm leading-5 text-[color:var(--ink-2)]">
                                     You’ll confirm filing on the next screens.
                                 </p>
                                 <button type="submit" id="upload-submit" class="crm-btn crm-btn-accent">
@@ -72,42 +72,42 @@
                             </div>
                         </div>
 
-                        <div id="uploading-state" class="mt-8 hidden border-t border-slate-200 pt-6" role="status" aria-live="polite">
+                        <div id="uploading-state" class="mt-8 hidden border-t border-[color:var(--hairline)] pt-6" role="status" aria-live="polite">
                             <div class="flex items-center gap-3">
-                                <span class="inline-flex h-9 w-9 items-center justify-center rounded bg-orange-50 text-orange-700">
+                                <span class="inline-flex h-9 w-9 items-center justify-center rounded bg-[color:var(--accent-soft)] text-[color:var(--accent-ink)]">
                                     <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
                                 </span>
                                 <div>
-                                    <p class="text-sm font-semibold text-slate-950">Uploading…</p>
-                                    <p class="mt-0.5 text-sm text-slate-600">Stay on this page until the upload finishes.</p>
+                                    <p class="text-sm font-semibold text-[color:var(--ink)]">Uploading…</p>
+                                    <p class="mt-0.5 text-sm text-[color:var(--ink-2)]">Stay on this page until the upload finishes.</p>
                                 </div>
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <aside class="border-t border-slate-200 bg-slate-950 px-5 py-6 text-slate-200 lg:border-l lg:border-t-0 sm:px-6" aria-label="What happens next">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-orange-400">What happens next</p>
+                <aside class="border-t border-[color:var(--hairline)] bg-[color:var(--paper-2)] px-5 py-6 text-[color:var(--ink-2)] lg:border-l lg:border-t-0 sm:px-6" aria-label="What happens next">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--accent)]">What happens next</p>
                     <ol class="mt-5 space-y-5">
                         <li class="flex gap-3">
-                            <span class="mt-0.5 text-sm font-semibold text-slate-500">01</span>
+                            <span class="mt-0.5 text-sm font-semibold text-[color:var(--ink-3)]">01</span>
                             <div>
-                                <p class="text-sm font-semibold text-white">Identify each form</p>
-                                <p class="mt-1 text-sm leading-5 text-slate-400">Listing → seller. Buyer-rep → buyer. Purchase contract → your broker column. Addenda stay separate.</p>
+                                <p class="text-sm font-semibold text-[color:var(--ink)]">Identify each form</p>
+                                <p class="mt-1 text-sm leading-5 text-[color:var(--ink-2)]">Listing → seller. Buyer-rep → buyer. Purchase contract → your broker column. Addenda stay separate.</p>
                             </div>
                         </li>
                         <li class="flex gap-3">
-                            <span class="mt-0.5 text-sm font-semibold text-slate-500">02</span>
+                            <span class="mt-0.5 text-sm font-semibold text-[color:var(--ink-3)]">02</span>
                             <div>
-                                <p class="text-sm font-semibold text-white">You confirm the filing plan</p>
-                                <p class="mt-1 text-sm leading-5 text-slate-400">Nothing is filed until you approve. Representation is asked only if the PDF is unclear.</p>
+                                <p class="text-sm font-semibold text-[color:var(--ink)]">You confirm the filing plan</p>
+                                <p class="mt-1 text-sm leading-5 text-[color:var(--ink-2)]">Nothing is filed until you approve. Representation is asked only if the PDF is unclear.</p>
                             </div>
                         </li>
                         <li class="flex gap-3">
-                            <span class="mt-0.5 text-sm font-semibold text-slate-500">03</span>
+                            <span class="mt-0.5 text-sm font-semibold text-[color:var(--ink-3)]">03</span>
                             <div>
-                                <p class="text-sm font-semibold text-white">Open the right workspace</p>
-                                <p class="mt-1 text-sm leading-5 text-slate-400">Listing, offers, or contract coordination — based on what you filed.</p>
+                                <p class="text-sm font-semibold text-[color:var(--ink)]">Open the right workspace</p>
+                                <p class="mt-1 text-sm leading-5 text-[color:var(--ink-2)]">Listing, offers, or contract coordination — based on what you filed.</p>
                             </div>
                         </li>
                     </ol>
@@ -118,8 +118,8 @@
         <section class="mt-8" aria-labelledby="recent-uploads-heading">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
-                    <h2 id="recent-uploads-heading" class="text-sm font-semibold text-slate-950">Recent uploads</h2>
-                    <p class="mt-0.5 text-sm text-slate-500">Return to any document that is still processing or waiting for review.</p>
+                    <h2 id="recent-uploads-heading" class="text-sm font-semibold text-[color:var(--ink)]">Recent uploads</h2>
+                    <p class="mt-0.5 text-sm text-[color:var(--ink-3)]">Return to any document that is still processing or waiting for review.</p>
                 </div>
             </div>
 
@@ -165,9 +165,9 @@
                                 {{ s.created_at.strftime('%b %d, %Y %I:%M %p') if s.created_at else '—' }}
                             </td>
                             <td class="text-right">
-                                <a href="{{ url_for('transactions.bootstrap_complete' if s.status == 'applied' else 'transactions.bootstrap_review', session_id=s.id) }}"
+                                <a href="{% if s.status == 'applied' and s.matched_transaction_id %}{{ url_for('transactions.view_transaction', id=s.matched_transaction_id) }}{% else %}{{ url_for('transactions.bootstrap_review', session_id=s.id) }}{% endif %}"
                                    class="crm-btn crm-btn-sm crm-btn-secondary min-h-11">
-                                    {{ 'View setup' if s.status == 'applied' else 'Open' }}
+                                    {{ 'Open file' if s.status == 'applied' else 'Open' }}
                                 </a>
                             </td>
                         </tr>
@@ -251,12 +251,12 @@
             : `${files.length} PDFs ready to upload`;
         selectedList.innerHTML = files.map((file) => `
             <li class="flex items-center gap-3 px-4 py-3">
-                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded bg-red-50 text-red-700">
+                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[color:var(--danger-soft)] text-[color:var(--danger)]">
                     <i class="fas fa-file-pdf" aria-hidden="true"></i>
                 </span>
                 <div class="min-w-0">
-                    <p class="truncate text-sm font-medium text-slate-900">${escapeHtml(file.name)}</p>
-                    <p class="mt-0.5 text-xs text-slate-500">${formatBytes(file.size)}</p>
+                    <p class="truncate text-sm font-medium text-[color:var(--ink)]">${escapeHtml(file.name)}</p>
+                    <p class="mt-0.5 text-xs text-[color:var(--ink-3)]">${formatBytes(file.size)}</p>
                 </div>
             </li>
         `).join('');
@@ -271,13 +271,13 @@
     ['dragenter', 'dragover'].forEach((eventName) => {
         dropzone.addEventListener(eventName, (event) => {
             event.preventDefault();
-            dropzone.classList.add('border-orange-500', 'bg-orange-50');
+            dropzone.classList.add('crm-dropzone-active');
         });
     });
     ['dragleave', 'drop'].forEach((eventName) => {
         dropzone.addEventListener(eventName, (event) => {
             event.preventDefault();
-            dropzone.classList.remove('border-orange-500', 'bg-orange-50');
+            dropzone.classList.remove('crm-dropzone-active');
         });
     });
     dropzone.addEventListener('drop', (event) => {

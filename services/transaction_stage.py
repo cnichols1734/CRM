@@ -83,7 +83,7 @@ _LABELS: dict[str, str] = {
 _SUMMARIES: dict[str, dict[str, str]] = {
     'seller': {
         'prelisting': 'Get the listing agreement signed and listing details locked before you go live.',
-        'listed': 'Keep showings moving and the listing package complete while you wait on offers.',
+        'listed': '',
         'offers': 'Compare terms, deadlines, and net — then accept, counter, or decline.',
         'under_contract': 'Track option, financing, and title deadlines against the executed contract.',
         'closing': 'Close is inside two weeks — clear the remaining checklist items and docs.',
@@ -535,7 +535,8 @@ def _build_stage(
         index = 0
         terminal = bool(is_terminal)
     label = _LABELS.get(key, key.replace('_', ' ').title())
-    summary = (_SUMMARIES.get(side) or {}).get(key) or _fallback_summary(key)
+    summaries = _SUMMARIES.get(side) or {}
+    summary = summaries[key] if key in summaries else _fallback_summary(key)
     return TransactionStage(
         key=key,
         label=label,

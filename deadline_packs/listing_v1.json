@@ -2,121 +2,159 @@
   "pack_key": "listing",
   "version": "v1",
   "name": "Listing Preparation",
-  "description": "Seller listing prep / MLS / showing readiness as human-attested outcomes (no MLS write API)",
+  "description": "Seller preparing-to-list checklist. Document rows auto-check from uploads; MLS and marketing rows are agent-attested.",
   "applies_to": {
     "sides": ["seller"],
     "statuses": ["preparing_to_list", "active"]
   },
   "phases": [
     {
+      "phase_key": "listing_docs",
+      "name": "Listing Documents",
+      "description": "Signed listing paperwork on file"
+    },
+    {
+      "phase_key": "property_prep",
+      "name": "Property & Marketing Prep",
+      "description": "Walk the house, photos, access"
+    },
+    {
+      "phase_key": "mls_setup",
+      "name": "MLS Setup",
+      "description": "MLS input, media, and showing instructions"
+    },
+    {
       "phase_key": "prep",
       "name": "Listing Prep",
-      "description": "Photos, disclosures, and listing inputs"
+      "description": "Legacy phase — hidden from the checklist card"
     },
     {
       "phase_key": "marketing",
       "name": "Marketing & Showings",
-      "description": "Go-live and showing coordination"
+      "description": "Legacy phase — hidden from the checklist card"
     },
     {
       "phase_key": "offers",
       "name": "Offers",
-      "description": "Offer intake readiness"
+      "description": "Legacy phase — hidden from the checklist card"
     }
   ],
   "requirements": {
     "listing_agreement": {
-      "phase": "prep",
-      "title": "Listing Agreement Signed",
-      "description": "Executed listing agreement on file (upload/attestation)",
-      "deadline_rule": {
-        "anchor": "listing_start",
-        "offset_days": 0,
-        "unit": "calendar"
-      },
+      "phase": "listing_docs",
+      "title": "Sign Listing Agreement",
+      "description": "Executed listing agreement on file",
       "responsibility": "agent",
       "required": true,
-      "evidence_types": ["document", "attestation"],
+      "auto_check": "document",
+      "evidence_types": ["document"],
       "document_slug": "listing-agreement"
     },
     "seller_disclosures": {
-      "phase": "prep",
-      "title": "Seller Disclosures Complete",
-      "description": "Seller disclosure packet completed and ready for buyers",
-      "deadline_rule": {
-        "anchor": "listing_start",
-        "offset_days": 3,
-        "unit": "business"
-      },
+      "phase": "listing_docs",
+      "title": "Complete Seller's Disclosure",
+      "description": "Seller's Disclosure Notice on file",
       "responsibility": "seller",
       "required": true,
-      "evidence_types": ["document", "attestation"],
+      "auto_check": "document",
+      "evidence_types": ["document"],
       "document_slug": "sellers-disclosure"
+    },
+    "listing_docs_complete": {
+      "phase": "listing_docs",
+      "title": "Upload Listing Documents",
+      "description": "Every expected listing form is on file",
+      "responsibility": "agent",
+      "required": true,
+      "auto_check": "listing_package"
+    },
+    "confirm_property_details": {
+      "phase": "property_prep",
+      "title": "Confirm Property Details with Seller",
+      "description": "Walk the listing facts with the seller",
+      "responsibility": "agent",
+      "required": true
+    },
+    "verify_room_sizes": {
+      "phase": "property_prep",
+      "title": "Verify Room Sizes, Features & Amenities",
+      "description": "Confirm measurements and features before MLS",
+      "responsibility": "agent",
+      "required": true
+    },
+    "schedule_photography": {
+      "phase": "property_prep",
+      "title": "Schedule Photography",
+      "description": "Photographer booked",
+      "responsibility": "agent",
+      "required": true
+    },
+    "confirm_showing_availability": {
+      "phase": "property_prep",
+      "title": "Confirm Showing Availability & Instructions",
+      "description": "Seller confirmed when the house can be shown",
+      "responsibility": "agent",
+      "required": true
+    },
+    "signage_lockbox": {
+      "phase": "property_prep",
+      "title": "Install Sign and Lockbox",
+      "description": "Yard sign and lockbox on the property",
+      "responsibility": "agent",
+      "required": true
+    },
+    "mls_input_attested": {
+      "phase": "mls_setup",
+      "title": "Complete MLS Listing Input",
+      "description": "MLS fields entered (no MLS write from the CRM)",
+      "responsibility": "agent",
+      "required": true
+    },
+    "upload_photos_media": {
+      "phase": "mls_setup",
+      "title": "Upload Photos & Media",
+      "description": "Photos and media uploaded to MLS",
+      "responsibility": "agent",
+      "required": true
+    },
+    "listing_description": {
+      "phase": "mls_setup",
+      "title": "Add Property Description",
+      "description": "MLS remarks saved on this file",
+      "responsibility": "agent",
+      "required": true,
+      "auto_check": "listing_description"
+    },
+    "showing_instructions": {
+      "phase": "mls_setup",
+      "title": "Enter Showing Instructions",
+      "description": "Showing instructions saved on the listing profile",
+      "responsibility": "agent",
+      "required": true,
+      "auto_check": "showing_instructions"
+    },
+    "review_mls_accuracy": {
+      "phase": "mls_setup",
+      "title": "Review MLS Listing for Accuracy",
+      "description": "Agent reviewed the live MLS listing",
+      "responsibility": "agent",
+      "required": true
     },
     "photos_ready": {
       "phase": "prep",
       "title": "Photos Ready",
-      "description": "Marketing photos delivered and approved",
-      "deadline_rule": {
-        "anchor": "listing_start",
-        "offset_days": 5,
-        "unit": "business"
-      },
-      "responsibility": "agent",
-      "required": true,
-      "evidence_types": ["document", "attestation", "note"]
-    },
-    "mls_input_attested": {
-      "phase": "prep",
-      "title": "MLS Listing Input Attested",
-      "description": "MLS fields entered/verified by human (no MLS write from CRM)",
-      "deadline_rule": {
-        "anchor": "listing_start",
-        "offset_days": 7,
-        "unit": "business"
-      },
-      "responsibility": "agent",
-      "required": true,
-      "evidence_types": ["attestation", "screenshot"]
-    },
-    "signage_lockbox": {
-      "phase": "marketing",
-      "title": "Signage / Lockbox Installed",
-      "description": "Yard sign and lockbox confirmed on property",
-      "deadline_rule": {
-        "anchor": "go_live_date",
-        "offset_days": 0,
-        "unit": "calendar"
-      },
+      "description": "Legacy row — hidden from the checklist card",
       "responsibility": "agent",
       "required": false,
-      "evidence_types": ["attestation", "note"]
-    },
-    "showing_instructions": {
-      "phase": "marketing",
-      "title": "Showing Instructions Set",
-      "description": "Showing service / instructions published for buyer agents",
-      "deadline_rule": {
-        "anchor": "go_live_date",
-        "offset_days": 0,
-        "unit": "calendar"
-      },
-      "responsibility": "agent",
-      "required": true,
-      "evidence_types": ["attestation", "note"]
+      "hidden": true
     },
     "offer_intake_ready": {
       "phase": "offers",
       "title": "Offer Intake Ready",
-      "description": "Offer submission path and review checklist ready",
-      "deadline_rule": {
-        "anchor": "go_live_date",
-        "offset_days": 1,
-        "unit": "business"
-      },
+      "description": "Legacy row — hidden from the checklist card",
       "responsibility": "agent",
       "required": false,
-      "evidence_types": ["attestation"]
+      "hidden": true
     }
   },
   "business_day_rules": {

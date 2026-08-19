@@ -14,7 +14,12 @@ def test_load_buyer_and_listing_packs():
     listing = DeadlineRulesService.load_pack('listing', 'v1')
     assert listing['pack_key'] == 'listing'
     assert 'mls_input_attested' in listing['requirements']
+    assert 'listing_docs_complete' in listing['requirements']
+    assert 'listing_description' in listing['requirements']
+    assert 'confirm_property_details' in listing['requirements']
     assert 'photos_ready' in listing['requirements']
+    assert listing['requirements']['photos_ready'].get('hidden') is True
+    assert listing['requirements']['offer_intake_ready'].get('hidden') is True
 
 
 def test_resolve_pack_by_side_and_status():

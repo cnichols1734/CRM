@@ -1,9 +1,9 @@
 """TransactionAssignment list/set APIs for the control-tower panel."""
 
-from flask import abort, jsonify, request
+from flask import abort, jsonify, request, url_for
 from flask_login import login_required, current_user
 
-from models import User, TransactionAssignment, db
+from models import Task, User, TransactionAssignment, db
 from services.transaction_auth import (
     CAP_ASSIGN,
     CAP_EDIT,
@@ -35,6 +35,33 @@ def _assignment_payload(row: TransactionAssignment) -> dict:
         'email': user.email if user else None,
         'created_at': row.created_at.isoformat() if row.created_at else None,
     }
+
+
+def _task_card_payload(task: Task | None) -> dict | None:
+    if task is None:
+        return None
+    user = task.assigned_to
+    last = (user.last_name or '').strip() if user else ''
+    first = (user.first_name or '').strip() if user else ''
+    assigned = None
+    if first or last:
+        assigned = f'{first} {last[:1] + "." if last else ""}'.strip()
+    due = task.due_date
+    return {
+        'id': task.id,
+        'subject': task.subject,
+        'status': task.status,
+        'due_at': due.isoformat() if due else None,
+        'due_label': due.strftime('%b %d') if due else None,
+        'assigned_to': assigned,
+        'url': url_for('tasks.view_task', task_id=task.id),
+    }
+
+
+def _task_for_requirement(req) -> Task | None:
+    if not req or not req.task_id:
+        return None
+    return Task.query.get(req.task_id)
 
 
 def _can_assign(tx) -> bool:
@@ -291,9 +318,162 @@ def set_requirement_due_date(id, requirement_id):
     return jsonify({
         'success': True,
         'requirement_id': updated.id,
+        'task_id': updated.task_id,
+        'task': _task_card_payload(_task_for_requirement(updated)),
         'due_at': updated.due_at.isoformat() if updated.due_at else None,
         'due_at_display': (
             updated.due_at.strftime('%m/%d/%Y') if updated.due_at else None
         ),
         'manual_override': bool(updated.due_at_manual_override),
+    })
+
+
+@transactions_bp.route(
+    '/<int:id>/requirements/<int:requirement_id>/toggle',
+    methods=['POST'],
+)
+@login_required
+@transactions_required
+def toggle_requirement(id, requirement_id):
+    """Check or uncheck a manual listing-prep checklist row."""
+    from models import TransactionRequirement
+    from services.listing_prep_checklist import AUTO_KEYS
+    from services.requirements_service import RequirementsService
+
+    tx, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+
+    req = TransactionRequirement.query.filter_by(
+        id=requirement_id,
+        transaction_id=tx.id,
+        organization_id=current_user.organization_id,
+    ).first()
+    if not req:
+        abort(404)
+
+    if req.requirement_key in AUTO_KEYS:
+        return jsonify({
+            'success': False,
+            'error': 'This item checks itself when the work is on file.',
+        }), 400
+
+    current = (req.work_status or 'pending').lower()
+    new_status = 'pending' if current == 'completed' else 'completed'
+    try:
+        updated = RequirementsService.update_work_status(
+            req.id, new_status, actor_id=current_user.id,
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': 'Could not update this item. Try again.',
+        }), 500
+
+    return jsonify({
+        'success': True,
+        'requirement_id': updated.id,
+        'work_status': updated.work_status,
+        'done': updated.work_status == 'completed',
+        'task': _task_card_payload(_task_for_requirement(updated)),
+    })
+
+
+@transactions_bp.route('/<int:id>/requirements', methods=['POST'])
+@login_required
+@transactions_required
+def create_listing_requirement(id):
+    """Add a custom Preparing-to-List checklist row."""
+    from datetime import datetime as dt
+    from services.listing_prep_checklist import create_custom_listing_item
+
+    tx, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    if not tx.transaction_type or tx.transaction_type.name != 'seller':
+        return jsonify({'success': False, 'error': 'Custom items are for seller listings.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    raw = str(data.get('due_date') or '').strip()
+    due_at = None
+    if raw:
+        try:
+            due_at = dt.strptime(raw, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': 'Enter the date as YYYY-MM-DD.',
+            }), 400
+
+    try:
+        req = create_custom_listing_item(
+            tx,
+            str(data.get('title') or ''),
+            due_at=due_at,
+            actor_id=current_user.id,
+        )
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': 'Could not add this item. Try again.',
+        }), 500
+
+    return jsonify({
+        'success': True,
+        'requirement_id': req.id,
+        'key': req.requirement_key,
+        'title': req.title,
+        'due_at': req.due_at.isoformat() if req.due_at else None,
+        'task_id': req.task_id,
+        'task': _task_card_payload(_task_for_requirement(req)),
+    })
+
+
+@transactions_bp.route(
+    '/<int:id>/requirements/<int:requirement_id>/remove',
+    methods=['POST'],
+)
+@login_required
+@transactions_required
+def remove_listing_requirement(id, requirement_id):
+    """Remove a custom Preparing-to-List row and cancel its task."""
+    from models import TransactionRequirement
+    from services.listing_prep_checklist import delete_custom_listing_item
+
+    tx, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+
+    req = TransactionRequirement.query.filter_by(
+        id=requirement_id,
+        transaction_id=tx.id,
+        organization_id=current_user.organization_id,
+    ).first()
+    if not req:
+        abort(404)
+
+    linked_task = _task_for_requirement(req)
+    try:
+        delete_custom_listing_item(req, actor_id=current_user.id)
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': 'Could not remove this item. Try again.',
+        }), 500
+
+    return jsonify({
+        'success': True,
+        'task': _task_card_payload(linked_task),
     })

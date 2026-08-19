@@ -12,6 +12,7 @@ import AmendmentReviewController from "./controllers/amendment_review_controller
 import OfferCompareController from "./controllers/offer_compare_controller";
 import DocumentUploadHubController from "./controllers/document_upload_hub_controller";
 import OfferPackageReviewController from "./controllers/offer_package_review_controller";
+import ListingInfoCompareController from "./controllers/listing_info_compare_controller";
 import "./analytics";
 import "./styles/app.css";
 
@@ -30,5 +31,6 @@ application.register("amendment-review", AmendmentReviewController);
 application.register("offer-compare", OfferCompareController);
 application.register("document-upload-hub", DocumentUploadHubController);
 application.register("offer-package-review", OfferPackageReviewController);
+application.register("listing-info-compare", ListingInfoCompareController);
 
 window.Stimulus = application;

@@ -225,7 +225,7 @@ def resolve_bootstrap_next_url(
         if (side or '').lower() == 'seller':
             next_url = detail
         else:
-            next_url = f'{detail}#control-tower'
+            next_url = f'{detail}#transaction-checklist'
     elif action == ACTION_CREATE_AMENDMENT and amendment_id:
         next_url = url_for(
             'transactions.amendment_review',

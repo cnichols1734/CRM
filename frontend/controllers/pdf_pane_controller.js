@@ -28,6 +28,7 @@ export default class PdfPaneController extends Controller {
   connectPdfPane() {
     this.pdfDoc = null;
     this.scale = 1.15;
+    this.pendingFit = Boolean(this.pendingFit);
     this.renderToken = 0;
     this.pageEls = [];
     this._onScroll = () => this.updatePageFromScroll();
@@ -85,6 +86,11 @@ export default class PdfPaneController extends Controller {
       if (token !== this.renderToken) return;
       if (this.hasPageTotalTarget) {
         this.pageTotalTarget.textContent = String(this.pdfDoc.numPages);
+      }
+      if (this.pendingFit) {
+        await this.waitForPaneWidth();
+        await this.applyFitScale();
+        this.pendingFit = false;
       }
       await this.renderAllPages(token);
     } catch (error) {
@@ -167,13 +173,26 @@ export default class PdfPaneController extends Controller {
     this.rerender();
   }
 
+  async waitForPaneWidth(timeoutMs = 1500) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      if (this.hasPdfPaneTarget && this.pdfPaneTarget.clientWidth > 80) return;
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    }
+  }
+
+  async applyFitScale() {
+    if (!this.pdfDoc || !this.hasPdfPaneTarget) return;
+    const page = await this.pdfDoc.getPage(1);
+    const unscaled = page.getViewport({ scale: 1 });
+    const available = Math.max(240, this.pdfPaneTarget.clientWidth - 48);
+    this.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, available / unscaled.width));
+  }
+
   async fitWidth() {
     if (!this.pdfDoc || !this.hasPdfPaneTarget) return;
     try {
-      const page = await this.pdfDoc.getPage(1);
-      const unscaled = page.getViewport({ scale: 1 });
-      const available = Math.max(240, this.pdfPaneTarget.clientWidth - 48);
-      this.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, available / unscaled.width));
+      await this.applyFitScale();
       await this.rerender();
     } catch (_error) {
       /* ignore fit failures */

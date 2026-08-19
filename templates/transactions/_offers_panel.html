@@ -116,7 +116,7 @@
                                         <i class="fas fa-handshake"></i>
                                     </div>
                                     <p class="text-sm text-slate-500">{{ offer_labels.empty_state }}</p>
-                                    <p class="mt-1 text-xs text-slate-400">Log terms first or start from a PDF.</p>
+                                    <p class="mt-1 text-xs text-slate-400">Upload the offer PDFs or enter terms by hand.</p>
                                     <button type="button" class="crm-btn crm-btn-primary mt-4" onclick="showSellerNewOfferModal()">{{ offer_labels.add_label }}</button>
                                 </div>
                                 {% endif %}
@@ -124,97 +124,91 @@
 
                             <div id="sellerNewOfferModal" class="fixed inset-0 z-50 hidden">
                                 <button type="button" class="absolute inset-0 bg-slate-900/60" onclick="closeSellerNewOfferModal()" aria-label="Close"></button>
-                                <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-[16px] shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:w-[min(760px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2"
+                                <div class="seller-new-offer-panel absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-[16px] md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:-translate-x-1/2 md:-translate-y-1/2"
                                      style="background: var(--paper); border: 1px solid var(--hairline); color: var(--ink);">
-                                    <div class="flex items-start justify-between gap-4 px-6 py-4" style="border-bottom: 1px solid var(--hairline);">
+                                    <div class="flex items-start justify-between gap-4 px-5 py-4" style="border-bottom: 1px solid var(--hairline);">
                                         <div class="min-w-0">
-                                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">New offer</p>
-                                            <h3 class="mt-1 text-lg font-semibold leading-snug text-slate-950">Log details or start from a PDF</h3>
+                                            <h3 class="text-base font-semibold leading-snug text-[color:var(--ink)]">New offer</h3>
+                                            <p class="mt-1 text-sm text-[color:var(--ink-3)]" data-new-offer-lede-upload>Drop the contract and addenda. We'll identify each file and pull the terms.</p>
+                                            <p class="mt-1 hidden text-sm text-[color:var(--ink-3)]" data-new-offer-lede-manual>Enter what you know. Everything is optional.</p>
                                         </div>
-                                        <button type="button" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewOfferModal()" aria-label="Close">
+                                        <button type="button"
+                                                class="crm-modal__close"
+                                                onclick="closeSellerNewOfferModal()"
+                                                aria-label="Close">
                                             <i class="fas fa-times text-sm"></i>
                                         </button>
                                     </div>
-                                    <div class="min-h-0 flex-1 overflow-y-auto">
-                                        <form id="sellerOfferForm" class="px-6 pb-6 pt-5">
-                                            <div class="mb-4 flex items-center gap-2">
-                                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600">1</span>
-                                                <h4 class="text-sm font-semibold text-slate-900">Offer details</h4>
-                                                <span class="text-xs text-slate-400">All fields optional</span>
-                                            </div>
-                                            <div class="grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">{{ offer_labels.counterparty_label }} name(s)</span>
-                                                    <input name="buyer_names" class="crm-input mt-1">
+                                    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                                        <div data-new-offer-upload>
+                                            <form class="seller-offer-upload-form" enctype="multipart/form-data">
+                                                <label class="crm-upload-drop seller-offer-dropzone">
+                                                    <span class="crm-upload-drop__icon" aria-hidden="true">
+                                                        <i class="fas fa-file-arrow-up"></i>
+                                                    </span>
+                                                    <span class="seller-offer-dropzone-title crm-upload-drop__title">Drop offer PDFs here</span>
+                                                    <span class="seller-offer-dropzone-hint crm-upload-drop__hint">or choose files · contract plus addenda</span>
+                                                    <input type="file" name="files" accept="application/pdf" class="seller-offer-file-input sr-only" multiple required>
                                                 </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">{{ offer_labels.counterparty_agent_label }}</span>
-                                                    <input name="buyer_agent_name" class="crm-input mt-1">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Brokerage</span>
-                                                    <input name="buyer_agent_brokerage" class="crm-input mt-1">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Response deadline</span>
-                                                    <input type="datetime-local" name="response_deadline_at" class="crm-input mt-1">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Offer price</span>
-                                                    <input name="terms_data[offer_price]" class="crm-input mt-1" placeholder="$">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Financing</span>
-                                                    <input name="terms_data[financing_type]" class="crm-input mt-1" placeholder="Conventional, FHA, cash">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Earnest money</span>
-                                                    <input name="terms_data[earnest_money]" class="crm-input mt-1" placeholder="$">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Option days</span>
-                                                    <input name="terms_data[option_period_days]" class="crm-input mt-1" placeholder="Days">
-                                                </label>
-                                            </div>
-                                        </form>
-
-                                        <div class="px-6">
-                                            <div class="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                                <span class="h-px flex-1 bg-slate-200"></span>
-                                                <span>or upload PDFs</span>
-                                                <span class="h-px flex-1 bg-slate-200"></span>
-                                            </div>
+                                                <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
+                                                <div class="mt-4 flex justify-end">
+                                                    <button class="crm-btn crm-btn-accent" type="submit">Upload offer</button>
+                                                </div>
+                                            </form>
                                         </div>
 
-                                        <form class="seller-offer-upload-form px-6 pb-6 pt-5" enctype="multipart/form-data">
-                                            <div class="mb-3 flex items-start justify-between gap-3">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600">2</span>
-                                                    <h4 class="text-sm font-semibold text-slate-900">Start from PDFs</h4>
-                                                </div>
-                                                <button class="crm-btn crm-btn-primary px-3 py-1.5 text-xs" type="submit">
-                                                    <i class="fas fa-bolt text-[10px]"></i>
-                                                    Upload &amp; extract
-                                                </button>
+                                        <form id="sellerOfferForm" class="hidden" data-new-offer-manual>
+                                            <div class="grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
+                                                <label class="block">
+                                                    <span class="crm-field-label">{{ offer_labels.counterparty_label }} name(s)</span>
+                                                    <input name="buyer_names" class="crm-input">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">{{ offer_labels.counterparty_agent_label }}</span>
+                                                    <input name="buyer_agent_name" class="crm-input">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Brokerage</span>
+                                                    <input name="buyer_agent_brokerage" class="crm-input">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Response deadline</span>
+                                                    <input type="datetime-local" name="response_deadline_at" class="crm-input">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Offer price</span>
+                                                    <input name="terms_data[offer_price]" class="crm-input" placeholder="$">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Financing</span>
+                                                    <input name="terms_data[financing_type]" class="crm-input" placeholder="Conventional, FHA, cash">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Earnest money</span>
+                                                    <input name="terms_data[earnest_money]" class="crm-input" placeholder="$">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Option days</span>
+                                                    <input name="terms_data[option_period_days]" class="crm-input" placeholder="Days">
+                                                </label>
                                             </div>
-                                            <p class="mb-3 text-xs text-slate-500">Drop the contract and supporting documents together. We'll detect each type and extract terms.</p>
-                                            <label class="seller-offer-dropzone group flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50/70 px-4 py-3.5 transition hover:border-slate-400 hover:bg-slate-50">
-                                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-rose-600 ring-1 ring-slate-200">
-                                                    <i class="fas fa-file-pdf text-base"></i>
-                                                </span>
-                                                <span class="min-w-0 flex-1">
-                                                    <span class="seller-offer-dropzone-title block text-sm font-medium text-slate-900">Choose PDFs to attach</span>
-                                                    <span class="seller-offer-dropzone-hint mt-0.5 block text-xs text-slate-500">Multiple PDFs allowed. Types are inferred from filename.</span>
-                                                </span>
-                                                <span class="hidden shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 group-hover:border-slate-300 group-hover:text-slate-800 sm:inline-block">Browse</span>
-                                                <input type="file" name="files" accept="application/pdf" class="seller-offer-file-input sr-only" multiple required>
-                                            </label>
-                                            <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
                                         </form>
                                     </div>
-                                    <div class="flex items-center justify-end gap-2 px-6 py-3" style="border-top: 1px solid var(--hairline); background: var(--paper);">
+                                    <div class="flex flex-wrap items-center justify-end gap-2 px-5 py-3" style="border-top: 1px solid var(--hairline); background: var(--paper);">
+                                        <button type="button"
+                                                class="mr-auto text-sm font-medium text-[color:var(--ink-3)] hover:text-[color:var(--ink)]"
+                                                data-new-offer-show-manual
+                                                onclick="setSellerNewOfferMode('manual')">
+                                            or create a manual offer
+                                        </button>
+                                        <button type="button"
+                                                class="mr-auto hidden text-sm font-medium text-[color:var(--ink-3)] hover:text-[color:var(--ink)]"
+                                                data-new-offer-show-upload
+                                                onclick="setSellerNewOfferMode('upload')">
+                                            or upload PDFs instead
+                                        </button>
                                         <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewOfferModal()">Cancel</button>
-                                        <button class="crm-btn crm-btn-primary" type="submit" form="sellerOfferForm">Save offer</button>
+                                        <button class="crm-btn crm-btn-accent hidden" type="submit" form="sellerOfferForm" data-new-offer-save>Save offer</button>
                                     </div>
                                 </div>
                             </div>

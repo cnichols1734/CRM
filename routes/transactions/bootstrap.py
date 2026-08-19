@@ -12,8 +12,6 @@ from sqlalchemy import or_
 from models import (
     ContractBootstrapSession,
     Transaction,
-    TransactionDocument,
-    TransactionRequirement,
     TransactionType,
     db,
 )
@@ -477,7 +475,7 @@ def bootstrap_approve(session_id):
 @transactions_required
 @bob_vtc_pilot_required
 def bootstrap_complete(session_id):
-    """Show a concise setup receipt before the full transaction workspace."""
+    """Old receipt URL. Send applied sessions to the transaction workspace."""
     session = _session_for_org(session_id)
     if session.status != ContractBootstrapSession.STATUS_APPLIED:
         return redirect(url_for('transactions.bootstrap_review', session_id=session.id))
@@ -489,50 +487,14 @@ def bootstrap_complete(session_id):
     if not transaction:
         abort(403 if auth.reason != 'not_found' else 404)
 
-    requirements = TransactionRequirement.query.filter_by(
-        transaction_id=transaction.id,
-        organization_id=current_user.organization_id,
-    ).all()
-    missing_documents = TransactionDocument.query.filter_by(
-        transaction_id=transaction.id,
-        organization_id=current_user.organization_id,
-        is_placeholder=True,
-    ).filter(TransactionDocument.status.in_(['pending', 'draft'])).count()
-    deadline_count = sum(1 for requirement in requirements if requirement.due_at)
-    review_summary = (session.classification or {}).get('review_summary') or {}
     classification = session.classification or {}
     route = classification.get('route_decision') or {}
-    side = classification.get('side')
-    next_url = resolve_bootstrap_next_url(
+    return redirect(resolve_bootstrap_next_url(
         transaction_id=transaction.id,
         route_action=route.get('action'),
         offer_id=classification.get('offer_id'),
         amendment_id=classification.get('amendment_id'),
-        side=side,
+        side=classification.get('side'),
         bob_setup=True,
         bootstrap_session_id=session.id,
-    )
-    primary_cta = approve_cta_label(
-        route_action=route.get('action'),
-        side=side,
-        destination_choice=classification.get('destination_choice'),
-    )
-    if primary_cta in ('Create seller listing', 'Add to listing'):
-        primary_cta = 'Open listing workspace'
-    elif 'offer' in (route.get('action') or ''):
-        primary_cta = 'Open offers'
-    elif 'controlling' in (route.get('action') or ''):
-        primary_cta = 'Open contract coordination'
-
-    return render_template(
-        'transactions/bootstrap_complete.html',
-        session=session,
-        transaction=transaction,
-        review_summary=review_summary,
-        requirement_count=len(requirements),
-        deadline_count=deadline_count,
-        missing_document_count=missing_documents,
-        next_url=next_url,
-        primary_cta_label=primary_cta,
-        filing_plan=route.get('action'),
-    )
+    ))

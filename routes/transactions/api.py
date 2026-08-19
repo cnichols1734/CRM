@@ -297,14 +297,17 @@ def update_listing_info_overrides(id):
     data = request.get_json(silent=True) or {}
     allowed_fields = {
         'list_price',
+        'go_live_date',
         'listing_start_date',
         'listing_end_date',
         'total_commission',
         'listing_side_commission',
         'buyer_commission',
+        'broker_fee',
         'protection_period_days',
         'financing_types',
         'has_hoa',
+        'special_provisions',
     }
     cleaned = {}
     for field in allowed_fields:

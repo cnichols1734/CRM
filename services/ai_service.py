@@ -53,6 +53,25 @@ def _supports_text_verbosity(model: str) -> bool:
     return model.startswith("gpt-5.6")
 
 
+def _web_search_tools(user_location=None):
+    """Hosted Responses ``web_search`` tool. Optional city/state bias."""
+    tool = {"type": "web_search"}
+    if isinstance(user_location, dict):
+        city = str(user_location.get("city") or "").strip()
+        region = str(
+            user_location.get("region") or user_location.get("state") or ""
+        ).strip()
+        country = str(user_location.get("country") or "US").strip() or "US"
+        if city or region:
+            loc = {"type": "approximate", "country": country}
+            if city:
+                loc["city"] = city
+            if region:
+                loc["region"] = region
+            tool["user_location"] = loc
+    return [tool]
+
+
 def _call_responses_api(
     client,
     model,
@@ -61,6 +80,8 @@ def _call_responses_api(
     reasoning_effort="medium",
     text_format=None,
     verbosity=None,
+    tools=None,
+    tool_choice=None,
 ):
     """
     Call the OpenAI Responses API (preferred path for GPT-5.6 / GPT-5.4).
@@ -70,6 +91,8 @@ def _call_responses_api(
             e.g. {"type": "json_schema", "name": "...", "strict": True, "schema": {...}}
         verbosity: Optional ``text.verbosity`` — "low" | "medium" | "high"
             (only sent for gpt-5.6* models)
+        tools: Optional Responses tools (e.g. hosted ``web_search``)
+        tool_choice: Optional tool-choice override (``auto`` / ``required``)
     """
     kwargs = {
         "model": model,
@@ -85,6 +108,10 @@ def _call_responses_api(
         text_opts["verbosity"] = verbosity
     if text_opts:
         kwargs["text"] = text_opts
+    if tools:
+        kwargs["tools"] = tools
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
 
     response = client.responses.create(**kwargs)
     return response.output_text
@@ -125,7 +152,9 @@ def generate_ai_response(
     temperature: float = 0.7,
     json_mode: bool = False,
     reasoning_effort: str = "medium",
-    api_key: str = None
+    api_key: str = None,
+    web_search: bool = False,
+    user_location: dict | None = None,
 ) -> str:
     """
     Generate an AI response using the model fallback chain.
@@ -137,6 +166,8 @@ def generate_ai_response(
         json_mode: If True, request JSON response format (legacy model only)
         reasoning_effort: Reasoning effort for GPT-5.x models ("low", "medium", "high")
         api_key: Optional API key override (uses Config.OPENAI_API_KEY if not provided)
+        web_search: If True, enable hosted Responses ``web_search`` (no Completions fallback)
+        user_location: Optional city/state/country bias for web search
     
     Returns:
         The AI-generated response text
@@ -157,13 +188,22 @@ def generate_ai_response(
     # Log masked API key for debugging
     masked_key = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "***"
     logger.info(f"AI Service using API key: {masked_key}")
+
+    tools = _web_search_tools(user_location) if web_search else None
+    tool_choice = "required" if web_search else None
     
     last_error = None
     for i, model in enumerate(MODEL_CHAIN):
         try:
             logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Attempting model: {model}")
             result = _call_responses_api(
-                client, model, system_prompt, user_prompt, reasoning_effort
+                client,
+                model,
+                system_prompt,
+                user_prompt,
+                reasoning_effort,
+                tools=tools,
+                tool_choice=tool_choice,
             )
             logger.info(f"SUCCESS: Generated response with {model}")
             return result
@@ -190,6 +230,10 @@ def generate_ai_response(
             last_error = e
             logger.warning(f"FALLBACK TRIGGERED: {model} unexpected error: {e}")
             continue
+
+    if web_search:
+        logger.error(f"FATAL: All Responses models failed with web_search. Last error: {last_error}")
+        raise last_error or Exception("All models failed")
 
     # Last-ditch Chat Completions on LEGACY_MODEL (e.g. json_mode callers)
     try:

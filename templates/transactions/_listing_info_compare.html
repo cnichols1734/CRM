@@ -1,0 +1,84 @@
+{% if listing_source_documents %}
+{% set compare_doc = listing_source_documents[0] %}
+<dialog id="listing-info-compare"
+        class="listing-info-compare"
+        data-controller="listing-info-compare"
+        data-listing-info-compare-save-url-value="{{ url_for('transactions.update_listing_info_overrides', id=transaction.id) }}"
+        data-listing-info-compare-pdf-url-value="{{ url_for('transactions.view_document_pdf', id=transaction.id, doc_id=compare_doc.id) }}">
+    <div class="listing-info-compare__frame">
+        <section class="listing-info-compare__pdf" aria-label="Listing agreement PDF">
+            <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
+                {% if listing_source_documents|length > 1 %}
+                <label class="flex items-center gap-2 text-xs text-slate-600">
+                    <span>Document</span>
+                    <select class="crm-select py-1 text-xs" data-listing-info-compare-target="docSelect" data-action="listing-info-compare#switchDoc">
+                        {% for doc in listing_source_documents %}
+                        <option value="{{ url_for('transactions.view_document_pdf', id=transaction.id, doc_id=doc.id) }}">
+                            {{ doc.template_name or 'Listing agreement' }}{% if doc.created_at %} · {{ doc.created_at.strftime('%b %d') }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                {% else %}
+                <p class="text-xs font-medium text-slate-600">Listing agreement</p>
+                {% endif %}
+                <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="listing-info-compare#prevPage" aria-label="Previous page">
+                    <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="listing-info-compare#nextPage" aria-label="Next page">
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <span class="text-xs font-medium tabular-nums text-slate-600">
+                    Page
+                    <span data-listing-info-compare-target="pageLabel">1</span>
+                    /
+                    <span data-listing-info-compare-target="pageTotal">–</span>
+                </span>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="listing-info-compare#zoomOut" aria-label="Zoom out">
+                    <i class="fas fa-minus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="listing-info-compare#zoomIn" aria-label="Zoom in">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="listing-info-compare#fitWidth">Fit</button>
+            </div>
+            <div class="relative min-h-0 flex-1 overflow-auto bg-slate-100"
+                 data-listing-info-compare-target="pdfPane">
+                <div class="flex flex-col items-center gap-2 py-16 text-sm text-slate-500"
+                     data-listing-info-compare-target="pdfLoading">
+                    <i class="fas fa-circle-notch fa-spin text-slate-400" aria-hidden="true"></i>
+                    <span>Loading PDF…</span>
+                </div>
+                <div class="flex flex-col items-center gap-3 px-4 py-4"
+                     data-listing-info-compare-target="pageStack"></div>
+                <div class="hidden flex-col items-center gap-3 px-4 py-16 text-center"
+                     data-listing-info-compare-target="pdfError">
+                    <p class="text-sm font-medium text-slate-800">Could not load this PDF.</p>
+                </div>
+            </div>
+        </section>
+        <aside class="listing-info-compare__fields">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
+                <h2 class="text-sm font-semibold text-slate-950">Listing info</h2>
+            </div>
+            <form class="flex min-h-0 flex-1 flex-col" data-listing-info-compare-target="form" data-action="submit->listing-info-compare#confirm">
+                <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+                    {% set listing_info_mode = 'edit' %}
+                    {% include 'transactions/_listing_info_fields.html' %}
+                </div>
+                <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+                    <button type="button" class="crm-btn crm-btn-secondary" data-action="listing-info-compare#close">Cancel</button>
+                    <button type="submit" class="crm-btn crm-btn-primary">Confirm</button>
+                </div>
+            </form>
+        </aside>
+    </div>
+</dialog>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+</script>
+{% endif %}

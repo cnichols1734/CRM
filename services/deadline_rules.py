@@ -373,6 +373,9 @@ class DeadlineRulesService:
         ids: List[int] = []
 
         for req_key, req_def in reqs.items():
+            if req_def.get('hidden'):
+                skipped += 1
+                continue
             existing = TransactionRequirement.query.filter_by(
                 transaction_id=transaction_id,
                 requirement_key=req_key,
@@ -382,6 +385,7 @@ class DeadlineRulesService:
                 continue
 
             rule = req_def.get('deadline_rule') or {}
+            has_deadline = bool(rule)
             anchor_name = rule.get('anchor')
             anchor_date = anchors.get(anchor_name) if anchor_name else None
             due_at = None
@@ -393,13 +397,14 @@ class DeadlineRulesService:
                     due_at = datetime.combine(due, datetime.min.time())
                 except Exception:
                     due_at = None
-            elif req_def.get('required'):
+            elif req_def.get('required') and has_deadline:
                 waiting += 1
 
+            stored_pack_key = pack.get('pack_key') or pack_key
             req = RequirementsService.create_requirement(
                 transaction_id=transaction_id,
                 organization_id=organization_id,
-                package_key=pack_key,
+                package_key=stored_pack_key,
                 phase_key=req_def.get('phase') or 'unknown',
                 requirement_key=req_key,
                 title=req_def.get('title') or req_key,
@@ -408,7 +413,11 @@ class DeadlineRulesService:
                 deadline_rule_version=pack.get('version'),
                 responsibility_type=req_def.get('responsibility'),
                 assignee_user_id=actor_id,
-                work_status='waiting' if due_at is None and req_def.get('required') else 'pending',
+                work_status=(
+                    'waiting'
+                    if due_at is None and req_def.get('required') and has_deadline
+                    else 'pending'
+                ),
             )
             created += 1
             ids.append(req.id)

@@ -136,23 +136,80 @@ class RequirementsService:
             from services.notification_outbox import NotificationOutboxService
             NotificationOutboxService.cancel_events_for_requirement(req.id)
 
+        RequirementsService.sync_linked_task(req, actor_id=actor_id)
         db.session.flush()
         return req
 
     @staticmethod
+    def _task_due(due_at: datetime) -> datetime:
+        if due_at.hour == 0 and due_at.minute == 0 and due_at.second == 0:
+            return datetime.combine(due_at.date(), time(23, 59, 59))
+        return due_at
+
+    @staticmethod
+    def _linked_task(req: TransactionRequirement) -> Optional[Task]:
+        if not req.task_id:
+            return None
+        return Task.query.get(req.task_id)
+
+    @staticmethod
+    def sync_linked_task(
+        req: TransactionRequirement,
+        actor_id: Optional[int] = None,
+    ) -> Optional[Task]:
+        """Create, update, complete, or cancel the task linked to this row.
+
+        No due date means no open task. A cancelled task stays linked so a later
+        date reopens it instead of creating a second one.
+        """
+        task = RequirementsService._linked_task(req)
+        if req.due_at is None:
+            if task is not None and task.status != 'cancelled':
+                task.status = 'cancelled'
+            return task
+
+        if task is None:
+            task = RequirementsService.create_task_from_requirement(
+                req.id, actor_id,
+            )
+            if task is None:
+                return None
+        else:
+            task.due_date = RequirementsService._task_due(req.due_at)
+            if task.status == 'cancelled':
+                task.status = 'pending'
+                task.completed_at = None
+            if not task.contact_id:
+                tx = Transaction.query.get(req.transaction_id)
+                contact_id = tx.primary_client_contact_id if tx else None
+                if contact_id:
+                    task.contact_id = contact_id
+
+        status = (req.work_status or 'pending').lower()
+        if status == 'completed' and task.status == 'pending':
+            task.status = 'completed'
+            task.completed_at = datetime.utcnow()
+        elif status == 'pending' and task.status == 'completed':
+            task.status = 'pending'
+            task.completed_at = None
+        return task
+
+    @staticmethod
     def create_task_from_requirement(
         requirement_id: int,
-        user_id: int,
-    ) -> Task:
-        """
-        Create a human Task from a requirement and set requirement.task_id.
+        user_id: Optional[int] = None,
+    ) -> Optional[Task]:
+        """Create a Task from a dated requirement and set requirement.task_id.
 
-        One-way link only: completing the Task does **not** auto-complete the
-        requirement — evidence / waiver policy still owns work_status.
+        Returns the existing linked task when present. Returns None when the
+        requirement has no due date or the org has no task types.
+        Completing the Task does not auto-complete the requirement.
         """
         req = TransactionRequirement.query.get(requirement_id)
         if not req:
             raise ValueError(f'Requirement {requirement_id} not found')
+        if req.due_at is None:
+            return None
 
         if req.task_id:
             existing = Task.query.get(req.task_id)
@@ -166,7 +223,7 @@ class RequirementsService:
             .first()
         )
         if not task_type:
-            raise ValueError('No task types configured for this organization')
+            return None
 
         subtype = (
             TaskSubtype.query
@@ -178,33 +235,26 @@ class RequirementsService:
             .first()
         )
         if not subtype:
-            raise ValueError(f'No subtypes configured for task type {task_type.name}')
-
-        due = req.due_at
-        if due is None:
-            due = datetime.utcnow().replace(
-                hour=23, minute=59, second=59, microsecond=0,
-            )
-        elif isinstance(due, datetime):
-            if due.hour == 0 and due.minute == 0 and due.second == 0:
-                due = datetime.combine(due.date(), time(23, 59, 59))
+            return None
 
         tx = Transaction.query.get(req.transaction_id)
+        owner_id = user_id or getattr(tx, 'created_by_id', None)
+        if not owner_id:
+            return None
         property_address = getattr(tx, 'street_address', None) if tx else None
+        contact_id = tx.primary_client_contact_id if tx else None
+        due = RequirementsService._task_due(req.due_at)
 
         task = Task(
             organization_id=req.organization_id,
-            contact_id=None,
+            contact_id=contact_id,
             transaction_id=req.transaction_id,
-            assigned_to_id=user_id,
-            created_by_id=user_id,
+            assigned_to_id=owner_id,
+            created_by_id=owner_id,
             type_id=task_type.id,
             subtype_id=subtype.id,
             subject=(req.title or req.requirement_key)[:200],
-            description=(
-                f'Linked requirement: {req.requirement_key}. '
-                'Completing this task does not auto-complete the requirement.'
-            ),
+            description=property_address or '',
             priority='medium',
             due_date=due,
             property_address=property_address,
@@ -217,7 +267,7 @@ class RequirementsService:
         RequirementsService._log_event(
             requirement=req,
             event_type='task_linked',
-            actor_id=user_id,
+            actor_id=owner_id,
             new_value={'task_id': task.id},
             description=f'Task {task.id} created from requirement',
         )
@@ -273,6 +323,7 @@ class RequirementsService:
                 else 'Due date superseded from approved proposal'
             ),
         )
+        RequirementsService.sync_linked_task(req, actor_id=actor_id)
         db.session.flush()
         return req
 

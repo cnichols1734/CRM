@@ -1,0 +1,60 @@
+<section id="transaction-assignments" class="mt-4 border-t border-slate-100 pt-4"
+         data-list-url="{{ url_for('transactions.list_transaction_assignments', id=transaction.id) }}"
+         data-set-url="{{ url_for('transactions.set_transaction_assignment', id=transaction.id) }}">
+    <details class="group">
+        <summary class="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-slate-600 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
+            <span>Coordination team</span>
+            <span class="flex items-center gap-2 text-xs font-normal text-slate-500">
+                {{ transaction_assignments|length }} assigned
+                <i class="fas fa-chevron-down text-[10px] transition-transform group-open:rotate-180" aria-hidden="true"></i>
+            </span>
+        </summary>
+        <div class="mt-3 divide-y divide-slate-100 rounded-md border border-slate-200" id="assignment-rows">
+            {% if transaction_assignments %}
+                {% for a in transaction_assignments %}
+                <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5" data-assignment-id="{{ a.id }}">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-900">
+                            {% if a.user %}{{ a.user.first_name }} {{ a.user.last_name }}{% else %}User {{ a.user_id }}{% endif %}
+                        </p>
+                        <p class="text-xs text-slate-500">{{ a.role|replace('_', ' ') }}</p>
+                    </div>
+                    {% if can_assign_roles %}
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary crm-btn-sm"
+                            onclick="removeTransactionAssignment({{ a.id }})">
+                        Remove
+                    </button>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="px-3 py-4 text-sm text-slate-500" id="assignments-empty">No assignments yet.</p>
+            {% endif %}
+        </div>
+        {% if can_assign_roles %}
+        <div class="mt-3 flex flex-wrap items-end gap-3">
+            <label class="block min-w-[10rem] flex-1">
+                <span class="mb-1 block text-xs font-medium text-slate-600">Person</span>
+                <select id="assign-user-id" class="crm-input">
+                    <option value="">Select…</option>
+                    {% for u in org_assignable_users %}
+                    <option value="{{ u.id }}">{{ u.first_name }} {{ u.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block min-w-[10rem]">
+                <span class="mb-1 block text-xs font-medium text-slate-600">Role</span>
+                <select id="assign-role" class="crm-input">
+                    <option value="lead_agent">Lead agent</option>
+                    <option value="transaction_coordinator">Transaction coordinator</option>
+                    <option value="collaborator">Collaborator</option>
+                </select>
+            </label>
+            <button type="button" class="crm-btn crm-btn-primary" onclick="saveTransactionAssignment()">
+                Assign
+            </button>
+        </div>
+        {% endif %}
+    </details>
+</section>

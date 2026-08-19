@@ -593,7 +593,10 @@ function showToast(message, type = 'info') {
 
 function sellerWorkspaceTab(tabName, options = {}) {
     if (tabName === 'overview') tabName = 'listing';
-    document.querySelectorAll('[id^="seller-tab-"]').forEach(btn => btn.classList.remove('is-active'));
+    document.querySelectorAll('[id^="seller-tab-"]').forEach(btn => {
+        btn.classList.remove('is-active');
+        btn.setAttribute('aria-selected', 'false');
+    });
     document.querySelectorAll('.seller-tab-panel').forEach(panel => panel.classList.add('hidden'));
     document.querySelectorAll('[data-seller-listing-tab-content]').forEach(element => {
         element.classList.toggle('hidden', tabName !== 'listing');
@@ -601,7 +604,10 @@ function sellerWorkspaceTab(tabName, options = {}) {
 
     const tab = document.getElementById(`seller-tab-${tabName}`);
     const panel = document.getElementById(`seller-panel-${tabName}`);
-    if (tab) tab.classList.add('is-active');
+    if (tab) {
+        tab.classList.add('is-active');
+        tab.setAttribute('aria-selected', 'true');
+    }
     if (panel) panel.classList.remove('hidden');
     if (tab && panel && options.persist !== false) {
         setSellerWorkspaceReloadTab(tabName);
@@ -645,20 +651,49 @@ function sellerPost(url, payload, successMessage, options = {}) {
     });
 }
 
+function setSellerNewOfferMode(mode) {
+    const modal = document.getElementById('sellerNewOfferModal');
+    if (!modal) return;
+    const isManual = mode === 'manual';
+    modal.classList.toggle('is-manual', isManual);
+    modal.querySelectorAll('[data-new-offer-upload]').forEach((el) => {
+        el.classList.toggle('hidden', isManual);
+    });
+    modal.querySelectorAll('[data-new-offer-manual]').forEach((el) => {
+        el.classList.toggle('hidden', !isManual);
+    });
+    modal.querySelectorAll('[data-new-offer-lede-upload]').forEach((el) => {
+        el.classList.toggle('hidden', isManual);
+    });
+    modal.querySelectorAll('[data-new-offer-lede-manual]').forEach((el) => {
+        el.classList.toggle('hidden', !isManual);
+    });
+    const showManual = modal.querySelector('[data-new-offer-show-manual]');
+    const showUpload = modal.querySelector('[data-new-offer-show-upload]');
+    const save = modal.querySelector('[data-new-offer-save]');
+    if (showManual) showManual.classList.toggle('hidden', isManual);
+    if (showUpload) showUpload.classList.toggle('hidden', !isManual);
+    if (save) save.classList.toggle('hidden', !isManual);
+    if (isManual) {
+        const firstInput = modal.querySelector('input[name="buyer_names"]');
+        if (firstInput) setTimeout(() => firstInput.focus(), 50);
+    }
+}
+
 function showSellerNewOfferModal() {
     const modal = document.getElementById('sellerNewOfferModal');
     if (!modal) return;
+    setSellerNewOfferMode('upload');
     modal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
-    const firstInput = modal.querySelector('input[name="buyer_names"]');
-    if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
-    }
 }
 
 function closeSellerNewOfferModal() {
     const modal = document.getElementById('sellerNewOfferModal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        setSellerNewOfferMode('upload');
+    }
     if (!document.querySelector('[data-seller-offer-modal]:not(.hidden)')) {
         document.body.classList.remove('overflow-hidden');
     }
@@ -693,7 +728,8 @@ if (sellerOfferForm) {
         const uploadForm = newOfferModal ? newOfferModal.querySelector('.seller-offer-upload-form') : null;
         const uploadInput = uploadForm ? uploadForm.querySelector('.seller-offer-file-input') : null;
         const selectedFiles = Array.from((uploadInput && uploadInput.files) || []);
-        if (selectedFiles.length && uploadForm) {
+        const savingManual = newOfferModal && newOfferModal.classList.contains('is-manual');
+        if (!savingManual && selectedFiles.length && uploadForm) {
             showToast('Uploading selected PDFs for extraction...', 'success');
             uploadForm.requestSubmit();
             return;

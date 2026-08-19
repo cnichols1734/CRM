@@ -63,6 +63,7 @@ def test_fresh_seller_listing_keeps_offers_and_contract_discoverable(app, seed, 
         assert 'id="seller-tab-listing"' in html
         assert 'id="seller-tab-offers"' in html
         assert 'id="seller-tab-contract"' in html
+        assert 'data-default-seller-tab="listing"' in html
         assert 'id="seller-panel-contract"' in html
         assert 'Contract workspace' in html or 'No controlling contract yet' in html
         assert 'href="#seller-workspace"' in html
@@ -161,6 +162,36 @@ def test_declined_offers_keep_offers_panel_visible(app, seed, owner_a_client):
         assert 'id="seller-tab-offers"' in html
         assert 'id="seller-panel-offers"' in html
         assert 'Declined Buyer' in html
+        assert 'data-default-seller-tab="listing"' in html
+    finally:
+        with app.app_context():
+            _cleanup_tx(tx_id)
+
+
+def test_seller_workspace_defaults_to_listing_with_open_offers(app, seed, owner_a_client):
+    """Open offers stay on the Offers tab; first load still opens Listing."""
+    tx_id = None
+    with app.app_context():
+        tx_id = _make_seller_tx(seed, street='904 Open Offer Ave')
+        db.session.add(SellerOffer(
+            organization_id=seed['org_a'],
+            transaction_id=tx_id,
+            created_by_id=seed['owner_a'],
+            status='new',
+            received_at=datetime.utcnow() - timedelta(days=1),
+            offer_price=490000,
+            buyer_names='Open Buyer',
+            creation_source='manual',
+        ))
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'data-default-seller-tab="listing"' in html
+        assert 'id="seller-tab-listing" role="tab" aria-selected="true"' in html
+        assert 'Open Buyer' in html
     finally:
         with app.app_context():
             _cleanup_tx(tx_id)
