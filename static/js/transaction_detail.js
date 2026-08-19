@@ -152,6 +152,7 @@ function showAddDocumentPicker() {
 }
 
 function closeAddDocumentModal() {
+    if (window.__txUploadBusy) return;
     document.getElementById('addDocumentModal').classList.add('hidden');
     resetAddDocumentModal();
 }
@@ -536,8 +537,11 @@ if (addDocumentForm && docTemplateSelect) {
     });
 }
 
-function removeDocument(docId) {
-    if (!confirm('Remove this document?')) return;
+function removeDocument(docId, docName) {
+    const prompt = docName
+        ? `Delete "${docName}"? The uploaded file and anything split out of it will be removed.`
+        : 'Remove this document?';
+    if (!confirm(prompt)) return;
 
     fetch(`/transactions/${transactionId}/documents/${docId}`, {
         method: 'DELETE'
@@ -576,6 +580,70 @@ document.addEventListener('click', function(event) {
         });
     }
 });
+
+// =============================================================================
+// DOCUMENT ROW OVERFLOW MENU
+// =============================================================================
+
+(function () {
+    const GAP = 6;
+
+    function closeAll(except) {
+        document.querySelectorAll('[data-row-menu]').forEach(menu => {
+            if (menu === except) return;
+            menu.querySelector('[data-row-menu-panel]').classList.remove('is-open');
+            menu.querySelector('[data-row-menu-trigger]').setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    // The panel is fixed so the package card's `overflow: hidden` can't clip it.
+    // Any ancestor transform/filter would make it a containing block, so place
+    // it at 0,0 first and correct by the measured delta instead of trusting
+    // viewport coordinates.
+    function place(trigger, panel) {
+        panel.style.top = '0px';
+        panel.style.left = '0px';
+        const origin = panel.getBoundingClientRect();
+        const anchor = trigger.getBoundingClientRect();
+
+        let top = anchor.bottom + GAP;
+        if (top + origin.height > window.innerHeight - 8) {
+            top = Math.max(8, anchor.top - GAP - origin.height);
+        }
+        const left = Math.max(8, Math.min(
+            anchor.right - origin.width,
+            window.innerWidth - origin.width - 8
+        ));
+
+        panel.style.top = `${top - origin.top}px`;
+        panel.style.left = `${left - origin.left}px`;
+    }
+
+    document.addEventListener('click', function (event) {
+        const trigger = event.target.closest('[data-row-menu-trigger]');
+        const menu = trigger ? trigger.closest('[data-row-menu]') : null;
+
+        if (!menu) {
+            // A menu item click closes the menu but still runs its own handler.
+            closeAll(null);
+            return;
+        }
+
+        const panel = menu.querySelector('[data-row-menu-panel]');
+        const opening = !panel.classList.contains('is-open');
+        closeAll(menu);
+        panel.classList.toggle('is-open', opening);
+        trigger.setAttribute('aria-expanded', String(opening));
+        if (opening) place(trigger, panel);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeAll(null);
+    });
+
+    window.addEventListener('resize', () => closeAll(null));
+    window.addEventListener('scroll', () => closeAll(null), true);
+})();
 
 // =============================================================================
 // TOAST NOTIFICATIONS

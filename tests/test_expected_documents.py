@@ -13,6 +13,7 @@ from services.expected_documents import (
     UNKNOWN,
     expected_documents_for_context,
     merge_listing_package_terms,
+    merge_offer_package_terms,
 )
 
 
@@ -111,6 +112,56 @@ def test_cash_offer_keeps_pof_optional():
     assert by_key['third_party_financing'].applicability == NOT_APPLICABLE
     assert by_key['pre_approval_or_pof'].applicability == OPTIONAL
     assert 'proof of funds' in by_key['pre_approval_or_pof'].reason.lower()
+
+
+def test_offer_lead_paint_honors_questionnaire_year_built():
+    """A post-1978 answer settles lead paint even when the offer says nothing."""
+    docs = expected_documents_for_context(
+        scope='offer',
+        terms=merge_offer_package_terms(
+            terms={'financing_type': 'conventional'},
+            intake_data={'built_before_1978': False},
+        ),
+        has_controlling_contract=False,
+    )
+    lead = {d.key: d for d in docs}['lead_based_paint']
+    assert lead.applicability == NOT_APPLICABLE
+    assert '1978' in lead.reason
+
+
+def test_offer_lead_paint_questionnaire_outranks_extracted_terms():
+    docs = expected_documents_for_context(
+        scope='offer',
+        terms=merge_offer_package_terms(
+            terms={'lead_based_paint_required': True},
+            intake_data={'built_before_1978': False},
+        ),
+        has_controlling_contract=False,
+    )
+    assert {d.key: d for d in docs}['lead_based_paint'].applicability == NOT_APPLICABLE
+
+
+def test_offer_questionnaire_only_fills_gaps_for_deal_terms():
+    """An HOA addendum on the offer beats an intake checkbox that says no HOA."""
+    merged = merge_offer_package_terms(
+        terms={'hoa_applicable': True},
+        intake_data={'has_hoa': False, 'built_before_1978': True},
+    )
+    assert merged['hoa_applicable'] is True
+    assert merged['built_before_1978'] is True
+
+
+def test_offer_practice_extras_are_speculative():
+    docs = expected_documents_for_context(
+        scope='offer',
+        terms={'financing_type': 'conventional'},
+        has_controlling_contract=False,
+    )
+    by_key = {d.key: d for d in docs}
+    assert by_key['pre_approval_or_pof'].speculative is True
+    assert by_key['appraisal_termination'].speculative is True
+    assert by_key['broker_compensation'].speculative is True
+    assert by_key['purchase_contract'].speculative is False
 
 
 def test_purchase_form_number_from_identity_not_hardcoded_trec_20():

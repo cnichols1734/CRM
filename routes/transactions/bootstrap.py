@@ -80,7 +80,7 @@ def bootstrap_inbox():
             confirmed_side = None
 
         created_sessions = []
-        batch_id = str(uuid.uuid4()) if len(files) > 1 else None
+        batch_id = str(uuid.uuid4())
         try:
             # Persist every file first, then queue processing. Starting jobs
             # mid-loop races SQLite and makes later PDFs look unreadable.
@@ -125,13 +125,6 @@ def bootstrap_inbox():
             flash('Upload failed. Try again or create the transaction manually.', 'error')
             return redirect(url_for('transactions.bootstrap_inbox'))
 
-        if len(created_sessions) == 1:
-            return redirect(
-                url_for(
-                    'transactions.bootstrap_review',
-                    session_id=created_sessions[0].id,
-                )
-            )
         return redirect(
             url_for('transactions.bootstrap_batch', batch_id=batch_id)
         )
@@ -155,7 +148,7 @@ def bootstrap_inbox():
 @transactions_required
 @bob_vtc_pilot_required
 def bootstrap_batch(batch_id):
-    """Wait for a multi-PDF inbox batch, then open the package-defining review."""
+    """Wait while inbox PDFs are identified, then open review."""
     sessions = contract_bootstrap.sessions_for_upload_batch(
         org_id=current_user.organization_id,
         batch_id=batch_id,
@@ -195,7 +188,7 @@ def bootstrap_batch(batch_id):
 @transactions_required
 @bob_vtc_pilot_required
 def bootstrap_batch_status(batch_id):
-    """Live progress for each PDF in a multi-upload batch."""
+    """Live progress for an inbox upload batch."""
     sessions = contract_bootstrap.sessions_for_upload_batch(
         org_id=current_user.organization_id,
         batch_id=batch_id,
@@ -222,6 +215,15 @@ def bootstrap_batch_status(batch_id):
 def bootstrap_review(session_id):
     """Review and Apply page for a bootstrap session."""
     session = _session_for_org(session_id)
+    if session.status in (
+        ContractBootstrapSession.STATUS_UPLOADED,
+        ContractBootstrapSession.STATUS_PROCESSING,
+    ):
+        batch_id = (session.classification or {}).get('upload_batch_id')
+        if batch_id:
+            return redirect(
+                url_for('transactions.bootstrap_batch', batch_id=batch_id)
+            )
     payload = contract_bootstrap.build_review_payload(session=session)
     classification = payload.get('classification') or {}
     side = classification.get('side')

@@ -30,6 +30,7 @@ from services.expected_documents import (
     UNKNOWN,
     expected_documents_for_context,
     merge_listing_package_terms,
+    merge_offer_package_terms,
 )
 from services.offer_side import labels_for_side, side_for_transaction
 
@@ -152,7 +153,9 @@ def _row_from_expected(
     has_review_findings: bool = False,
 ) -> dict[str, Any]:
     offer_scoped = scope == 'offer'
-    if matched_doc is not None:
+    if matched_doc is not None and (
+        _document_has_file(matched_doc) or detected_parent is None
+    ):
         state = _doc_state(
             matched_doc,
             expected.applicability,
@@ -205,7 +208,12 @@ def _row_from_expected(
             ),
             'source': 'embedded_component',
             'state': STATE_DETECTED_IN_PACKAGE,
-            'document_id': None,
+            'document_id': matched_doc.id if matched_doc is not None else None,
+            'is_placeholder': bool(
+                matched_doc is not None
+                and getattr(matched_doc, 'is_placeholder', False)
+                and not _document_has_file(matched_doc)
+            ),
             'template_slug': expected.template_slug,
             'template_name': expected.label,
             'detected_in_package': True,
@@ -386,16 +394,50 @@ def _append_unmatched_docs(
     scope_id: int | None,
     transaction_id: int,
     review_doc_ids: set[int] | None = None,
+    embedded: dict[str, TransactionDocument] | None = None,
 ) -> None:
     offer_scoped = scope == 'offer'
     review_doc_ids = review_doc_ids or set()
+    embedded = embedded or {}
     for doc in docs:
         if doc.id in used_ids:
             continue
         used_ids.add(doc.id)
         has_file = _document_has_file(doc)
-        # Questionnaire placeholders without a PDF are needed slots, not uploads.
+        # Questionnaire placeholders without a PDF are needed slots, not uploads
+        # — unless that form was already detected inside the listing packet.
         if not has_file:
+            slug = (doc.template_slug or '').strip().lower()
+            parent = embedded.get(slug)
+            if parent is not None:
+                parent_urls = _doc_urls(transaction_id, parent)
+                rows.append({
+                    'key': f'placeholder-{doc.id}',
+                    'label': doc.template_name or doc.template_slug or 'Required document',
+                    'canonical_slug': doc.template_slug,
+                    'form_number': None,
+                    'scope': scope,
+                    'scope_id': scope_id,
+                    'applicability': APPLICABLE,
+                    'applicability_label': 'Expected',
+                    'reason': (
+                        f'Detected inside package PDF '
+                        f'“{parent.template_name or parent.template_slug}” '
+                        f'— not a separate uploaded file.'
+                    ),
+                    'source': 'embedded_component',
+                    'state': STATE_DETECTED_IN_PACKAGE,
+                    'document_id': doc.id,
+                    'is_placeholder': True,
+                    'template_slug': doc.template_slug,
+                    'template_name': doc.template_name,
+                    'detected_in_package': True,
+                    'parent_document_id': parent.id,
+                    'has_review_findings': False,
+                    'doc_url': parent_urls['doc_url'],
+                    'review_url': parent_urls['review_url'],
+                })
+                continue
             rows.append({
                 'key': f'placeholder-{doc.id}',
                 'label': doc.template_name or doc.template_slug or 'Required document',
@@ -475,7 +517,18 @@ def _build_package_rows(
             if matched is None or not _document_has_file(matched):
                 continue
         # Prefer a real linked file over "Detected in package" for the same slot.
-        parent = None if matched else embedded.get((exp.template_slug or '').strip().lower())
+        # Empty questionnaire placeholders must not hide forms already found in
+        # the listing packet PDF.
+        slug_key = (exp.template_slug or '').strip().lower()
+        parent = None
+        if matched is None or not _document_has_file(matched):
+            parent = embedded.get(slug_key)
+        # "May apply" forms nothing in the deal calls for are noise in the
+        # package list. They earn a row once the form actually turns up;
+        # agents add the rest by hand.
+        if getattr(exp, 'speculative', False) and parent is None:
+            if matched is None or not _document_has_file(matched):
+                continue
         row = _row_from_expected(
             expected=exp,
             matched_doc=matched,
@@ -494,6 +547,7 @@ def _build_package_rows(
         scope_id=scope_id,
         transaction_id=transaction_id,
         review_doc_ids=review_doc_ids,
+        embedded=embedded,
     )
     return rows
 
@@ -750,7 +804,10 @@ def build_document_packages(transaction: Transaction) -> dict[str, Any]:
 
         expected = expected_documents_for_context(
             scope='offer',
-            terms=terms,
+            terms=merge_offer_package_terms(
+                terms=terms,
+                intake_data=getattr(transaction, 'intake_data', None),
+            ),
             identities=identities,
             has_controlling_contract=False,
         )
@@ -819,7 +876,10 @@ def build_document_packages(transaction: Transaction) -> dict[str, Any]:
         identities = [i for i in (_identity_from_doc(d) for d in c_docs) if i]
         expected = expected_documents_for_context(
             scope='contract',
-            terms=terms,
+            terms=merge_offer_package_terms(
+                terms=terms,
+                intake_data=getattr(transaction, 'intake_data', None),
+            ),
             identities=identities,
             has_controlling_contract=True,
         )

@@ -22,6 +22,7 @@ from services.deadline_rules import DeadlineRulesService
 from services.listing_prep_checklist import (
     AUTO_KEYS,
     VISIBLE_KEYS,
+    remaining_listing_slugs,
     listing_prep_groups,
     seed_listing_prep_checklist,
     sync_listing_prep_checklist,
@@ -598,9 +599,25 @@ class TestListingPrepChecklist:
                 )
                 assert sign_row['done'] is True
                 assert sign_row['auto'] is True
+                remaining_row = next(
+                    item for item in groups[0]['rows']
+                    if item['key'] == 'listing_docs_complete'
+                )
+                assert remaining_row['done'] is False
+                assert remaining_row['title'] == 'Upload Remaining Listing Documents'
+                assert remaining_row['remaining_count']
             finally:
                 if tx_id:
                     _cleanup_tx(seed['org_a'], tx_id, delete_tx=True)
+
+    def test_remaining_listing_slugs_skip_agreement_and_disclosure(self, app, seed):
+        with app.app_context():
+            tx = _fresh_tx(seed, side='seller', status='preparing_to_list')
+            slugs = remaining_listing_slugs(tx)
+            assert 'listing-agreement' not in slugs
+            assert 'sellers-disclosure' not in slugs
+            assert slugs
+            _cleanup_tx(seed['org_a'], tx.id, delete_tx=True)
 
     def test_hidden_pack_keys_are_not_seeded(self, app, seed):
         tx_id = None

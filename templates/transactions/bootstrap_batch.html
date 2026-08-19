@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import page_header %}
 
-{% block title %}Identifying documents - AgentFlow{% endblock %}
+{% set is_single = total_count == 1 %}
+
+{% block title %}Reading your upload - AgentFlow{% endblock %}
 
 {% block content %}
 <div class="crm-page">
     <div class="crm-page__inner max-w-[720px]">
         {% call page_header(
-            'Identifying your upload',
-            'Identifying each form in your upload.',
-            'Transactions'
+            'Reading your upload',
+            '',
+            'Document intake'
         ) %}
             <a href="{{ url_for('transactions.bootstrap_inbox') }}" class="crm-btn crm-btn-secondary">
                 Back to inbox
@@ -29,11 +31,19 @@
                     </span>
                     <div>
                         <h1 id="batch-heading" class="text-lg font-semibold text-slate-950">
-                            Working through <span id="batch-total">{{ total_count }}</span> PDFs
+                            {% if is_single %}
+                            Reading this PDF
+                            {% else %}
+                            Reading <span id="batch-total">{{ total_count }}</span> PDFs
+                            {% endif %}
                         </h1>
                         <p id="batch-progress" class="mt-1 max-w-[60ch] text-sm leading-6 text-slate-600" aria-live="polite">
+                            {% if is_single %}
+                            Extracting details.
+                            {% else %}
                             <span id="batch-identified">{{ identified_count }}</span> of
                             <span id="batch-total-copy">{{ total_count }}</span> identified.
+                            {% endif %}
                         </p>
                     </div>
                 </div>

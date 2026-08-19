@@ -573,6 +573,115 @@ function resetCompletedForm() {
     if (completedProgress) completedProgress.classList.add('hidden');
     if (completedError) completedError.classList.add('hidden');
     if (uploadCompletedBtn) uploadCompletedBtn.disabled = true;
+    setCompletedProcessing(false);
+}
+
+function setCompletedProcessing(busy, message) {
+    window.__txUploadBusy = Boolean(busy);
+    const overlay = document.getElementById('completedProcessing');
+    const statusEl = document.getElementById('completedProcessingStatus');
+    if (statusEl && message) statusEl.textContent = message;
+    if (!overlay) return;
+    overlay.classList.toggle('hidden', !busy);
+}
+
+function collectUploadedDocumentIds(data) {
+    const ids = [];
+    (data.document_ids || []).forEach((value) => {
+        const id = Number(value);
+        if (id) ids.push(id);
+    });
+    const fallback = Number(data.document_id || (data.document && data.document.id));
+    if (fallback && ids.indexOf(fallback) === -1) ids.push(fallback);
+    return ids;
+}
+
+function liveDocumentLabel(doc) {
+    const slug = String(doc.template_slug || '').toLowerCase();
+    if (!slug || slug === 'completed' || slug === 'other' || slug === 'unknown') return '';
+    const raw = String(doc.template_name || slug.replace(/-/g, ' ')).trim();
+    if (!raw) return '';
+    const stripped = raw.replace(/^the\s+/i, '');
+    return stripped.charAt(0).toLowerCase() + stripped.slice(1);
+}
+
+function waitForLiveDocuments(documentIds, options) {
+    const txId = window.TX_CONFIG && window.TX_CONFIG.transactionId;
+    const setStatus = options && options.setStatus;
+    const timeoutMs = 25000;
+    const intervalMs = 800;
+    const minWaitMs = 900;
+    const started = Date.now();
+    const seedIds = (documentIds || []).map(Number).filter(Boolean);
+
+    return new Promise((resolve) => {
+        if (!txId) {
+            window.setTimeout(resolve, 8000);
+            return;
+        }
+        let timer = null;
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (timer) window.clearInterval(timer);
+            resolve();
+        };
+        const tick = async () => {
+            if (settled) return;
+            const elapsed = Date.now() - started;
+            if (elapsed >= timeoutMs) {
+                if (setStatus) setStatus('Uploaded. Still working in the background.');
+                window.setTimeout(finish, 500);
+                return;
+            }
+            try {
+                const response = await fetch(`/transactions/${txId}/live`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                    cache: 'no-store',
+                });
+                if (!response.ok || settled) return;
+                const payload = await response.json();
+                const docs = (payload.extraction && payload.extraction.documents) || [];
+                const watch = new Set(seedIds);
+                let added = true;
+                while (added) {
+                    added = false;
+                    docs.forEach((doc) => {
+                        if (doc.parent_id && watch.has(doc.parent_id) && !watch.has(doc.id)) {
+                            watch.add(doc.id);
+                            added = true;
+                        }
+                    });
+                }
+                const watched = docs.filter((doc) => watch.has(doc.id));
+                const named = watched.map(liveDocumentLabel).find(Boolean);
+                const processing = watched.some((doc) => doc.status === 'processing');
+                const pending = watched.some((doc) => doc.status === 'pending');
+                if (setStatus) {
+                    if ((processing || pending) && named) {
+                        setStatus('Reading the ' + named + '…');
+                    } else if (processing) {
+                        setStatus('Reading the file…');
+                    } else if (pending) {
+                        setStatus('Figuring out what this is…');
+                    }
+                }
+                const active = watched.some((doc) => doc.status === 'pending' || doc.status === 'processing');
+                const seenSeeds = seedIds.length === 0
+                    || seedIds.every((id) => docs.some((doc) => doc.id === id));
+                if (elapsed >= minWaitMs && seenSeeds && !active && !payload.in_flight) {
+                    if (setStatus) setStatus('Done. Loading the transaction…');
+                    window.setTimeout(finish, 500);
+                }
+            } catch (_err) {
+                // Keep waiting until timeout.
+            }
+        };
+        timer = window.setInterval(tick, intervalMs);
+        tick();
+    });
 }
 
 function handleCompletedFileSelect(input) {
@@ -669,18 +778,19 @@ if (completedForm) {
             formData.append('document_name', documentName);
         }
 
-        // Show progress
-        document.getElementById('completedProgress').classList.remove('hidden');
+        setCompletedProcessing(
+            true,
+            files.length === 1 ? 'Uploading the PDF…' : `Uploading ${files.length} PDFs…`,
+        );
+        document.getElementById('completedProgress').classList.add('hidden');
         document.getElementById('uploadCompletedBtn').disabled = true;
 
-        // Use XMLHttpRequest for progress tracking
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', function(e) {
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
-                document.getElementById('completedPercent').textContent = percent + '%';
-                document.getElementById('completedProgressBar').style.width = percent + '%';
+                setCompletedProcessing(true, 'Uploading… ' + percent + '%');
             }
         });
 
@@ -688,36 +798,38 @@ if (completedForm) {
             if (xhr.status === 200) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
-                    const count = data.uploaded_count || 1;
-                    showToast(
-                        count === 1
-                            ? 'Document uploaded successfully!'
-                            : `${count} documents uploaded successfully!`,
-                        'success',
-                    );
-                    signalDocumentReviewStarted(data.document?.id);
-                    closeAddDocumentModal();
-                    reloadPreservingScroll();
+                    const ids = collectUploadedDocumentIds(data);
+                    signalDocumentReviewStarted(ids[0] || data.document?.id);
+                    setCompletedProcessing(true, 'Figuring out what this is…');
+                    waitForLiveDocuments(ids, {
+                        setStatus: (message) => setCompletedProcessing(true, message),
+                    }).then(() => {
+                        if (data.offer_review_url) {
+                            window.location.href = data.offer_review_url;
+                            return;
+                        }
+                        reloadPreservingScroll();
+                    });
                 } else {
+                    setCompletedProcessing(false);
                     showCompletedError(data.error || 'Upload failed');
-                    document.getElementById('completedProgress').classList.add('hidden');
                     document.getElementById('uploadCompletedBtn').disabled = false;
                 }
             } else {
+                setCompletedProcessing(false);
                 try {
                     const data = JSON.parse(xhr.responseText);
                     showCompletedError(data.error || 'Upload failed');
                 } catch (err) {
                     showCompletedError('Upload failed. Please try again.');
                 }
-                document.getElementById('completedProgress').classList.add('hidden');
                 document.getElementById('uploadCompletedBtn').disabled = false;
             }
         });
 
         xhr.addEventListener('error', function() {
+            setCompletedProcessing(false);
             showCompletedError('Network error. Please try again.');
-            document.getElementById('completedProgress').classList.add('hidden');
             document.getElementById('uploadCompletedBtn').disabled = false;
         });
 

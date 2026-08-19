@@ -935,6 +935,168 @@ def test_split_offer_package_creates_children_with_inherited_data(app, db, seed)
         assert second_run == []
 
 
+def _offer_packet_parent(db, seed, owner, *, detected, page_count, document_type):
+    """Build an offer packet parent document ready for splitting."""
+    from models import (
+        SellerOffer,
+        SellerOfferDocument,
+        SellerOfferVersion,
+        TransactionDocument,
+    )
+
+    offer = SellerOffer(
+        organization_id=seed['org_a'],
+        transaction_id=seed['tx_a'],
+        created_by_id=owner.id,
+        buyer_names='Packet Coverage Buyer',
+        status='needs_review',
+    )
+    db.session.add(offer)
+    db.session.flush()
+
+    version = SellerOfferVersion(
+        organization_id=seed['org_a'],
+        transaction_id=seed['tx_a'],
+        offer_id=offer.id,
+        created_by_id=owner.id,
+        version_number=1,
+        direction='buyer_offer',
+        status='submitted',
+        terms_data={},
+    )
+    db.session.add(version)
+    db.session.flush()
+    offer.current_version_id = version.id
+
+    parent_doc = TransactionDocument(
+        organization_id=seed['org_a'],
+        transaction_id=seed['tx_a'],
+        template_slug='seller-offer-contract',
+        template_name='Offer Contract',
+        status='signed',
+        signed_original_filename='offer_packet.pdf',
+        signed_file_path='test/offer_packet.pdf',
+        extraction_status='complete',
+        field_data={'detected_documents': detected},
+    )
+    db.session.add(parent_doc)
+    db.session.flush()
+    version.transaction_document_id = parent_doc.id
+
+    db.session.add(SellerOfferDocument(
+        organization_id=seed['org_a'],
+        transaction_id=seed['tx_a'],
+        offer_id=offer.id,
+        transaction_document_id=parent_doc.id,
+        offer_version_id=version.id,
+        created_by_id=owner.id,
+        document_type=document_type,
+        display_name='Offer Contract',
+        is_primary_terms_document=True,
+    ))
+    db.session.commit()
+    return parent_doc.id, offer.id
+
+
+def test_split_offer_package_files_every_form_and_trims_the_contract(app, db, seed):
+    """A real offer packet: nothing dropped, contract parent trimmed to itself."""
+    from models import SellerOfferDocument, TransactionDocument, User
+    from services.seller_workflow import split_offer_package_into_children
+
+    pdf_bytes = _build_test_pdf(8)
+
+    with app.app_context():
+        owner = User.query.filter_by(username='owner_a').first()
+        parent_doc_id, offer_id = _offer_packet_parent(
+            db, seed, owner,
+            page_count=8,
+            document_type='buyer_offer',
+            detected=[
+                {'document_type': 'buyer_offer', 'start_page': 1, 'end_page': 4},
+                {'document_type': 'third_party_financing', 'start_page': 5, 'end_page': 5},
+                {'document_type': 'appraisal_termination', 'start_page': 6, 'end_page': 6},
+                {'document_type': 'compensation_agreement', 'start_page': 7, 'end_page': 7},
+                {
+                    'document_type': 'other',
+                    'start_page': 8,
+                    'end_page': 8,
+                    'title': 'Addendum for Sale of Other Property',
+                },
+            ],
+        )
+
+    with app.app_context():
+        with patch(
+            'services.supabase_storage.upload_external_document',
+            side_effect=lambda transaction_id, file_data, original_filename, content_type: {
+                'path': f'test/{original_filename}'
+            },
+        ):
+            split_offer_package_into_children(parent_doc_id, pdf_bytes)
+        db.session.commit()
+
+        children = TransactionDocument.query.filter_by(
+            parent_document_id=parent_doc_id,
+        ).all()
+        slugs = {c.template_slug for c in children}
+        # The appraisal and compensation addenda used to map onto the contract
+        # and get skipped as duplicate primaries; the unknown form was dropped.
+        assert 'third-party-financing-addendum' in slugs
+        assert 'appraisal-termination-addendum' in slugs
+        assert 'broker-compensation-agreement' in slugs
+        assert 'external' in slugs
+
+        unknown = next(c for c in children if c.template_slug == 'external')
+        assert unknown.template_name == 'Addendum for Sale of Other Property'
+        assert unknown.page_start == 8 and unknown.page_end == 8
+        assert all(c.signed_file_path for c in children)
+
+        # Parent is the contract itself, so it must stop carrying all 8 pages.
+        parent = TransactionDocument.query.get(parent_doc_id)
+        assert parent.page_start == 1 and parent.page_end == 4
+        assert parent.signed_file_path == 'test/offer_packet_contract.pdf'
+        assert parent.source_file_path == parent.signed_file_path
+
+        types = {
+            od.document_type
+            for od in SellerOfferDocument.query.filter_by(offer_id=offer_id).all()
+        }
+        assert {'appraisal_termination', 'broker_compensation', 'supporting'} <= types
+        db.session.rollback()
+
+
+def test_split_offer_package_skips_children_that_fail_to_upload(app, db, seed):
+    """A row with no file would read as uploaded with nothing to open."""
+    from models import TransactionDocument, User
+    from services.seller_workflow import split_offer_package_into_children
+
+    pdf_bytes = _build_test_pdf(3)
+
+    with app.app_context():
+        owner = User.query.filter_by(username='owner_a').first()
+        parent_doc_id, _ = _offer_packet_parent(
+            db, seed, owner,
+            page_count=3,
+            document_type='buyer_offer',
+            detected=[
+                {'document_type': 'buyer_offer', 'start_page': 1, 'end_page': 2},
+                {'document_type': 'hoa_addendum', 'start_page': 3, 'end_page': 3},
+            ],
+        )
+
+    with app.app_context():
+        with patch(
+            'services.supabase_storage.upload_external_document',
+            side_effect=RuntimeError('storage down'),
+        ):
+            children = split_offer_package_into_children(parent_doc_id, pdf_bytes)
+        assert children == []
+        assert TransactionDocument.query.filter_by(
+            parent_document_id=parent_doc_id,
+        ).count() == 0
+        db.session.rollback()
+
+
 def test_split_offer_package_skips_when_only_one_segment(app, db, seed):
     from models import (
         SellerOffer,

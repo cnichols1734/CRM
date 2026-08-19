@@ -492,6 +492,20 @@ def expire_offer_if_needed(offer, now=None, actor_id=None):
     return False
 
 
+def _money_was_written_with_separators(value) -> bool:
+    """True when the extracted value still carries human money formatting.
+
+    ``$10,000.00`` and ``10000.00`` are amounts someone read off a page and
+    copied verbatim. A bare integer such as ``1000000`` is the shape a stripped
+    decimal leaves behind. Only the bare form is a cents-blowup candidate, so
+    formatted values are never rescaled.
+    """
+    if isinstance(value, float):
+        return True
+    text = str(value or '').strip()
+    return any(marker in text for marker in ('.', ',', '$'))
+
+
 def _normalize_extracted_money(
     value,
     *,
@@ -499,44 +513,68 @@ def _normalize_extracted_money(
     offer_price=None,
     field_role='price',
 ):
-    """Fix common digits-only OCR blowups ($440,000.00 → 44000000).
+    """Fix digits-only OCR blowups ($440,000.00 → 44000000) without inventing them.
 
     ``field_role``:
       - ``price``: sales/offer price only (large-magnitude / list-price heuristics)
-      - ``ancillary``: earnest/option fees (may be 100x inflated but still < offer)
+      - ``ancillary``: earnest money and concessions, which scale with the price
+        and are routinely five figures
+      - ``fee``: option fee and flat commissions, which stay small no matter
+        what the house costs
       - ``financing``: loan / cash-down amounts (often near offer price; only fix
         clear cents blowups, never shrink a plausible mortgage amount)
+
+    A correction is only applied when the amount is implausible for its field
+    AND arrived without money formatting. Rescaling a plausible amount is far
+    more damaging than leaving a rare blowup alone: it silently turns a $30,000
+    earnest deposit into $300 while looking like a successful extraction.
     """
     amount = _coerce_decimal(value)
     if amount is None or amount <= 0:
         return None
+    exact = amount.quantize(Decimal('0.01')) if amount == amount.to_integral_value() else amount
+    formatted = _money_was_written_with_separators(value)
     reference = _coerce_decimal(list_price) or _coerce_decimal(offer_price)
-    if amount >= Decimal('10000000') or (
-        reference and reference > 0 and amount > reference * Decimal('5')
+
+    if not formatted and (
+        amount >= Decimal('10000000')
+        or (reference and reference > 0 and amount > reference * Decimal('5'))
     ):
         candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
         if candidate >= Decimal('1000') and (
             not reference or candidate <= reference * Decimal('3')
         ):
             return candidate
-    if field_role == 'financing' and reference and reference > 0 and amount > reference:
-        # $352,000.00 → 35200000 against a $440,000 offer.
-        candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
-        if Decimal('1000') <= candidate <= reference:
-            return candidate
-        return amount.quantize(Decimal('0.01')) if amount == amount.to_integral_value() else amount
-    if field_role == 'ancillary' and reference and reference >= Decimal('10000'):
-        # $250.00 → 25000 / $4,400.00 → 440000 (may equal offer dollars before
-        # cents are restored). Cap at ~15% of price so real prices are never shrunk.
-        if amount >= Decimal('10000') and amount <= reference:
+
+    if field_role == 'financing':
+        if (
+            not formatted
+            and reference
+            and reference > 0
+            and amount > reference
+        ):
+            # $352,000.00 → 35200000 against a $440,000 offer.
             candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
-            if Decimal('1') <= candidate <= (reference * Decimal('0.15')):
+            if Decimal('1000') <= candidate <= reference:
                 return candidate
-        if amount > reference:
+        return exact
+
+    if field_role in ('ancillary', 'fee') and reference and reference > 0:
+        # Earnest money and concessions are a share of the price, so five
+        # figures is normal on a mid-priced home. An option fee stays small
+        # regardless. Only an amount past what the field could plausibly hold
+        # is treated as a blowup.
+        ceiling = (
+            reference * Decimal('0.25')
+            if field_role == 'ancillary'
+            else max(Decimal('5000'), reference * Decimal('0.02'))
+        )
+        if not formatted and amount > ceiling:
             candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
-            if Decimal('1') <= candidate <= reference:
+            if Decimal('1') <= candidate <= ceiling:
                 return candidate
-    return amount.quantize(Decimal('0.01')) if amount == amount.to_integral_value() else amount
+
+    return exact
 
 
 def apply_offer_terms(offer, terms):
@@ -580,7 +618,7 @@ def apply_offer_terms(offer, terms):
         terms.get('option_fee'),
         list_price=list_price,
         offer_price=offer_price,
-        field_role='ancillary',
+        field_role='fee',
     ) or _coerce_decimal(terms.get('option_fee'))
     offer.option_period_days = _coerce_int(terms.get('option_period_days'))
     offer.seller_concessions_amount = _normalize_extracted_money(
@@ -610,7 +648,7 @@ def apply_offer_terms(offer, terms):
         terms.get('buyer_agent_commission_flat'),
         list_price=list_price,
         offer_price=offer_price,
-        field_role='ancillary',
+        field_role='fee',
     ) or _coerce_decimal(terms.get('buyer_agent_commission_flat'))
     offer.response_deadline_at = _parse_datetime(terms.get('response_deadline_at')) or offer.response_deadline_at
     existing_terms = dict(offer.terms_summary or {})
@@ -786,10 +824,15 @@ SPLIT_DOCUMENT_TYPE_TO_OFFER_TYPE = {
     'backup_addendum': 'backup_acceptance',
     'backup_acceptance': 'backup_acceptance',
     'lead_based_paint': 'sellers_disclosure',
-    'sale_of_other_property': 'buyer_offer',
-    'temporary_lease': 'buyer_offer',
-    'compensation_agreement': 'buyer_offer',
+    'compensation_agreement': 'broker_compensation',
+    'broker_compensation': 'broker_compensation',
+    'appraisal_termination': 'appraisal_termination',
+    'appraisal_addendum': 'appraisal_termination',
 }
+# Addenda with no canonical slot of their own. Mapping them onto the contract
+# made the splitter drop them as duplicate primaries, so they file as
+# unidentified children and the package UI asks for a human classification.
+# sale_of_other_property, temporary_lease, and anything else land here.
 
 
 def _split_segment_to_offer_type(segment_type):
@@ -894,34 +937,59 @@ def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_pac
     name_root = name_root or 'offer_packet'
     ext = (ext or 'pdf').lower()
 
+    contract_segment = None
+
     for split_result in split_pdf_by_segments(file_data, segments):
         seg = split_result.segment
         offer_type = _split_segment_to_offer_type(seg.document_type)
-        if not offer_type:
-            continue
         # Avoid creating a redundant primary contract child when the parent itself is the
         # buyer offer (which would re-trigger primary terms handling).
         if offer_type == 'buyer_offer':
             if parent_offer_type == 'buyer_offer' or primary_assigned:
+                if contract_segment is None:
+                    contract_segment = seg
                 continue
             primary_assigned = True
 
-        doc_config = get_offer_document_type(offer_type)
-        template_slug = doc_config['template_slug']
-        display_name = doc_config['label']
-
-        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{offer_type}.{ext}"
-
-        try:
-            upload_result = upload_external_document(
-                transaction_id=transaction_id,
-                file_data=split_result.pdf_bytes,
-                original_filename=child_filename,
-                content_type='application/pdf',
+        # A form we cannot name is still a form in the packet. Dropping it
+        # loses those pages entirely and looks like a clean split, so file it
+        # on its own and let the package UI ask for a classification.
+        is_unidentified = not offer_type
+        if is_unidentified:
+            offer_type = 'supporting'
+            template_slug = UNIDENTIFIED_CHILD_SLUG
+            display_name = seg.title or (
+                f'Unidentified document (pages {seg.start_page}–{seg.end_page})'
             )
+            name_hint = 'unidentified'
+        else:
+            doc_config = get_offer_document_type(offer_type)
+            template_slug = doc_config['template_slug']
+            display_name = doc_config['label']
+            name_hint = offer_type
+
+        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{name_hint}.{ext}"
+
+        child_path = None
+        try:
+            child_path = (
+                upload_external_document(
+                    transaction_id=transaction_id,
+                    file_data=split_result.pdf_bytes,
+                    original_filename=child_filename,
+                    content_type='application/pdf',
+                ) or {}
+            ).get('path')
         except Exception:
-            # Storage may not be configured in dev/tests; persist child without a file path.
-            upload_result = {'path': None}
+            logger.exception(
+                'Offer split child upload failed for doc %s pages %s-%s',
+                doc.id, seg.start_page, seg.end_page,
+            )
+        if not child_path:
+            # A row with no file reads as "uploaded" with nothing to open.
+            if offer_type == 'buyer_offer':
+                primary_assigned = False
+            continue
 
         inherited_field_data = _inherited_field_data_for_segment(seg.document_type, doc.field_data)
 
@@ -932,7 +1000,7 @@ def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_pac
             template_name=display_name,
             status='signed',
             document_source='completed',
-            signed_file_path=upload_result.get('path'),
+            signed_file_path=child_path,
             signed_file_size=len(split_result.pdf_bytes),
             signed_original_filename=child_filename,
             signed_at=datetime.utcnow(),
@@ -978,7 +1046,97 @@ def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_pac
             )
         created_children.append(child_offer_document)
 
+    if created_children:
+        _trim_offer_parent_to_contract(
+            doc,
+            file_data,
+            contract_segment=contract_segment,
+            total_pages=total_pages,
+            name_root=name_root,
+            ext=ext,
+            split_source=split_source,
+        )
+
     return created_children
+
+
+def _trim_offer_parent_to_contract(
+    doc,
+    file_data,
+    *,
+    contract_segment,
+    total_pages,
+    name_root,
+    ext,
+    split_source,
+):
+    """Trim a contract-parent packet down to its own pages.
+
+    When the parent row *is* the purchase contract, the contract segment is
+    skipped rather than filed as a child. Leaving the full packet behind means
+    the agent opens the whole stack under a contract label — the same trap the
+    listing packet had.
+    """
+    if contract_segment is None:
+        return
+    pages = contract_segment.end_page - contract_segment.start_page + 1
+    if pages >= total_pages:
+        return
+
+    from services.pdf_splitter import slice_pdf_pages
+    from services.supabase_storage import upload_external_document
+
+    trimmed = slice_pdf_pages(
+        file_data, contract_segment.start_page, contract_segment.end_page,
+    )
+    if not trimmed:
+        return
+
+    filename = f'{name_root}_contract.{ext}'
+    original_path = doc.signed_file_path
+    original_source_path = doc.source_file_path
+    trimmed_path = None
+    try:
+        trimmed_path = (
+            upload_external_document(
+                transaction_id=doc.transaction_id,
+                file_data=trimmed,
+                original_filename=filename,
+                content_type='application/pdf',
+            ) or {}
+        ).get('path')
+    except Exception:
+        logger.exception(
+            'Trimmed offer contract upload failed for doc %s; keeping full packet',
+            doc.id,
+        )
+    if not trimmed_path:
+        return
+
+    doc.signed_file_path = trimmed_path
+    # Viewers and the field editor read source_file_path first, so leaving it
+    # on the packet would keep serving every page.
+    if original_source_path in (None, original_path):
+        doc.source_file_path = trimmed_path
+    doc.signed_file_size = len(trimmed)
+    doc.signed_original_filename = filename
+    doc.page_start = contract_segment.start_page
+    doc.page_end = contract_segment.end_page
+    doc.split_source = split_source
+
+    merged_field_data = dict(doc.field_data or {})
+    merged_field_data['_offer_packet_split'] = {
+        'original_page_count': total_pages,
+        'original_signed_file_path': original_path,
+        'original_source_file_path': original_source_path,
+        'contract_pages': [
+            contract_segment.start_page,
+            contract_segment.end_page,
+        ],
+    }
+    doc.field_data = merged_field_data
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(doc, 'field_data')
 
 
 def split_contract_package_into_children(doc_id, file_data, *, split_source='ai_packet_split'):
@@ -1105,25 +1263,21 @@ def split_contract_package_into_children(doc_id, file_data, *, split_source='ai_
 # Listing-package segment labels → (template_slug, display name). Slugs match
 # the seller intake schema document_rules so split children satisfy the same
 # required-document slots the questionnaire would otherwise create.
-LISTING_SPLIT_SEGMENT_MAP = {
-    'iabs': ('iabs', 'Information About Brokerage Services'),
-    'sellers_disclosure': ('sellers-disclosure', "Seller's Disclosure Notice"),
-    'seller_disclosure': ('sellers-disclosure', "Seller's Disclosure Notice"),
-    'lead_based_paint': ('lead-paint', 'Lead-Based Paint Addendum'),
-    'lead_paint': ('lead-paint', 'Lead-Based Paint Addendum'),
-    'hoa_addendum': ('hoa-addendum', 'HOA Addendum'),
-    'wire_fraud_warning': ('wire-fraud-warning', 'Wire Fraud Warning'),
-    'flood_hazard': ('flood-hazard', 'Flood Hazard Information'),
-    't47_affidavit': ('t47-affidavit', 'T-47 Residential Real Property Affidavit'),
-    'special_tax_district_notice': (
-        'special-tax-district-notice', 'Special Tax District Notice',
-    ),
-    'sewer_facility': ('sewer-facility', 'On-Site Sewer Facility Notice'),
-    'referral_agreement': ('referral-agreement', 'Referral Agreement'),
-}
+from services.listing_packet import LISTING_PACKET_FILING as LISTING_SPLIT_SEGMENT_MAP
 
 
-def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_packet_split'):
+# Unidentified split children are filed under a generic slug so the package UI
+# renders them as "Needs classification" with a File document action.
+UNIDENTIFIED_CHILD_SLUG = 'external'
+
+
+def split_listing_package_into_children(
+    doc_id,
+    file_data,
+    *,
+    split_source='ai_packet_split',
+    require_confident=True,
+):
     """Create split child documents under a listing package parent.
 
     When a signed listing package PDF contains the listing agreement plus
@@ -1131,29 +1285,34 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
     supporting document into its own PDF and file it under its canonical
     template slug. If a placeholder already exists for that slug it is
     fulfilled in place instead of creating a duplicate row. The parent
-    document remains the listing agreement of record.
+    document remains the listing agreement of record, and its stored PDF is
+    trimmed to listing-agreement pages only.
     """
     if not file_data:
         return []
 
     doc = TransactionDocument.query.get(doc_id)
-    if not doc or not doc.field_data or not doc.transaction_id:
+    if not doc or not doc.transaction_id:
         return []
 
+    field_data = doc.field_data if isinstance(doc.field_data, dict) else {}
     slug = (doc.template_slug or '').strip().lower().replace('_', '-')
-    identity = {}
-    if isinstance(doc.field_data, dict):
-        identity = doc.field_data.get('_document_identity') or {}
+    identity = field_data.get('_document_identity') or {}
     if slug != 'listing-agreement' and (identity.get('kind') or '') != 'listing_agreement':
         return []
 
-    detected = doc.field_data.get('detected_documents') if isinstance(doc.field_data, dict) else None
-    if not isinstance(detected, list) or not detected:
-        return []
-
+    from services.listing_packet import (
+        LISTING_AGREEMENT_TYPE,
+        UNKNOWN_TYPE,
+        build_listing_packet_plan,
+        detected_documents_from_field_data,
+        filing_for_type,
+        packet_segments_as_detected_documents,
+        packet_segments_as_split_segments,
+    )
     from services.pdf_splitter import (
         get_pdf_page_count,
-        normalize_segments,
+        slice_pdf_pages,
         split_pdf_by_segments,
     )
 
@@ -1161,8 +1320,35 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
     if total_pages <= 0:
         return []
 
-    segments = normalize_segments(detected, total_pages=total_pages)
-    if len(segments) < 2:
+    plan = build_listing_packet_plan(
+        file_data,
+        ai_segments=detected_documents_from_field_data(field_data),
+    )
+    packet_segments = plan.segments
+    listing_segment = next(
+        (seg for seg in packet_segments if seg.document_type == LISTING_AGREEMENT_TYPE),
+        None,
+    )
+    child_segments = [
+        seg for seg in packet_segments
+        if seg.document_type != LISTING_AGREEMENT_TYPE
+    ]
+    listing_is_subset = bool(
+        listing_segment
+        and (listing_segment.end_page - listing_segment.start_page + 1) < total_pages
+    )
+    if not child_segments and not listing_is_subset:
+        return []
+
+    # Splitting on a guess is worse than splitting late: it files the wrong
+    # pages under the listing of record and looks like success. When any page
+    # is unaccounted for, hold off so the AI extraction pass can cover the
+    # forms our fingerprint table does not know about.
+    if require_confident and not plan.is_confident:
+        logger.info(
+            'Deferring listing package split for doc %s until AI classification: %s',
+            doc.id, plan.coverage_summary(),
+        )
         return []
 
     existing_children = TransactionDocument.query.filter_by(parent_document_id=doc.id).count()
@@ -1181,43 +1367,66 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
     name_root = name_root or 'listing_package'
     ext = (ext or 'pdf').lower()
 
-    for split_result in split_pdf_by_segments(file_data, segments):
+    child_split_segments = packet_segments_as_split_segments(child_segments)
+    for split_result in split_pdf_by_segments(file_data, child_split_segments):
         seg = split_result.segment
         seg_type = (seg.document_type or '').strip().lower()
-        # The parent stays the listing agreement of record; never duplicate it.
         if seg_type in ('listing_agreement', 'buyer_offer', ''):
             continue
-        mapping = LISTING_SPLIT_SEGMENT_MAP.get(seg_type)
-        if not mapping:
-            continue
-        child_slug, display_name = mapping
-        if child_slug in used_slugs:
-            continue
-        used_slugs.add(child_slug)
-
-        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{child_slug}.{ext}"
-
-        try:
-            upload_result = upload_external_document(
-                transaction_id=transaction_id,
-                file_data=split_result.pdf_bytes,
-                original_filename=child_filename,
-                content_type='application/pdf',
+        child_slug, display_name = filing_for_type(seg_type)
+        # No canonical slot for this form. File it on its own and let the
+        # package UI ask for a human classification rather than guessing.
+        is_unidentified = seg_type == UNKNOWN_TYPE or child_slug == 'supporting-document'
+        if is_unidentified:
+            child_slug = UNIDENTIFIED_CHILD_SLUG
+            display_name = seg.title or (
+                f'Unidentified document (pages {seg.start_page}–{seg.end_page})'
             )
-        except Exception:
-            # Storage may not be configured in dev/tests; persist without a file path.
-            upload_result = {'path': None}
-
-        placeholder = (
-            TransactionDocument.query.filter_by(
-                transaction_id=transaction_id,
-                organization_id=organization_id,
-                template_slug=child_slug,
-                is_placeholder=True,
-            )
-            .filter(TransactionDocument.signed_file_path.is_(None))
-            .first()
+        slug_key = (
+            f'{child_slug}:{seg.start_page}-{seg.end_page}'
+            if is_unidentified
+            else child_slug
         )
+        if slug_key in used_slugs:
+            continue
+        used_slugs.add(slug_key)
+
+        name_hint = 'unidentified' if is_unidentified else child_slug
+        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{name_hint}.{ext}"
+
+        child_path = None
+        try:
+            child_path = (
+                upload_external_document(
+                    transaction_id=transaction_id,
+                    file_data=split_result.pdf_bytes,
+                    original_filename=child_filename,
+                    content_type='application/pdf',
+                ) or {}
+            ).get('path')
+        except Exception:
+            logger.exception(
+                'Split child upload failed for doc %s pages %s-%s',
+                doc.id, seg.start_page, seg.end_page,
+            )
+        if not child_path:
+            # A row with no file is worse than no row: it would read as
+            # "uploaded" with nothing to open. Leave the slot alone.
+            used_slugs.discard(slug_key)
+            continue
+
+        placeholder = None
+        if not is_unidentified:
+            placeholder = (
+                TransactionDocument.query.filter_by(
+                    transaction_id=transaction_id,
+                    organization_id=organization_id,
+                    template_slug=child_slug,
+                    is_placeholder=True,
+                )
+                .filter(TransactionDocument.signed_file_path.is_(None))
+                .first()
+            )
 
         if placeholder is not None:
             child_doc = placeholder
@@ -1225,17 +1434,18 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
             child_doc.document_source = 'completed'
             child_doc.is_placeholder = False
         else:
-            existing_same_slug = (
-                TransactionDocument.query.filter_by(
-                    transaction_id=transaction_id,
-                    organization_id=organization_id,
-                    template_slug=child_slug,
+            if not is_unidentified:
+                existing_same_slug = (
+                    TransactionDocument.query.filter_by(
+                        transaction_id=transaction_id,
+                        organization_id=organization_id,
+                        template_slug=child_slug,
+                    )
+                    .filter(TransactionDocument.signed_file_path.isnot(None))
+                    .count()
                 )
-                .filter(TransactionDocument.signed_file_path.isnot(None))
-                .count()
-            )
-            if existing_same_slug:
-                continue
+                if existing_same_slug:
+                    continue
             child_doc = TransactionDocument(
                 organization_id=organization_id,
                 transaction_id=transaction_id,
@@ -1246,7 +1456,7 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
             )
             db.session.add(child_doc)
 
-        child_doc.signed_file_path = upload_result.get('path')
+        child_doc.signed_file_path = child_path
         child_doc.signed_file_size = len(split_result.pdf_bytes)
         child_doc.signed_original_filename = child_filename
         child_doc.signed_at = datetime.utcnow()
@@ -1256,6 +1466,63 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
         child_doc.split_source = split_source
         db.session.flush()
         created_children.append(child_doc)
+
+    if listing_is_subset and listing_segment is not None:
+        trimmed = slice_pdf_pages(
+            file_data,
+            listing_segment.start_page,
+            listing_segment.end_page,
+        )
+        if trimmed:
+            listing_filename = f"{name_root}_listing_agreement.{ext}"
+            original_path = doc.signed_file_path
+            original_source_path = doc.source_file_path
+            trimmed_path = None
+            try:
+                trimmed_path = (
+                    upload_external_document(
+                        transaction_id=transaction_id,
+                        file_data=trimmed,
+                        original_filename=listing_filename,
+                        content_type='application/pdf',
+                    ) or {}
+                ).get('path')
+            except Exception:
+                logger.exception(
+                    'Trimmed listing upload failed for doc %s; keeping full packet',
+                    doc.id,
+                )
+            # Never claim a trimmed listing while the stored PDF is still the
+            # full packet — the agent would open 15 pages under an 11-page label.
+            if trimmed_path:
+                doc.signed_file_path = trimmed_path
+                # Viewers, the field editor, and extraction all read
+                # source_file_path first. Leaving it on the packet would keep
+                # serving 15 pages under an 11-page listing.
+                if original_source_path in (None, original_path):
+                    doc.source_file_path = trimmed_path
+                doc.signed_file_size = len(trimmed)
+                doc.signed_original_filename = listing_filename
+                doc.page_start = listing_segment.start_page
+                doc.page_end = listing_segment.end_page
+                doc.split_source = split_source
+                merged_field_data = dict(field_data)
+                merged_field_data['detected_documents'] = (
+                    packet_segments_as_detected_documents(packet_segments)
+                )
+                merged_field_data['_listing_packet_split'] = {
+                    'original_page_count': total_pages,
+                    'original_signed_file_path': original_path,
+                    'original_source_file_path': original_source_path,
+                    'listing_pages': [
+                        listing_segment.start_page,
+                        listing_segment.end_page,
+                    ],
+                    'coverage': plan.coverage_summary(),
+                }
+                doc.field_data = merged_field_data
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(doc, 'field_data')
 
     if created_children:
         try:
@@ -1286,6 +1553,65 @@ def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_p
             logger.exception('Failed to audit listing package split for doc %s', doc.id)
 
     return created_children
+
+
+def is_listing_package_candidate(doc) -> bool:
+    """True when this document could be a mixed listing packet."""
+    if doc is None:
+        return False
+    slug = (doc.template_slug or '').strip().lower().replace('_', '-')
+    if slug == 'listing-agreement':
+        return True
+    field_data = doc.field_data if isinstance(doc.field_data, dict) else {}
+    identity = field_data.get('_document_identity') or {}
+    return str(identity.get('kind') or '').strip().lower() == 'listing_agreement'
+
+
+def ensure_listing_package_split(
+    doc,
+    file_bytes=None,
+    *,
+    split_source='ai_packet_split',
+    require_confident=True,
+):
+    """Split a listing packet into child PDFs using the file itself.
+
+    Page fingerprints read the PDF, so this does not need AI extraction to have
+    run. Callers should invoke it as soon as the PDF is on the document —
+    waiting for extraction means packets that skip extraction (bootstrap apply
+    writes field_data and marks the document complete) never get split.
+
+    ``require_confident`` holds the split back until every page is positively
+    identified. Pass it as True before AI has seen the file and False once AI
+    has had its say, so the last pass always files something.
+
+    Returns the created child documents. Safe to call more than once: the
+    splitter no-ops once children exist.
+    """
+    if not is_listing_package_candidate(doc):
+        return []
+
+    if not file_bytes:
+        path = getattr(doc, 'signed_file_path', None) or getattr(doc, 'source_file_path', None)
+        if not path:
+            return []
+        try:
+            from services.supabase_storage import download_document
+            file_bytes = download_document(path)
+        except Exception:
+            logger.exception(
+                'Could not download listing PDF for split doc=%s path=%s', doc.id, path,
+            )
+            return []
+    if not file_bytes:
+        return []
+
+    return split_listing_package_into_children(
+        doc.id,
+        file_bytes,
+        split_source=split_source,
+        require_confident=require_confident,
+    )
 
 
 def sync_offer_version_from_document(doc_id):

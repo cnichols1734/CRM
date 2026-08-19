@@ -265,10 +265,11 @@ LISTING_BOOTSTRAP_EXTRACTION_FIELDS = {
     ),
     'detected_documents': (
         'JSON array of every distinct document identified inside this PDF, in order. '
-        'Each item must include "document_type" using one of: listing_agreement, iabs, '
-        'sellers_disclosure, lead_based_paint, hoa_addendum, wire_fraud_warning, '
-        'flood_hazard, t47_affidavit, special_tax_district_notice, sewer_facility, '
-        'referral_agreement, other. Each item must also include 1-based "start_page" '
+        'Each item must include "document_type" using one of: listing_agreement, '
+        'seller_estimated_net_proceeds, iabs, sellers_disclosure, lead_based_paint, '
+        'hoa_addendum, wire_fraud_warning, flood_hazard, t47_affidavit, '
+        'special_tax_district_notice, sewer_facility, referral_agreement, other. '
+        'Each item must also include 1-based "start_page" '
         'and "end_page" integers and an optional human "title". '
         'Only list documents that are actually present as pages in this PDF — '
         'do not invent forms that are merely checked as addenda on the listing agreement. '
@@ -1056,8 +1057,10 @@ def _extraction_field_map_for_identity(identity) -> tuple[dict[str, str], str]:
                 'HOA addenda, lead-paint forms, and similar paperwork. Always '
                 'populate detected_documents with one entry per distinct document '
                 'actually present in the PDF, with accurate 1-based page ranges. '
-                'Do NOT invent documents that are only mentioned or checked as '
-                'needed addenda. Extract ONLY values explicitly written. '
+                'listing_agreement pages must be ONLY the listing agreement — never '
+                'IABS, Seller\'s Estimated Net Proceeds (TXR-1935), wire-fraud, HOA, '
+                'or disclosure pages. Do NOT invent documents that are only mentioned '
+                'or checked as needed addenda. Extract ONLY values explicitly written. '
                 'Do NOT invent values. '
                 'COMMISSION / BROKER FEE (Paragraph 5): reason carefully. '
                 '5A(1)(b) is often free text for hybrid fees '
@@ -1545,7 +1548,7 @@ _BATCH_DONE_STATUSES = frozenset({
 
 
 def batch_item_phase(status: str | None) -> str:
-    """UI phase for one PDF in a multi-upload batch."""
+    """UI phase for one PDF in an inbox upload batch."""
     status = (status or '').strip().lower()
     if status == ContractBootstrapSession.STATUS_FAILED:
         return 'failed'
@@ -1567,7 +1570,7 @@ def build_batch_status_payload(
         identity = (session.classification or {}).get('document_identity') or {}
         phase = batch_item_phase(session.status)
         label = identity.get('label') or (
-            'Identifying…' if phase == 'reading' else 'Waiting…'
+            'Extracting details…' if phase == 'reading' else 'Waiting…'
         )
         items.append({
             'id': session.id,
@@ -2020,6 +2023,49 @@ def build_review_payload(
     return payload
 
 
+def _pdf_bytes_for_listing_split(
+    session: ContractBootstrapSession,
+    doc: TransactionDocument,
+    file_bytes: bytes | None = None,
+) -> bytes | None:
+    """Prefer bootstrap bytes, then the already-filed PDF on the document."""
+    if file_bytes:
+        return file_bytes
+    stored = read_bootstrap_file(session)
+    if stored:
+        return stored
+    path = doc.signed_file_path or doc.source_file_path
+    if not path:
+        return None
+    try:
+        from services.supabase_storage import TRANSACTION_DOCUMENTS_BUCKET, download_file
+
+        return download_file(TRANSACTION_DOCUMENTS_BUCKET, path)
+    except Exception:
+        logger.warning(
+            'Could not download listing PDF for package split doc=%s path=%s',
+            doc.id, path, exc_info=True,
+        )
+        return None
+
+
+def _split_listing_package_if_needed(
+    doc: TransactionDocument,
+    file_bytes: bytes | None,
+) -> None:
+    """Slice supporting forms out of a listing packet. Fingerprints do not need AI."""
+    if not doc:
+        return
+    try:
+        from services.seller_workflow import ensure_listing_package_split
+
+        # Bootstrap already carries AI detected_documents and usually skips the
+        # extraction pass, so this is the only split this document will get.
+        ensure_listing_package_split(doc, file_bytes=file_bytes, require_confident=False)
+    except Exception:
+        logger.exception('Listing package split failed for bootstrap doc %s', doc.id)
+
+
 def _link_document_to_transaction(
     *,
     session: ContractBootstrapSession,
@@ -2029,6 +2075,13 @@ def _link_document_to_transaction(
     if session.document_id:
         doc = TransactionDocument.query.get(session.document_id)
         if doc and doc.transaction_id == transaction.id:
+            from services.seller_workflow import is_listing_package_candidate
+
+            if is_listing_package_candidate(doc):
+                _split_listing_package_if_needed(
+                    doc,
+                    _pdf_bytes_for_listing_split(session, doc),
+                )
             return doc
 
     file_bytes = read_bootstrap_file(session)
@@ -2165,23 +2218,9 @@ def _link_document_to_transaction(
     session.document_id = doc.id
 
     # Split a multi-document listing package into child PDFs (IABS, HOA, etc.)
-    # and fulfill matching questionnaire placeholders in place.
-    if (
-        file_bytes
-        and (
-            template_slug == 'listing-agreement'
-            or identity_kind == 'listing_agreement'
-        )
-        and isinstance((doc.field_data or {}).get('detected_documents'), list)
-        and len((doc.field_data or {}).get('detected_documents') or []) >= 2
-    ):
-        try:
-            from services.seller_workflow import split_listing_package_into_children
-            split_listing_package_into_children(doc.id, file_bytes)
-        except Exception:
-            logger.exception(
-                'Listing package split failed for bootstrap doc %s', doc.id,
-            )
+    # and fulfill matching questionnaire placeholders in place. Fingerprints
+    # classify pages even when AI returned a single listing_agreement label.
+    _split_listing_package_if_needed(doc, file_bytes)
 
     if template_slug == 'listing-agreement' or identity_kind == 'listing_agreement':
         actor_id = session.uploader_user_id or session.applied_by_id

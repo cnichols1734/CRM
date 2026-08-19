@@ -156,6 +156,12 @@ def test_listing_support_docs_are_not_offer_contracts():
             KIND_DISCLOSURE,
         ),
         (
+            "Seller's Estimated Net Proceeds\nTXR-1935\nEstimated net proceeds to seller",
+            'Seller-Net-Proceeds-1935.pdf',
+            'seller-net-proceeds',
+            KIND_OTHER,
+        ),
+        (
             "Seller's Estimated Net Proceeds\nTXR-2001\nEstimated net proceeds to seller",
             'Seller-Net-Proceeds.pdf',
             'seller-net-proceeds',

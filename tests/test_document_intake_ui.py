@@ -92,6 +92,72 @@ def test_list_and_inbox_use_document_first_copy(app, seed, owner_a_client):
     assert 'Who do you represent?' not in inbox_html
 
 
+def test_single_pdf_wait_page_uses_batch_card(app, seed, owner_a_client):
+    with app.app_context():
+        _enable_vtc(seed)
+        user = _user(seed)
+        session = _bootstrap_session(user, seed['org_a'], 'listing.pdf')
+        session.status = ContractBootstrapSession.STATUS_PROCESSING
+        session.classification = {
+            **(session.classification or {}),
+            'upload_batch_id': 'batch-single-1',
+        }
+        db.session.commit()
+
+    response = owner_a_client.get('/transactions/bootstrap/batch/batch-single-1')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'Reading this PDF' in html
+    assert 'Extracting details.' in html
+    assert 'listing.pdf' in html
+    assert 'Working through' not in html
+    assert 'Identifying the form and extracting fields' not in html
+    assert 'Nothing changes yet' not in html
+    assert 'You can leave this page' not in html
+
+
+def test_processing_review_redirects_to_batch_when_upload_has_batch_id(
+    app, seed, owner_a_client,
+):
+    with app.app_context():
+        _enable_vtc(seed)
+        user = _user(seed)
+        session = _bootstrap_session(user, seed['org_a'], 'listing.pdf')
+        session.status = ContractBootstrapSession.STATUS_PROCESSING
+        session.classification = {
+            **(session.classification or {}),
+            'upload_batch_id': 'batch-single-1',
+        }
+        db.session.commit()
+        session_id = session.id
+
+    response = owner_a_client.get(f'/transactions/bootstrap/{session_id}/review')
+    assert response.status_code == 302
+    assert '/transactions/bootstrap/batch/batch-single-1' in response.headers['Location']
+
+
+def test_processing_review_without_batch_shows_compact_wait(
+    app, seed, owner_a_client,
+):
+    with app.app_context():
+        _enable_vtc(seed)
+        user = _user(seed)
+        session = _bootstrap_session(user, seed['org_a'], 'listing.pdf')
+        session.status = ContractBootstrapSession.STATUS_PROCESSING
+        db.session.commit()
+        session_id = session.id
+
+    response = owner_a_client.get(f'/transactions/bootstrap/{session_id}/review')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'Reading this PDF' in html
+    assert 'Extracting details.' in html
+    assert 'listing.pdf' in html
+    assert 'Identifying the form and extracting fields' not in html
+    assert 'Nothing changes yet' not in html
+    assert 'Checking for conflicts' not in html
+
+
 def test_seller_listing_review_shows_create_seller_listing_cta(app, seed, owner_a_client):
     with app.app_context():
         _enable_vtc(seed)
@@ -494,13 +560,13 @@ def test_package_states_include_detected_and_unfiled(app, seed, owner_a_client):
         assert 'Needs filing' in html
         assert 'crm-document-package--unfiled' in html
         assert 'Detected in package' in html or 'not a separate uploaded file' in html
-        # Needs filing primary action is File document (not blocked by Open PDF branch).
+        # Needs filing primary action is File document (not blocked by the view branch).
         assert 'File document' in html
         assert f'/documents/{unfiled_id}/review' in html
         needs_idx = html.find('data-state="needs_classification"')
         assert needs_idx != -1
         assert html.find('File document', needs_idx) != -1
-        open_pdf_idx = html.find('Open PDF', needs_idx)
+        open_pdf_idx = html.find('View document', needs_idx)
         file_idx = html.find('File document', needs_idx)
         if open_pdf_idx != -1:
             assert file_idx < open_pdf_idx

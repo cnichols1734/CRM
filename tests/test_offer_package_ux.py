@@ -64,13 +64,30 @@ def test_normalize_extracted_money_fixes_scale_blowup():
     assert _normalize_extracted_money('44000000', list_price='485000') == Decimal('440000.00')
     assert _normalize_extracted_money('440000', offer_price='440000') == Decimal('440000.00')
     assert _normalize_extracted_money(
-        '25000', offer_price='440000', field_role='ancillary',
+        '25000', offer_price='440000', field_role='fee',
     ) == Decimal('250.00')
     assert _normalize_extracted_money(
         '440000', offer_price='440000', field_role='ancillary',
     ) == Decimal('4400.00')
     # Must not shrink a real offer price that is merely below list.
     assert _normalize_extracted_money('440000', list_price='485000') == Decimal('440000.00')
+
+
+def test_normalize_extracted_money_keeps_real_ancillary_amounts():
+    """Five-figure earnest money and concessions are normal, not blowups."""
+    assert _normalize_extracted_money(
+        '30000', offer_price='400000', field_role='ancillary',
+    ) == Decimal('30000.00')
+    assert _normalize_extracted_money(
+        '10000', offer_price='400000', field_role='ancillary',
+    ) == Decimal('10000.00')
+    # Formatting proves someone read the amount off the page — never rescale it.
+    assert _normalize_extracted_money(
+        '$10,000.00', offer_price='400000', field_role='ancillary',
+    ) == Decimal('10000.00')
+    assert _normalize_extracted_money(
+        '5,000.00', offer_price='120000', field_role='fee',
+    ) == Decimal('5000.00')
 
 
 def test_trec_49_identity_not_tpf():
