@@ -20,13 +20,13 @@ def test_listing_prompt_bans_ai_slop_and_requires_file_then_search():
     assert 'em dashes' in prompt
     assert 'nestled' in prompt
     assert 'stunning' in prompt
-    assert '120 to 180' in prompt
-    assert 'THE HOUSE COMES FIRST' in prompt
-    assert 'Never mention financing' in prompt
+    assert '120 to 175' in prompt
+    assert 'Write about the HOME first' in prompt
+    assert 'financing options' in prompt
     assert 'this property pairs' in prompt
-    assert 'designated flood hazard area' in prompt
-    assert 'mandatory homeowners association' in prompt
-    assert 'If I removed the subdivision name and city' in prompt
+    assert 'flood-zone status' in prompt
+    assert 'mandatory HOA status' in prompt
+    assert 'Community or location information should usually be limited' in prompt
 
 
 def test_user_prompt_puts_file_facts_ahead_of_web_search():
@@ -38,15 +38,13 @@ def test_user_prompt_puts_file_facts_ahead_of_web_search():
         'property': {'bedrooms': 4, 'bathrooms': 3},
     }
     prompt = build_listing_description_user_prompt(facts)
-    assert 'Write MLS public remarks for 6004 Lakeside Ct' in prompt
-    assert 'listing agreement' in prompt.lower()
-    assert 'supporting documents' in prompt
-    assert 'File facts win' in prompt
-    assert 'The house comes first' in prompt
+    assert 'Write finished MLS public remarks for 6004 Lakeside Ct' in prompt
+    assert 'Facts on file:' in prompt
     assert 'listing_agreement.special_provisions: Seller to provide existing survey.' in prompt
     assert 'property.bedrooms: 4' in prompt
     assert 'city: Houston' in prompt
     assert 'financing_types' not in prompt
+    assert 'Never mention price, financing' in prompt
 
 
 def test_sanitize_listing_copy_strips_dashes_and_markup():
@@ -72,7 +70,7 @@ def test_collect_facts_prefers_full_address_and_rentcast():
     )
     facts = collect_listing_description_facts(tx, {'list_price': 450000, 'has_hoa': True})
     assert facts['address'].startswith('6004 Lakeside')
-    assert facts['listing']['list_price'] == 450000
+    assert 'list_price' not in facts.get('listing', {})
     assert facts['listing']['has_hoa'] is True
     assert facts['property']['bedrooms'] == 4
     assert 'features' not in facts['property']
