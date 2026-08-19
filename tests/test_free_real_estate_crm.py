@@ -14,7 +14,7 @@ FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/free-real-estate-crm"
 TITLE = "Free real estate CRM | AgentFlow"
-H1 = "A real estate CRM you can start tonight."
+H1 = "A free real estate CRM you can start tonight."
 LEAD = "Built for agents, by agents. The free tier stays free. No card. About two minutes."
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 ALLOWED_SITEMAP_PATHS = {
@@ -153,7 +153,8 @@ class TestFreeRealEstateCrmRoute:
         assert "AI assistant" not in text
         assert "One user, up to 10,000 contacts." in text
         assert "25 messages a day on the free plan." in text
-        assert "change an email" in text
+        assert "Tell it what you need done in the CRM." in text
+        assert "It can find and update contacts, manage tasks, log activity, organize clients, and much more." in text
         assert "Changing an email waits for Confirm (15 minutes)." not in text
         assert "Confirm (15 minutes)" not in text
 
@@ -274,7 +275,8 @@ class TestFreeRealEstateCrmCopy:
         for para in _faq_paragraphs(answer):
             assert f'<p class="faq-answer">{para}</p>' in PAGE
             assert f'<p class="faq-answer">{para}</p>' in LANDING
-        assert "add a contact, change an email, or complete a task" in PAGE
+        assert "Ask B.O.B. to find a client, add a contact, log a call, or complete a task." in PAGE
+        assert "Message B.O.B. on Telegram after you connect it from your profile." in PAGE
         assert "change an email" not in answer
         assert "ZIP" not in answer
         assert "What is B.O.B.?" not in PAGE
