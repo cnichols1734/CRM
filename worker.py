@@ -25,6 +25,14 @@ from config import Config
 log = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO)
 
+# Queues this process must consume. Inbox identification enqueues onto
+# contract_bootstrap; omitting a name here leaves those jobs Queued forever.
+QUEUE_NAMES = (
+    "doc_extraction",
+    "bob_telegram",
+    "contract_bootstrap",
+)
+
 
 def _connect_redis(url: str, attempts: int = 12, delay: float = 2.5) -> Redis:
     """
@@ -59,10 +67,7 @@ def _connect_redis(url: str, attempts: int = 12, delay: float = 2.5) -> Redis:
 def main():
     with app.app_context():
         conn = _connect_redis(Config.REDIS_URL)
-        queues = [
-            Queue("doc_extraction", connection=conn),
-            Queue("bob_telegram", connection=conn),
-        ]
+        queues = [Queue(name, connection=conn) for name in QUEUE_NAMES]
         worker = Worker(queues, connection=conn)
         worker.work(with_scheduler=True)
 
