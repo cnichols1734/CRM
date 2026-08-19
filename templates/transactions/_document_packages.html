@@ -92,46 +92,80 @@
                     <p class="crm-document-row__reason">{{ row.reason }}</p>
                     {% endif %}
                 </div>
+                {% set row_label = row.label or row.template_name or 'Document' %}
+                {% set has_own_document = row.document_id and row.doc_url and not row.detected_in_package %}
                 <div class="crm-document-row__actions">
-                    {% if state == 'not_applicable' %}
-                    <span class="text-xs" style="color: var(--ink-4);">—</span>
-                    {% elif state == 'detected_in_package' and row.review_url %}
-                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open parent PDF</a>
-                    {% elif state == 'needs_classification' %}
-                    {% if row.offer_package_review and row.review_url %}
-                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">Review offer</a>
-                    {% elif row.review_url %}
-                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">File document</a>
-                    {% endif %}
-                    {% if row.doc_url %}
-                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">View document</a>
-                    {% endif %}
-                    {% elif row.document_id and row.doc_url %}
-                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">View document</a>
-                    {% if row.offer_package_review and row.review_url %}
-                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open in offer review</a>
-                    {% elif row.has_review_findings and row.review_url %}
-                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Review findings</a>
-                    {% endif %}
-                    {% elif row.document_id and row.is_placeholder %}
-                    <button type="button"
-                            class="crm-btn crm-btn-accent crm-btn-sm min-h-11"
-                            onclick='showFulfillPlaceholderModal({{ row.document_id }}, {{ (row.label or row.template_name or "Document")|tojson }})'>
-                        <i class="fas fa-upload text-xs" aria-hidden="true"></i>
-                        Upload
-                    </button>
-                    {% else %}
-                    <button type="button"
-                            class="crm-btn crm-btn-accent crm-btn-sm min-h-11"
-                            data-action="document-upload-hub#open"
-                            data-document-upload-hub-scope-param="{{ row.scope or package.scope or 'other' }}"
-                            data-document-upload-hub-scope-id-param="{{ row.scope_id or package.scope_id or '' }}"
-                            data-document-upload-hub-slug-param="{{ row.canonical_slug or row.template_slug or '' }}"
-                            data-document-upload-hub-label-param="{{ row.label or 'Document' }}">
-                        <i class="fas fa-upload text-xs" aria-hidden="true"></i>
-                        Upload
-                    </button>
-                    {% endif %}
+                    <div class="crm-document-row__buttons">
+                        {% if state == 'not_applicable' %}
+                        <span class="text-xs" style="color: var(--ink-4);">—</span>
+                        {% elif state == 'detected_in_package' and row.review_url %}
+                        <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open parent PDF</a>
+                        {% elif state == 'needs_classification' %}
+                        {% if row.offer_package_review and row.review_url %}
+                        <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent-soft crm-btn-sm min-h-11">Review offer</a>
+                        {% elif row.review_url %}
+                        <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent-soft crm-btn-sm min-h-11">File document</a>
+                        {% endif %}
+                        {% if row.doc_url %}
+                        <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">View document</a>
+                        {% endif %}
+                        {% elif row.document_id and row.doc_url %}
+                        <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">View document</a>
+                        {% if row.offer_package_review and row.review_url %}
+                        <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open in offer review</a>
+                        {% elif row.has_review_findings and row.review_url %}
+                        <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Review findings</a>
+                        {% endif %}
+                        {% elif row.document_id and row.is_placeholder %}
+                        <button type="button"
+                                class="crm-btn crm-btn-accent-soft crm-btn-sm min-h-11"
+                                onclick='showFulfillPlaceholderModal({{ row.document_id }}, {{ row_label|tojson }})'>
+                            <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+                            Upload
+                        </button>
+                        {% else %}
+                        <button type="button"
+                                class="crm-btn crm-btn-accent-soft crm-btn-sm min-h-11"
+                                data-action="document-upload-hub#open"
+                                data-document-upload-hub-scope-param="{{ row.scope or package.scope or 'other' }}"
+                                data-document-upload-hub-scope-id-param="{{ row.scope_id or package.scope_id or '' }}"
+                                data-document-upload-hub-slug-param="{{ row.canonical_slug or row.template_slug or '' }}"
+                                data-document-upload-hub-label-param="{{ row.label or 'Document' }}">
+                            <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+                            Upload
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="crm-document-row__overflow">
+                        {% if has_own_document %}
+                        <div class="crm-row-menu" data-row-menu>
+                            <button type="button"
+                                    class="crm-row-menu__trigger"
+                                    data-row-menu-trigger
+                                    aria-haspopup="menu"
+                                    aria-expanded="false"
+                                    aria-label="More actions for {{ row_label }}">
+                                <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+                            </button>
+                            <div class="crm-row-menu__panel" role="menu" data-row-menu-panel>
+                                <button type="button"
+                                        class="crm-row-menu__item"
+                                        role="menuitem"
+                                        onclick='showFulfillPlaceholderModal({{ row.document_id }}, {{ row_label|tojson }}, true)'>
+                                    <i class="fas fa-arrows-rotate" aria-hidden="true"></i>
+                                    <span>Replace document</span>
+                                </button>
+                                <button type="button"
+                                        class="crm-row-menu__item crm-row-menu__item--danger"
+                                        role="menuitem"
+                                        onclick='removeDocument({{ row.document_id }}, {{ row_label|tojson }})'>
+                                    <i class="fas fa-trash-can" aria-hidden="true"></i>
+                                    <span>Delete document</span>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </li>

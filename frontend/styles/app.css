@@ -404,6 +404,19 @@
     color: var(--accent-on);
   }
 
+  /* Tinted accent for repeated row-level actions, so a list of them reads as
+     one column instead of a wall of solid orange. */
+  .crm-btn-accent-soft {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    border-color: transparent;
+  }
+  .crm-btn-accent-soft:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
   .crm-btn-secondary {
     background: var(--paper);
     color: var(--ink);
@@ -3121,12 +3134,108 @@
 }
 .crm-document-row__actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
+.crm-document-row__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+/* Always reserved, so the overflow trigger lines up as a column even on rows
+   that have nothing to put in it. */
+.crm-document-row__overflow {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  width: 2.5rem;
+}
+/* One action column regardless of label length or state. */
 .crm-document-row__actions .crm-btn {
   min-height: 2.75rem;
+  min-width: 9rem;
+}
+/* Overflow menu for a filed document. The panel is portaled to <body> and
+   fixed-positioned because the package card clips its own overflow, and
+   because backdrop-filter only samples the page from outside other glass. */
+.crm-row-menu {
+  position: relative;
+  display: inline-flex;
+}
+.crm-row-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  width: 2.5rem;
+  border-radius: 1000px;
+  border: 0.5px solid var(--am-glass-border, var(--hairline));
+  background: var(--am-glass, var(--paper));
+  backdrop-filter: var(--am-glass-blur, none);
+  -webkit-backdrop-filter: var(--am-glass-blur, none);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.crm-row-menu__trigger:hover,
+.crm-row-menu__trigger[aria-expanded="true"] {
+  color: var(--ink);
+  border-color: var(--ink-5);
+}
+.crm-row-menu__panel {
+  /* Visibility rides on is-open, never `.hidden`: component rules are
+     emitted after Tailwind utilities and would outrank it. */
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  min-width: 12.5rem;
+  padding: 0.25rem;
+  flex-direction: column;
+  border: 0.5px solid var(--am-glass-border, var(--hairline));
+  border-radius: 14px;
+  background: var(--am-glass, var(--paper));
+  backdrop-filter: var(--am-glass-blur, none);
+  -webkit-backdrop-filter: var(--am-glass-blur, none);
+  box-shadow: var(--am-glass-shadow, 0 12px 36px -8px oklch(0% 0 0 / 0.22));
+  isolation: isolate;
+}
+.crm-row-menu__panel.is-open {
+  display: flex;
+}
+.crm-row-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0 0.6rem;
+  border: none;
+  border-radius: calc(14px - 0.35rem);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+.crm-row-menu__item:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.crm-row-menu__item i {
+  width: 0.9rem;
+  font-size: 0.75rem;
+  color: var(--ink-4);
+}
+.crm-row-menu__item--danger,
+.crm-row-menu__item--danger i {
+  color: var(--danger);
+}
+.crm-row-menu__item--danger:hover {
+  background: var(--danger-soft);
 }
 .crm-document-upload-hub {
   width: min(26rem, calc(100vw - 2rem));
@@ -3194,12 +3303,18 @@
   gap: 14px;
 }
 .crm-document-upload-hub__processing {
-  display: flex;
+  /* Component rules are emitted after Tailwind utilities, so a `display`
+     here would outrank `.hidden` and pin the spinner on screen. Busy state
+     drives visibility instead, matching the fields and footer below. */
+  display: none;
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
   min-height: 9rem;
   padding: 8px 0 4px;
+}
+.crm-document-upload-hub.is-busy .crm-document-upload-hub__processing {
+  display: flex;
 }
 .crm-document-upload-hub__spinner {
   width: 1.25rem;

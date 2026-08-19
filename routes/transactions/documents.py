@@ -21,6 +21,37 @@ def _require_tx(transaction_id, capability=CAP_EDIT):
     return tx
 
 
+def _is_docuseal_signed(doc):
+    """True when the document reached a terminal e-signature state we must not destroy."""
+    return doc.status == 'signed' and doc.document_source not in ('completed', 'placeholder')
+
+
+def _discard_stored_files(paths):
+    """Best-effort storage cleanup. A stranded object must never block the DB write."""
+    from services.supabase_storage import delete_transaction_document as delete_storage
+
+    for path in {p for p in paths if p}:
+        try:
+            delete_storage(path)
+        except Exception:
+            pass
+
+
+def _discard_split_children(doc):
+    """
+    Delete the documents that were split out of `doc` and return their storage paths.
+
+    A child is only a view onto pages of its parent's upload, so it cannot outlive
+    that upload. Slots the child filled reappear as unfilled expected documents.
+    """
+    children = TransactionDocument.query.filter_by(parent_document_id=doc.id).all()
+    paths = []
+    for child in children:
+        paths.extend([child.signed_file_path, child.source_file_path])
+        db.session.delete(child)
+    return paths
+
+
 # =============================================================================
 # DOCUMENT MANAGEMENT
 # =============================================================================
@@ -180,12 +211,23 @@ def remove_document(id, doc_id):
 
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
 
+    if _is_docuseal_signed(doc):
+        return jsonify({
+            'success': False,
+            'error': 'This document was signed via DocuSeal and cannot be deleted.'
+        }), 400
+
     try:
         # Log audit event before deletion
         audit_service.log_document_removed(transaction.id, doc.id, doc.template_name)
 
+        orphaned_paths = _discard_split_children(doc)
+        orphaned_paths.extend([doc.signed_file_path, doc.source_file_path])
+
         db.session.delete(doc)
         db.session.commit()
+
+        _discard_stored_files(orphaned_paths)
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -891,7 +933,7 @@ def fulfill_placeholder_document(id, doc_id):
     reviewed as listing paperwork, not as buyer-offer packages.
     """
     from datetime import datetime
-    from services.supabase_storage import upload_external_document as upload_storage, delete_transaction_document as delete_storage
+    from services.supabase_storage import upload_external_document as upload_storage
     from services.intake_service import post_upload_processing
 
     transaction = _require_tx(id, CAP_EDIT)
@@ -905,9 +947,7 @@ def fulfill_placeholder_document(id, doc_id):
     # state. This covers: pending placeholders (initial upload), completed docs
     # (replace), and legacy template/external/hybrid docs in any pre-signed
     # state that are now part of a placeholder-mode transaction.
-    docuseal_signed = doc.status == 'signed' and doc.document_source not in ('completed', 'placeholder')
-
-    if docuseal_signed:
+    if _is_docuseal_signed(doc):
         return jsonify({
             'success': False,
             'error': 'This document was signed via DocuSeal and cannot be replaced through upload.'
@@ -949,7 +989,18 @@ def fulfill_placeholder_document(id, doc_id):
         )
 
         is_replace = doc.status == 'signed' and doc.signed_file_path
+        stale_paths = []
         old_path = doc.signed_file_path if is_replace else None
+
+        if is_replace:
+            # Pages split out of the previous upload no longer describe this
+            # document, and the old packet the split ran against is dead weight.
+            stale_paths.extend(_discard_split_children(doc))
+            stale_paths.append(doc.source_file_path)
+            doc.source_file_path = None
+            doc.page_start = None
+            doc.page_end = None
+            doc.split_source = None
 
         doc.signed_file_path = result['path']
         doc.signed_file_size = file_size
@@ -963,12 +1014,6 @@ def fulfill_placeholder_document(id, doc_id):
         doc.extraction_status = 'pending'
         doc.extraction_error = None
         doc.field_data = None
-
-        if is_replace and old_path:
-            try:
-                delete_storage(old_path)
-            except Exception:
-                pass
 
         event_data = {
             'document_name': doc.template_name,
@@ -992,6 +1037,9 @@ def fulfill_placeholder_document(id, doc_id):
         )
 
         db.session.commit()
+
+        if is_replace:
+            _discard_stored_files(stale_paths + [old_path])
 
         response_payload = {
             'success': True,
