@@ -18,8 +18,8 @@
 const BOB_STARTERS = [
     // ---- Reads: answer a question about the book of business ----
     { group: 'ask', mode: 'send', icon: 'fa-calendar-day',
-      label: "What's on my plate today?",
-      prompt: "What's on my plate today?" },
+      label: "What's due today?",
+      prompt: "What tasks are due today?" },
     { group: 'ask', mode: 'send', icon: 'fa-triangle-exclamation',
       label: 'What have I let slip?',
       prompt: 'What tasks am I overdue on?' },
