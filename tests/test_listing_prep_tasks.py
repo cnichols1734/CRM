@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from models import (
+    Contact,
     Task,
     Transaction,
     TransactionParticipant,
@@ -245,12 +246,16 @@ def test_http_add_date_and_custom_item(app, seed, owner_a_client):
             req = db.session.get(TransactionRequirement, req_id)
             linked = db.session.get(Task, req.task_id)
             custom = db.session.get(Task, body['task_id'])
+            contact = db.session.get(Contact, seed['contact_a'])
             assert linked.contact_id == seed['contact_a']
             assert custom.contact_id == seed['contact_a']
+            contact_name = f'{contact.first_name} {contact.last_name}'
 
         page = owner_a_client.get(f'/tasks/{due_body["task_id"]}')
         assert page.status_code == 200
-        assert b'Jane Doe' in page.data
+        html = page.get_data(as_text=True)
+        assert 'Schedule Photography' in html
+        assert contact_name in html
     finally:
         with app.app_context():
             _cleanup(seed['org_a'], tx_id)
