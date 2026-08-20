@@ -1,10 +1,9 @@
 """Admin view over the SendGrid dynamic templates used by transactional mail.
 
 Predates campaign marketing and is unrelated to it: campaign templates are
-authored in AgentFlow and stored in marketing_templates. This page stays because
-it is still how an admin checks what SendGrid has.
+authored in AgentFlow and stored in marketing_templates. The GET page is not the campaign marketing UI. Agents go to the library.
 """
-from flask import render_template, jsonify, current_app, request
+from flask import jsonify, current_app, redirect, request, url_for
 from flask_login import login_required, current_user
 from functools import wraps
 from models import db, SendGridTemplate
@@ -24,17 +23,9 @@ def admin_required(f):
 
 @marketing.route('/marketing/templates')
 @login_required
-@admin_required
 def templates_list():
-    """Display the SendGrid templates management page"""
-    templates = SendGridTemplate.query.order_by(SendGridTemplate.name).all()
-    # Ensure is_active is defined for all templates
-    for template in templates:
-        if template.is_active is None:
-            template.is_active = True
-            db.session.add(template)
-    db.session.commit()
-    return render_template('marketing/templates.html', templates=templates)
+    """Do not ship the leftover SendGrid admin page as marketing UI."""
+    return redirect(url_for('marketing.library'))
 
 @marketing.route('/marketing/templates/<template_id>/toggle-status', methods=['POST'])
 @login_required

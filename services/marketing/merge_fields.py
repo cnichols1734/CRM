@@ -310,9 +310,10 @@ def wrap_tokens_for_preview(html: str) -> str:
         key = match.group(1)
         fallback = match.group(2)
         fallback_attr = html_lib.escape(fallback, quote=True) if fallback else ''
+        extra = f' data-mkt-fallback="{fallback_attr}"' if fallback else ''
         return (
             f'<span contenteditable="false" data-mkt-merge="{html_lib.escape(key, quote=True)}"'
-            f'{f" data-mkt-fallback=\"{fallback_attr}\"" if fallback else ""}'
+            f'{extra}'
             f' style="{TOKEN_CHIP_STYLE}">'
             f'{html_lib.escape(chip_label(key))}</span>'
         )

@@ -65,6 +65,15 @@
                         <span>When</span>
                     </button>
                 </li>
+                <li>
+                    <button type="button" class="mkt-step-rail__item"
+                            data-marketing-campaign-wizard-target="step"
+                            data-step="4"
+                            data-action="click->marketing-campaign-wizard#showStep">
+                        <span class="mkt-step-rail__num">4</span>
+                        <span>Review and launch</span>
+                    </button>
+                </li>
             </ol>
 
             <div class="mkt-campaign__layout">
@@ -139,6 +148,10 @@
                                     {% if not selected_id %}disabled{% endif %}>Use this template</button>
                         </div>
                         <p class="mt-4 text-sm crm-muted">Need a different email? <a class="underline" href="{{ url_for('marketing.library') }}">Open templates</a>.</p>
+                        <div class="mkt-pane__nav">
+                            <button type="button" class="crm-btn crm-btn-primary" data-step="2"
+                                    data-action="click->marketing-campaign-wizard#showStep">Next</button>
+                        </div>
                     </section>
 
                     <section class="crm-surface mkt-pane" data-step="2" data-marketing-campaign-wizard-target="panel">
@@ -210,6 +223,12 @@
                         <div class="mkt-reach">
                             <p class="mkt-reach__count" data-marketing-campaign-wizard-target="count">Pick people or a filter to see how many this reaches.</p>
                             <p class="mkt-reach__meta" data-marketing-campaign-wizard-target="breakdown"></p>
+                        </div>
+                        <div class="mkt-pane__nav">
+                            <button type="button" class="crm-btn" data-step="1"
+                                    data-action="click->marketing-campaign-wizard#showStep">Back</button>
+                            <button type="button" class="crm-btn crm-btn-primary" data-step="3"
+                                    data-action="click->marketing-campaign-wizard#showStep">Next</button>
                         </div>
                     </section>
 
@@ -296,17 +315,30 @@
                             </template>
                             <button type="button" class="crm-btn mt-2" data-action="click->marketing-campaign-wizard#addStep">Add another email</button>
                         </div>
+                        <div class="mkt-pane__nav">
+                            <button type="button" class="crm-btn" data-step="2"
+                                    data-action="click->marketing-campaign-wizard#showStep">Back</button>
+                            <button type="button" class="crm-btn crm-btn-primary" data-step="4"
+                                    data-action="click->marketing-campaign-wizard#showStep">Next</button>
+                        </div>
                     </section>
 
-                    <div class="mkt-campaign__dock">
-                        <p class="text-sm crm-muted">{{ quota.remaining }} sends left this month.</p>
+                    <section class="crm-surface mkt-pane" data-step="4" data-marketing-campaign-wizard-target="panel">
+                        <p class="crm-section-kicker">4</p>
+                        <h2 class="crm-section-title mb-4">Review and launch</h2>
+                        <p class="mkt-reach__count mb-3" data-marketing-campaign-wizard-target="count">Pick people or a filter to see how many this reaches.</p>
+                        <p class="text-sm crm-muted mb-5">{{ quota.remaining }} sends left this month.</p>
                         <div class="mkt-campaign__actions">
                             <button class="crm-btn" type="submit" name="action" value="save">Save draft</button>
                             <button class="crm-btn crm-btn-accent" type="submit" name="action" value="launch" {% if not readiness.ok %}disabled{% endif %}>
                                 Launch
                             </button>
                         </div>
-                    </div>
+                        <div class="mkt-pane__nav">
+                            <button type="button" class="crm-btn" data-step="3"
+                                    data-action="click->marketing-campaign-wizard#showStep">Back</button>
+                        </div>
+                    </section>
                 </div>
 
                 <aside class="mkt-campaign__rail">

@@ -64,6 +64,7 @@ class TestMarketingPages:
         body = resp.get_data(as_text=True)
         assert 'Name and template' in body
         assert 'Who gets it' in body
+        assert 'Review and launch' in body
         assert 'My templates' in body
         assert 'Org templates' in body
         assert 'Search contacts' in body
@@ -76,18 +77,18 @@ class TestMarketingPages:
         assert 'data-controller="marketing-cover"' in body
         assert 'bg-blue-600' not in body
 
-    def test_sendgrid_admin_uses_crm_chrome(self, owner_a_client, app, seed):
+    def test_sendgrid_admin_is_not_the_marketing_ui(self, owner_a_client, app, seed):
         with app.app_context():
             org, _ = load_org_user(seed)
             enable_campaigns(org)
             db.session.commit()
-        resp = owner_a_client.get('/marketing/templates', follow_redirects=True)
-        assert resp.status_code == 200
-        body = resp.get_data(as_text=True)
+        resp = owner_a_client.get('/marketing/templates', follow_redirects=False)
+        assert resp.status_code in (302, 303)
+        assert '/marketing/library' in (resp.headers.get('Location') or '')
+        landing = owner_a_client.get('/marketing/library', follow_redirects=True)
+        body = landing.get_data(as_text=True)
+        assert 'SendGrid Templates' not in body
         assert 'bg-blue-600' not in body
-        assert 'crm-btn' in body
-        assert 'crm-surface' in body
-        assert 'mkt-page' in body
 
     def test_empty_studio_is_create_template(self, owner_a_client, app, seed):
         with app.app_context():
