@@ -11,7 +11,7 @@ from jobs.base import set_job_org_context
 
 logger = logging.getLogger(__name__)
 
-APNS_ENV_KEYS = ('APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_KEY', 'APNS_BUNDLE_ID')
+APNS_ENV_KEYS = ('APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_KEY')
 
 
 def apns_configured() -> bool:
@@ -57,16 +57,16 @@ def send_portal_push(*, message_id: int, org_id: int):
 
         sent = 0
         for row in tokens:
-            if _send_one(row.token, msg):
+            if _send_one(row.token, msg, row.audience):
                 sent += 1
         return {'ok': True, 'sent': sent}
 
 
-def _send_one(device_token: str, msg) -> bool:
+def _send_one(device_token: str, msg, audience) -> bool:
     """HTTP/2 APNs post. Isolated so missing env never reaches here."""
     try:
         from services.apns_client import send_alert
-        return bool(send_alert(device_token, msg))
+        return bool(send_alert(device_token, msg, audience=audience))
     except Exception:
         logger.exception('APNs send failed for token suffix %s', device_token[-8:])
         return False
