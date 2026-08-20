@@ -498,7 +498,7 @@ export default class extends Controller {
       const parsed = JSON.parse(this.blocksFieldTarget.value || "[]");
       return Array.isArray(parsed) ? parsed : [];
     } catch {
-      this.setStatus("The template content is not valid JSON.");
+      this.setStatus("Could not read this template. Try again.");
       return null;
     }
   }

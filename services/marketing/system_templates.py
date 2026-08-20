@@ -109,7 +109,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
             {'type': 'hero',
              'eyebrow': 'July market update',
              'title': 'Here is where the market actually stands.',
-             'accent': 'Numbers, not headlines.',
+             'accent': 'What sold last month.',
              'text': (
                  'A short read on what sold, what it sold for, and how long '
                  'it took.'

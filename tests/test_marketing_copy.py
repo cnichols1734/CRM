@@ -130,3 +130,37 @@ class TestLockedMarketingCopy:
         assert 'You crossed my mind. A short note, with no pitch attached.' not in starters
         assert 'No agenda with this one.' not in starters
         assert 'Getting to know the people I work with' not in starters
+
+    def test_addendum_39_to_48(self):
+        library = _read('templates', 'marketing', 'library.html')
+        assert 'Hang on.' in library
+        assert 'Usually takes a few seconds.' not in library
+
+        studio = _read('templates', 'marketing', 'studio.html')
+        assert 'Hang on.' in studio
+        assert 'Usually takes a few seconds.' not in studio
+        assert 'Click any line in the email to edit it.' in studio
+        assert 'The layout stays.' not in studio
+        assert 'This overwrites the current email. Save first if you want to keep it.' in studio
+        assert 'Replaces the email. Save first if you want to keep this one.' not in studio
+
+        overview = _read('templates', 'marketing', 'overview.html')
+        assert 'Send a one-time email or a drip to your contacts.' in overview
+        assert 'Send one email, or a short sequence, to the people already in your CRM.' not in overview
+        assert "empty_state('No campaigns'" in overview
+        assert "empty_state('No campaigns yet'" not in overview
+        assert 'Use New campaign to send a template to contacts in your CRM.' in overview
+
+        coming_soon = _read('templates', 'marketing.html')
+        assert '>Marketing<' in coming_soon or '            Marketing\n' in coming_soon
+        assert 'Marketing Hub - Coming Soon' not in coming_soon
+        assert 'Email campaigns are not included in this plan.' in coming_soon
+        assert "We're building something amazing!" not in coming_soon
+
+        starters = _read('services', 'marketing', 'system_templates.py')
+        assert 'What sold last month.' in starters
+        assert 'Numbers, not headlines.' not in starters
+
+        studio_js = _read('frontend', 'controllers', 'marketing_template_studio_controller.js')
+        assert 'Could not read this template. Try again.' in studio_js
+        assert 'The template content is not valid JSON.' not in studio_js
