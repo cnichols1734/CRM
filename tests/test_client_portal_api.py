@@ -216,12 +216,30 @@ def test_jwt_required_cookie_login_is_not_enough(app, seed, owner_a_client, clie
 
     for path in (
         '/api/client/v1/deal',
+        '/api/client/v1/milestones',
         '/api/client/v1/messages',
         '/api/client/v1/documents',
+        '/api/client/v1/documents/1/file',
+        '/api/client/v1/showings',
     ):
         assert owner_a_client.get(path).status_code == 401
         assert client.get(path).status_code == 401
-        assert client.get(path, headers=_auth_headers(token)).status_code == 200
+
+    assert client.get(
+        '/api/client/v1/deal', headers=_auth_headers(token),
+    ).status_code == 200
+    assert client.get(
+        '/api/client/v1/milestones', headers=_auth_headers(token),
+    ).status_code == 200
+    assert client.get(
+        '/api/client/v1/messages', headers=_auth_headers(token),
+    ).status_code == 200
+    assert client.get(
+        '/api/client/v1/documents', headers=_auth_headers(token),
+    ).status_code == 200
+    assert client.get(
+        '/api/client/v1/showings', headers=_auth_headers(token),
+    ).status_code == 200
 
     assert owner_a_client.post(
         '/api/client/v1/showings/1/approve',
@@ -229,7 +247,9 @@ def test_jwt_required_cookie_login_is_not_enough(app, seed, owner_a_client, clie
     assert owner_a_client.post(
         '/api/client/v1/showings/1/decline',
     ).status_code == 401
-    assert owner_a_client.post('/api/client/v1/session/leave').status_code == 401
+    assert owner_a_client.delete('/api/client/v1/session').status_code == 401
+    leftover = owner_a_client.post('/api/client/v1/session/leave')
+    assert leftover.status_code == 404
 
 
 def test_deal_payload_is_client_safe(app, seed, client):
@@ -368,6 +388,7 @@ def test_documents_only_that_participant(app, seed, client, monkeypatch):
         ))
         db.session.commit()
         code = access.invite_code
+        mine_id, other_id = mine.id, theirs.id
 
     token = _open_session(client, code).get_json()['token']
     docs = client.get(
@@ -378,6 +399,20 @@ def test_documents_only_that_participant(app, seed, client, monkeypatch):
     assert 'Buyer Rep' not in names
     listing = next(row for row in docs['completed'] if row['name'] == 'Listing Agreement')
     assert listing['view_url'].startswith('https://signed.example/')
+    assert listing['doc_id'] == mine_id
+
+    file_resp = client.get(
+        f'/api/client/v1/documents/{mine_id}/file',
+        headers=_auth_headers(token),
+    )
+    assert file_resp.status_code in (302, 301)
+    assert file_resp.headers['Location'].startswith('https://signed.example/')
+
+    denied = client.get(
+        f'/api/client/v1/documents/{other_id}/file',
+        headers=_auth_headers(token),
+    )
+    assert denied.status_code == 403
 
 
 def test_showing_approve_decline_only_when_pending(app, seed, client):
@@ -420,6 +455,13 @@ def test_showing_approve_decline_only_when_pending(app, seed, client):
     token = _open_session(client, code).get_json()['token']
     headers = _auth_headers(token)
 
+    listed = client.get('/api/client/v1/showings', headers=headers)
+    assert listed.status_code == 200
+    showing_ids = [item['id'] for item in listed.get_json()['items']]
+    assert pending_id in showing_ids
+    assert scheduled_id in showing_ids
+    assert all('showing_agent_name' not in item for item in listed.get_json()['items'])
+
     denied = client.post(
         f'/api/client/v1/showings/{scheduled_id}/approve', headers=headers,
     )
@@ -455,8 +497,13 @@ def test_session_leave_invalidates_jwt_not_invite(app, seed, client):
         '/api/client/v1/deal', headers=_auth_headers(token),
     ).status_code == 200
 
-    left = client.post(
+    leftover = client.post(
         '/api/client/v1/session/leave', headers=_auth_headers(token),
+    )
+    assert leftover.status_code == 404
+
+    left = client.delete(
+        '/api/client/v1/session', headers=_auth_headers(token),
     )
     assert left.status_code == 200
     assert client.get(
@@ -469,6 +516,48 @@ def test_session_leave_invalidates_jwt_not_invite(app, seed, client):
         '/api/client/v1/deal',
         headers=_auth_headers(again.get_json()['token']),
     ).status_code == 200
+
+
+def test_milestones_wrap_portal_dto(app, seed, client):
+    from models import SellerAcceptedContract, SellerContractMilestone
+
+    with app.app_context():
+        tx = _seller_tx(seed, '913 Milestone Ln')
+        seller = _participant(seed, tx, contact_id=seed['contact_a'])
+        access = _grant(seed, tx, seller)
+        contract = SellerAcceptedContract(
+            organization_id=seed['org_a'],
+            transaction_id=tx.id,
+            created_by_id=seed['owner_a'],
+            position='primary',
+            status='active',
+            accepted_price=400000,
+        )
+        db.session.add(contract)
+        db.session.flush()
+        db.session.add(SellerContractMilestone(
+            organization_id=seed['org_a'],
+            transaction_id=tx.id,
+            accepted_contract_id=contract.id,
+            milestone_key='option_period',
+            title='Option period ends',
+            due_at=datetime.utcnow() + timedelta(days=6),
+            status='not_started',
+        ))
+        db.session.commit()
+        code = access.invite_code
+
+    token = _open_session(client, code).get_json()['token']
+    resp = client.get(
+        '/api/client/v1/milestones', headers=_auth_headers(token),
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    titles = [item['title'] for item in body['items']]
+    assert 'Option period ends' in titles
+    blob = json.dumps(body)
+    assert 'commission' not in blob.lower()
+    assert 'lockbox' not in blob.lower()
 
 
 def test_messages_round_trip(app, seed, client):

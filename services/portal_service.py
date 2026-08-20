@@ -840,7 +840,8 @@ def documents_for_client_api(access):
         row = dict(item)
         row['view_url'] = None
         if row.get('can_view') and row.get('doc_id'):
-            row['view_url'] = _signed_doc_url(access, row['doc_id'])
+            url, _status = client_document_file_url(access, row['doc_id'])
+            row['view_url'] = url
         completed.append(row)
     return {
         'needs_signature': list(documents.get('needs_signature') or []),
@@ -850,7 +851,30 @@ def documents_for_client_api(access):
     }
 
 
-def _signed_doc_url(access, doc_id):
+def milestones_for_client_api(access):
+    """Same client-safe milestone block as ``build_portal_context``."""
+    ctx = build_portal_context(access)
+    payload = _json_safe(ctx.get('milestones') or {'items': [], 'next': None})
+    _assert_client_safe(payload)
+    return payload
+
+
+def showings_for_client_api(access):
+    """Same client-safe showings block as ``build_portal_context``."""
+    ctx = build_portal_context(access)
+    payload = _json_safe(ctx.get('showings') or {
+        'items': [], 'total': 0, 'this_week': 0,
+        'with_feedback': 0, 'interest_counts': {},
+    })
+    _assert_client_safe(payload)
+    return payload
+
+
+def client_document_file_url(access, doc_id):
+    """Signed URL for a completed doc this participant can view.
+
+    Returns ``(url, error_status)``. ``error_status`` is None on success.
+    """
     from models import TransactionDocument
     from services.supabase_storage import get_transaction_document_url
 
@@ -858,15 +882,18 @@ def _signed_doc_url(access, doc_id):
         id=doc_id, transaction_id=access.transaction_id).first()
     email = (access.participant.display_email or '').strip().lower()
     if not doc or doc.status != 'signed' or not doc.signed_file_path:
-        return None
+        return None, 404
     sigs = doc.signatures.all()
     if sigs and not any((s.signer_email or '').strip().lower() == email for s in sigs):
-        return None
+        return None, 403
     try:
-        return get_transaction_document_url(doc.signed_file_path, expires_in=3600)
+        url = get_transaction_document_url(doc.signed_file_path, expires_in=3600)
     except Exception:
         logger.exception('Client API: failed to sign document URL for doc %s', doc_id)
-        return None
+        url = None
+    if not url:
+        return None, 404
+    return url, None
 
 
 def _json_safe(value):

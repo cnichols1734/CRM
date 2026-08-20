@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from functools import wraps
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, redirect, request
 from sqlalchemy import text
 
 from models import db, PortalMessage, SellerShowing
@@ -23,9 +23,12 @@ from services.client_portal_auth import (
 from services.portal_service import (
     CLIENT_PORTAL_ROLES,
     SELLER_ROLES,
+    client_document_file_url,
     documents_for_client_api,
     list_client_messages,
+    milestones_for_client_api,
     serialize_client_deal,
+    showings_for_client_api,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,9 +136,9 @@ def create_session():
     })
 
 
-@client_api_bp.route('/session/leave', methods=['POST'])
+@client_api_bp.route('/session', methods=['DELETE'])
 @client_jwt_required
-def leave_session(access):
+def delete_session(access):
     access.bump_session()
     db.session.commit()
     return jsonify({'ok': True})
@@ -187,10 +190,33 @@ def post_message(access):
     }), 201
 
 
+@client_api_bp.route('/milestones', methods=['GET'])
+@client_jwt_required
+def get_milestones(access):
+    return jsonify(milestones_for_client_api(access))
+
+
 @client_api_bp.route('/documents', methods=['GET'])
 @client_jwt_required
 def get_documents(access):
     return jsonify(documents_for_client_api(access))
+
+
+@client_api_bp.route('/documents/<int:doc_id>/file', methods=['GET'])
+@client_jwt_required
+def get_document_file(access, doc_id):
+    url, error_status = client_document_file_url(access, doc_id)
+    if error_status:
+        if error_status == 403:
+            return _json_error('That document is not yours.', 403)
+        return _json_error('Document not found.', 404)
+    return redirect(url)
+
+
+@client_api_bp.route('/showings', methods=['GET'])
+@client_jwt_required
+def get_showings(access):
+    return jsonify(showings_for_client_api(access))
 
 
 def _showing_for_access(access, showing_id):
