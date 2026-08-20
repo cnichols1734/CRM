@@ -32,7 +32,7 @@ psycopg2-binary==2.9.12
 supabase==2.31.0
 
 # Security / serialization / templating dependencies
-Authlib==1.6.6
+Authlib==1.6.12
 itsdangerous==2.2.0
 PyYAML==6.0.3
 jsonschema==4.26.0
