@@ -100,23 +100,34 @@
                 </p>
                 {% endif %}
             </div>
-            <div class="crm-setting-row">
-                <div class="min-w-0">
-                    <p class="crm-setting-row__title">Service</p>
-                    <p class="crm-setting-row__desc">{{ cowork_service }}</p>
+            <div class="pt-3 pb-3" style="border-bottom: 1px solid var(--hairline);">
+                <label class="crm-form-label" for="cowork-service">Service</label>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                    <input id="cowork-service" type="text" readonly
+                           value="{{ cowork_service }}"
+                           class="crm-input flex-1"
+                           aria-label="Cowork service name">
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary whitespace-nowrap js-cowork-copy"
+                            data-copy-text="{{ cowork_service }}">
+                        <i class="far fa-copy text-xs"></i>
+                        <span>Copy</span>
+                    </button>
                 </div>
-                <button type="button"
-                        class="crm-btn crm-btn-sm crm-btn-subtle shrink-0 js-cowork-copy"
-                        data-copy-text="{{ cowork_service }}"><span>Copy</span></button>
             </div>
-            <div class="crm-setting-row">
-                <div class="min-w-0">
-                    <p class="crm-setting-row__title">What Claude can do</p>
-                    <p class="crm-setting-row__desc">{{ cowork_can_do }}</p>
+            <div class="pt-3 pb-3" style="border-bottom: 1px solid var(--hairline);">
+                <label class="crm-form-label" for="cowork-can-do">What Claude can do</label>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                    <textarea id="cowork-can-do" readonly rows="3"
+                              class="crm-input flex-1"
+                              aria-label="What Claude can do">{{ cowork_can_do }}</textarea>
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary whitespace-nowrap js-cowork-copy"
+                            data-copy-text="{{ cowork_can_do }}">
+                        <i class="far fa-copy text-xs"></i>
+                        <span>Copy</span>
+                    </button>
                 </div>
-                <button type="button"
-                        class="crm-btn crm-btn-sm crm-btn-subtle shrink-0 js-cowork-copy"
-                        data-copy-text="{{ cowork_can_do }}"><span>Copy</span></button>
             </div>
             <div class="crm-setting-row">
                 <div>
