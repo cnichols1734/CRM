@@ -18,8 +18,8 @@
 const BOB_STARTERS = [
     // ---- Reads: answer a question about the book of business ----
     { group: 'ask', mode: 'send', icon: 'fa-calendar-day',
-      label: "What's on my plate today?",
-      prompt: "What's on my plate today?" },
+      label: "What's due today?",
+      prompt: "What tasks are due today?" },
     { group: 'ask', mode: 'send', icon: 'fa-triangle-exclamation',
       label: 'What have I let slip?',
       prompt: 'What tasks am I overdue on?' },
@@ -46,7 +46,7 @@ const BOB_STARTERS = [
       prompt: 'Which tasks did I complete in the last 7 days?' },
     { group: 'ask', mode: 'draft', icon: 'fa-id-card',
       label: 'Catch me up on',
-      prompt: 'Give me the full picture on @' },
+      prompt: 'Catch me up on @' },
     { group: 'ask', mode: 'draft', icon: 'fa-clipboard-list',
       label: 'What is open for',
       prompt: 'What tasks are still open for @' },
@@ -287,7 +287,7 @@ class BOBChatPanel {
                     </div>
                     <div class="bob-title">B.O.B.</div>
                     <div class="bob-subtitle">Business Optimization Buddy</div>
-                    <div class="bob-tagline">I can look things up in your CRM, and now I can do the work too.</div>
+                    <div class="bob-tagline">Tell me what you need done in your CRM.</div>
 
                     <div class="bob-starters" id="bob-starters"></div>
                 </div>
