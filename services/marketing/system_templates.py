@@ -32,10 +32,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'key': 'check_in',
         'name': 'Just checking in',
         'category': 'check_in',
-        'description': (
-            'A short, no-ask note to past clients. The one to send when you '
-            'have nothing to sell and want to stay in someone\'s mind.'
-        ),
+        'description': 'A short note to past clients when you have nothing to sell.',
         'subject': 'Checking in, {{contact.first_name|there}}',
         'preheader': 'No agenda here. Just wanted to see how you are doing.',
         'blocks': [
@@ -106,10 +103,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'key': 'market_update',
         'name': 'Monthly market update',
         'category': 'market_update',
-        'description': (
-            'Three numbers and what they mean. The template that earns the '
-            'most replies, because it gives before it asks.'
-        ),
+        'description': 'Three numbers from last month and what they mean.',
         'subject': 'What homes are doing in {{contact.city|your area}}',
         'preheader': 'Three numbers from last month and what they mean for you.',
         'blocks': [
@@ -186,10 +180,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'key': 'just_sold',
         'name': 'Just sold',
         'category': 'just_sold',
-        'description': (
-            'A closed sale as proof of work rather than a victory lap. Pairs '
-            'the result with an offer to run the same numbers for the reader.'
-        ),
+        'description': 'A nearby sale, plus an offer to run the same numbers for them.',
         'subject': 'Sold in [neighborhood]: here is what it went for',
         'preheader': 'Closed [this week]. What it tells you about your own value.',
         'blocks': [
@@ -223,10 +214,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'key': 'holiday',
         'name': 'Seasonal greeting',
         'category': 'holiday',
-        'description': (
-            'A warm note with nothing to sell. Deliberately short, and '
-            'deliberately has no call to action.'
-        ),
+        'description': 'A short holiday note with nothing to sell.',
         'subject': 'Happy [holiday], {{contact.first_name|friend}}',
         'preheader': 'A quick note from my family to yours.',
         'blocks': [

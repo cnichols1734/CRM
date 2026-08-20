@@ -628,7 +628,7 @@
                             <label class="block">
                                 <span class="crm-label">Can we email them?</span>
                                 <select name="marketing_consent" class="crm-input mt-1">
-                                    <option value="unknown" {% if contact.marketing_consent == 'unknown' %}selected{% endif %}>Unknown — still receives campaigns</option>
+                                    <option value="unknown" {% if contact.marketing_consent == 'unknown' %}selected{% endif %}>Unknown, still gets campaigns</option>
                                     <option value="opted_in" {% if contact.marketing_consent == 'opted_in' %}selected{% endif %}>Opted in</option>
                                     <option value="opted_out" {% if contact.marketing_consent == 'opted_out' %}selected{% endif %}>Opted out</option>
                                 </select>

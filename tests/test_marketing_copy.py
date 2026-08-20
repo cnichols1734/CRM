@@ -83,3 +83,13 @@ class TestLockedMarketingCopy:
         text = _read('templates', 'marketing', 'settings.html')
         assert 'No unsubscribed addresses.' in text
         assert 'None yet.' not in text
+
+    def test_addendum_24_to_28(self):
+        contact = _read('templates', 'contacts', 'view.html')
+        assert 'Unknown, still gets campaigns' in contact
+        assert 'Unknown — still receives campaigns' not in contact
+        starters = _read('services', 'marketing', 'system_templates.py')
+        assert 'A short note to past clients when you have nothing to sell.' in starters
+        assert 'Three numbers from last month and what they mean.' in starters
+        assert 'A nearby sale, plus an offer to run the same numbers for them.' in starters
+        assert 'A short holiday note with nothing to sell.' in starters
