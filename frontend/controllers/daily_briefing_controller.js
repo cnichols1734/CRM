@@ -187,7 +187,7 @@ export default class extends Controller {
     this._setCount(this.hasReconnectCountTarget && this.reconnectCountTarget, items.length);
     if (!items.length) {
       this.reconnectTarget.innerHTML = this._empty(
-        "Sphere looks warm. No one's going cold right now."
+        "No contacts need a reconnect right now."
       );
       return;
     }

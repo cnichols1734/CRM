@@ -308,7 +308,7 @@
             {% else %}
             <div class="crm-surface-body">
                 {% if current_status == 'pending' %}
-                    {% set _empty_msg = "You're all caught up." %}
+                    {% set _empty_msg = "No open tasks." %}
                 {% elif current_status == 'completed' %}
                     {% set _empty_msg = "No completed tasks yet." %}
                 {% else %}
