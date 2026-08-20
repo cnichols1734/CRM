@@ -39,6 +39,12 @@ def configure_browser_test_environment(project_root: Path) -> dict[str, str]:
     if env_test_path.exists():
         load_dotenv(env_test_path)
 
+    # Keep Playwright / CI Flask boots off live SendGrid even if a developer
+    # .env or .env.test still has a production key. Empty values also stop
+    # app.py load_dotenv(override=False) from re-injecting one.
+    for mail_key in ("SENDGRID_API_KEY", "MAIL_PASSWORD", "MAIL_USERNAME"):
+        os.environ[mail_key] = ""
+
     database_url = (
         os.getenv("TEST_DATABASE_URL")
         or os.getenv("DATABASE_URL")
