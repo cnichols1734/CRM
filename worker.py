@@ -31,6 +31,7 @@ QUEUE_NAMES = (
     "doc_extraction",
     "bob_telegram",
     "contract_bootstrap",
+    "apns",
 )
 
 

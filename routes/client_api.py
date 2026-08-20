@@ -12,7 +12,7 @@ from functools import wraps
 from flask import Blueprint, g, jsonify, redirect, request
 from sqlalchemy import text
 
-from models import db, PortalMessage, SellerShowing
+from models import DeviceToken, db, PortalMessage, SellerShowing
 from services.client_portal_auth import (
     JWT_TTL_SECONDS,
     branding_for_access,
@@ -196,6 +196,12 @@ def post_message(access):
     db.session.commit()
 
     try:
+        from services.device_push import enqueue_portal_push
+        enqueue_portal_push(msg)
+    except Exception:
+        logger.exception('Client API: failed to enqueue APNs for client message.')
+
+    try:
         from routes.portal import _notify_agent_of_message
         _notify_agent_of_message(access, body)
     except Exception:
@@ -227,6 +233,28 @@ def get_document_file(access, doc_id):
             return _json_error('That document is not yours.', 403)
         return _json_error('Document not found.', 404)
     return redirect(url)
+
+
+@client_api_bp.route('/devices', methods=['POST'])
+@client_jwt_required
+def register_client_device(access):
+    data = request.get_json(silent=True) or {}
+    try:
+        from services.device_push import register_device
+        row = register_device(
+            organization_id=access.organization_id,
+            audience=DeviceToken.AUDIENCE_CLIENT,
+            token=data.get('token'),
+            platform=data.get('platform') or request.form.get('platform'),
+            participant_id=access.participant_id,
+        )
+    except ValueError as exc:
+        return _json_error(str(exc), 400)
+    return jsonify({
+        'ok': True,
+        'device_id': row.id,
+        'platform': row.platform,
+    }), 201
 
 
 @client_api_bp.route('/showings', methods=['GET'])

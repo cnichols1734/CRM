@@ -194,6 +194,12 @@ def post_message(access):
     db.session.add(msg)
     db.session.commit()
 
+    try:
+        from services.device_push import enqueue_portal_push
+        enqueue_portal_push(msg)
+    except Exception:
+        logger.exception('Portal: failed to enqueue APNs for client message.')
+
     # Notify the agent in-app (best-effort; never block the seller's action).
     try:
         _notify_agent_of_message(access, body)

@@ -55,6 +55,7 @@ from routes.inbound_email import inbound_bp
 from routes.partner_directory import partner_directory_bp
 from routes.portal import portal_bp
 from routes.client_api import client_api_bp
+from routes.agent_api import agent_api_bp
 from routes.groups import groups_bp
 from routes.analytics_webhooks import analytics_webhooks_bp
 from routes.bob_telegram import bob_telegram_bp
@@ -270,6 +271,7 @@ def create_app():
     app.register_blueprint(partner_directory_bp)
     app.register_blueprint(portal_bp)
     app.register_blueprint(client_api_bp)
+    app.register_blueprint(agent_api_bp)
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
@@ -325,6 +327,8 @@ def create_app():
         2. Check if the user's session has been invalidated
         3. Set the PostgreSQL app.current_org_id for RLS
         """
+        if request.path.startswith('/api/agent/v1'):
+            return
         if not current_user.is_authenticated:
             return
         
