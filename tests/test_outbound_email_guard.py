@@ -1,7 +1,7 @@
 """Regression: register and org invite must never reach live SendGrid."""
 from unittest.mock import MagicMock
 
-from models import OrganizationInvite, User
+from models import OrganizationInvite, User, db
 from services.email_send_guard import (
     is_fixture_recipient,
     outbound_send_block_reason,
@@ -116,7 +116,7 @@ class TestSendHelpersShortCircuit:
         from services.email_service import EmailService
 
         with app.app_context():
-            owner = User.query.get(seed['owner_a'])
+            owner = db.session.get(User, seed['owner_a'])
             org = owner.organization
             service = EmailService(api_key='SG.fake-pytest-key-not-real')
             assert service.send_team_invite(
