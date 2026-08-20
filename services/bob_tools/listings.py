@@ -69,6 +69,7 @@ def get_listing(ctx: BobContext, *, transaction_id: int | None = None) -> ToolRe
             'status': tx.status,
             'list_price': str(profile.current_list_price) if profile and profile.current_list_price else None,
             'mls_number': profile.mls_number if profile else None,
+            'mls_listing_url': tx.mls_listing_url,
             'go_live_date': profile.go_live_date.isoformat() if profile and profile.go_live_date else None,
             'occupancy_status': profile.occupancy_status if profile else None,
             'listing_description': extra.get('listing_description') or '',
@@ -83,6 +84,7 @@ def update_listing_fields(
     transaction_id: int,
     list_price=None,
     mls_number: str = '',
+    mls_listing_url: str = '',
     go_live_date: str = '',
     occupancy_status: str = '',
     public_showing_instructions: str = '',
@@ -108,6 +110,7 @@ def update_listing_fields(
     before = {
         'list_price': str(profile.current_list_price) if profile.current_list_price else None,
         'mls_number': profile.mls_number,
+        'mls_listing_url': tx.mls_listing_url,
     }
     if list_price not in (None, ''):
         try:
@@ -118,6 +121,12 @@ def update_listing_fields(
             return ToolResult.failure('list_price must be a number.')
     if mls_number:
         profile.mls_number = mls_number.strip()[:100]
+    if mls_listing_url != '':
+        from services.portal_service import normalize_mls_listing_url
+        try:
+            tx.mls_listing_url = normalize_mls_listing_url(mls_listing_url)
+        except ValueError as exc:
+            return ToolResult.failure(str(exc))
     if go_live_date:
         try:
             profile.go_live_date = datetime.strptime(go_live_date, '%Y-%m-%d').date()
@@ -136,6 +145,7 @@ def update_listing_fields(
             'after': {
                 'list_price': str(profile.current_list_price) if profile.current_list_price else None,
                 'mls_number': profile.mls_number,
+                'mls_listing_url': tx.mls_listing_url,
                 'go_live_date': profile.go_live_date.isoformat() if profile.go_live_date else None,
             },
         },
@@ -155,10 +165,12 @@ def preview_update_listing_fields(args: dict, ctx: BobContext) -> dict:
         'before': {
             'list_price': str(profile.current_list_price) if profile and profile.current_list_price else None,
             'mls_number': profile.mls_number if profile else None,
+            'mls_listing_url': tx.mls_listing_url if tx else None,
         },
         'after': {
             'list_price': args.get('list_price'),
             'mls_number': args.get('mls_number'),
+            'mls_listing_url': args.get('mls_listing_url'),
         },
     }
 

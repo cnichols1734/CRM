@@ -1,0 +1,99 @@
+{# Public MLS listing link shown on the client iPhone Home screen. #}
+{% set mls_field_id = mls_field_id|default('mls-listing-url') %}
+<div class="space-y-1.5" data-mls-listing-field>
+    <label class="crm-field-label" for="{{ mls_field_id }}">MLS listing link</label>
+    <p class="text-xs text-slate-500">Shows on the client's Home screen in place of Message.</p>
+    <div class="flex flex-wrap items-center gap-2">
+        <input type="url"
+               id="{{ mls_field_id }}"
+               inputmode="url"
+               autocomplete="off"
+               spellcheck="false"
+               placeholder="https://"
+               value="{{ transaction.mls_listing_url or '' }}"
+               data-saved-value="{{ transaction.mls_listing_url or '' }}"
+               class="crm-input min-w-[16rem] flex-1">
+        <button type="button"
+                class="crm-btn crm-btn-secondary hidden px-3 py-1.5 text-xs"
+                data-mls-listing-save>
+            Save
+        </button>
+    </div>
+    <p class="hidden text-xs text-red-700" data-mls-listing-error></p>
+    {% if transaction.mls_listing_url %}
+    <a href="{{ transaction.mls_listing_url }}"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="inline-block text-xs font-medium text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-slate-900">
+        Open listing
+    </a>
+    {% endif %}
+</div>
+<script>
+(function () {
+    var field = document.getElementById({{ mls_field_id|tojson }}).closest('[data-mls-listing-field]');
+    if (!field) return;
+    var input = field.querySelector('input[type="url"]');
+    var saveBtn = field.querySelector('[data-mls-listing-save]');
+    var txId = {{ transaction.id }};
+    if (!input || !saveBtn) return;
+
+    function currentValue() {
+        return (input.value || '').trim();
+    }
+
+    function savedValue() {
+        return (input.getAttribute('data-saved-value') || '').trim();
+    }
+
+    function syncSave() {
+        if (currentValue() !== savedValue()) {
+            saveBtn.classList.remove('hidden');
+        } else {
+            saveBtn.classList.add('hidden');
+        }
+    }
+
+    input.addEventListener('input', syncSave);
+    saveBtn.addEventListener('click', function () {
+        var original = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        fetch('/transactions/' + txId + '/mls-listing-url', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ mls_listing_url: currentValue() })
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.error || 'Could not save that listing link.');
+                }
+                return data;
+            });
+        }).then(function () {
+            if (typeof showToast === 'function') {
+                showToast('MLS listing link saved.', 'success');
+            }
+            window.location.reload();
+        }).catch(function (err) {
+            var message = err.message || 'Could not save that listing link.';
+            if (typeof showToast === 'function') {
+                showToast(message, 'error');
+            }
+            var line = field.querySelector('[data-mls-listing-error]');
+            if (line) {
+                line.textContent = message;
+                line.classList.remove('hidden');
+            }
+            saveBtn.disabled = false;
+            saveBtn.textContent = original;
+        });
+    });
+    syncSave();
+})();
+</script>

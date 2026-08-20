@@ -1283,7 +1283,7 @@ TRANSACTION_TOOLS = (
     Tool(
         name='update_listing_fields',
         description=(
-            'Update list price, MLS number, go-live date, occupancy, or public '
+            'Update list price, MLS number, MLS listing link, go-live date, occupancy, or public '
             'showing notes on a seller listing the user can edit. Only send '
             'fields that should change.'
         ),
@@ -1291,6 +1291,10 @@ TRANSACTION_TOOLS = (
             'transaction_id': _TX_ID,
             'list_price': {'type': 'number', 'description': 'New list price in dollars.'},
             'mls_number': {'type': 'string', 'description': 'MLS number if assigned.'},
+            'mls_listing_url': {
+                'type': 'string',
+                'description': 'Public http(s) listing page. Shown on the client Home screen.',
+            },
             'go_live_date': {'type': 'string', 'description': 'Go-live date, YYYY-MM-DD.'},
             'occupancy_status': {'type': 'string', 'description': 'vacant, owner_occupied, or tenant_occupied.'},
             'public_showing_instructions': {'type': 'string', 'description': 'Public showing instructions.'},
@@ -1301,6 +1305,7 @@ TRANSACTION_TOOLS = (
             transaction_id=args['transaction_id'],
             list_price=args.get('list_price'),
             mls_number=args.get('mls_number', ''),
+            mls_listing_url=args.get('mls_listing_url', ''),
             go_live_date=args.get('go_live_date', ''),
             occupancy_status=args.get('occupancy_status', ''),
             public_showing_instructions=args.get('public_showing_instructions', ''),

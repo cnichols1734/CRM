@@ -31,6 +31,7 @@ def settings():
         'organization/settings.html',
         org=org,
         mcp_enabled=org_has_feature('MCP_CONNECTOR', org),
+        client_app_branding=org_has_feature('TRANSACTIONS', org),
     )
 
 
@@ -51,6 +52,15 @@ def update_settings():
         org.logo_url = logo_url
     elif request.form.get('remove_logo'):
         org.logo_url = None
+
+    from feature_flags import org_has_feature
+    from services.client_portal_auth import normalize_brand_accent
+    if org_has_feature('TRANSACTIONS', org):
+        accent = normalize_brand_accent(request.form.get('brand_accent'))
+        if accent is False:
+            flash('Accent color must be a 6-digit hex like #f97316.', 'error')
+            return redirect(url_for('org.settings'))
+        org.brand_accent = accent
     
     db.session.commit()
     flash('Organization settings updated.', 'success')

@@ -14,7 +14,8 @@ from models import (
     TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile, Task,
     SellerListingProfile, SellerOffer, SellerOfferActivity, SellerAcceptedContract,
     SellerContractMilestone, SellerCommissionTerms, SellerListingPriceChange,
-    SellerOfferDocument, SellerOfferVersion, SellerContractDocument
+    SellerOfferDocument, SellerOfferVersion, SellerContractDocument,
+    ClientPortalAccess,
 )
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, case, and_
@@ -482,6 +483,19 @@ def view_transaction(id):
     participants = TransactionParticipant.query.options(
         joinedload(TransactionParticipant.contact)
     ).filter_by(transaction_id=id).all()
+    from services.portal_service import CLIENT_PORTAL_ROLES
+    client_invite_participants = [
+        p for p in participants
+        if (p.role or '').lower() in CLIENT_PORTAL_ROLES
+    ]
+    client_invite_by_id = {}
+    if client_invite_participants:
+        for access in ClientPortalAccess.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+            is_active=True,
+        ).all():
+            client_invite_by_id[access.participant_id] = access
     
     # Load documents sorted by created_at
     documents = TransactionDocument.query.filter_by(
@@ -1077,6 +1091,8 @@ def view_transaction(id):
         'transactions/detail.html',
         transaction=transaction,
         participants=participants,
+        client_invite_participants=client_invite_participants,
+        client_invite_by_id=client_invite_by_id,
         documents=documents,
         listing_documents=listing_documents,
         document_packages=document_packages,

@@ -64,8 +64,27 @@
                             <input id="org-logo" type="url" name="logo_url" value="{{ org.logo_url or '' }}"
                                    class="crm-input" placeholder="https://example.com/logo.png"
                                    {% if current_user.org_role != 'owner' %}disabled{% endif %}>
-                            <p class="crm-form-help">Used in document headers and outbound emails.</p>
+                            <p class="crm-form-help">
+                                {% if client_app_branding|default(false) %}
+                                Used in document headers, outbound emails, and the client iPhone app.
+                                {% else %}
+                                Used in document headers and outbound emails.
+                                {% endif %}
+                            </p>
                         </div>
+
+                        {% if client_app_branding|default(false) %}
+                        <div>
+                            <label for="org-brand-accent" class="crm-form-label">Client app accent</label>
+                            <input id="org-brand-accent" type="text" name="brand_accent"
+                                   value="{{ org.brand_accent or '' }}"
+                                   class="crm-input" placeholder="#f97316" maxlength="7"
+                                   {% if current_user.org_role != 'owner' %}disabled{% endif %}>
+                            <p class="crm-form-help">
+                                Color for buttons in the client iPhone app. Leave blank for the default orange.
+                            </p>
+                        </div>
+                        {% endif %}
 
                         {% if current_user.org_role == 'owner' %}
                         <div class="flex items-center justify-end pt-2">

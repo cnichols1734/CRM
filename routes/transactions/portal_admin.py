@@ -4,7 +4,7 @@ Lets the agent generate, copy, rotate, and revoke the private seller portal
 link from the transaction detail page. All endpoints are agent-authenticated
 and org-scoped; the portal itself (token-authenticated) lives in routes/portal.py.
 """
-from flask import abort, jsonify, request, url_for
+from flask import abort, jsonify, request
 from flask_login import current_user, login_required
 
 from models import (
@@ -12,6 +12,7 @@ from models import (
     TransactionParticipant,
     db,
 )
+from services.portal_service import normalize_mls_listing_url
 from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
@@ -28,10 +29,6 @@ def _get_transaction(id, capability=CAP_EDIT):
     return transaction
 
 
-def _link_url(access):
-    return url_for('portal.home', token=access.token, _external=True)
-
-
 def _serialize(participant, access):
     return {
         'participant_id': participant.id,
@@ -42,7 +39,8 @@ def _serialize(participant, access):
         'email': participant.display_email,
         'has_link': access is not None,
         'access_id': access.id if access else None,
-        'url': _link_url(access) if access else None,
+        'invite_code': (
+            access.invite_code_display if access and access.invite_code else None),
         'view_count': access.view_count if access else 0,
         'last_viewed': (
             access.last_viewed_at.strftime('%b %d, %Y')
@@ -106,7 +104,7 @@ def portal_create_link(id):
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first()
-    if not participant or participant.role not in CLIENT_ROLES:
+    if not participant or (participant.role or '').strip().lower() not in CLIENT_ROLES:
         return jsonify({
             'success': False,
             'error': 'Not a seller or buyer on this transaction.',
@@ -119,9 +117,14 @@ def portal_create_link(id):
             transaction_id=transaction.id,
             participant_id=participant.id,
             token=ClientPortalAccess.generate_token(),
+            invite_code=ClientPortalAccess.generate_invite_code(),
+            session_version=1,
             is_active=True,
         )
         db.session.add(access)
+        db.session.commit()
+    else:
+        access.ensure_invite_code()
         db.session.commit()
 
     return jsonify({'success': True, 'link': _serialize(participant, access)})
@@ -138,11 +141,7 @@ def portal_rotate_link(id, access_id):
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first_or_404()
-    access.token = ClientPortalAccess.generate_token()
-    access.is_active = True
-    access.revoked_at = None
-    access.view_count = 0
-    access.last_viewed_at = None
+    access.rotate_invite()
     db.session.commit()
     return jsonify({'success': True, 'link': _serialize(access.participant, access)})
 
@@ -152,14 +151,30 @@ def portal_rotate_link(id, access_id):
 @transactions_required
 def portal_revoke_link(id, access_id):
     """Turn off a portal link. The seller's URL stops working immediately."""
-    from datetime import datetime
     transaction = _get_transaction(id)
     access = ClientPortalAccess.query.filter_by(
         id=access_id,
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first_or_404()
-    access.is_active = False
-    access.revoked_at = datetime.utcnow()
+    access.revoke()
     db.session.commit()
     return jsonify({'success': True, 'participant_id': access.participant_id})
+
+
+@transactions_bp.route('/<int:id>/mls-listing-url', methods=['POST'])
+@login_required
+@transactions_required
+def update_mls_listing_url(id):
+    """Save the public MLS listing link shown on the client Home screen."""
+    transaction = _get_transaction(id)
+    data = request.get_json(silent=True) or request.form
+    raw = data.get('mls_listing_url', data.get('url', ''))
+    try:
+        url = normalize_mls_listing_url(raw)
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+    transaction.mls_listing_url = url
+    db.session.commit()
+    return jsonify({'success': True, 'mls_listing_url': url})
