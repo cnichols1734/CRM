@@ -22,6 +22,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Email, Mail, To
 
+from services.email_send_guard import skip_outbound_send
 from services.inbox_provisioning import get_inbox_domain
 
 logger = logging.getLogger(__name__)
@@ -190,6 +191,8 @@ def _send_html(to_email: str, subject: str, html: str,
                *, reply_to: str | None = None,
                custom_args: dict | None = None) -> bool:
     """Wrap the SendGrid call and swallow errors (logged) so callers stay safe."""
+    if skip_outbound_send(to_email):
+        return False
     api_key = _sendgrid_api_key()
     if not api_key:
         logger.warning('SENDGRID_API_KEY missing — magic inbox email skipped.')
@@ -238,6 +241,8 @@ def _send_template(to_email: str, template_id: str, data: dict,
                    reply_to: str | None = None,
                    custom_args: dict | None = None) -> bool:
     """Send a SendGrid Dynamic Template with dynamic_template_data."""
+    if skip_outbound_send(to_email):
+        return False
     api_key = _sendgrid_api_key()
     if not api_key:
         logger.warning('SENDGRID_API_KEY missing — magic inbox email skipped.')
