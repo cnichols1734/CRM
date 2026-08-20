@@ -47,6 +47,19 @@ class TestLockedEmptyCopy:
         assert "Forward emails or photos. We save the contact." in text
         assert "Forward emails or photos — we save the contact for you." not in text
 
+    def test_dashboard_briefing_banner(self):
+        text = _read("templates", "dashboard.html")
+        assert "Who to touch and what to move, from your contacts and tasks." in text
+        assert "A focused list of who to touch and what to move — grounded in your CRM." not in text
+        assert "A focused list of who to touch and what to move, grounded in your CRM." not in text
+
+    def test_dashboard_market_insights_footer(self):
+        text = _read("templates", "dashboard.html")
+        assert "endpoint. <em>Asking</em> prices" in text
+        assert "endpoint &mdash; <em>asking</em> prices" not in text
+        assert "endpoint, <em>asking</em> prices" not in text
+        assert "As of —" in text
+
     def test_tasks_pending_empty_helper(self):
         text = _read("templates", "tasks", "list.html")
         assert '_empty_msg = "No open tasks."' in text
@@ -72,6 +85,13 @@ class TestLockedDailyBriefingCopy:
         text = _read("frontend", "controllers", "daily_briefing_controller.js")
         assert "No contacts need a reconnect right now." in text
         assert "Sphere looks warm. No one's going cold right now." not in text
+
+    def test_copy_failed_alert_has_no_em_dash(self):
+        text = _read("frontend", "controllers", "daily_briefing_controller.js")
+        assert "Couldn't copy. Select the text manually." in text
+        assert "Couldn't copy — select the text manually." not in text
+        assert "—" not in text
+        assert "&mdash;" not in text
 
 
 class TestLockedOpenHouseDescription:

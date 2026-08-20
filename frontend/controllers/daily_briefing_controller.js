@@ -274,7 +274,7 @@ export default class extends Controller {
         }, 1400);
       }
     } catch (e) {
-      window.alert("Couldn't copy — select the text manually.");
+      window.alert("Couldn't copy. Select the text manually.");
     }
   }
 
