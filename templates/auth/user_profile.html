@@ -248,6 +248,11 @@
                     </div>
                 </section>
                 {% endif %}
+
+                {% if not is_admin_edit and mcp_enabled %}
+                {% set cowork_show_manage = true %}
+                {% include 'integrations/_cowork_setup.html' %}
+                {% endif %}
             </div>
 
             {# ── RIGHT: integrations / sidebar ─────────────── #}
@@ -257,8 +262,8 @@
                 <section class="crm-surface">
                     <header class="crm-surface-header">
                         <div>
-                            <h2 class="crm-section-title">Google integrations</h2>
-                            <p class="crm-section-description">Send via Gmail and sync tasks to Calendar.</p>
+                            <h2 class="crm-section-title">Integrations</h2>
+                            <p class="crm-section-description">Gmail, Calendar, Claude.</p>
                         </div>
                     </header>
 
@@ -343,14 +348,14 @@
                                     <i class="fas fa-plug" style="color: var(--accent);"></i>
                                 </span>
                                 <div class="min-w-0">
-                                    <p class="integration-row__title">AgentFlow MCP</p>
+                                    <p class="integration-row__title">Claude Cowork</p>
                                     <p class="integration-row__desc">
-                                        Connect Claude Cowork or a similar client. It acts as you.
+                                        Claude works in AgentFlow as you. Drafts only.
                                     </p>
                                 </div>
                             </div>
                             <a href="{{ url_for('mcp.settings') }}" class="crm-btn crm-btn-sm crm-btn-primary">
-                                Manage
+                                Set up
                             </a>
                         </div>
                         {% endif %}
