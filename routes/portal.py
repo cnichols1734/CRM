@@ -79,7 +79,7 @@ def portal_access(view):
         participant = access.participant
         if (tx is None or participant is None
                 or participant.transaction_id != tx.id
-                or (participant.role or '') not in CLIENT_PORTAL_ROLES):
+                or (participant.role or '').strip().lower() not in CLIENT_PORTAL_ROLES):
             return render_template('portal/invalid.html'), 404
 
         g.portal = access

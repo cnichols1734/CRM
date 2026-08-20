@@ -73,6 +73,21 @@ def _bearer_token():
     return ''
 
 
+def _role_allowed(role):
+    return (role or '').strip().lower() in CLIENT_PORTAL_ROLES
+
+
+def _invite_from_request():
+    """Native posts invite_code. Older clients may still send code."""
+    data = request.get_json(silent=True)
+    if isinstance(data, dict):
+        if 'invite_code' in data:
+            return data.get('invite_code')
+        if 'code' in data:
+            return data.get('code')
+    return request.form.get('invite_code') or request.form.get('code')
+
+
 def client_jwt_required(view):
     """Authorize from the client JWT only. A CRM cookie is not enough."""
     @wraps(view)
@@ -92,7 +107,7 @@ def client_jwt_required(view):
             tx is None
             or participant is None
             or participant.transaction_id != tx.id
-            or (participant.role or '') not in CLIENT_PORTAL_ROLES
+            or not _role_allowed(participant.role)
         ):
             return _json_error('This invite is no longer active.', 401)
 
@@ -104,11 +119,9 @@ def client_jwt_required(view):
 
 @client_api_bp.route('/session', methods=['POST'])
 def create_session():
-    data = request.get_json(silent=True) or {}
-    code = data.get('code') or request.form.get('code')
-    access, error = exchange_invite_code(code)
+    access, error = exchange_invite_code(_invite_from_request())
     if error:
-        return _json_error(error, 401)
+        return _json_error(error, 422)
 
     _set_org_context(access.organization_id)
     tx = access.transaction
@@ -117,9 +130,9 @@ def create_session():
         tx is None
         or participant is None
         or participant.transaction_id != tx.id
-        or (participant.role or '') not in CLIENT_PORTAL_ROLES
+        or not _role_allowed(participant.role)
     ):
-        return _json_error('This invite is no longer active.', 401)
+        return _json_error('This invite is no longer active.', 422)
 
     try:
         access.record_view()

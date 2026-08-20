@@ -9,6 +9,7 @@
             Give this person a short code to open their transaction in the iPhone app.
             The code works only for that person on this transaction.
         </p>
+        <p class="hidden text-sm text-red-700" data-invite-error></p>
         {% if client_invite_participants|default([]) %}
         <ul class="divide-y divide-slate-100">
             {% for participant in client_invite_participants %}
@@ -57,6 +58,27 @@
     if (!card) return;
     var txId = {{ transaction.id }};
 
+    function showInviteError(message) {
+        var text = message || 'Could not update the invite.';
+        if (typeof window.showCrmToast === 'function') {
+            window.showCrmToast(text, 'error');
+        } else if (typeof window.showToast === 'function') {
+            window.showToast(text, 'error');
+        }
+        var box = card.querySelector('[data-invite-error]');
+        if (box) {
+            box.textContent = text;
+            box.classList.remove('hidden');
+        }
+    }
+
+    function clearInviteError() {
+        var box = card.querySelector('[data-invite-error]');
+        if (!box) return;
+        box.textContent = '';
+        box.classList.add('hidden');
+    }
+
     function post(url, body) {
         return fetch(url, {
             method: 'POST',
@@ -96,10 +118,11 @@
             return;
         }
         button.disabled = true;
+        clearInviteError();
         req.then(function () {
             window.location.reload();
         }).catch(function (err) {
-            alert(err.message || 'Could not update the invite.');
+            showInviteError(err.message || 'Could not update the invite.');
             button.disabled = false;
         });
     });

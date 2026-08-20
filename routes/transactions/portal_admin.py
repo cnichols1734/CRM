@@ -4,7 +4,7 @@ Lets the agent generate, copy, rotate, and revoke the private seller portal
 link from the transaction detail page. All endpoints are agent-authenticated
 and org-scoped; the portal itself (token-authenticated) lives in routes/portal.py.
 """
-from flask import abort, jsonify, request, url_for
+from flask import abort, jsonify, request
 from flask_login import current_user, login_required
 
 from models import (
@@ -28,10 +28,6 @@ def _get_transaction(id, capability=CAP_EDIT):
     return transaction
 
 
-def _link_url(access):
-    return url_for('portal.home', token=access.token, _external=True)
-
-
 def _serialize(participant, access):
     return {
         'participant_id': participant.id,
@@ -42,7 +38,6 @@ def _serialize(participant, access):
         'email': participant.display_email,
         'has_link': access is not None,
         'access_id': access.id if access else None,
-        'url': _link_url(access) if access else None,
         'invite_code': (
             access.invite_code_display if access and access.invite_code else None),
         'view_count': access.view_count if access else 0,
@@ -108,7 +103,7 @@ def portal_create_link(id):
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first()
-    if not participant or participant.role not in CLIENT_ROLES:
+    if not participant or (participant.role or '').strip().lower() not in CLIENT_ROLES:
         return jsonify({
             'success': False,
             'error': 'Not a seller or buyer on this transaction.',

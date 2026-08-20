@@ -147,7 +147,7 @@ def jwt_is_expired(claims, now=None):
 def exchange_invite_code(code, now=None):
     """Resolve a human invite code to an active grant.
 
-    Returns (access, error_message). error_message is set on 401 cases.
+    Returns (access, error_message). Invite failures map to HTTP 422.
     """
     access = ClientPortalAccess.find_by_invite_code(code)
     if not access:

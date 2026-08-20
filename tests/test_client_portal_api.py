@@ -82,12 +82,21 @@ def _auth_headers(token):
     return {'Authorization': f'Bearer {token}'}
 
 
-def _open_session(client, code):
+def _open_session(client, code, key='code'):
     return client.post(
         '/api/client/v1/session',
-        json={'code': code},
+        json={key: code},
         content_type='application/json',
     )
+
+
+def _assert_bearer_session(resp):
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body['token']
+    assert body['token_type'] == 'Bearer'
+    assert body['expires_in'] > 0
+    return body
 
 
 def test_invite_code_create_rotate_revoke_binds_one_participant(
@@ -122,8 +131,10 @@ def test_invite_code_create_rotate_revoke_binds_one_participant(
 
     seller_session = _open_session(owner_a_client, seller_code)
     other_session = _open_session(owner_a_client, other_code)
-    assert seller_session.status_code == 200
-    assert other_session.status_code == 200
+    _assert_bearer_session(seller_session)
+    _assert_bearer_session(other_session)
+    assert 'url' not in seller_link
+    assert 'url' not in other_created.get_json()['link']
 
     seller_deal = owner_a_client.get(
         '/api/client/v1/deal',
@@ -142,8 +153,8 @@ def test_invite_code_create_rotate_revoke_binds_one_participant(
     assert rotated.status_code == 200
     new_code = rotated.get_json()['link']['invite_code']
     assert new_code != seller_code
-    assert _open_session(owner_a_client, seller_code).status_code == 401
-    assert _open_session(owner_a_client, new_code).status_code == 200
+    assert _open_session(owner_a_client, seller_code).status_code == 422
+    _assert_bearer_session(_open_session(owner_a_client, new_code))
     assert owner_a_client.get(
         '/api/client/v1/deal',
         headers=_auth_headers(seller_session.get_json()['token']),
@@ -153,7 +164,7 @@ def test_invite_code_create_rotate_revoke_binds_one_participant(
         f"/transactions/{tx_id}/portal/{seller_link['access_id']}/revoke",
     )
     assert revoked.status_code == 200
-    assert _open_session(owner_a_client, new_code).status_code == 401
+    assert _open_session(owner_a_client, new_code).status_code == 422
 
 
 def test_session_exchange_valid_invalid_revoked_expired(app, seed, client):
@@ -183,19 +194,21 @@ def test_session_exchange_valid_invalid_revoked_expired(app, seed, client):
 
     try:
         ok = _open_session(client, valid_code)
-        assert ok.status_code == 200
-        body = ok.get_json()
-        assert body['token']
-        assert body['token_type'] == 'Bearer'
-        assert body['expires_in'] > 0
+        body = _assert_bearer_session(ok)
         branding = body['branding']
         assert branding['name'] == 'Test Realty A'
         assert branding['logo_url'] == 'https://example.com/origen-logo.png'
         assert branding['accent'] == '#123456'
 
-        assert _open_session(client, 'NOTA-CODE').status_code == 401
-        assert _open_session(client, revoked_code).status_code == 401
-        assert _open_session(client, expired_code).status_code == 401
+        assert _open_session(client, 'NOTA-CODE').status_code == 422
+        assert _open_session(client, revoked_code).status_code == 422
+        assert _open_session(client, expired_code).status_code == 422
+        assert client.post(
+            '/api/client/v1/session',
+            json={},
+            content_type='application/json',
+        ).status_code == 422
+        assert client.post('/api/client/v1/session').status_code == 422
     finally:
         with app.app_context():
             org = db.session.get(Organization, seed['org_a'])
@@ -250,6 +263,54 @@ def test_jwt_required_cookie_login_is_not_enough(app, seed, owner_a_client, clie
     assert owner_a_client.delete('/api/client/v1/session').status_code == 401
     leftover = owner_a_client.post('/api/client/v1/session/leave')
     assert leftover.status_code == 404
+
+
+def test_session_accepts_invite_code_or_code(app, seed, client):
+    with app.app_context():
+        tx = _seller_tx(seed, '914 Session Keys Ln')
+        seller = _participant(seed, tx, contact_id=seed['contact_a'])
+        other = _participant(
+            seed, tx, role='co_seller', name='Second Seller',
+            email='second-seller@example.com',
+        )
+        access = _grant(seed, tx, seller)
+        other_access = _grant(seed, tx, other)
+        db.session.commit()
+        valid = access.invite_code_display
+        other_valid = other_access.invite_code_display
+
+    native = _open_session(client, valid, key='invite_code')
+    _assert_bearer_session(native)
+
+    legacy = _open_session(client, other_valid, key='code')
+    _assert_bearer_session(legacy)
+
+    prefer_native = client.post(
+        '/api/client/v1/session',
+        json={'invite_code': valid, 'code': 'NOTA-CODE'},
+        content_type='application/json',
+    )
+    _assert_bearer_session(prefer_native)
+
+    ignore_legacy = client.post(
+        '/api/client/v1/session',
+        json={'invite_code': 'NOTA-CODE', 'code': valid},
+        content_type='application/json',
+    )
+    assert ignore_legacy.status_code == 422
+
+
+def test_session_role_gate_is_case_insensitive(app, seed, client):
+    with app.app_context():
+        tx = _seller_tx(seed, '915 Role Case Ln')
+        seller = _participant(
+            seed, tx, role='Seller', contact_id=seed['contact_a'],
+        )
+        access = _grant(seed, tx, seller)
+        db.session.commit()
+        code = access.invite_code
+
+    _assert_bearer_session(_open_session(client, code, key='invite_code'))
 
 
 def test_deal_payload_is_client_safe(app, seed, client):
@@ -667,6 +728,9 @@ def test_invite_ui_on_transaction_not_old_portal_chrome(app, seed, owner_a_clien
     assert 'Create invite' in html
     assert 'Client portal' not in html
     assert 'showing approval board' not in html.lower()
+    assert 'alert(' not in html.split('id="client-app-invite"')[1].split('</script>')[0]
+    assert 'showCrmToast' in html
+    assert 'data-invite-error' in html
 
 
 def test_expired_jwt_is_rejected(app, seed, client):
