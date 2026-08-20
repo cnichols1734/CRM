@@ -42,6 +42,37 @@ class TestLockedEmptyCopy:
         assert "Add a task for a contact." in text
         assert "Create a task to get started." not in text
 
+    def test_dashboard_inbox_banner(self):
+        text = _read("templates", "dashboard.html")
+        assert "Forward emails or photos. We save the contact." in text
+        assert "Forward emails or photos — we save the contact for you." not in text
+
+    def test_tasks_pending_empty_helper(self):
+        text = _read("templates", "tasks", "list.html")
+        assert '_empty_msg = "No open tasks."' in text
+        assert "You're all caught up." not in text
+        assert '_empty_msg = "Add a task."' in text
+
+    def test_inbox_address_helper(self):
+        text = _read("templates", "inbox", "home.html")
+        assert "Forward emails, business card photos, or a vCard. We save the contact." in text
+        assert "Treat this like a contact in your phone." not in text
+        assert "AirDrop a vCard" not in text
+        assert "we extract the contact" not in text
+        assert "No inbound messages" in text
+
+    def test_inbox_card_limit_helper(self):
+        text = _read("templates", "inbox", "home.html")
+        assert "Up to five cards per email. We read each one and create the contact." in text
+        assert "Up to five cards per email — we read each one and create the contact." not in text
+
+
+class TestLockedDailyBriefingCopy:
+    def test_reconnect_empty(self):
+        text = _read("frontend", "controllers", "daily_briefing_controller.js")
+        assert "No contacts need a reconnect right now." in text
+        assert "Sphere looks warm. No one's going cold right now." not in text
+
 
 class TestLockedOpenHouseDescription:
     LOCKED = (
