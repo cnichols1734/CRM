@@ -308,11 +308,11 @@
             {% else %}
             <div class="crm-surface-body">
                 {% if current_status == 'pending' %}
-                    {% set _empty_msg = "You're all caught up." %}
+                    {% set _empty_msg = "No open tasks." %}
                 {% elif current_status == 'completed' %}
                     {% set _empty_msg = "No completed tasks yet." %}
                 {% else %}
-                    {% set _empty_msg = "Get started by creating your first task." %}
+                    {% set _empty_msg = "Add your first task to start a follow-up." %}
                 {% endif %}
                 {% call empty_state('No tasks found', _empty_msg, 'fa-clipboard-check') %}
                     <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-accent">

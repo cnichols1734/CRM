@@ -125,7 +125,7 @@
             </div>
             <div class="crm-magic-banner__copy" data-controller="copy">
                 <span class="crm-section-kicker">New · Magic Inbox</span>
-                <h3>Forward emails or photos — we save the contact for you.</h3>
+                <h3>Forward emails or photos. We save the contact for you.</h3>
                 <p>Send a business card, screenshot, vCard, or any email to your private address. The contact lands in your CRM automatically.</p>
                 <input type="hidden" data-copy-target="source" value="{{ current_user.inbox_address }}">
             </div>
@@ -205,7 +205,7 @@
             <div class="crm-magic-banner__copy">
                 <span class="crm-section-kicker" data-daily-briefing-banner-target="label">Today · Daily Briefing</span>
                 <h3 data-daily-briefing-banner-target="teaser">Checking today's plan…</h3>
-                <p>A focused list of who to touch and what to move — grounded in your CRM.</p>
+                <p>A focused list of who to touch and what to move, from your contacts and tasks.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 shrink-0 mt-3 lg:mt-0"
                  data-daily-briefing-banner-target="actions">
@@ -374,7 +374,7 @@
                 <div class="mt-3 flex items-start gap-2 text-[11px] leading-snug text-slate-500">
                     <i class="fas fa-circle-info mt-0.5 text-slate-300"></i>
                     <p class="m-0">
-                        Stats reflect <strong>active residential listings</strong> (Single Family, Condo, Townhouse) per the RentCast <code class="rounded bg-slate-100 px-1 py-0.5 text-[10px] text-slate-600">/markets</code> endpoint &mdash; <em>asking</em> prices, not sold prices. &ldquo;Active listings&rdquo; counts every listing that touched the market in the month (cumulative). For closed-sale comps, check the MLS.
+                        Stats reflect <strong>active residential listings</strong> (Single Family, Condo, Townhouse) per the RentCast <code class="rounded bg-slate-100 px-1 py-0.5 text-[10px] text-slate-600">/markets</code> endpoint. <em>Asking</em> prices, not sold prices. &ldquo;Active listings&rdquo; counts every listing that touched the market in the month (cumulative). For closed-sale comps, check the MLS.
                     </p>
                 </div>
             </div>
@@ -786,7 +786,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    {% call empty_state('No upcoming client tasks', 'Create a task to get started.', 'fa-tasks') %}
+                    {% call empty_state('No upcoming client tasks', 'Add a follow-up task for a contact.', 'fa-tasks') %}
                         <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-primary">Create task</a>
                     {% endcall %}
                     {% endif %}

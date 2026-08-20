@@ -64,10 +64,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'key': 'open_house',
         'name': 'Open house invitation',
         'category': 'open_house',
-        'description': (
-            'An invitation with the address, the date and time, and one clear '
-            'link. Fill in the bracketed details before you send.'
-        ),
+        'description': 'An invitation with the address, the date, the time, and one link. Fill in the address, date, and time before you send.',
         'subject': 'Open house this weekend: 123 Main St',
         'preheader': 'Stop by Saturday between 2 and 4pm. No appointment needed.',
         'blocks': [

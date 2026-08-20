@@ -192,12 +192,40 @@ class TestAuthPagesRender:
         assert b'crm-brand-logo-wrap--on-dark' in resp.data
         assert b'logo_agentflow_dark.png' in resp.data
 
+    def test_login_html_has_locked_sign_in_line(self, client, seed):
+        resp = client.get('/login')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Keep your contacts, tasks, and follow-ups in one place." in html
+        assert "Sign in to your contacts and tasks." not in html
+        assert (
+            "Use your account credentials to access contacts, tasks, "
+            "transactions, and team workspace."
+        ) not in html
+
     def test_register_uses_dark_mark_on_dark_rail(self, client, seed):
         resp = client.get('/register')
         assert resp.status_code == 200
         assert b'Create your account' in resp.data
         assert b'crm-brand-logo-wrap--on-dark' in resp.data
         assert b'logo_agentflow_dark.png' in resp.data
+
+    def test_register_html_has_locked_public_copy(self, client, seed):
+        resp = client.get('/register')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Keep your contacts, tasks, and follow-ups in one place." in html
+        assert "Contacts and tasks." not in html
+        assert "Talk to B.O.B." in html
+        assert (
+            "Ask B.O.B. to add contacts, update records, or create tasks. "
+            "25 messages a day in the CRM. "
+            "Telegram after connecting it from your profile."
+        ) in html
+        assert "Tell B.O.B. what you need done." not in html
+        assert "Pipeline and activity without a second tool." not in html
+        assert "Ask it to add a contact or count clients in a ZIP." not in html
+        assert "Telegram after a QR from your profile" not in html
 
     def test_reset_request_uses_dark_mark_on_card(self, client, seed):
         resp = client.get('/reset_password')

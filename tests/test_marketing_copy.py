@@ -188,6 +188,15 @@ class TestLockedMarketingCopy:
         assert 'Numbers, not headlines.' in starters
         assert 'What sold last month.' not in starters
 
+    def test_open_house_description(self):
+        starters = _read('services', 'marketing', 'system_templates.py')
+        assert (
+            'An invitation with the address, the date, the time, and one '
+            'link. Fill in the address, date, and time before you send.'
+        ) in starters
+        assert 'the date and time, and one clear' not in starters
+        assert 'Fill in the bracketed details before you send.' not in starters
+
     def test_addendum_54(self):
         wizard = _read('templates', 'marketing', 'wizard.html')
         assert '<option value="">Pick a template</option>' in wizard
