@@ -37,6 +37,7 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': False,
         'MARKET_INSIGHTS': True,
         'MARKETING': False,
+        'EMAIL_CAMPAIGNS': False,
         'TAX_PROTEST': False,
         'MCP_CONNECTOR': True,
     },
@@ -58,6 +59,9 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
         'MARKETING': False,  # Still disabled for all
+        # Ships dark. Deliverability reputation on the shared sending domain is
+        # only as good as the first orgs to use it, so rollout is per-org.
+        'EMAIL_CAMPAIGNS': False,
         'TAX_PROTEST': False,
         'MCP_CONNECTOR': True,
     },
@@ -79,6 +83,7 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
         'MARKETING': True,
+        'EMAIL_CAMPAIGNS': False,
         'TAX_PROTEST': True,
         'MCP_CONNECTOR': True,
     }
@@ -161,6 +166,7 @@ FEATURE_LABELS = {
     'DOCUMENT_GENERATION': 'Document generation',
     'MARKET_INSIGHTS': 'Market insights',
     'MARKETING': 'Marketing',
+    'EMAIL_CAMPAIGNS': 'Email campaigns',
     'TAX_PROTEST': 'Tax protest',
     'MCP_CONNECTOR': 'AgentFlow MCP',
 }
