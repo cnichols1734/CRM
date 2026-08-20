@@ -6,6 +6,7 @@
 
 {% set selected_id = posted.get('template_id') if posted else '' %}
 {% set posted_groups = posted.getlist('groups') if posted and posted.getlist is defined else [] %}
+{% set posted_owners = posted.getlist('owners') if posted and posted.getlist is defined else [] %}
 {% set posted_kind = posted.get('kind') if posted else 'one_time' %}
 
 {% block content %}
@@ -184,6 +185,37 @@
                             </label>
                             {% endfor %}
                         </div>
+                        {% if can_org and org_users %}
+                        <span class="crm-label">Owners</span>
+                        <div class="mkt-chip-row mb-5">
+                            {% for owner in org_users %}
+                            <label class="mkt-chip">
+                                <input type="checkbox" name="owners" value="{{ owner.id }}"
+                                       {% if owner.id|string in posted_owners %}checked{% endif %}
+                                       data-action="change->marketing-campaign-wizard#estimate">
+                                <span>{{ owner.first_name }} {{ owner.last_name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <label class="mkt-check mb-5">
+                            <input type="checkbox" name="owners" value="{{ current_user.id }}"
+                                   {% if current_user.id|string in posted_owners %}checked{% endif %}
+                                   data-action="change->marketing-campaign-wizard#estimate">
+                            <span>My contacts</span>
+                        </label>
+                        {% endif %}
+                        <label class="block mb-4">
+                            <span class="crm-label">Audience name (optional)</span>
+                            <input class="crm-input" name="audience_name"
+                                   value="{{ posted.get('audience_name', '') if posted else '' }}"
+                                   placeholder="Buyers in 78130">
+                        </label>
+                        <label class="mkt-check mb-5">
+                            <input type="checkbox" name="save_audience"
+                                   {% if posted and posted.get('save_audience') %}checked{% endif %}>
+                            <span>Save this audience</span>
+                        </label>
                         <div class="mkt-geo">
                             <label class="block">
                                 <span class="crm-label">ZIP codes</span>
@@ -265,6 +297,19 @@
                                 <span class="crm-label">Schedule (leave blank to send now)</span>
                                 <input class="crm-input" type="datetime-local" name="scheduled_at"
                                        value="{{ posted.get('scheduled_at', '') if posted else '' }}">
+                            </label>
+                        </div>
+                        <div class="mkt-geo mb-4">
+                            <label class="block">
+                                <span class="crm-label">From name</span>
+                                <input class="crm-input" name="from_name"
+                                       value="{{ posted.get('from_name', '') if posted else '' }}"
+                                       placeholder="{{ current_user.first_name }} {{ current_user.last_name }}">
+                            </label>
+                            <label class="block">
+                                <span class="crm-label">Reply to</span>
+                                <input class="crm-input" type="email" name="reply_to"
+                                       value="{{ posted.get('reply_to', '') if posted else current_user.email }}">
                             </label>
                         </div>
                         <div class="mkt-drip {% if posted_kind != 'drip' %}hidden{% endif %}" data-marketing-campaign-wizard-target="drip" {% if posted_kind != 'drip' %}hidden{% endif %}>

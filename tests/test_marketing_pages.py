@@ -70,6 +70,11 @@ class TestMarketingPages:
         assert 'Search contacts' in body
         assert 'step_wait' in body
         assert 'send_hour' in body
+        assert 'name="timezone"' in body
+        assert 'name="from_name"' in body
+        assert 'name="reply_to"' in body
+        assert 'name="owners"' in body
+        assert 'name="scheduled_at"' in body
         assert 'Pick a template, pick who gets it, then send.' in body
         assert 'mkt-campaign' in body
         assert 'mkt-preview' in body
@@ -172,6 +177,12 @@ class TestMarketingPages:
             enable_campaigns(org)
             db.session.commit()
         spec = st.definition('just_listed')
+        blocks = []
+        for block in spec['blocks']:
+            item = dict(block)
+            if item.get('url'):
+                item['url'] = '[https://link-to-the-listing]'
+            blocks.append(item)
         resp = owner_a_client.post(
             '/marketing/studio',
             data={
@@ -179,7 +190,7 @@ class TestMarketingPages:
                 'name': 'Just listed copy',
                 'subject': spec['subject'],
                 'preheader': spec['preheader'],
-                'blocks': json.dumps(spec['blocks']),
+                'blocks': json.dumps(blocks),
                 'category': spec['category'],
             },
             follow_redirects=True,
@@ -286,6 +297,8 @@ class TestMarketingPages:
                 'kind': 'drip',
                 'send_hour': '11',
                 'timezone': 'America/Denver',
+                'from_name': 'Jane Agent',
+                'reply_to': 'jane-agent@example.com',
                 'action': 'save',
             },
             follow_redirects=False,
@@ -302,6 +315,8 @@ class TestMarketingPages:
             )
             assert campaign.kind == 'drip'
             assert campaign.timezone == 'America/Denver'
+            assert campaign.from_name == 'Jane Agent'
+            assert campaign.reply_to == 'jane-agent@example.com'
             assert [step.delay_days for step in steps] == [0, 7, 37]
             assert [step.send_hour_local for step in steps] == [11, 11, 11]
             assert campaign.audience.filter['contact_ids'] == [ids[3]]
@@ -315,3 +330,45 @@ class TestMarketingPages:
         assert resp.status_code == 200
         rows = resp.get_json()
         assert any('Jane' in (row.get('name') or '') for row in rows)
+
+    def test_drips_tab_shows_scheduled_and_paused(self, owner_a_client, app, seed):
+        from models import MarketingAudience, MarketingCampaign
+        with app.app_context():
+            org, owner = load_org_user(seed)
+            enable_campaigns(org)
+            audience = MarketingAudience(
+                organization_id=org.id,
+                user_id=owner.id,
+                name='Drip audience',
+                filter={'owners': [owner.id]},
+                is_saved=False,
+            )
+            db.session.add(audience)
+            db.session.flush()
+            rows = (
+                ('Scheduled drip', 'drip', 'scheduled'),
+                ('Paused drip', 'drip', 'paused'),
+                ('Live drip', 'drip', 'active'),
+                ('Draft drip', 'drip', 'draft'),
+                ('One-time blast', 'one_time', 'sending'),
+            )
+            for name, kind, status in rows:
+                db.session.add(MarketingCampaign(
+                    organization_id=org.id,
+                    user_id=owner.id,
+                    name=name,
+                    kind=kind,
+                    status=status,
+                    audience_id=audience.id,
+                    timezone='America/Chicago',
+                    created_via='web',
+                ))
+            db.session.commit()
+        resp = owner_a_client.get('/marketing/campaigns?status=active', follow_redirects=True)
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Scheduled drip' in body
+        assert 'Paused drip' in body
+        assert 'Live drip' in body
+        assert 'Draft drip' not in body
+        assert 'One-time blast' not in body

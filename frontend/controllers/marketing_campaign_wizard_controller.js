@@ -175,9 +175,13 @@ export default class extends Controller {
     const contactIds = [...form.querySelectorAll("input[name='contact_id']")]
       .map((el) => Number(el.value))
       .filter(Boolean);
+    const owners = [...form.querySelectorAll("input[name='owners']:checked")]
+      .map((el) => Number(el.value))
+      .filter(Boolean);
     const body = {
       groups,
       contact_ids: contactIds,
+      owners,
       zips: this._csv(form.zips && form.zips.value),
       cities: this._csv(form.cities && form.cities.value),
       states: this._csv(form.states && form.states.value),

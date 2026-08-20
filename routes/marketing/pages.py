@@ -14,7 +14,7 @@ from feature_flags import feature_required
 from models import (
     Contact, MarketingAudience, MarketingCampaign, MarketingCampaignStep,
     MarketingSend, MarketingSuppression, MarketingTemplate, Notification,
-    Organization, db,
+    Organization, User, db,
 )
 from routes.marketing import marketing
 from routes.marketing.access import campaign_or_404, require_campaigns, template_or_404
@@ -187,10 +187,6 @@ def _blank_draft() -> dict:
 
 
 def _require_campaign_template(template):
-    if getattr(template, 'source', None) == 'system':
-        raise ValueError(
-            'Starters are not used in campaigns. Save a copy and set it active first.'
-        )
     if not tpl.is_active(template):
         raise ValueError(f'"{template.name}" is not active.')
     return template
@@ -244,7 +240,16 @@ def _wizard_context(org, templates, groups, posted=None):
         'posted': posted,
         'picked_contacts': picked,
         'extra_steps': extra_steps,
+        'org_users': _org_users(org) if aud.can_use_org_scope(current_user) else [],
     }
+
+
+def _org_users(org):
+    return (
+        User.query.filter_by(organization_id=org.id)
+        .order_by(User.first_name.asc(), User.last_name.asc())
+        .all()
+    )
 
 
 def _merge_groups(samples: dict, used: set | None = None):
@@ -375,7 +380,12 @@ def campaigns_list():
     _enable_flag_seed()
     status = request.args.get('status') or ''
     query = org_query(MarketingCampaign).filter_by(user_id=current_user.id)
-    if status:
+    if status in ('active', 'drip'):
+        query = query.filter(
+            MarketingCampaign.kind == 'drip',
+            MarketingCampaign.status.in_(('active', 'scheduled', 'paused')),
+        )
+    elif status:
         query = query.filter_by(status=status)
     campaigns = query.order_by(MarketingCampaign.created_at.desc()).all()
     return render_template(
