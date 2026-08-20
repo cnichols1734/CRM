@@ -109,7 +109,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
             {'type': 'hero',
              'eyebrow': 'July market update',
              'title': 'Here is where the market actually stands.',
-             'accent': 'What sold last month.',
+             'accent': 'Numbers, not headlines.',
              'text': (
                  'A short read on what sold, what it sold for, and how long '
                  'it took.'
@@ -142,10 +142,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'key': 'just_listed',
         'name': 'Just listed',
         'category': 'just_listed',
-        'description': (
-            'A new listing announcement built around the photo and the specs. '
-            'Send it before the portals do.'
-        ),
+        'description': 'A new listing with the photo and the specs.',
         'subject': 'Just listed in Oak Hill',
         'preheader': 'New on the market this week. Here are the details.',
         'blocks': [

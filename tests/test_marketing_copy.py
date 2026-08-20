@@ -158,9 +158,32 @@ class TestLockedMarketingCopy:
         assert "We're building something amazing!" not in coming_soon
 
         starters = _read('services', 'marketing', 'system_templates.py')
-        assert 'What sold last month.' in starters
-        assert 'Numbers, not headlines.' not in starters
+        assert 'Numbers, not headlines.' in starters
+        assert 'What sold last month.' not in starters
 
         studio_js = _read('frontend', 'controllers', 'marketing_template_studio_controller.js')
         assert 'Could not read this template. Try again.' in studio_js
         assert 'The template content is not valid JSON.' not in studio_js
+
+    def test_addendum_49_to_53(self):
+        render = _read('services', 'marketing', 'render.py')
+        assert (
+            'f\'font-weight:600;color:{INK_MUTED};">{mark(esc(block["attribution"]), "attribution")}</p>\''
+        ) in render
+        assert '&mdash; {mark(esc(block["attribution"]), "attribution")}' not in render
+        assert 'text += f\'\\n{block["attribution"]}\'' in render
+        assert 'text += f\'\\n— {block["attribution"]}\'' not in render
+        assert 'f\'{s.get("value")} ({s.get("label")})\'' in render
+        assert 'f\'{s.get("value")} — {s.get("label")}\'' not in render
+
+        contact = _read('templates', 'contacts', 'view.html')
+        assert 'Unknown still gets campaigns. Opted out does not get them.' in contact
+        assert 'Unknown still gets campaigns. Opted out does not.</p>' not in contact
+        assert 'Unknown, still gets campaigns' in contact
+
+        starters = _read('services', 'marketing', 'system_templates.py')
+        assert 'A new listing with the photo and the specs.' in starters
+        assert 'A new listing announcement built around the photo and the specs.' not in starters
+        assert 'Send it before the portals do.' not in starters
+        assert 'Numbers, not headlines.' in starters
+        assert 'What sold last month.' not in starters

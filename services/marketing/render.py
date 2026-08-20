@@ -241,7 +241,7 @@ def _quote(block: dict) -> str:
     if block.get('attribution'):
         attribution = (
             f'<p style="margin:10px 0 0 0;font-family:{FONT};font-size:13px;'
-            f'font-weight:600;color:{INK_MUTED};">&mdash; {mark(esc(block["attribution"]), "attribution")}</p>'
+            f'font-weight:600;color:{INK_MUTED};">{mark(esc(block["attribution"]), "attribution")}</p>'
         )
     return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;">
     <tr><td style="background-color:{INSET_BG};border-left:4px solid {ACCENT};border-radius:10px;padding:18px 22px;">
@@ -419,12 +419,12 @@ def _block_text(block: dict, ctx: ShellContext) -> str:
         return '\n'.join(parts)
     if kind == 'stat_row':
         return '\n'.join(
-            f'{s.get("value")} — {s.get("label")}' for s in block.get('stats', [])
+            f'{s.get("value")} ({s.get("label")})' for s in block.get('stats', [])
         )
     if kind == 'quote':
         text = f'"{block["text"]}"'
         if block.get('attribution'):
-            text += f'\n— {block["attribution"]}'
+            text += f'\n{block["attribution"]}'
         return text
     if kind == 'divider':
         return '---'
