@@ -8,13 +8,26 @@ import time
 
 logger = logging.getLogger(__name__)
 
+_TOPIC_BY_AUDIENCE = {
+    'agent': ('APNS_BUNDLE_ID_AGENT', 'com.agentflow.agent'),
+    'client': ('APNS_BUNDLE_ID_CLIENT', 'com.agentflow.client'),
+}
 
-def send_alert(device_token: str, msg) -> bool:
+
+def topic_for_audience(audience=None) -> str:
+    spec = _TOPIC_BY_AUDIENCE.get((audience or '').strip().lower())
+    if spec:
+        env_key, default = spec
+        return (os.environ.get(env_key) or '').strip() or default
+    return (os.environ.get('APNS_BUNDLE_ID') or '').strip()
+
+
+def send_alert(device_token: str, msg, audience=None) -> bool:
     key_id = (os.environ.get('APNS_KEY_ID') or '').strip()
     team_id = (os.environ.get('APNS_TEAM_ID') or '').strip()
     key_pem = (os.environ.get('APNS_KEY') or '').strip()
-    bundle_id = (os.environ.get('APNS_BUNDLE_ID') or '').strip()
-    if not (key_id and team_id and key_pem and bundle_id and device_token):
+    topic = topic_for_audience(audience)
+    if not (key_id and team_id and key_pem and topic and device_token):
         return False
 
     host = 'api.push.apple.com'
@@ -48,7 +61,7 @@ def send_alert(device_token: str, msg) -> bool:
     url = f'https://{host}/3/device/{device_token}'
     headers = {
         'authorization': f'bearer {token}',
-        'apns-topic': bundle_id,
+        'apns-topic': topic,
         'apns-push-type': 'alert',
         'apns-priority': '10',
         'apns-expiration': '0',
