@@ -17,6 +17,11 @@ jobs:
       DATABASE_URL: sqlite:////tmp/test_integration.db
       SECRET_KEY: ci-test-secret-key
       FLASK_ENV: development
+      # Blank, do not unset: empty values stop python-dotenv from loading a
+      # real key if a runner or checkout ever has a .env.
+      SENDGRID_API_KEY: ''
+      MAIL_PASSWORD: ''
+      MAIL_USERNAME: ''
 
     steps:
       - name: Checkout code
@@ -45,7 +50,12 @@ jobs:
         run: npm run build
 
       - name: Run unit tests
+        env:
+          SENDGRID_API_KEY: ''
+          MAIL_PASSWORD: ''
+          MAIL_USERNAME: ''
         run: |
+          export SENDGRID_API_KEY= MAIL_PASSWORD= MAIL_USERNAME=
           pytest tests/ -x -v --ignore=tests/run_tests.py --ignore=tests/run_scheduled_tests.py --ignore=tests/test_idor_protection.py --ignore=tests/test_sendgrid.py --tb=short
           pytest tests/test_idor_protection.py -x -v --tb=short
 
@@ -61,6 +71,9 @@ jobs:
       DATABASE_URL: sqlite:////tmp/browser_integration.db
       SECRET_KEY: ci-test-secret-key
       FLASK_ENV: development
+      SENDGRID_API_KEY: ''
+      MAIL_PASSWORD: ''
+      MAIL_USERNAME: ''
 
     steps:
       - name: Checkout code
@@ -95,7 +108,12 @@ jobs:
         run: python tests/bootstrap_browser_test_db.py
 
       - name: Start Flask app
+        env:
+          SENDGRID_API_KEY: ''
+          MAIL_PASSWORD: ''
+          MAIL_USERNAME: ''
         run: |
+          export SENDGRID_API_KEY= MAIL_PASSWORD= MAIL_USERNAME=
           python app.py &
           sleep 5
           curl --retry 5 --retry-delay 2 --retry-connrefused http://127.0.0.1:5011/login
