@@ -20,6 +20,12 @@ os.environ.setdefault('SECRET_KEY', 'test-secret-key')
 os.environ.setdefault('FLASK_ENV', 'testing')
 os.environ['APP_BASE_URL'] = 'https://agentflow.origentechnolog.com'
 
+# Blank mail secrets BEFORE importing app. app.py calls load_dotenv() with
+# override=False, so an existing empty value stops a local or cloud-agent
+# .env from injecting a real SENDGRID_API_KEY into Config and pytest.
+for _mail_key in ('SENDGRID_API_KEY', 'MAIL_PASSWORD', 'MAIL_USERNAME'):
+    os.environ[_mail_key] = ''
+
 from app import create_app
 from models import (
     db as _db, User, Organization, Contact, ContactGroup,
@@ -290,6 +296,38 @@ def _rollback_after_test(app):
     yield
     with app.app_context():
         _db.session.rollback()
+
+
+@pytest.fixture(autouse=True)
+def block_live_email(monkeypatch):
+    """Stub every live mail client so register/invite tests cannot hit SendGrid."""
+    from unittest.mock import MagicMock
+
+    from sendgrid import SendGridAPIClient
+
+    fake_response = MagicMock()
+    fake_response.status_code = 202
+    fake_response.body = b''
+    fake_response.headers = {}
+    sendgrid_send = MagicMock(return_value=fake_response)
+    monkeypatch.setattr(SendGridAPIClient, 'send', sendgrid_send)
+
+    gmail_send = MagicMock(return_value=False)
+    monkeypatch.setattr(
+        'services.email_service.EmailService._send_via_gmail',
+        gmail_send,
+    )
+
+    try:
+        from flask_mail import Mail
+        monkeypatch.setattr(Mail, 'send', MagicMock())
+    except Exception:
+        pass
+
+    yield {
+        'sendgrid_send': sendgrid_send,
+        'gmail_send': gmail_send,
+    }
 
 
 @pytest.fixture()

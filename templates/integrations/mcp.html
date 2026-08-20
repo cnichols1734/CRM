@@ -14,21 +14,18 @@
         </a>
 
         {% set _title = 'AgentFlow <em>MCP</em>' %}
-        {% call page_header(_title, 'Let Claude Cowork or a similar client work in AgentFlow as you.', 'Integrations') %}{% endcall %}
+        {% call page_header(_title, 'Connect Claude or another client so it can work in AgentFlow as you.', 'Integrations') %}{% endcall %}
 
-        {% if not allowed %}
-        <div class="crm-notice crm-notice--danger mb-6">
-            <i class="fas fa-ban crm-notice__icon"></i>
-            <p>{{ blocked_reason }}</p>
+        <div class="mb-6">
+            {% include 'integrations/_cowork_setup.html' %}
         </div>
-        {% endif %}
 
         <section class="crm-surface mb-6">
             <header class="crm-surface-header">
                 <div>
                     <h2 class="crm-section-title">Connector URLs</h2>
                     <p class="crm-section-description">
-                        In Claude: Connectors → Add custom connector → paste a URL → authorize here.
+                        For Cursor or another client, paste a URL here, then authorize in AgentFlow.
                     </p>
                 </div>
             </header>

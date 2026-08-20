@@ -426,8 +426,28 @@ class TestSettingsPages:
     def test_profile_settings_page(self, owner_a_client):
         resp = owner_a_client.get('/integrations/mcp')
         assert resp.status_code == 200
-        assert b'Connector URLs' in resp.data
-        assert b'/mcp/readonly' in resp.data
+        html = resp.get_data(as_text=True)
+        assert 'Connector URLs' in html
+        assert '/mcp/readonly' in html
+        assert 'I want to connect a custom MCP' in html
+        assert 'Hosted MCP server' in html
+        assert html.count('id="claude-cowork"') == 1
+        assert 'DA7756' not in html
+        assert 'Do not send email or SMS' in html
+
+    def test_user_profile_has_cowork_setup(self, owner_a_client):
+        resp = owner_a_client.get('/profile')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'Claude Cowork' in html
+        assert 'I want to connect a custom MCP' in html
+        assert 'Hosted MCP server' in html
+        assert 'OAuth' in html
+        assert '/integrations/mcp' in html
+        assert html.count('id="claude-cowork"') == 1
+        assert 'DA7756' not in html
+        assert 'Do not send email or SMS' in html
+        assert 'href="#claude-cowork"' not in html
 
     def test_org_owner_can_save_mcp_controls(self, owner_a_client, app, seed):
         resp = owner_a_client.post('/org/settings/mcp', data={

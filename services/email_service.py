@@ -10,6 +10,7 @@ from datetime import datetime
 from flask import current_app, url_for
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
+from services.email_send_guard import skip_outbound_send
 
 # SendGrid Dynamic Template IDs
 TEMPLATES = {
@@ -62,6 +63,8 @@ class EmailService:
         Returns:
             True if sent successfully, False otherwise
         """
+        if skip_outbound_send(to_email):
+            return False
         if not self.gmail_enabled:
             current_app.logger.warning("Gmail fallback not configured - missing MAIL_USERNAME or MAIL_PASSWORD")
             return False
@@ -179,6 +182,9 @@ class EmailService:
         template_id = TEMPLATES.get(template_name)
         if not template_id:
             current_app.logger.error(f"Unknown email template: {template_name}")
+            return False
+
+        if skip_outbound_send(to_email):
             return False
         
         # Add current_year to all templates

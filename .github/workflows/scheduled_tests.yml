@@ -17,6 +17,9 @@ jobs:
       DATABASE_URL: sqlite:////tmp/scheduled_browser_integration.db
       SECRET_KEY: ci-test-secret-key
       FLASK_ENV: development
+      SENDGRID_API_KEY: ''
+      MAIL_PASSWORD: ''
+      MAIL_USERNAME: ''
 
     steps:
       - name: Checkout code
@@ -51,7 +54,12 @@ jobs:
         run: python tests/bootstrap_browser_test_db.py
 
       - name: Start Flask app
+        env:
+          SENDGRID_API_KEY: ''
+          MAIL_PASSWORD: ''
+          MAIL_USERNAME: ''
         run: |
+          export SENDGRID_API_KEY= MAIL_PASSWORD= MAIL_USERNAME=
           python app.py &
           # Wait for server to start
           sleep 5
