@@ -347,25 +347,32 @@ class TestRegisterLeftoverCopy:
 
     def test_register_describes_bob_with_real_facts(self):
         assert "Talk to B.O.B." in REGISTER
-        assert "Tell B.O.B. what you need done." in REGISTER
+        assert "Ask B.O.B. to add contacts, update records, or create tasks." in REGISTER
         assert "25 messages a day in the CRM" in REGISTER
         assert "Telegram after connecting it from your profile." in REGISTER
         assert (
             '<div class="font-semibold text-sm">Talk to B.O.B.</div>\n'
             '                  <div class="text-xs left-muted">'
-            "Tell B.O.B. what you need done. 25 messages a day in the CRM. "
+            "Ask B.O.B. to add contacts, update records, or create tasks. "
+            "25 messages a day in the CRM. "
             "Telegram after connecting it from your profile.</div>"
         ) in REGISTER
+        assert "Tell B.O.B. what you need done." not in REGISTER
         assert "Ask it to add a contact or count clients in a ZIP." not in REGISTER
         assert "Telegram after a QR from your profile" not in REGISTER
         assert "in the CRM or on Telegram" not in REGISTER
         assert "Unlimited contacts" not in REGISTER
 
     def test_login_and_register_locked_replacements(self):
-        assert "Sign in to your contacts and tasks." in LOGIN
-        assert "Contacts and tasks." in REGISTER
-        assert "Tell B.O.B. what you need done." in REGISTER
+        assert "Keep your contacts, tasks, and follow-ups in one place." in LOGIN
+        assert "Keep your contacts, tasks, and follow-ups in one place." in REGISTER
+        assert "Ask B.O.B. to add contacts, update records, or create tasks." in REGISTER
         assert "Telegram after connecting it from your profile." in REGISTER
+        assert "Sign in to your contacts and tasks." not in LOGIN
+        assert (
+            '<div class="text-xs left-muted">Contacts and tasks.</div>'
+        ) not in REGISTER
+        assert "Tell B.O.B. what you need done." not in REGISTER
         assert (
             "Use your account credentials to access contacts, tasks, "
             "transactions, and team workspace."

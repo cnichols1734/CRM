@@ -23,7 +23,13 @@ class TestLockedEmptyCopy:
 
     def test_contacts_empty_helper(self):
         text = _read("templates", "contacts", "list.html")
-        assert "Add a contact, import a CSV, or forward an email to Magic Inbox." in text
+        assert (
+            "Add a contact, import a CSV, or forward an email to Magic Inbox. "
+            "We save the contact for you."
+        ) in text
+        assert (
+            "'Add a contact, import a CSV, or forward an email to Magic Inbox.'"
+        ) not in text
         assert (
             "Add your first contact, import a CSV, or forward an email to "
             "your Magic Inbox"
@@ -34,22 +40,31 @@ class TestLockedEmptyCopy:
 
     def test_tasks_empty_helper(self):
         text = _read("templates", "tasks", "list.html")
-        assert '_empty_msg = "Add a task."' in text
+        assert '_empty_msg = "Add your first task to start a follow-up."' in text
+        assert '_empty_msg = "Add a task."' not in text
         assert "Get started by creating your first task." not in text
 
     def test_dashboard_task_empty_helper(self):
         text = _read("templates", "dashboard.html")
-        assert "Add a task for a contact." in text
+        assert "Add a follow-up task for a contact." in text
+        assert "Add a task for a contact." not in text
         assert "Create a task to get started." not in text
 
     def test_dashboard_inbox_banner(self):
         text = _read("templates", "dashboard.html")
-        assert "Forward emails or photos. We save the contact." in text
+        assert "<h3>Forward emails or photos. We save the contact for you.</h3>" in text
+        assert "<h3>Forward emails or photos. We save the contact.</h3>" not in text
         assert "Forward emails or photos — we save the contact for you." not in text
 
     def test_dashboard_briefing_banner(self):
         text = _read("templates", "dashboard.html")
-        assert "Who to touch and what to move, from your contacts and tasks." in text
+        assert (
+            "<p>A focused list of who to touch and what to move, "
+            "from your contacts and tasks.</p>"
+        ) in text
+        assert (
+            "<p>Who to touch and what to move, from your contacts and tasks.</p>"
+        ) not in text
         assert "A focused list of who to touch and what to move — grounded in your CRM." not in text
         assert "A focused list of who to touch and what to move, grounded in your CRM." not in text
 
@@ -64,14 +79,16 @@ class TestLockedEmptyCopy:
         text = _read("templates", "tasks", "list.html")
         assert '_empty_msg = "No open tasks."' in text
         assert "You're all caught up." not in text
-        assert '_empty_msg = "Add a task."' in text
+        assert '_empty_msg = "Add your first task to start a follow-up."' in text
 
     def test_inbox_address_helper(self):
         text = _read("templates", "inbox", "home.html")
-        assert "Forward emails, business card photos, or a vCard. We save the contact." in text
+        assert (
+            "Forward emails, business card photos, or AirDrop a vCard. "
+            "We extract the contact and save it to your CRM."
+        ) in text
+        assert "Forward emails, business card photos, or a vCard. We save the contact." not in text
         assert "Treat this like a contact in your phone." not in text
-        assert "AirDrop a vCard" not in text
-        assert "we extract the contact" not in text
         assert "No inbound messages" in text
 
     def test_inbox_card_limit_helper(self):
