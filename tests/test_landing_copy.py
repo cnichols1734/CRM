@@ -8,6 +8,7 @@ from tier_config.tier_limits import get_tier_defaults
 
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = (ROOT / "templates" / "landing.html").read_text()
+LOGIN = (ROOT / "templates" / "auth" / "login.html").read_text()
 REGISTER = (ROOT / "templates" / "auth" / "register.html").read_text()
 TERMS = (ROOT / "templates" / "auth" / "terms_privacy.html").read_text()
 FREE_CRM = (ROOT / "templates" / "free_real_estate_crm.html").read_text()
@@ -116,6 +117,7 @@ class TestLandingLeftoverCopy:
 
     def test_no_em_dashes_in_public_copy(self):
         assert "—" not in LANDING
+        assert "—" not in LOGIN
         assert "—" not in REGISTER
 
     def test_keeps_homepage_h1(self):
@@ -345,11 +347,32 @@ class TestRegisterLeftoverCopy:
 
     def test_register_describes_bob_with_real_facts(self):
         assert "Talk to B.O.B." in REGISTER
+        assert "Tell B.O.B. what you need done." in REGISTER
         assert "25 messages a day in the CRM" in REGISTER
-        assert "Telegram after a QR from your profile" in REGISTER
-        assert "add a contact" in REGISTER
+        assert "Telegram after connecting it from your profile." in REGISTER
+        assert (
+            '<div class="font-semibold text-sm">Talk to B.O.B.</div>\n'
+            '                  <div class="text-xs left-muted">'
+            "Tell B.O.B. what you need done. 25 messages a day in the CRM. "
+            "Telegram after connecting it from your profile.</div>"
+        ) in REGISTER
+        assert "Ask it to add a contact or count clients in a ZIP." not in REGISTER
+        assert "Telegram after a QR from your profile" not in REGISTER
         assert "in the CRM or on Telegram" not in REGISTER
         assert "Unlimited contacts" not in REGISTER
+
+    def test_login_and_register_locked_replacements(self):
+        assert "Sign in to your contacts and tasks." in LOGIN
+        assert "Contacts and tasks." in REGISTER
+        assert "Tell B.O.B. what you need done." in REGISTER
+        assert "Telegram after connecting it from your profile." in REGISTER
+        assert (
+            "Use your account credentials to access contacts, tasks, "
+            "transactions, and team workspace."
+        ) not in LOGIN
+        assert "Pipeline and activity without a second tool." not in REGISTER
+        assert "Ask it to add a contact or count clients in a ZIP." not in REGISTER
+        assert "Telegram after a QR from your profile" not in REGISTER
 
 
 class TestTermsPrivacyLayout:
