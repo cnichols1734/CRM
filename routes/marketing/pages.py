@@ -127,6 +127,34 @@ def _generate_extra(form) -> str:
     return '\n'.join(bits)
 
 
+def _cover_html(html: str) -> str:
+    """Keep thumbnail iframes on a light canvas inside dark AM chrome."""
+    if not html:
+        return ''
+    if 'color-scheme' not in html:
+        html = html.replace(
+            '<head>',
+            '<head><meta name="color-scheme" content="light">',
+            1,
+        )
+    return html
+
+
+def _preview_card(org, template, ctx=None):
+    ctx = ctx or shell_for(org, current_user)
+    html = ''
+    try:
+        _, html = preview_email(template.blocks or [], ctx, template.subject or '')
+    except (TemplateError, ValueError):
+        html = ''
+    return {
+        'template': template,
+        'html': _cover_html(html),
+        'kicker': CATEGORY_LABELS.get(template.category, template.category),
+        'subject': template.subject or '',
+    }
+
+
 def _starter_cards(org, templates):
     ctx = shell_for(org, current_user)
     order = {
@@ -135,19 +163,12 @@ def _starter_cards(org, templates):
     }
     starters = [t for t in templates if t.source == 'system']
     starters.sort(key=lambda t: order.get(t.name, 99))
-    cards = []
-    for template in starters:
-        html = ''
-        try:
-            _, html = preview_email(template.blocks or [], ctx, template.subject or '')
-        except (TemplateError, ValueError):
-            html = ''
-        cards.append({
-            'template': template,
-            'html': html,
-            'kicker': CATEGORY_LABELS.get(template.category, template.category),
-        })
-    return cards
+    return [_preview_card(org, template, ctx) for template in starters]
+
+
+def _template_cards(org, templates):
+    ctx = shell_for(org, current_user)
+    return [_preview_card(org, template, ctx) for template in templates]
 
 
 def _merge_groups(samples: dict, used: set | None = None):
@@ -313,6 +334,7 @@ def campaign_new():
     return render_template(
         'marketing/wizard.html',
         templates=templates,
+        template_cards=_template_cards(org, templates),
         groups=groups,
         merge_fields=MERGE_FIELDS,
         can_org=aud.can_use_org_scope(current_user),

@@ -15,6 +15,7 @@ import OfferPackageReviewController from "./controllers/offer_package_review_con
 import ListingInfoCompareController from "./controllers/listing_info_compare_controller";
 import MarketingCampaignMonitorController from "./controllers/marketing_campaign_monitor_controller";
 import MarketingCampaignWizardController from "./controllers/marketing_campaign_wizard_controller";
+import MarketingCoverController from "./controllers/marketing_cover_controller";
 import MarketingTemplateLibraryController from "./controllers/marketing_template_library_controller";
 import MarketingTemplateStudioController from "./controllers/marketing_template_studio_controller";
 import "./analytics";
@@ -38,6 +39,7 @@ application.register("offer-package-review", OfferPackageReviewController);
 application.register("listing-info-compare", ListingInfoCompareController);
 application.register("marketing-campaign-monitor", MarketingCampaignMonitorController);
 application.register("marketing-campaign-wizard", MarketingCampaignWizardController);
+application.register("marketing-cover", MarketingCoverController);
 application.register("marketing-template-library", MarketingTemplateLibraryController);
 application.register("marketing-template-studio", MarketingTemplateStudioController);
 

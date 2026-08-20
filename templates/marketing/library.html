@@ -5,9 +5,9 @@
 {% block mobile_title %}Templates{% endblock %}
 
 {% block content %}
-<div class="crm-page" data-controller="marketing-template-library">
+<div class="crm-page mkt-page" data-controller="marketing-template-library">
     <div class="mkt-busy" hidden data-marketing-template-library-target="busy">
-        <div class="mkt-busy__card">
+        <div class="mkt-busy__card crm-surface">
             <div class="mkt-spinner" aria-hidden="true"></div>
             <p class="mkt-busy__title">Writing the email</p>
             <p class="mkt-busy__copy">Usually takes a few seconds.</p>
@@ -28,12 +28,8 @@
                 {% for card in starters %}
                 <a href="{{ url_for('marketing.studio') }}?from={{ card.template.id }}"
                    class="mkt-cover" role="listitem">
-                    <div class="mkt-cover__stage">
-                        {% if card.html %}
-                        <iframe title="" tabindex="-1" aria-hidden="true" sandbox
-                                srcdoc="{{ card.html | e }}"></iframe>
-                        {% endif %}
-                    </div>
+                    {% set html = card.html %}
+                    {% include 'marketing/_cover.html' %}
                     <p class="mkt-cover__kicker">{{ card.kicker }}</p>
                     <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
                     <p class="mkt-cover__blurb">{{ card.template.description or card.template.subject }}</p>
@@ -50,7 +46,7 @@
             <h2 id="mkt-create-title" class="mkt-section-title">Create your own</h2>
             <p class="crm-section-description mb-4">Say what the email is for. We write it. You edit the copy in the preview.</p>
 
-            <form method="post" action="{{ url_for('marketing.studio') }}" class="mkt-composer"
+            <form method="post" action="{{ url_for('marketing.studio') }}" class="mkt-composer crm-surface"
                   data-action="submit->marketing-template-library#busy">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
                 <input type="hidden" name="action" value="generate">
@@ -75,7 +71,7 @@
             <h2 id="mkt-yours-title" class="mkt-section-title">Your templates</h2>
             <div class="mkt-saved">
                 {% for template in saved %}
-                <a href="{{ url_for('marketing.studio', template_id=template.id) }}" class="mkt-saved__row">
+                <a href="{{ url_for('marketing.studio', template_id=template.id) }}" class="mkt-saved__row crm-surface">
                     <div>
                         <p class="mkt-saved__name">{{ template.name }}</p>
                         <p class="mkt-saved__meta">{{ template.subject }}</p>

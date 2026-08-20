@@ -5,12 +5,12 @@
 {% block mobile_title %}Template{% endblock %}
 
 {% block content %}
-<div class="crm-page" data-controller="marketing-template-studio"
+<div class="crm-page mkt-page" data-controller="marketing-template-studio"
      data-marketing-template-studio-preview-url-value="{{ url_for('marketing.api_preview') }}"
      data-marketing-template-studio-upload-url-value="{{ url_for('marketing.api_upload') }}"
      data-marketing-template-studio-test-url-value="{{ url_for('marketing.api_send_test') }}">
     <div class="mkt-busy" hidden data-marketing-template-studio-target="busy">
-        <div class="mkt-busy__card">
+        <div class="mkt-busy__card crm-surface">
             <div class="mkt-spinner" aria-hidden="true"></div>
             <p class="mkt-busy__title">Writing the email</p>
             <p class="mkt-busy__copy">Usually takes a few seconds.</p>
@@ -50,7 +50,7 @@
                     </div>
                 </div>
 
-                <div class="mkt-inbox">
+                <div class="mkt-inbox crm-surface">
                     <label class="block">
                         <span class="crm-label">Subject</span>
                         <input class="crm-input mkt-inbox__subject" name="subject"
@@ -105,7 +105,10 @@
                 </div>
                 <iframe title="Email preview" sandbox="allow-same-origin"
                         class="mkt-frame"
+                        style="color-scheme: light"
                         srcdoc="{{ (preview_html or '') | e }}"
+                        data-controller="marketing-cover"
+                        data-marketing-cover-target="frame"
                         data-marketing-template-studio-target="frame"></iframe>
             </form>
 
@@ -114,7 +117,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
                     <input type="hidden" name="action" value="generate">
                     <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
-                    <details class="mkt-rewrite">
+                    <details class="mkt-rewrite crm-surface">
                         <summary>Write a new version</summary>
                         <div class="mkt-rewrite__body">
                             <p class="text-sm crm-muted mb-3">Replaces the email. Save first if you want to keep this one.</p>

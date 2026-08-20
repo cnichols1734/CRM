@@ -46,6 +46,39 @@ class TestMarketingPages:
         assert 'Describe the email' in body
         assert 'Write this email' in body
         assert 'Just checking in' in body
+        assert 'data-controller="marketing-cover"' in body
+        assert 'color-scheme' in body
+        assert 'sandbox="allow-same-origin"' in body
+        assert 'mkt-cover__viewport' in body
+
+    def test_wizard_is_a_campaign_studio_with_preview(self, owner_a_client, app, seed):
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        resp = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Name and template' in body
+        assert 'Who gets it' in body
+        assert 'mkt-campaign' in body
+        assert 'mkt-preview' in body
+        assert 'mkt-pick' in body
+        assert 'data-controller="marketing-cover"' in body
+        assert 'bg-blue-600' not in body
+
+    def test_sendgrid_admin_uses_crm_chrome(self, owner_a_client, app, seed):
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        resp = owner_a_client.get('/marketing/templates', follow_redirects=True)
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'bg-blue-600' not in body
+        assert 'crm-btn' in body
+        assert 'crm-surface' in body
+        assert 'mkt-page' in body
 
     def test_empty_studio_redirects_to_library(self, owner_a_client, app, seed):
         with app.app_context():

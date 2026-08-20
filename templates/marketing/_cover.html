@@ -1,0 +1,12 @@
+<div class="mkt-cover__stage" data-controller="marketing-cover">
+    {% if html %}
+    <div class="mkt-cover__viewport">
+        <iframe data-marketing-cover-target="frame"
+                title=""
+                tabindex="-1"
+                aria-hidden="true"
+                sandbox="allow-same-origin"
+                srcdoc="{{ html | e }}"></iframe>
+    </div>
+    {% endif %}
+</div>

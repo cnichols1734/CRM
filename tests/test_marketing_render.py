@@ -350,6 +350,7 @@ class TestRender:
     def test_produces_a_full_document_and_plain_text(self):
         out = render(SIMPLE, ctx())
         assert out.html.startswith('<!DOCTYPE html>')
+        assert 'color-scheme' in out.html
         assert 'Checking in' in out.text
 
     def test_leaves_merge_tokens_for_later(self):

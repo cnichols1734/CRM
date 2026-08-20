@@ -5,7 +5,7 @@
 {% block mobile_title %}Campaigns{% endblock %}
 
 {% block content %}
-<div class="crm-page">
+<div class="crm-page mkt-page">
     <div class="crm-page__inner">
         {% call page_header('Campaigns') %}
             <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">New campaign</a>
@@ -21,30 +21,21 @@
         </div>
 
         {% if campaigns %}
-        <div class="crm-table-wrap">
-            <table class="crm-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Recipients</th>
-                        <th>Sent</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for campaign in campaigns %}
-                    <tr>
-                        <td><a class="crm-table-link" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id) }}">{{ campaign.name }}</a></td>
-                        <td>{{ 'Drip' if campaign.kind == 'drip' else 'One-time' }}</td>
-                        <td>{{ badge(campaign.status.replace('_', ' ')) }}</td>
-                        <td>{{ campaign.total_recipients }}</td>
-                        <td>{{ campaign.sent_count }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <ul class="mkt-catalog__list mkt-catalog__list--solo">
+            {% for campaign in campaigns %}
+            <li>
+                <a class="mkt-catalog__row crm-surface" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id) }}">
+                    <div class="mkt-catalog__copy">
+                        <p class="mkt-catalog__name">{{ campaign.name }}</p>
+                        <p class="mkt-catalog__meta">{{ 'Drip' if campaign.kind == 'drip' else 'One-time' }}</p>
+                    </div>
+                    {{ badge(campaign.status.replace('_', ' ')) }}
+                    <span class="mkt-catalog__metric" title="Recipients">{{ campaign.total_recipients }}</span>
+                    <span class="mkt-catalog__metric" title="Sent">{{ campaign.sent_count }}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
         {% else %}
             {% call empty_state('Nothing here', 'No campaigns match that filter.', 'fa-folder-open') %}{% endcall %}
         {% endif %}
