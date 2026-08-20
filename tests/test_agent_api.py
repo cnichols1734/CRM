@@ -371,6 +371,101 @@ def test_apns_noop_when_env_missing(app, seed, client, monkeypatch):
         assert skipped['reason'] == 'apns_unconfigured'
 
 
+def test_transaction_routes_round_trip(app, seed, client):
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    created = client.post(
+        '/api/agent/v1/transactions',
+        headers=headers,
+        json={
+            'transaction_type_id': seed['tx_type_a'],
+            'street_address': '406 Round Trip Ln',
+            'city': 'Austin',
+            'state': 'TX',
+            'contact_ids': [seed['contact_a']],
+        },
+    )
+    assert created.status_code == 201
+    tx_id = created.get_json()['transaction']['id']
+
+    listed = client.get('/api/agent/v1/transactions', headers=headers)
+    assert listed.status_code == 200
+    assert any(row['id'] == tx_id for row in listed.get_json()['transactions'])
+
+    patched = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+        json={'city': 'Dallas'},
+    )
+    assert patched.status_code == 200
+    assert patched.get_json()['transaction']['city'] == 'Dallas'
+
+    status = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=headers,
+        json={'status': 'under_contract'},
+    )
+    assert status.status_code == 200
+    assert status.get_json()['status'] == 'under_contract'
+
+    added = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/participants',
+        headers=headers,
+        json={'role': 'co_seller', 'name': 'Riley CoSeller'},
+    )
+    assert added.status_code == 201
+    parts = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/participants',
+        headers=headers,
+    )
+    names = [p['name'] for p in parts.get_json()['participants']]
+    assert 'Riley CoSeller' in names
+
+    with app.app_context():
+        db.session.add(SellerAcceptedContract(
+            organization_id=seed['org_a'],
+            transaction_id=tx_id,
+            created_by_id=seed['owner_a'],
+            position='primary',
+            status='active',
+        ))
+        db.session.commit()
+
+    milestone = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/milestones',
+        headers=headers,
+        json={'title': 'Option period', 'status': 'not_started'},
+    )
+    assert milestone.status_code == 201
+    mid = milestone.get_json()['milestone']['id']
+    updated = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}/milestones/{mid}',
+        headers=headers,
+        json={'status': 'completed'},
+    )
+    assert updated.status_code == 200
+    assert updated.get_json()['milestone']['status'] == 'completed'
+
+    docs = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents',
+        headers=headers,
+    )
+    assert docs.status_code == 200
+    assert 'documents' in docs.get_json()
+
+    deleted = client.delete(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+    )
+    assert deleted.status_code == 200
+    missing = client.get(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+    )
+    assert missing.status_code == 404
+
+
 def test_jwt_user_not_cookie_user(app, seed, owner_a_client):
     agent_token = _agent_session(owner_a_client, email='agent_a@test.com').get_json()['token']
     listed = owner_a_client.get(
