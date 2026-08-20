@@ -26,11 +26,13 @@ log = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO)
 
 # Queues this process must consume. Inbox identification enqueues onto
-# contract_bootstrap; omitting a name here leaves those jobs Queued forever.
+# contract_bootstrap. PortalMessage push enqueues onto apns. Omitting a
+# name here leaves those jobs Queued forever.
 QUEUE_NAMES = (
     "doc_extraction",
     "bob_telegram",
     "contract_bootstrap",
+    "apns",
 )
 
 

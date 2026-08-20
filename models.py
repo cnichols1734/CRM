@@ -232,6 +232,8 @@ class User(UserMixin, db.Model):
     
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    # Bumped on agent API sign-out so issued agent JWTs stop working.
+    session_version = db.Column(db.Integer, nullable=False, default=1)
     
     # Optional profile fields
     phone = db.Column(db.String(20))
@@ -267,6 +269,9 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def bump_session(self):
+        self.session_version = (self.session_version or 1) + 1
 
     def get_reset_token(self):
         s = Serializer(current_app.config['SECRET_KEY'])
@@ -4248,6 +4253,43 @@ class PortalMessage(db.Model):
     def __repr__(self):
         return (f'<PortalMessage {self.id} tx={self.transaction_id} '
                 f'sender={self.sender} kind={self.kind}>')
+
+
+class DeviceToken(db.Model):
+    """APNs device token for the agent or client iPhone app."""
+    __tablename__ = 'device_tokens'
+
+    AUDIENCE_AGENT = 'agent'
+    AUDIENCE_CLIENT = 'client'
+    AUDIENCES = {AUDIENCE_AGENT, AUDIENCE_CLIENT}
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=False, index=True)
+    audience = db.Column(db.String(20), nullable=False, index=True)
+    token = db.Column(db.String(255), nullable=False)
+    platform = db.Column(db.String(20), nullable=False, default='ios')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=True, index=True)
+    participant_id = db.Column(
+        db.Integer,
+        db.ForeignKey('transaction_participants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+    )
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_seen_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+    participant = db.relationship('TransactionParticipant', foreign_keys=[participant_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('audience', 'token', name='uq_device_tokens_audience_token'),
+        db.Index('ix_device_tokens_org_audience', 'organization_id', 'audience'),
+    )
+
+    def __repr__(self):
+        return f'<DeviceToken {self.audience} user={self.user_id} participant={self.participant_id}>'
 
 
 class McpOAuthClient(db.Model):

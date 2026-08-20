@@ -471,6 +471,12 @@ class TransactionCommsService:
         comm.communication_metadata = meta
         db.session.flush()
 
+        try:
+            from services.device_push import enqueue_portal_push
+            enqueue_portal_push(msg)
+        except Exception:
+            logger.exception('Portal comms: failed to enqueue APNs for update.')
+
         return {
             'outcome': 'sent',
             'provider': 'portal',

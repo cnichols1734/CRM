@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from models import (
     ClientPortalAccess,
+    DeviceToken,
     DocumentSignature,
     Organization,
     PortalMessage,
@@ -818,3 +819,108 @@ def test_mls_listing_url_round_trip_on_deal(app, seed, owner_a_client, client):
         '/api/client/v1/deal', headers=_auth_headers(token),
     ).get_json()
     assert cleared_deal['mls_listing_url'] is None
+
+
+CLIENT_SESSION_KEYS = {
+    'token', 'token_type', 'expires_in',
+    'participant_first_name', 'role', 'branding',
+}
+CLIENT_MESSAGE_KEYS = {
+    'id', 'sender', 'kind', 'body', 'author', 'created_at', 'date',
+}
+
+
+def test_client_v1_session_deal_messages_contract_unchanged(app, seed, client):
+    from services.portal_service import _DEAL_KEYS
+
+    with app.app_context():
+        tx = _seller_tx(seed, '920 Contract Pin Ln')
+        seller = _participant(seed, tx, contact_id=seed['contact_a'])
+        access = _grant(seed, tx, seller)
+        db.session.commit()
+        code = access.invite_code
+
+    session = _open_session(client, code)
+    body = _assert_bearer_session(session)
+    assert set(body.keys()) == CLIENT_SESSION_KEYS
+
+    token = body['token']
+    headers = _auth_headers(token)
+    deal = client.get('/api/client/v1/deal', headers=headers)
+    assert deal.status_code == 200
+    deal_body = deal.get_json()
+    assert set(_DEAL_KEYS).issubset(deal_body.keys())
+    assert 'branding' in deal_body
+    blob = json.dumps(deal_body).lower()
+    assert LOCKBOX_SECRET.lower() not in blob
+    assert RENTCAST_SECRET.lower() not in blob
+    assert 'commission' not in blob
+
+    messages = client.get('/api/client/v1/messages', headers=headers)
+    assert messages.status_code == 200
+    assert set(messages.get_json().keys()) == {'messages'}
+    posted = client.post(
+        '/api/client/v1/messages',
+        headers=headers,
+        json={'body': 'Pin the messages contract.'},
+    )
+    assert posted.status_code == 201
+    assert set(posted.get_json().keys()) == {'message'}
+    assert set(posted.get_json()['message'].keys()) == CLIENT_MESSAGE_KEYS
+
+
+def test_client_devices_register(app, seed, client):
+    with app.app_context():
+        tx = _seller_tx(seed, '921 Client Device Ln')
+        seller = _participant(seed, tx, contact_id=seed['contact_a'])
+        access = _grant(seed, tx, seller)
+        db.session.commit()
+        code = access.invite_code
+        participant_id = seller.id
+
+    token = _open_session(client, code).get_json()['token']
+    resp = client.post(
+        '/api/client/v1/devices',
+        headers=_auth_headers(token),
+        json={'token': 'apns-client-token-1', 'platform': 'ios'},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()['ok'] is True
+    with app.app_context():
+        row = DeviceToken.query.filter_by(token='apns-client-token-1').first()
+        assert row is not None
+        assert row.audience == DeviceToken.AUDIENCE_CLIENT
+        assert row.participant_id == participant_id
+
+
+def test_agent_posted_message_appears_on_client_list(app, seed, client):
+    with app.app_context():
+        tx = _seller_tx(seed, '922 Agent Visible Ln')
+        seller = _participant(seed, tx, contact_id=seed['contact_a'])
+        access = _grant(seed, tx, seller)
+        db.session.commit()
+        participant_id = seller.id
+        code = access.invite_code
+
+    agent = client.post(
+        '/api/agent/v1/session',
+        json={'email': 'owner_a@test.com', 'password': 'password123'},
+    )
+    assert agent.status_code == 200
+    posted = client.post(
+        f'/api/agent/v1/conversations/{participant_id}/messages',
+        headers=_auth_headers(agent.get_json()['token']),
+        json={'body': 'Closing docs are in your packet.'},
+    )
+    assert posted.status_code == 201
+
+    token = _open_session(client, code).get_json()['token']
+    listed = client.get(
+        '/api/client/v1/messages',
+        headers=_auth_headers(token),
+    )
+    assert listed.status_code == 200
+    bodies = [m['body'] for m in listed.get_json()['messages']]
+    assert 'Closing docs are in your packet.' in bodies
+    assert listed.get_json()['messages'][-1]['sender'] == 'agent'
+    assert listed.get_json()['messages'][-1]['kind'] == 'message'
