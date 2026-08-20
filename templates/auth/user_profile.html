@@ -106,13 +106,6 @@
             </div>
         </div>
 
-        {% if not is_admin_edit and mcp_enabled %}
-        <div class="mb-6">
-            {% set cowork_show_manage = true %}
-            {% include 'integrations/_cowork_setup.html' %}
-        </div>
-        {% endif %}
-
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
             {# ── LEFT: forms ──────────────────────────────── #}
             <div class="space-y-6">
@@ -265,7 +258,7 @@
                     <header class="crm-surface-header">
                         <div>
                             <h2 class="crm-section-title">Integrations</h2>
-                            <p class="crm-section-description">Gmail, Calendar, and Claude.</p>
+                            <p class="crm-section-description">Gmail, Calendar, Claude.</p>
                         </div>
                     </header>
 
@@ -346,20 +339,18 @@
                         {% if mcp_enabled %}
                         <div class="integration-row">
                             <div class="flex items-center gap-3 min-w-0">
-                                <span class="integration-row__icon" style="background:#DA7756;border-color:#DA7756;color:#F4E4C8;">
-                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                        <path d="M12 2.15c.2 0 .36.13.41.32l1.7 6.12 6.12 1.7c.19.05.32.21.32.41s-.13.36-.32.41l-6.12 1.7-1.7 6.12c-.05.19-.21.32-.41.32s-.36-.13-.41-.32l-1.7-6.12-6.12-1.7A.42.42 0 0 1 3.45 12c0-.2.13-.36.32-.41l6.12-1.7 1.7-6.12c.05-.19.21-.32.41-.32Z"/>
-                                    </svg>
+                                <span class="integration-row__icon">
+                                    <i class="fas fa-plug" style="color: var(--accent);"></i>
                                 </span>
                                 <div class="min-w-0">
                                     <p class="integration-row__title">Claude Cowork</p>
                                     <p class="integration-row__desc">
-                                        Connect Claude. It works in AgentFlow as you.
+                                        Claude works in AgentFlow as you. Drafts only.
                                     </p>
                                 </div>
                             </div>
-                            <a href="#claude-cowork" class="crm-btn crm-btn-sm crm-btn-secondary">
-                                Setup
+                            <a href="{{ url_for('mcp.settings') }}" class="crm-btn crm-btn-sm crm-btn-primary">
+                                Set up
                             </a>
                         </div>
                         {% endif %}
@@ -413,6 +404,11 @@
                         </p>
                     </div>
                 </section>
+
+                {% if mcp_enabled %}
+                {% set cowork_show_manage = true %}
+                {% include 'integrations/_cowork_setup.html' %}
+                {% endif %}
                 {% endif %}
 
                 {# Brokerage info (admin/owner only) #}
