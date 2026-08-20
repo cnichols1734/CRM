@@ -93,7 +93,10 @@ class TestMarketingPages:
         landing = owner_a_client.get('/marketing/library', follow_redirects=True)
         body = landing.get_data(as_text=True)
         assert 'SendGrid Templates' not in body
+        assert 'Email Templates' not in body
         assert 'bg-blue-600' not in body
+        assert owner_a_client.post('/marketing/templates/refresh').status_code == 404
+        assert owner_a_client.get('/marketing/templates/preview/sg-1').status_code == 404
 
     def test_empty_studio_is_create_template(self, owner_a_client, app, seed):
         with app.app_context():
