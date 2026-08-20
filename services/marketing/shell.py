@@ -1,9 +1,10 @@
 """The locked wrapper every marketing email renders into.
 
-The layout is lifted from the transactional templates in ``email_templates/``:
-600px table, dark header, orange hairline, white card, DM Sans. Keeping that
-system means marketing mail reads as part of the same product rather than as a
-generic newsletter.
+The design is the AgentFlow email system: a soft blue canvas, a white rounded
+card, a light header bar, an optional dark gradient hero with a Fraunces
+headline and an italic orange accent line, DM Sans body copy in slate, orange
+calls to action, and a quiet footer. Marketing mail reads as part of the same
+product family as the transactional mail rather than as a generic newsletter.
 
 The branding is not ours, though. A "just checking in" note from an agent to her
 past client should carry her brokerage, not AgentFlow. The header shows the org
@@ -21,24 +22,35 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-# Matched to email_templates/ so marketing and transactional mail agree.
+from services.marketing.edit_marks import EDIT_CSS, mark
+
+# Palette from the AgentFlow email system.
 CANVAS = '#f0f4f8'
 CARD = '#ffffff'
-HEADER_DARK = '#102a43'
-HEADER_GRADIENT = 'linear-gradient(135deg, #1e2d3d 0%, #102a43 100%)'
+HERO_GRADIENT = 'linear-gradient(160deg, #0b1b2b 0%, #102a43 55%, #1a3a5c 100%)'
+HERO_FALLBACK = '#102a43'
+HERO_BODY = '#a8c3df'
+HERO_INK = '#f8fafc'
 ACCENT = '#f97316'
 ACCENT_DARK = '#ea580c'
 INK = '#102a43'
-INK_BODY = '#486581'
+INK_BODY = '#334e68'
 INK_MUTED = '#627d98'
 INK_FAINT = '#829ab1'
 INK_FAINTEST = '#9fb3c8'
+INK_SOFT = '#94a3b8'
 HAIRLINE = '#e2e8f0'
+HAIRLINE_SOFT = '#eef2f7'
+DASHED = '#cbd5e1'
 FOOTER_BG = '#f8fafc'
 FOOTER_BORDER = '#e8eff5'
 INSET_BG = '#f8fafc'
+INSET_BORDER = '#dbe4ee'
 
 FONT = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+# Display face for hero headlines and step numerals. Only Apple Mail and a few
+# others load web fonts, so the Georgia fallback has to carry the same weight.
+DISPLAY = "'Fraunces', Georgia, 'Times New Roman', serif"
 CONTENT_WIDTH = 600
 
 
@@ -49,6 +61,9 @@ class ShellContext:
     # Header
     header_title: str = 'AgentFlow'
     logo_url: Optional[str] = None
+    # Small uppercase label opposite the brand, usually the email's purpose:
+    # "Market update", "Open house". Keeps the header from looking empty.
+    eyebrow: Optional[str] = None
 
     # Signature block and footer attribution
     agent_name: Optional[str] = None
@@ -78,28 +93,81 @@ def esc(value: Optional[str]) -> str:
 
 
 def _header(ctx: ShellContext) -> str:
+    """Light bar with the brokerage on the left and a purpose label opposite."""
     if ctx.logo_url:
         brand = (
             f'<img src="{esc(ctx.logo_url)}" alt="{esc(ctx.header_title)}" '
-            f'width="180" style="display:block;margin:0 auto;max-width:180px;'
-            f'height:auto;border:0;">'
+            f'height="28" style="display:block;max-height:28px;width:auto;border:0;">'
         )
     else:
         brand = (
-            f'<h1 style="margin:0;font-family:{FONT};font-size:24px;'
-            f'font-weight:700;letter-spacing:0.3px;color:#ffffff;">'
-            f'{esc(ctx.header_title)}</h1>'
+            f'<span style="font-family:{FONT};font-size:16px;font-weight:700;'
+            f'letter-spacing:0.2px;color:{INK};">{esc(ctx.header_title)}</span>'
+        )
+
+    eyebrow = ''
+    if ctx.eyebrow:
+        eyebrow = (
+            f'<span style="font-family:{FONT};font-size:11px;font-weight:600;'
+            f'color:{INK_SOFT};letter-spacing:1.2px;text-transform:uppercase;">'
+            f'{esc(ctx.eyebrow)}</span>'
         )
 
     return f'''
-        <tr>
-            <td class="header-padding" bgcolor="{HEADER_DARK}" style="background-color:{HEADER_DARK};background:{HEADER_GRADIENT};padding:32px 40px;text-align:center;">
-                {brand}
-            </td>
-        </tr>
-        <tr>
-            <td bgcolor="{ACCENT}" style="height:4px;background-color:{ACCENT};background:linear-gradient(90deg, {ACCENT} 0%, #fb923c 50%, {ACCENT} 100%);line-height:4px;font-size:0;">&nbsp;</td>
-        </tr>'''
+                <tr>
+                    <td class="header-padding" style="padding:22px 32px;background-color:{CARD};border-bottom:1px solid {HAIRLINE_SOFT};">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                            <tr>
+                                <td align="left">{brand}</td>
+                                <td align="right">{eyebrow}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>'''
+
+
+def hero(block: dict) -> str:
+    """The dark banner row. Full width, so it sits outside the padded content.
+
+    Rendered here rather than in ``render.py`` because it is a shell element the
+    author fills in, not a content block they can restyle.
+    """
+    parts: list[str] = []
+
+    if block.get('eyebrow'):
+        parts.append(
+            f'<p style="margin:0 0 18px 0;font-family:{FONT};font-size:11px;'
+            f'font-weight:700;color:{ACCENT};letter-spacing:2.4px;'
+            f'text-transform:uppercase;">{mark(esc(block["eyebrow"]), "eyebrow")}</p>'
+        )
+
+    accent = ''
+    if block.get('accent'):
+        accent = (
+            f'<br><em style="font-style:italic;color:{ACCENT};font-weight:500;">'
+            f'{mark(esc(block["accent"]), "accent")}</em>'
+        )
+    parts.append(
+        f'<h1 class="hero-title" style="margin:0 0 18px 0;font-family:{DISPLAY};'
+        f'font-size:42px;line-height:1.07;font-weight:500;color:{HERO_INK};'
+        f'-webkit-text-fill-color:{HERO_INK};letter-spacing:-0.5px;">'
+        f'{mark(esc(block["title"]), "title")}{accent}</h1>'
+    )
+
+    if block.get('text'):
+        parts.append(
+            f'<p style="margin:0;font-family:{FONT};font-size:16px;'
+            f'line-height:1.6;color:{HERO_BODY};max-width:448px;">'
+            f'{mark(esc(block["text"]), "text")}</p>'
+        )
+
+    body = '\n'.join(parts)
+    return f'''
+                <tr>
+                    <td class="hero-pad" bgcolor="{HERO_FALLBACK}" style="background-color:{HERO_FALLBACK};background:{HERO_GRADIENT};padding:48px 48px 44px;">
+                        {body}
+                    </td>
+                </tr>'''
 
 
 def _footer(ctx: ShellContext) -> str:
@@ -115,24 +183,24 @@ def _footer(ctx: ShellContext) -> str:
     """
     lines: list[str] = []
 
-    disclosure_parts = [ctx.brokerage_name]
-    if ctx.brokerage_license:
-        disclosure_parts.append(f'License #{ctx.brokerage_license}')
-    disclosure = ' · '.join(part for part in disclosure_parts if part)
-    if disclosure:
+    if ctx.brokerage_name:
         lines.append(
-            f'<p style="margin:0 0 4px 0;font-family:{FONT};font-size:12px;'
-            f'font-weight:600;color:#334e68;">{esc(disclosure)}</p>'
+            f'<p style="margin:0 0 6px 0;font-family:{FONT};font-size:14px;'
+            f'font-weight:700;color:{INK_BODY};">{esc(ctx.brokerage_name)}</p>'
         )
-
+    if ctx.brokerage_license:
+        lines.append(
+            f'<p style="margin:0 0 12px 0;font-family:{FONT};font-size:12px;'
+            f'color:{INK_FAINT};">License #{esc(ctx.brokerage_license)}</p>'
+        )
     if ctx.brokerage_address:
         lines.append(
-            f'<p style="margin:0 0 12px 0;font-family:{FONT};font-size:11px;'
+            f'<p style="margin:0 0 14px 0;font-family:{FONT};font-size:11px;'
             f'color:{INK_FAINTEST};">{esc(ctx.brokerage_address)}</p>'
         )
 
     lines.append(
-        f'<p style="margin:0 0 6px 0;font-family:{FONT};font-size:11px;'
+        f'<p style="margin:0 0 4px 0;font-family:{FONT};font-size:11px;'
         f'color:{INK_FAINTEST};line-height:1.5;">{esc(ctx.reason_line)}</p>'
     )
 
@@ -153,11 +221,11 @@ def _footer(ctx: ShellContext) -> str:
 
     body = '\n'.join(lines)
     return f'''
-        <tr>
-            <td bgcolor="{FOOTER_BG}" style="background-color:{FOOTER_BG};border-top:1px solid {FOOTER_BORDER};padding:26px 40px;text-align:center;">
-                {body}
-            </td>
-        </tr>'''
+                <tr>
+                    <td class="footer-padding" bgcolor="{FOOTER_BG}" style="background-color:{FOOTER_BG};border-top:1px solid {FOOTER_BORDER};padding:28px 40px;text-align:center;">
+                        {body}
+                    </td>
+                </tr>'''
 
 
 def _preheader(ctx: ShellContext) -> str:
@@ -174,8 +242,27 @@ def _preheader(ctx: ShellContext) -> str:
     )
 
 
-def wrap(content_html: str, ctx: ShellContext) -> str:
-    """Put rendered blocks inside the branded wrapper."""
+def wrap(
+    content_html: str,
+    ctx: ShellContext,
+    hero_html: str = '',
+    *,
+    editable: bool = False,
+) -> str:
+    """Put rendered blocks inside the branded wrapper.
+
+    ``hero_html`` is a separate argument because the hero is full-bleed and has
+    to be its own table row, outside the padded content cell.
+    """
+    content = ''
+    if content_html.strip():
+        content = f'''
+                <tr>
+                    <td class="content-padding" style="padding:40px 48px 36px 48px;">
+{content_html}
+                    </td>
+                </tr>'''
+
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -183,7 +270,7 @@ def wrap(content_html: str, ctx: ShellContext) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title>{esc(ctx.header_title)}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
 <style>
     body, table, td, p, a, li {{ -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }}
     table, td {{ mso-table-lspace:0pt; mso-table-rspace:0pt; }}
@@ -192,23 +279,22 @@ def wrap(content_html: str, ctx: ShellContext) -> str:
     @media only screen and (max-width:600px) {{
         .container {{ width:100% !important; }}
         .content-padding {{ padding:32px 24px !important; }}
-        .header-padding {{ padding:26px 24px !important; }}
+        .header-padding {{ padding:20px 24px !important; }}
+        .footer-padding {{ padding:24px 24px !important; }}
+        .hero-pad {{ padding:36px 26px 32px !important; }}
+        .hero-title {{ font-size:33px !important; }}
         .stat-cell {{ display:block !important; width:100% !important; padding-bottom:16px !important; }}
     }}
+    {EDIT_CSS if editable else ''}
 </style>
 </head>
 <body style="margin:0;padding:0;background-color:{CANVAS};">
 {_preheader(ctx)}
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="{CANVAS}" style="background-color:{CANVAS};">
     <tr>
-        <td align="center" style="padding:32px 16px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="{CONTENT_WIDTH}" class="container" style="max-width:{CONTENT_WIDTH}px;background-color:{CARD};border-radius:16px;overflow:hidden;">
-{_header(ctx)}
-                <tr>
-                    <td class="content-padding" style="padding:40px 48px 36px 48px;">
-{content_html}
-                    </td>
-                </tr>
+        <td align="center" style="padding:40px 16px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="{CONTENT_WIDTH}" class="container" style="max-width:{CONTENT_WIDTH}px;background-color:{CARD};border-radius:18px;overflow:hidden;box-shadow:0 4px 32px rgba(16,42,67,0.08);">
+{_header(ctx)}{hero_html}{content}
 {_footer(ctx)}
             </table>
         </td>

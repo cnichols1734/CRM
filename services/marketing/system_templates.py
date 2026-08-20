@@ -1,0 +1,356 @@
+"""The starter templates every org gets, hand-built rather than generated.
+
+An empty template library is the fastest way to lose a new feature. An agent
+who opens Marketing on day one and finds a blank editor closes the tab; an agent
+who finds six sends they would actually send picks one, changes two lines, and
+becomes a user.
+
+These are also the worked examples for the AI studio in phase 2. The model is
+shown these blocks as reference for what good output looks like, which is a far
+stronger signal than describing the house style in prose.
+
+Bracketed placeholders like ``[Saturday, June 14]`` mark the details only the
+agent can supply. ``blocks.find_placeholders`` finds any left unfilled, so the
+send path can stop an email that still says "[address]". Merge fields, by
+contrast, resolve per recipient and need no attention.
+
+The copy deliberately avoids the language the Fair Housing linter flags, and
+should stay that way: a starter template that trips the compliance gate on first
+open teaches agents to dismiss the gate.
+"""
+from __future__ import annotations
+
+from typing import Any, Optional
+
+from models import MarketingTemplate, db
+from services.marketing import compliance
+from services.marketing.blocks import validate_blocks
+
+# Keyed on name within an org, since a system template has no owner to key on.
+SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
+    {
+        'key': 'check_in',
+        'name': 'Just checking in',
+        'category': 'check_in',
+        'description': (
+            'A short, no-ask note to past clients. The one to send when you '
+            'have nothing to sell and want to stay in someone\'s mind.'
+        ),
+        'subject': 'Checking in, {{contact.first_name|there}}',
+        'preheader': 'No agenda here. Just wanted to see how you are doing.',
+        'blocks': [
+            {'type': 'hero',
+             'eyebrow': 'Checking in',
+             'title': 'Just wanted to say hi.',
+             'accent': 'Nothing to sell.',
+             'text': (
+                 'You crossed my mind. A short note, with no pitch attached.'
+             )},
+            {'type': 'paragraph', 'text': (
+                'Hi {{contact.first_name|there}},\n\n'
+                'No agenda with this one. You crossed my mind and I wanted to '
+                'see how you are doing.'
+            )},
+            {'type': 'paragraph', 'text': (
+                'If anything has changed on your end, or you are just curious '
+                'what your place would sell for today, reply to this and I '
+                'will put together the numbers. No obligation and no pitch to '
+                'sit through.'
+            )},
+            {'type': 'paragraph', 'text': (
+                'And if you know someone who could use a hand buying or '
+                'selling, I would be glad to help them the same way.'
+            )},
+            {'type': 'signature'},
+        ],
+    },
+    {
+        'key': 'open_house',
+        'name': 'Open house invitation',
+        'category': 'open_house',
+        'description': (
+            'An invitation with the address, the date and time, and one clear '
+            'link. Fill in the bracketed details before you send.'
+        ),
+        'subject': 'Open house this weekend: [123 Main St]',
+        'preheader': 'Stop by [Saturday] between [2 and 4pm]. No appointment needed.',
+        'blocks': [
+            {'type': 'hero',
+             'eyebrow': 'Open house',
+             'title': 'Come take a look.',
+             'accent': 'No appointment needed.',
+             'text': (
+                 'I am hosting an open house this weekend and would be glad '
+                 'to see you there.'
+             )},
+            {'type': 'paragraph', 'text': (
+                'Hi {{contact.first_name|there}},\n\n'
+                'I am opening up [123 Main Street] this weekend. Stop in for '
+                'five minutes or stay for thirty, either is welcome.'
+            )},
+            {'type': 'callout', 'label': 'When',
+             'text': '[Saturday, June 14] from [2:00 to 4:00pm]'},
+            {'type': 'listing_card',
+             'address': '[123 Main Street, City]',
+             'price': '[$000,000]',
+             'beds': '[0]', 'baths': '[0]', 'sqft': '[0,000]',
+             'caption': '[One or two lines on what makes this house worth the trip.]'},
+            {'type': 'paragraph', 'text': (
+                'Bring a friend who is house hunting. If the timing does not '
+                'work, reply and I will walk you through it another day.'
+            )},
+            {'type': 'signature'},
+        ],
+    },
+    {
+        'key': 'market_update',
+        'name': 'Monthly market update',
+        'category': 'market_update',
+        'description': (
+            'Three numbers and what they mean. The template that earns the '
+            'most replies, because it gives before it asks.'
+        ),
+        'subject': 'What homes are doing in {{contact.city|your area}}',
+        'preheader': 'Three numbers from last month and what they mean for you.',
+        'blocks': [
+            {'type': 'hero',
+             'eyebrow': '[Month] market update',
+             'title': 'Here is where the market actually stands.',
+             'accent': 'Numbers, not headlines.',
+             'text': (
+                 'A short read on what sold, what it sold for, and how long '
+                 'it took.'
+             )},
+            {'type': 'paragraph', 'text': (
+                'Hi {{contact.first_name|there}},\n\n'
+                'Quick read on {{contact.city|the area}} for last month. '
+                'Nothing to do with this unless you want to. I would rather '
+                'you have the same numbers I do.'
+            )},
+            {'type': 'stat_row', 'stats': [
+                {'value': '[$000K]', 'label': 'Median price'},
+                {'value': '[00]', 'label': 'Days on market'},
+                {'value': '[0.0]', 'label': 'Months of supply'},
+            ]},
+            {'type': 'heading', 'level': 'h2', 'text': 'What it means'},
+            {'type': 'paragraph', 'text': (
+                '[Two or three sentences in your own words. What surprised '
+                'you, what you are telling clients, what you expect next '
+                'month.]'
+            )},
+            {'type': 'paragraph', 'text': (
+                'If you want the version of this for your street rather than '
+                'the whole area, reply and I will run it.'
+            )},
+            {'type': 'signature'},
+        ],
+    },
+    {
+        'key': 'just_listed',
+        'name': 'Just listed',
+        'category': 'just_listed',
+        'description': (
+            'A new listing announcement built around the photo and the specs. '
+            'Send it before the portals do.'
+        ),
+        'subject': 'Just listed in [neighborhood]',
+        'preheader': 'New on the market this week. Here are the details.',
+        'blocks': [
+            {'type': 'hero',
+             'eyebrow': 'Just listed',
+             'title': 'New on the market.',
+             'accent': 'Before it hits the portals.',
+             'text': 'A quick look at what I just brought on, in case it fits.'},
+            {'type': 'paragraph', 'text': (
+                'Hi {{contact.first_name|there}},\n\n'
+                'I listed this one [this week] and wanted you to see it '
+                'first.'
+            )},
+            {'type': 'listing_card',
+             'address': '[123 Main Street, City]',
+             'price': '[$000,000]',
+             'beds': '[0]', 'baths': '[0]', 'sqft': '[0,000]',
+             'caption': '[What stands out. Recent updates, the lot, the layout.]',
+             'url': '[https://link-to-the-listing]'},
+            {'type': 'button', 'label': 'See all the photos',
+             'url': '[https://link-to-the-listing]'},
+            {'type': 'paragraph', 'text': (
+                'If it is not right for you but you know who it is right for, '
+                'forward it along. And if you want to see it in person, reply '
+                'with a couple of times that work.'
+            )},
+            {'type': 'signature'},
+        ],
+    },
+    {
+        'key': 'just_sold',
+        'name': 'Just sold',
+        'category': 'just_sold',
+        'description': (
+            'A closed sale as proof of work rather than a victory lap. Pairs '
+            'the result with an offer to run the same numbers for the reader.'
+        ),
+        'subject': 'Sold in [neighborhood]: here is what it went for',
+        'preheader': 'Closed [this week]. What it tells you about your own value.',
+        'blocks': [
+            {'type': 'hero',
+             'eyebrow': 'Just sold',
+             'title': 'Closed this week.',
+             'accent': 'Here is what it tells you.',
+             'text': (
+                 'Every sale nearby is a data point on what your own place is '
+                 'worth.'
+             )},
+            {'type': 'paragraph', 'text': (
+                'Hi {{contact.first_name|there}},\n\n'
+                'We closed [123 Main Street] on [date]. Sharing it because a '
+                'sale this close to you moves the number on your own house.'
+            )},
+            {'type': 'listing_card',
+             'address': '[123 Main Street, City]',
+             'price': '[$000,000]',
+             'beds': '[0]', 'baths': '[0]', 'sqft': '[0,000]',
+             'caption': '[How it went. Days on market, how the offers came in.]'},
+            {'type': 'paragraph', 'text': (
+                'Curious what that means for you? Reply and I will put '
+                'together what your place would list for today. Takes me an '
+                'afternoon and costs you nothing.'
+            )},
+            {'type': 'signature'},
+        ],
+    },
+    {
+        'key': 'holiday',
+        'name': 'Seasonal greeting',
+        'category': 'holiday',
+        'description': (
+            'A warm note with nothing to sell. Deliberately short, and '
+            'deliberately has no call to action.'
+        ),
+        'subject': 'Happy [holiday], {{contact.first_name|friend}}',
+        'preheader': 'A quick note from my family to yours.',
+        'blocks': [
+            {'type': 'hero',
+             'eyebrow': '[Season]',
+             'title': 'Thinking of you this year.',
+             'accent': 'Thank you for the trust.',
+             'text': 'A short note, with nothing attached to it.'},
+            {'type': 'paragraph', 'text': (
+                'Hi {{contact.first_name|there}},\n\n'
+                '[A few sentences in your own voice. What this year looked '
+                'like, what you are grateful for, what you hope for them.]'
+            )},
+            {'type': 'paragraph', 'text': (
+                'Getting to know the people I work with is the part of this '
+                'job I would keep if I had to give up the rest. Thank you for '
+                'that.'
+            )},
+            {'type': 'signature'},
+        ],
+    },
+)
+
+SYSTEM_TEMPLATE_KEYS: tuple[str, ...] = tuple(t['key'] for t in SYSTEM_TEMPLATES)
+
+
+def definition(key: str) -> Optional[dict[str, Any]]:
+    for template in SYSTEM_TEMPLATES:
+        if template['key'] == key:
+            return template
+    return None
+
+
+def validate_all() -> None:
+    """Check every starter against the block rules and the linter.
+
+    Called by the test suite. A starter template that fails validation, or that
+    trips the Fair Housing linter, is a bug we want to hear about at build time
+    rather than from an agent on their first open.
+    """
+    for template in SYSTEM_TEMPLATES:
+        blocks = validate_blocks(template['blocks'])
+        findings = compliance.scan_blocks(blocks)
+        findings += compliance.scan_text(template['subject'], field='subject')
+        findings += compliance.scan_text(template['preheader'], field='preheader')
+        if findings:
+            summary = '; '.join(f'{f.field}: {f.matched_text}' for f in findings)
+            raise AssertionError(
+                f'System template {template["key"]!r} trips the compliance '
+                f'linter: {summary}'
+            )
+
+
+def seed_for_org(organization_id: int, *, commit: bool = True) -> list[MarketingTemplate]:
+    """Give an org the starter library. Safe to run repeatedly.
+
+    Missing starters are created. Existing ``source='system'`` rows are brought
+    in line with the current definitions, so a header fix like this one lands
+    the next time Marketing opens. Saved copies (``source`` is not ``system``)
+    are left alone.
+    """
+    existing = {
+        row.name: row
+        for row in MarketingTemplate.query.filter_by(
+            organization_id=organization_id,
+            source='system',
+        ).all()
+    }
+
+    created: list[MarketingTemplate] = []
+    dirty: list[MarketingTemplate] = []
+    for spec in SYSTEM_TEMPLATES:
+        blocks = validate_blocks(spec['blocks'])
+        row = existing.get(spec['name'])
+        if row is None:
+            row = MarketingTemplate(
+                organization_id=organization_id,
+                created_by_id=None,
+                name=spec['name'],
+                visibility='org',
+                status='ready',
+                source='system',
+                compliance_state='pass',
+                compliance_findings=[],
+            )
+            db.session.add(row)
+            created.append(row)
+            _apply_spec(row, spec, blocks)
+            dirty.append(row)
+            continue
+        if _spec_matches(row, spec, blocks):
+            continue
+        _apply_spec(row, spec, blocks)
+        dirty.append(row)
+
+    if dirty:
+        db.session.flush()
+        from models import Organization
+        org = db.session.get(Organization, organization_id)
+        from services.marketing.templates import cache_render
+        for template in dirty:
+            cache_render(template, org)
+
+    if dirty and commit:
+        db.session.commit()
+    return created
+
+
+def _apply_spec(row: MarketingTemplate, spec: dict[str, Any], blocks: list) -> None:
+    row.description = spec['description']
+    row.category = spec['category']
+    row.subject = spec['subject']
+    row.preheader = spec['preheader']
+    row.blocks = blocks
+    row.status = 'ready'
+    row.compliance_state = 'pass'
+    row.compliance_findings = []
+
+
+def _spec_matches(row: MarketingTemplate, spec: dict[str, Any], blocks: list) -> bool:
+    return (
+        row.description == spec['description']
+        and row.category == spec['category']
+        and row.subject == spec['subject']
+        and row.preheader == spec['preheader']
+        and row.blocks == blocks
+    )

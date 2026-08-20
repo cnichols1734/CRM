@@ -617,6 +617,49 @@
                     </div>
                 </section>
 
+                {% if show_marketing %}
+                <section class="crm-surface" id="marketing">
+                    <div class="crm-surface-header">
+                        {{ section_header('Marketing') }}
+                    </div>
+                    <div class="px-4 py-4" style="border-bottom: 0.5px solid var(--hairline);">
+                        <form action="{{ url_for('contacts.update_marketing_consent', contact_id=contact.id) }}" method="POST" class="space-y-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                            <label class="block">
+                                <span class="crm-label">Can we email them?</span>
+                                <select name="marketing_consent" class="crm-input mt-1">
+                                    <option value="unknown" {% if contact.marketing_consent == 'unknown' %}selected{% endif %}>Unknown — still receives campaigns</option>
+                                    <option value="opted_in" {% if contact.marketing_consent == 'opted_in' %}selected{% endif %}>Opted in</option>
+                                    <option value="opted_out" {% if contact.marketing_consent == 'opted_out' %}selected{% endif %}>Opted out</option>
+                                </select>
+                            </label>
+                            <p class="text-xs crm-muted">Unknown still gets campaigns. Opted out does not.</p>
+                            <button type="submit" class="crm-btn crm-btn-secondary">Save preference</button>
+                        </form>
+                    </div>
+                    <div class="max-h-80 divide-y divide-slate-200 overflow-y-auto">
+                        {% for send in marketing_sends %}
+                        <a href="{{ url_for('marketing.campaign_detail', campaign_id=send.campaign_id) }}"
+                           class="block px-4 py-3 transition-colors hover:bg-slate-50">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="truncate text-sm font-medium" style="color: var(--ink);">
+                                    {{ send.campaign.name if send.campaign else 'Campaign' }}
+                                </span>
+                                {{ badge(send.status, 'success' if send.status == 'delivered' else ('danger' if send.status in ('bounced', 'failed') else 'neutral')) }}
+                            </div>
+                            <p class="mt-1 text-xs crm-muted">
+                                {{ send.to_email }}
+                                {% if send.created_at %} · {{ send.created_at.strftime('%b %d, %Y') }}{% endif %}
+                                {% if send.skip_reason %} · {{ send.skip_reason.replace('_', ' ') }}{% endif %}
+                            </p>
+                        </a>
+                        {% else %}
+                        <div class="crm-panel-empty">No campaign emails yet</div>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+
                 {% if org_has_feature('AI_TASK_SUGGESTIONS') %}
                 <section class="crm-surface" id="smartActionsCard">
                     <div class="crm-surface-header">

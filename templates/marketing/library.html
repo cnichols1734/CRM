@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
+
+{% block title %}Templates - AgentFlow{% endblock %}
+{% block mobile_title %}Templates{% endblock %}
+
+{% block content %}
+<div class="crm-page" data-controller="marketing-template-library">
+    <div class="mkt-busy" hidden data-marketing-template-library-target="busy">
+        <div class="mkt-busy__card">
+            <div class="mkt-spinner" aria-hidden="true"></div>
+            <p class="mkt-busy__title">Writing the email</p>
+            <p class="mkt-busy__copy">Usually takes a few seconds.</p>
+        </div>
+    </div>
+
+    <div class="crm-page__inner">
+        {% call page_header('Templates', 'Start from one we already wrote, or describe a new one.') %}{% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        <section class="mkt-section" aria-labelledby="mkt-start-title">
+            <p class="crm-section-kicker">Start here</p>
+            <h2 id="mkt-start-title" class="mkt-section-title">Start from a template</h2>
+            <p class="crm-section-description mb-4">Pick one. Change the details. Send it.</p>
+
+            {% if starters %}
+            <div class="mkt-rail" role="list">
+                {% for card in starters %}
+                <a href="{{ url_for('marketing.studio') }}?from={{ card.template.id }}"
+                   class="mkt-cover" role="listitem">
+                    <div class="mkt-cover__stage">
+                        {% if card.html %}
+                        <iframe title="" tabindex="-1" aria-hidden="true" sandbox
+                                srcdoc="{{ card.html | e }}"></iframe>
+                        {% endif %}
+                    </div>
+                    <p class="mkt-cover__kicker">{{ card.kicker }}</p>
+                    <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
+                    <p class="mkt-cover__blurb">{{ card.template.description or card.template.subject }}</p>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+                {% call empty_state('No starters yet', 'Open this page once more and the starter library should load.', 'fa-file') %}{% endcall %}
+            {% endif %}
+        </section>
+
+        <section class="mkt-section" aria-labelledby="mkt-create-title">
+            <p class="crm-section-kicker">Or start from scratch</p>
+            <h2 id="mkt-create-title" class="mkt-section-title">Create your own</h2>
+            <p class="crm-section-description mb-4">Say what the email is for. We write it. You edit the copy in the preview.</p>
+
+            <form method="post" action="{{ url_for('marketing.studio') }}" class="mkt-composer"
+                  data-action="submit->marketing-template-library#busy">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="action" value="generate">
+
+                <label class="block">
+                    <span class="mkt-prompt-label">Describe the email</span>
+                    <textarea class="crm-textarea mkt-prompt" name="prompt" required rows="6"
+                              placeholder="Open house Saturday at Heritage Creek. Casual. Invite past clients.">{{ prompt }}</textarea>
+                </label>
+
+                {% include 'marketing/_composer_options.html' %}
+
+                <div class="mt-5">
+                    <button class="crm-btn crm-btn-primary" type="submit">Write this email</button>
+                </div>
+            </form>
+        </section>
+
+        {% if saved %}
+        <section class="mkt-section" aria-labelledby="mkt-yours-title">
+            <p class="crm-section-kicker">Already saved</p>
+            <h2 id="mkt-yours-title" class="mkt-section-title">Your templates</h2>
+            <div class="mkt-saved">
+                {% for template in saved %}
+                <a href="{{ url_for('marketing.studio', template_id=template.id) }}" class="mkt-saved__row">
+                    <div>
+                        <p class="mkt-saved__name">{{ template.name }}</p>
+                        <p class="mkt-saved__meta">{{ template.subject }}</p>
+                    </div>
+                    {{ badge('Shared' if template.visibility == 'org' else 'Private') }}
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

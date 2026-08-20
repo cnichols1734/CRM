@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}New campaign - AgentFlow{% endblock %}
+{% block mobile_title %}New campaign{% endblock %}
+
+{% block content %}
+<div class="crm-page" data-controller="marketing-campaign-wizard"
+     data-marketing-campaign-wizard-estimate-url-value="{{ url_for('marketing.api_estimate') }}">
+    <div class="crm-page__inner max-w-3xl">
+        <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-back mb-3">
+            <i class="fas fa-arrow-left text-xs"></i> Campaigns
+        </a>
+        {% call page_header('New campaign', 'Template, audience, send.') %}{% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        {% if not readiness.ok %}
+        <div class="crm-callout crm-callout-warning mb-5">
+            <p>{{ readiness.message }} <a href="{{ url_for('marketing.settings') }}" class="underline">Settings</a></p>
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+            <section>
+                <h2 class="crm-section-title mb-3">1. Name and template</h2>
+                <label class="block mb-3">
+                    <span class="crm-label">Campaign name</span>
+                    <input class="crm-input" name="name" required maxlength="200" placeholder="June check-in">
+                </label>
+                <label class="block mb-3">
+                    <span class="crm-label">Template</span>
+                    <select class="crm-input" name="template_id" required>
+                        <option value="">Choose one</option>
+                        {% for template in templates %}
+                        <option value="{{ template.id }}">{{ template.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <p class="text-sm text-slate-500">Need a different email? <a class="underline" href="{{ url_for('marketing.library') }}">Open templates</a>.</p>
+            </section>
+
+            <section>
+                <h2 class="crm-section-title mb-3">2. Who gets it</h2>
+                <div class="grid gap-3 md:grid-cols-2">
+                    <label class="block">
+                        <span class="crm-label">Groups</span>
+                        <select class="crm-input" name="groups" multiple size="6" data-action="change->marketing-campaign-wizard#estimate">
+                            {% for group in groups %}
+                            <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <div class="space-y-3">
+                        <label class="block">
+                            <span class="crm-label">ZIP codes</span>
+                            <input class="crm-input" name="zips" placeholder="78130, 78132" data-action="input->marketing-campaign-wizard#estimate">
+                        </label>
+                        <label class="block">
+                            <span class="crm-label">Cities</span>
+                            <input class="crm-input" name="cities" placeholder="New Braunfels" data-action="input->marketing-campaign-wizard#estimate">
+                        </label>
+                        <label class="block">
+                            <span class="crm-label">States</span>
+                            <input class="crm-input" name="states" placeholder="TX" data-action="input->marketing-campaign-wizard#estimate">
+                        </label>
+                    </div>
+                </div>
+                {% if can_org %}
+                <label class="mt-3 flex items-center gap-2">
+                    <input type="checkbox" name="whole_org" data-action="change->marketing-campaign-wizard#estimate">
+                    <span>Everyone in the org</span>
+                </label>
+                {% endif %}
+                <label class="mt-2 flex items-center gap-2">
+                    <input type="checkbox" name="require_consent" data-action="change->marketing-campaign-wizard#estimate">
+                    <span>Only contacts who opted in</span>
+                </label>
+                <p class="mt-4 text-sm" data-marketing-campaign-wizard-target="count">Pick a filter to see how many people this reaches.</p>
+                <p class="text-sm text-slate-500" data-marketing-campaign-wizard-target="breakdown"></p>
+            </section>
+
+            <section>
+                <h2 class="crm-section-title mb-3">3. When</h2>
+                <label class="block mb-3">
+                    <span class="crm-label">Send</span>
+                    <select class="crm-input" name="kind" data-action="change->marketing-campaign-wizard#kind">
+                        <option value="one_time">Once</option>
+                        <option value="drip">Drip sequence</option>
+                    </select>
+                </label>
+                <label class="block mb-3">
+                    <span class="crm-label">Schedule (leave blank to send now)</span>
+                    <input class="crm-input" type="datetime-local" name="scheduled_at">
+                </label>
+                <div class="hidden space-y-3" data-marketing-campaign-wizard-target="drip">
+                    <p class="text-sm text-slate-500">First email is the template above, sent on day 0. Add up to two more.</p>
+                    {% for n in [1, 2] %}
+                    <div class="grid gap-3 md:grid-cols-3">
+                        <label>
+                            <span class="crm-label">Email {{ n + 1 }} template</span>
+                            <select class="crm-input" name="drip_template_id">
+                                <option value="">None</option>
+                                {% for template in templates %}
+                                <option value="{{ template.id }}">{{ template.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            <span class="crm-label">Days after start</span>
+                            <input class="crm-input" type="number" min="1" name="drip_delay_days" value="{{ 3 if n == 1 else 7 }}">
+                        </label>
+                        <label>
+                            <span class="crm-label">Hour</span>
+                            <input class="crm-input" type="number" min="0" max="23" name="drip_send_hour" value="9">
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="flex gap-3">
+                <button class="crm-btn" type="submit" name="action" value="save">Save draft</button>
+                <button class="crm-btn crm-btn-accent" type="submit" name="action" value="launch" {% if not readiness.ok %}disabled{% endif %}>
+                    Launch
+                </button>
+            </div>
+            <p class="text-sm text-slate-500">{{ quota.remaining }} sends left this month.</p>
+        </form>
+    </div>
+</div>
+{% endblock %}

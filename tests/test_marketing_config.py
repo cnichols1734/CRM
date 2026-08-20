@@ -204,6 +204,8 @@ def usage(app, seed):
         org = Organization.query.filter_by(slug='test-realty-a').first()
         user = User.query.filter_by(organization_id=org.id).first()
         contact = Contact.query.filter_by(organization_id=org.id).first()
+        MarketingSend.query.filter_by(organization_id=org.id).delete()
+        db.session.flush()
 
         template = MarketingTemplate(
             organization_id=org.id, created_by_id=user.id, name='Quota probe',

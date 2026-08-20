@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
+
+{% block title %}Marketing - AgentFlow{% endblock %}
+{% block mobile_title %}Marketing{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {% call page_header('Marketing', 'Send one email, or a short sequence, to the people already in your CRM.') %}
+            <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">New campaign</a>
+        {% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        {% if not readiness.ok %}
+        <div class="crm-callout crm-callout-warning mb-5">
+            <p>{{ readiness.message }} <a href="{{ url_for('marketing.settings') }}" class="underline">Add them in Settings</a>.</p>
+        </div>
+        {% endif %}
+
+        <div class="crm-kpi-grid mb-6">
+            <div class="crm-stat">
+                <div class="crm-stat__label">Sends this month</div>
+                <div class="crm-stat__value">{{ quota.used }}{% if quota.limit %}<span class="crm-stat__unit"> / {{ quota.limit }}</span>{% endif %}</div>
+            </div>
+            <div class="crm-stat">
+                <div class="crm-stat__label">Active campaigns</div>
+                <div class="crm-stat__value">{{ active_count }}</div>
+            </div>
+            <div class="crm-stat">
+                <div class="crm-stat__label">Left this month</div>
+                <div class="crm-stat__value">{{ quota.remaining }}</div>
+            </div>
+        </div>
+
+        <div class="crm-panel">
+            <div class="crm-panel__header">
+                <h2 class="crm-section-title">Recent campaigns</h2>
+                <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-btn">View all</a>
+            </div>
+            {% if campaigns %}
+            <div class="crm-table-wrap">
+                <table class="crm-table">
+                    <thead>
+                        <tr>
+                            <th>Campaign</th>
+                            <th>Status</th>
+                            <th>Sent</th>
+                            <th>Delivered</th>
+                            <th>Bounced</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for campaign in campaigns %}
+                        <tr>
+                            <td>
+                                <a class="crm-table-link" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id) }}">{{ campaign.name }}</a>
+                            </td>
+                            <td>{{ badge(campaign.status.replace('_', ' '), 'info' if campaign.is_running else 'neutral') }}</td>
+                            <td>{{ campaign.sent_count }}</td>
+                            <td>{{ campaign.delivered_count }}</td>
+                            <td>{{ campaign.bounced_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                {% call empty_state('No campaigns yet', 'Pick a template, pick who it goes to, and send.', 'fa-envelope') %}
+                    <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">Start a campaign</a>
+                {% endcall %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

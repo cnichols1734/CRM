@@ -30,6 +30,10 @@ import re
 from dataclasses import dataclass, asdict
 from typing import Optional
 
+# Shared so a new copy field is scanned by the linter and collected for review
+# together, rather than silently by only one of them.
+from services.marketing.blocks import SCANNED_FIELDS as _SCANNED_FIELDS
+
 SEVERITY_BLOCK = 'block'
 SEVERITY_WARN = 'warn'
 
@@ -237,10 +241,6 @@ _COMPILED: tuple[tuple[re.Pattern, Rule], ...] = tuple(
     (rule.compiled(), rule) for rule in RULES
 )
 
-# Fields on a block that hold author copy worth scanning.
-_SCANNED_FIELDS = ('text', 'label', 'alt', 'caption', 'address', 'attribution')
-
-
 def scan_text(
     text: str,
     *,
@@ -283,6 +283,12 @@ def scan_blocks(blocks: list[dict], subject: str = '', preheader: str = '') -> l
         for stat in block.get('stats') or []:
             if stat.get('label'):
                 findings.extend(scan_text(stat['label'], block_index=index, field='stats'))
+        for entry in block.get('steps') or []:
+            for name in ('title', 'text'):
+                if entry.get(name):
+                    findings.extend(
+                        scan_text(entry[name], block_index=index, field='steps')
+                    )
 
     return findings
 

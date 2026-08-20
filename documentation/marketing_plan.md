@@ -24,7 +24,7 @@ Three products in one feature area:
 | Drip enrollment | Audience is a snapshot at launch. No evergreen auto-enrollment in v1. |
 | Drip auto-exit | None. Sequences run to completion. |
 | Org-wide templates | Any agent can publish org-wide; admins can unpublish. |
-| Tier gating | Pro + Enterprise, with monthly send caps. |
+| Tier gating | Enterprise, plus platform super-admins. Free and Pro stay off. Monthly send caps still apply. |
 | Analytics in v1 | Delivery outcomes only (sent/delivered/bounced/failed/skipped). Open and click columns exist but stay unpopulated. |
 
 ### Why our DB and not SendGrid dynamic templates
@@ -71,24 +71,29 @@ Default is `unknown` and `unknown` is sendable. CAN-SPAM is an opt-out regime an
 
 ## The block schema
 
-The brand shell is lifted from `email_templates/4_team_invitation.html`: 600px table layout, dark gradient header, 4px orange accent strip, white card, DM Sans, compliance footer. The AI never touches it.
+The design reference is the AgentFlow welcome email: soft blue canvas (`#f0f4f8`), rounded white card with a soft shadow, a light header bar carrying the brand and a small uppercase purpose label, a dark gradient hero with a Fraunces headline and an italic orange accent line, DM Sans body copy in slate, orange gradient calls to action, serif numerals on numbered steps, and a quiet compliance footer. `services/marketing/shell.py` and `render.py` encode it.
 
-The AI produces only an ordered list of typed blocks, via `generate_structured_response` with a strict JSON schema:
+The AI is never handed that HTML and never writes HTML. It produces an ordered list of typed blocks, via `generate_structured_response` with a strict JSON schema, and the renderer supplies the design. That inversion is the point: the reference cannot be degraded by a model having an off day, and it can be improved for every existing template at once by editing one file.
 
 | Block | Fields |
 |---|---|
-| `heading` | text, level |
+| `hero` | eyebrow, title, accent, text — the dark banner; first block only, one per email |
+| `heading` | text, level (`h2` display serif, `h3` small caps label) |
 | `paragraph` | text |
 | `bullets` | items[] |
 | `button` | label, url |
-| `image` | asset_url, alt, caption, link_url |
-| `listing_card` | image_url, address, price, beds, baths, sqft, url |
-| `stat_row` | items[] of value + label |
+| `steps` | steps[] of title + text; numbered `01`–`04` automatically |
+| `callout` | label, text — the tinted box for the one unmissable detail |
+| `image` | image_url, alt, caption, link_url |
+| `listing_card` | image_url, address, price, beds, baths, sqft, url, caption |
+| `stat_row` | stats[] of value + label |
 | `quote` | text, attribution |
 | `divider` | — |
 | `signature` | — (renders from the agent's profile) |
 
-`listing_card` and `stat_row` are the real-estate-specific payoff — they're what make a "just listed" or "market update" email look professionally built instead of like a wall of text.
+`hero`, `steps`, and `callout` are what carry the reference's character; `listing_card` and `stat_row` are the real-estate-specific payoff. Together they're what make a "just listed" or "market update" email look professionally built instead of like a wall of text.
+
+The hero is full-bleed, so the shell renders it as its own table row outside the padded content cell, and validation rejects one anywhere but the top rather than quietly relocating it.
 
 `services/marketing/render.py` is a pure function from blocks to `(html, text)`. Table-based, fully inline CSS, no JavaScript, no external stylesheets, and a real `text/plain` alternative part. The renderer is the only thing that emits HTML, so email-client compatibility is a property of one file we can test.
 

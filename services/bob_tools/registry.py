@@ -30,6 +30,7 @@ from services.bob_tools import contacts as contact_tools
 from services.bob_tools import email as email_tools
 from services.bob_tools import interactions as interaction_tools
 from services.bob_tools import listings as listing_tools
+from services.bob_tools import marketing as marketing_tools
 from services.bob_tools import tasks as task_tools
 from services.bob_tools import todos as todo_tools
 from services.bob_tools import transactions as tx_tools
@@ -1373,11 +1374,462 @@ TRANSACTION_TOOLS = (
     ),
 )
 
-TOOLS = TOOLS + TRANSACTION_TOOLS
+MARKETING_TOOLS = (
+    Tool(
+        name='get_email_template_guidelines',
+        description=(
+            'Return the block schema, allowed merge fields, Fair Housing '
+            'rules, and starter template names for marketing email. Call this '
+            'before create_email_template so the blocks you write match what '
+            'the renderer accepts. There is no launch_campaign tool. Stage a '
+            'draft and give the agent the review URL so they can click Launch '
+            'in AgentFlow.'
+        ),
+        parameters=_obj({}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.guidelines(ctx),
+    ),
+    Tool(
+        name='list_email_templates',
+        description=(
+            'List marketing email templates this agent can use: theirs, '
+            'org-shared, and the starter library. Returns id, name, category, '
+            'status, and compliance_state. Use get_email_template for the '
+            'full block list. Seed the starter library on first call if the '
+            'org has none yet.'
+        ),
+        parameters=_obj({
+            'category': {
+                'type': 'string',
+                'description': (
+                    'Optional category filter: check_in, open_house, '
+                    'market_update, just_listed, just_sold, holiday, '
+                    'newsletter, or other.'
+                ),
+            },
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.list_templates(
+            ctx, category=args.get('category'),
+        ),
+    ),
+    Tool(
+        name='get_email_template',
+        description=(
+            'Read one marketing template: subject, preheader, blocks, '
+            'compliance findings, and leftover [bracket] placeholders. Use '
+            'the returned id on create_campaign. Do not invent a template_id.'
+        ),
+        parameters=_obj({
+            'template_id': {
+                'type': 'integer',
+                'description': 'Template id from list_email_templates.',
+            },
+        }, ['template_id']),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.get_template(
+            ctx, template_id=args['template_id'],
+        ),
+    ),
+    Tool(
+        name='preview_email_template',
+        description=(
+            'Render a marketing template to HTML with sample merge values so '
+            'you can describe how it will look. This does not send anything. '
+            'Give the agent the studio URL if they want to review it themselves.'
+        ),
+        parameters=_obj({
+            'template_id': {
+                'type': 'integer',
+                'description': 'Template id from list_email_templates.',
+            },
+        }, ['template_id']),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.preview_template(
+            ctx, template_id=args['template_id'],
+        ),
+    ),
+    Tool(
+        name='list_marketing_audiences',
+        description=(
+            'List saved marketing audiences this agent reused. Each row is a '
+            'filter (groups, zips, cities), not a frozen contact list. For a '
+            'live count use estimate_audience with the same filter.'
+        ),
+        parameters=_obj({}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.list_audiences(ctx),
+    ),
+    Tool(
+        name='estimate_audience',
+        description=(
+            'Count who a campaign would reach and why others are excluded '
+            '(no email, opted out, suppressed, missing consent, duplicate). '
+            'Call this before create_campaign so the agent sees the real '
+            'number, not the size of the group. Quote sendable, not matched.'
+        ),
+        parameters=_obj({
+            'groups': {
+                'type': 'array',
+                'items': {'type': 'integer'},
+                'description': 'Contact group ids. Combined with AND across other filters.',
+            },
+            'zips': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'ZIP prefixes, e.g. ["78130", "78132"].',
+            },
+            'cities': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'City names, matched case-insensitively.',
+            },
+            'states': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'State abbreviations, e.g. ["TX"].',
+            },
+            'owners': {
+                'type': 'array',
+                'items': {'type': 'integer'},
+                'description': (
+                    'User ids whose contacts to include. Agents may only pass '
+                    'their own id. Owners and admins may pass teammates.'
+                ),
+            },
+            'require_consent': {
+                'type': 'boolean',
+                'description': (
+                    'If true, only contacts with marketing_consent=opted_in. '
+                    'Default false: unknown is sendable under CAN-SPAM.'
+                ),
+            },
+            'whole_org': {
+                'type': 'boolean',
+                'description': (
+                    'If true, include every contact in the org. Owner or '
+                    'admin only.'
+                ),
+            },
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.estimate_audience(ctx, **args),
+    ),
+    Tool(
+        name='list_campaigns',
+        description=(
+            'List this agent\'s marketing campaigns with status, kind, and '
+            'send counts. Does not include other agents\' campaigns unless '
+            'you later open one by id as an owner or admin via get_campaign.'
+        ),
+        parameters=_obj({
+            'status': {
+                'type': 'string',
+                'description': (
+                    'Optional status filter: draft, pending_review, scheduled, '
+                    'sending, active, paused, completed, cancelled, failed.'
+                ),
+            },
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.list_campaigns(
+            ctx, status=args.get('status'),
+        ),
+    ),
+    Tool(
+        name='get_campaign',
+        description=(
+            'Read one marketing campaign: status, counters, and steps. '
+            'Nothing here means mail went out. A draft or pending_review '
+            'campaign still needs a human to click Launch in AgentFlow. '
+            'Always include record_url so they can open it.'
+        ),
+        parameters=_obj({
+            'campaign_id': {
+                'type': 'integer',
+                'description': 'Campaign id from list_campaigns or create_campaign.',
+            },
+        }, ['campaign_id']),
+        risk=RISK_READ,
+        handler=lambda args, ctx: marketing_tools.get_campaign(
+            ctx, campaign_id=args['campaign_id'],
+        ),
+    ),
+    Tool(
+        name='create_email_template',
+        description=(
+            'Save a marketing email template as blocks, never HTML. Pass a '
+            'prompt to generate from a description, or pass blocks you already '
+            'have from get_email_template_guidelines. Fair Housing findings '
+            'can leave it as a draft. This does not send mail.'
+        ),
+        parameters=_obj({
+            'name': {
+                'type': 'string',
+                'description': 'Template name the agent will recognize later.',
+            },
+            'prompt': {
+                'type': 'string',
+                'description': (
+                    'What the email should do, in their words. Used to '
+                    'generate blocks when you do not pass blocks yourself.'
+                ),
+            },
+            'subject': {
+                'type': 'string',
+                'description': 'Subject line. Optional when generating from a prompt.',
+            },
+            'preheader': {
+                'type': 'string',
+                'description': 'Inbox preview line. Optional when generating from a prompt.',
+            },
+            'blocks': {
+                'type': 'array',
+                'items': {'type': 'object'},
+                'description': (
+                    'Typed content blocks. Required if you skip prompt. Hero '
+                    'first if used; signature last; no HTML.'
+                ),
+            },
+            'description': {
+                'type': 'string',
+                'description': 'Short note about when to use this template.',
+            },
+            'category': {
+                'type': 'string',
+                'description': (
+                    'check_in, open_house, market_update, just_listed, '
+                    'just_sold, holiday, newsletter, or other.'
+                ),
+            },
+            'tone': {
+                'type': 'string',
+                'enum': ['warm', 'direct', 'formal'],
+                'description': 'Voice for AI generation. Defaults to warm.',
+            },
+            'share_with_org': {
+                'type': 'boolean',
+                'description': 'If true, every agent in the org can use it.',
+            },
+            'acknowledge_warnings': {
+                'type': 'boolean',
+                'description': (
+                    'Set true only after the agent reviewed non-blocking '
+                    'Fair Housing warnings and still wants the template ready.'
+                ),
+            },
+        }, ['name']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: marketing_tools.create_template(ctx, **args),
+    ),
+    Tool(
+        name='update_email_template',
+        description=(
+            'Change an existing marketing template and write a new version. '
+            'Pass only fields that change. This does not send mail and does '
+            'not alter campaigns that already launched with an older version.'
+        ),
+        parameters=_obj({
+            'template_id': {
+                'type': 'integer',
+                'description': 'Template to update.',
+            },
+            'name': {'type': 'string', 'description': 'New name.'},
+            'subject': {'type': 'string', 'description': 'New subject.'},
+            'preheader': {'type': 'string', 'description': 'New inbox preview line.'},
+            'blocks': {
+                'type': 'array',
+                'items': {'type': 'object'},
+                'description': 'Replacement block list. Omit to keep the current blocks.',
+            },
+            'description': {'type': 'string', 'description': 'New usage note.'},
+            'category': {'type': 'string', 'description': 'New category.'},
+            'visibility': {
+                'type': 'string',
+                'enum': ['private', 'org'],
+                'description': 'private keeps it to this agent; org shares it.',
+            },
+            'acknowledge_warnings': {
+                'type': 'boolean',
+                'description': 'Acknowledge remaining Fair Housing warnings.',
+            },
+            'change_note': {
+                'type': 'string',
+                'description': 'What changed, stored on the version snapshot.',
+            },
+        }, ['template_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: marketing_tools.update_template(
+            ctx, template_id=args['template_id'], **{
+                k: v for k, v in args.items() if k != 'template_id'
+            },
+        ),
+    ),
+    Tool(
+        name='create_campaign',
+        description=(
+            'Create a marketing campaign as a draft. It does not send. Pick a '
+            'template_id from list_email_templates and an audience filter, then '
+            'call stage_campaign_for_review and give the agent the launch_url. '
+            'There is no launch_campaign tool on this connector. A drip is '
+            'a snapshot at launch, not an evergreen list.'
+        ),
+        parameters=_obj({
+            'name': {
+                'type': 'string',
+                'description': 'Campaign name the agent will see in the monitor.',
+            },
+            'template_id': {
+                'type': 'integer',
+                'description': 'First (or only) email. From list_email_templates.',
+            },
+            'kind': {
+                'type': 'string',
+                'enum': ['one_time', 'drip'],
+                'description': 'one_time sends once. drip adds later steps.',
+            },
+            'groups': {
+                'type': 'array',
+                'items': {'type': 'integer'},
+                'description': 'Contact group ids to include.',
+            },
+            'zips': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'ZIP prefixes to include.',
+            },
+            'cities': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'Cities to include.',
+            },
+            'states': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'States to include.',
+            },
+            'owners': {
+                'type': 'array',
+                'items': {'type': 'integer'},
+                'description': 'Limit to these agents\' contacts.',
+            },
+            'require_consent': {
+                'type': 'boolean',
+                'description': 'If true, only opted-in contacts.',
+            },
+            'whole_org': {
+                'type': 'boolean',
+                'description': 'If true, every contact in the org. Owner or admin only.',
+            },
+            'save_audience': {
+                'type': 'boolean',
+                'description': 'Keep this filter as a named audience for reuse.',
+            },
+            'audience_name': {
+                'type': 'string',
+                'description': 'Name for a saved audience.',
+            },
+            'timezone': {
+                'type': 'string',
+                'description': 'IANA timezone for drip send hours. Default America/Chicago.',
+            },
+            'send_hour': {
+                'type': 'integer',
+                'description': 'Local hour (0-23) for the first email. Default 9.',
+            },
+            'drip_steps': {
+                'type': 'array',
+                'items': {'type': 'object'},
+                'description': (
+                    'Later emails. Each item needs template_id, optional '
+                    'delay_days (default 3), optional send_hour.'
+                ),
+            },
+        }, ['name', 'template_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: marketing_tools.create_campaign(ctx, **args),
+    ),
+    Tool(
+        name='stage_campaign_for_review',
+        description=(
+            'Mark a draft campaign pending_review and notify the agent. '
+            'Nothing is emailed. Tell them to open record_url and click '
+            'Launch in AgentFlow. Do not claim the campaign has been sent. '
+            'There is no launch_campaign tool.'
+        ),
+        parameters=_obj({
+            'campaign_id': {
+                'type': 'integer',
+                'description': 'Draft campaign id from create_campaign.',
+            },
+        }, ['campaign_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: marketing_tools.stage_campaign(
+            ctx, campaign_id=args['campaign_id'],
+        ),
+    ),
+    Tool(
+        name='add_marketing_suppression',
+        description=(
+            'Stop marketing email to an address for this organization. Use '
+            'when they name someone who should not be emailed. Does not send '
+            'anything and does not delete the contact.'
+        ),
+        parameters=_obj({
+            'email': {
+                'type': 'string',
+                'description': 'Address to suppress. Matched case-insensitively.',
+            },
+            'note': {
+                'type': 'string',
+                'description': 'Why they asked to stop, for the suppression log.',
+            },
+        }, ['email']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: marketing_tools.add_suppression(
+            ctx, email=args['email'], note=args.get('note'),
+        ),
+    ),
+    Tool(
+        name='set_contact_marketing_consent',
+        description=(
+            'Set a contact\'s marketing_consent to unknown, opted_in, or '
+            'opted_out. opted_out also suppresses their email for this org. '
+            'unknown or opted_in releases a manual or unsubscribe suppression. '
+            'Search for the contact_id first. Does not send mail.'
+        ),
+        parameters=_obj({
+            'contact_id': {
+                'type': 'integer',
+                'description': 'Contact id from search_contacts.',
+            },
+            'marketing_consent': {
+                'type': 'string',
+                'enum': ['unknown', 'opted_in', 'opted_out'],
+                'description': (
+                    'unknown is sendable. opted_out blocks campaigns. '
+                    'opted_in is required only when the audience asks for it.'
+                ),
+            },
+        }, ['contact_id', 'marketing_consent']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: marketing_tools.set_consent(
+            ctx,
+            contact_id=args['contact_id'],
+            marketing_consent=args['marketing_consent'],
+        ),
+    ),
+)
+
+TOOLS = TOOLS + TRANSACTION_TOOLS + MARKETING_TOOLS
 TOOLS_BY_NAME: dict[str, Tool] = {tool.name: tool for tool in TOOLS}
 
-# Core CRM tools always available.
-CORE_TOOL_NAMES = frozenset(t.name for t in TOOLS if t.name not in {x.name for x in TRANSACTION_TOOLS})
+# Core CRM tools always available. Transaction and marketing tools are gated.
+CORE_TOOL_NAMES = frozenset(
+    t.name for t in TOOLS
+    if t.name not in {x.name for x in TRANSACTION_TOOLS}
+    and t.name not in {x.name for x in MARKETING_TOOLS}
+)
 TX_READ_TOOL_NAMES = frozenset({
     'search_transactions', 'select_transaction_context', 'get_transaction_summary',
     'list_parties', 'list_documents', 'get_upcoming_deadlines', 'get_overdue_work',
@@ -1391,6 +1843,7 @@ TX_WRITE_TOOL_NAMES = frozenset({
     'update_listing_fields', 'generate_listing_description',
     'complete_requirement', 'update_requirement_status',
 })
+MARKETING_TOOL_NAMES = frozenset(t.name for t in MARKETING_TOOLS)
 
 
 def select_tools(ctx: BobContext | None = None) -> tuple[Tool, ...]:
@@ -1420,6 +1873,8 @@ def select_tools(ctx: BobContext | None = None) -> tuple[Tool, ...]:
             or org_has_feature('TRANSACTIONS', org)
         ):
             vtc_enabled = True
+        if org and org_has_feature('EMAIL_CAMPAIGNS', org):
+            names.update(MARKETING_TOOL_NAMES)
     except Exception:
         # Outside a request/app context (unit tests): keep CRM chat + selected tx.
         pass

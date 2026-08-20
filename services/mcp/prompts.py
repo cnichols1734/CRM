@@ -75,6 +75,42 @@ PROMPTS = (
             'send messages.'
         ),
     },
+    {
+        'name': 'build_email_campaign',
+        'title': 'Build an email campaign',
+        'description': 'Stage a marketing campaign for review. Do not send it.',
+        'arguments': [
+            {
+                'name': 'goal',
+                'description': 'What the email should do, e.g. open house Saturday',
+                'required': True,
+            },
+        ],
+        'template': (
+            'Help me stage an AgentFlow marketing campaign for: {goal}. '
+            'List templates, estimate the audience, create a draft campaign, '
+            'and stage it for review. Give me the launch URL. Do not send '
+            'anything. There is no launch tool.'
+        ),
+    },
+    {
+        'name': 'create_email_template',
+        'title': 'Create an email template',
+        'description': 'Generate a marketing template from a description. Do not send it.',
+        'arguments': [
+            {
+                'name': 'prompt',
+                'description': 'What the email should say or do',
+                'required': True,
+            },
+        ],
+        'template': (
+            'Create an AgentFlow marketing email template for: {prompt}. '
+            'Read get_email_template_guidelines first. Produce blocks, never '
+            'HTML. Save the template and give me the studio URL. Do not send '
+            'it and do not launch a campaign unless I ask to stage one.'
+        ),
+    },
 )
 
 

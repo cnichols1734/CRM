@@ -11,11 +11,31 @@ from services.marketing.blocks import (
     BlockError,
     ai_generation_schema,
     collect_text,
+    find_placeholders,
+    insert_before_signature,
+    missing_button_url_message,
     normalize_blocks,
     validate_blocks,
 )
 from services.marketing.render import personalize, preview, render
 from services.marketing.shell import ShellContext
+
+
+HERO = {
+    'type': 'hero',
+    'eyebrow': 'August market update',
+    'title': 'Inventory finally moved.',
+    'accent': 'Buyers have room again.',
+    'text': 'Three months of supply for the first time since 2022.',
+}
+
+STEPS = {
+    'type': 'steps',
+    'steps': [
+        {'title': 'Get your number first.', 'text': 'Takes an afternoon.'},
+        {'title': 'Decide on the timing.', 'text': 'Not on the market.'},
+    ],
+}
 
 
 def ctx(**overrides) -> ShellContext:
@@ -78,7 +98,7 @@ class TestBlockValidation:
             validate_blocks([{'type': 'divider'}, {'type': 'signature'}])
 
     def test_rejects_missing_required_field(self):
-        with pytest.raises(BlockError, match='is missing url'):
+        with pytest.raises(BlockError, match='Add a URL for the "Go" button'):
             validate_blocks([{'type': 'button', 'label': 'Go'}])
 
     @pytest.mark.parametrize('bad_url', [
@@ -99,6 +119,44 @@ class TestBlockValidation:
     ])
     def test_allows_expected_url_schemes(self, ok_url):
         validate_blocks([{'type': 'button', 'label': 'Go', 'url': ok_url}])
+
+    def test_allows_a_placeholder_link_in_a_draft(self):
+        # Starter templates ship with links the agent has to fill in. The send
+        # path is what refuses them, not the editor.
+        validate_blocks([{
+            'type': 'button', 'label': 'See the listing', 'url': '[listing link]',
+        }])
+
+    @pytest.mark.parametrize('sneaky', [
+        '[x]javascript:alert(1)',
+        'javascript:alert(1)[x]',
+    ])
+    def test_a_placeholder_has_to_be_the_whole_link(self, sneaky):
+        # Otherwise brackets become a way to smuggle a scheme past the check.
+        with pytest.raises(BlockError, match='unsupported link'):
+            validate_blocks([{'type': 'button', 'label': 'Go', 'url': sneaky}])
+
+    def test_a_fully_bracketed_scheme_is_inert(self):
+        # Allowed, and harmless: the leading bracket means no scheme parses, so
+        # the value is a relative path rather than something executable. The
+        # placeholder gate stops it long before a send.
+        blocks = validate_blocks([{
+            'type': 'button', 'label': 'Go', 'url': '[javascript:alert(1)]',
+        }])
+        assert find_placeholders(blocks) == ['[javascript:alert(1)]']
+
+    def test_finds_placeholder_links(self):
+        blocks = validate_blocks([
+            {'type': 'button', 'label': 'Go', 'url': '[listing link]'},
+        ])
+        assert find_placeholders(blocks) == ['[listing link]']
+        assert 'Go' in missing_button_url_message(blocks)
+
+    def test_real_button_url_is_ready_to_save(self):
+        blocks = validate_blocks([
+            {'type': 'button', 'label': 'Go', 'url': 'https://example.com/listing'},
+        ])
+        assert missing_button_url_message(blocks) is None
 
     def test_enforces_length_limits(self):
         with pytest.raises(BlockError, match='over 40 characters'):
@@ -127,6 +185,15 @@ class TestBlockValidation:
         assert set(item['required']) == set(item['properties'])
         assert item['additionalProperties'] is False
 
+    def test_insert_before_signature_keeps_the_signoff_last(self):
+        blocks = [
+            {'type': 'paragraph', 'text': 'Hi'},
+            {'type': 'signature'},
+        ]
+        image = {'type': 'image', 'image_url': 'https://example.com/i.png', 'alt': 'House'}
+        out = insert_before_signature(blocks, [image])
+        assert [b['type'] for b in out] == ['paragraph', 'image', 'signature']
+
 
 # ---------------------------------------------------------------------------
 # Merge fields
@@ -148,6 +215,59 @@ class TestMergeFields:
 
     def test_known_fields_pass_validation(self):
         mf.validate_text('Hi {{contact.first_name}} from {{agent.full_name}}')
+
+    def test_wrap_tokens_skips_attributes(self):
+        html = '<a href="https://x.test/{{contact.city}}">Go {{contact.city}}</a>'
+        out = mf.wrap_tokens_for_preview(html)
+        assert 'href="https://x.test/{{contact.city}}"' in out
+        assert 'data-mkt-merge="contact.city"' in out
+        assert '>City</span>' in out
+        assert 'color:#c2410c' in out
+        assert 'Go {{contact.city}}' not in out
+
+    def test_used_keys_reads_subject_and_blocks(self):
+        keys = mf.used_keys(
+            'Hi {{contact.first_name}}',
+            '{{agent.first_name}} here',
+            [{'type': 'paragraph', 'text': 'From {{org.name}}'}],
+        )
+        assert keys == {'contact.first_name', 'agent.first_name', 'org.name'}
+
+    def test_fill_preview_chips_swaps_labels_for_samples(self):
+        html = mf.wrap_tokens_for_preview('Hi {{contact.first_name|there}}')
+        assert 'First name' in html
+        filled = mf.fill_preview_chips(html, {'contact.first_name': 'Chris'})
+        assert 'Chris' in filled
+        assert 'First name' not in filled
+        assert 'data-mkt-merge="contact.first_name"' in filled
+        assert 'data-mkt-filled="1"' in filled
+        assert 'color:#c2410c' not in filled
+
+    def test_studio_samples_keep_contact_examples(self):
+        class User:
+            first_name = 'Chris'
+            email = 'chris@example.com'
+            phone = None
+
+        class Org:
+            name = 'Origen'
+            broker_name = 'Origen Realty'
+            broker_license_number = '9003104'
+
+        values = mf.studio_sample_values(User(), Org())
+        assert values['contact.first_name'] == 'John'
+        assert values['agent.first_name'] == 'Chris'
+        assert values['org.name'] == 'Origen'
+
+    def test_coerce_sample_values_keeps_known_keys(self):
+        values = mf.coerce_sample_values({'contact.first_name': 'Chris', 'nope': 'x'})
+        assert values['contact.first_name'] == 'Chris'
+        assert 'nope' not in values
+        assert values['contact.last_name'] == 'Smith'
+
+    def test_coerce_sample_values_keeps_example_when_blank(self):
+        values = mf.coerce_sample_values({'contact.first_name': '  '})
+        assert values['contact.first_name'] == 'John'
 
     def test_uses_value_when_present(self):
         out, missing = mf.substitute(
@@ -288,6 +408,7 @@ class TestRender:
 
     def test_renders_every_block_type(self):
         blocks = [
+            HERO,
             {'type': 'heading', 'text': 'H'},
             {'type': 'paragraph', 'text': 'P'},
             {'type': 'bullets', 'items': ['a', 'b']},
@@ -296,11 +417,16 @@ class TestRender:
             {'type': 'listing_card', 'address': '1 Main', 'price': '$1', 'beds': '3'},
             {'type': 'stat_row', 'stats': [{'value': '1', 'label': 'One'}]},
             {'type': 'quote', 'text': 'Q', 'attribution': 'Someone'},
+            {'type': 'callout', 'label': 'Note', 'text': 'Saturday at 2pm'},
+            STEPS,
             {'type': 'divider'},
             {'type': 'signature'},
         ]
         out = render(blocks, ctx())
-        for expected in ('H', 'P', 'Go', 'A house', '1 Main', 'One', 'Q', 'Someone'):
+        for expected in (
+            'H', 'P', 'Go', 'A house', '1 Main', 'One', 'Q', 'Someone',
+            'Inventory finally moved.', 'Saturday at 2pm', 'Get your number first.',
+        ):
             assert expected in out.html
 
     def test_paragraph_blank_line_becomes_two_paragraphs(self):
@@ -314,6 +440,184 @@ class TestRender:
     def test_validates_by_default(self):
         with pytest.raises(BlockError):
             render([{'type': 'nope'}], ctx())
+
+    def test_send_html_is_not_editable(self):
+        out = render(SIMPLE, ctx())
+        assert 'contenteditable' not in out.html
+        assert 'data-mkt-edit' not in out.html
+
+    def test_preview_can_mark_fields_for_the_studio(self):
+        _, html = preview(SIMPLE, ctx(), 'Hi', editable=True)
+        assert 'contenteditable="true"' in html
+        assert 'data-mkt-field="text"' in html
+
+    def test_editable_preview_shows_samples_and_keeps_token_chips(self):
+        blocks = [{'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}'}]
+        _, html = preview(blocks, ctx(), 'Hi {{contact.first_name}}', editable=True)
+        assert 'John' in html
+        assert 'data-mkt-merge="contact.first_name"' in html
+        assert 'data-mkt-fallback="there"' in html
+        assert 'data-mkt-filled="1"' in html
+        assert 'contenteditable="true"' in html
+
+    def test_editable_preview_keeps_field_names_until_samples_are_on(self):
+        blocks = [{'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}'}]
+        subject, html = preview(
+            blocks, ctx(), 'Hi {{contact.first_name}}',
+            editable=True, fill_samples=False,
+        )
+        assert subject == 'Hi {{contact.first_name}}'
+        assert 'First name' in html
+        assert 'John' not in html
+        assert 'data-mkt-merge="contact.first_name"' in html
+        assert 'data-mkt-filled="1"' not in html
+        assert 'color:#c2410c' in html
+        assert '[data-mkt-merge] {' in html
+        assert '[data-mkt-merge] {{' not in html
+
+    def test_editable_preview_uses_posted_sample_values(self):
+        blocks = [{'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}'}]
+        _, html = preview(
+            blocks, ctx(), 'Hi', editable=True,
+            sample_values={'contact.first_name': 'Chris'},
+        )
+        assert 'Chris' in html
+        assert 'John' not in html
+
+
+class TestHero:
+    def test_renders_outside_the_padded_content_cell(self):
+        # The hero is full-bleed. Inside the content cell it would sit in a
+        # white gutter and read as a mistake.
+        out = render([HERO, SIMPLE[1]], ctx())
+        hero_at = out.html.index('Inventory finally moved.')
+        content_at = out.html.index('class="content-padding"')
+        assert hero_at < content_at
+
+    def test_carries_eyebrow_headline_accent_and_subcopy(self):
+        out = render([HERO, SIMPLE[1]], ctx())
+        for part in (
+            'August market update', 'Inventory finally moved.',
+            'Buyers have room again.', 'Three months of supply',
+        ):
+            assert part in out.html
+
+    def test_accent_is_the_italic_second_line(self):
+        out = render([HERO, SIMPLE[1]], ctx())
+        assert '<em style="font-style:italic' in out.html
+
+    def test_works_without_the_optional_parts(self):
+        out = render([{'type': 'hero', 'title': 'Just this'}, SIMPLE[1]], ctx())
+        assert 'Just this' in out.html
+        assert '<em' not in out.html
+
+    def test_hero_only_email_still_renders(self):
+        # No body blocks means no content cell at all, rather than an empty one
+        # leaving a band of dead white space under the banner.
+        out = render([HERO], ctx())
+        assert 'class="content-padding"' not in out.html
+        assert 'Inventory finally moved.' in out.html
+
+    def test_reaches_plain_text(self):
+        out = render([HERO, SIMPLE[1]], ctx())
+        assert 'AUGUST MARKET UPDATE' in out.text
+        assert 'Inventory finally moved. Buyers have room again.' in out.text
+
+    def test_must_come_first(self):
+        with pytest.raises(BlockError, match='first block'):
+            render([SIMPLE[1], HERO], ctx())
+
+    def test_only_one_is_allowed(self):
+        with pytest.raises(BlockError, match='only have one hero'):
+            render([HERO, SIMPLE[1], HERO], ctx())
+
+
+class TestSteps:
+    def test_numbers_the_items_itself(self):
+        # Authors should not be numbering these by hand; reordering would then
+        # silently produce 01, 03, 02.
+        out = render([STEPS], ctx())
+        assert '>01</td>' in out.html
+        assert '>02</td>' in out.html
+
+    def test_numbers_the_plain_text_too(self):
+        out = render([STEPS], ctx())
+        assert '1. Get your number first.' in out.text
+
+    def test_text_is_optional_per_step(self):
+        out = render([{'type': 'steps', 'steps': [{'title': 'Only a title'}]}], ctx())
+        assert 'Only a title' in out.html
+
+    def test_a_step_needs_a_title(self):
+        with pytest.raises(BlockError, match='missing its title'):
+            render([{'type': 'steps', 'steps': [{'text': 'orphan copy'}]}], ctx())
+
+    def test_caps_the_list(self):
+        with pytest.raises(BlockError, match='at most 4 steps'):
+            render([{'type': 'steps', 'steps': [
+                {'title': f'Step {i}'} for i in range(5)
+            ]}], ctx())
+
+
+class TestCallout:
+    def test_renders_label_and_text(self):
+        out = render([{'type': 'callout', 'label': 'Open house', 'text': 'Sat 2-4pm'}], ctx())
+        assert 'Open house' in out.html
+        assert 'Sat 2-4pm' in out.html
+
+    def test_label_is_optional(self):
+        out = render([{'type': 'callout', 'text': 'Sat 2-4pm'}], ctx())
+        assert 'Sat 2-4pm' in out.html
+
+    def test_plain_text_keeps_the_label_as_a_prefix(self):
+        out = render([{'type': 'callout', 'label': 'Open house', 'text': 'Sat 2-4pm'}], ctx())
+        assert 'Open house: Sat 2-4pm' in out.text
+
+
+class TestBrandFidelity:
+    """The email system this renders into: soft canvas, rounded white card,
+    Fraunces display face, orange accent, DM Sans body."""
+
+    def test_loads_both_brand_faces(self):
+        out = render(SIMPLE, ctx())
+        assert 'DM+Sans' in out.html
+        assert 'Fraunces' in out.html
+
+    def test_display_face_has_a_serif_fallback(self):
+        # Most clients never load a web font, so the fallback carries the design.
+        out = render([HERO, SIMPLE[1]], ctx())
+        assert 'Georgia' in out.html
+
+    def test_section_headings_use_the_display_face(self):
+        out = render([{'type': 'heading', 'text': 'What changed'}], ctx())
+        assert 'Fraunces' in out.html.split('What changed')[0].rsplit('<h2', 1)[-1]
+
+    def test_h3_is_a_small_caps_label_not_a_small_serif(self):
+        out = render([{'type': 'heading', 'level': 'h3', 'text': 'Next steps'}], ctx())
+        block = out.html.split('Next steps')[0].rsplit('<h3', 1)[-1]
+        assert 'text-transform:uppercase' in block
+
+    def test_keeps_the_canvas_and_rounded_card(self):
+        out = render(SIMPLE, ctx())
+        assert '#f0f4f8' in out.html
+        assert 'border-radius:18px' in out.html
+
+    def test_header_shows_the_brokerage_and_a_purpose_label(self):
+        out = render(SIMPLE, ctx(eyebrow='Market update'))
+        assert 'Origen Realty' in out.html
+        assert 'Market update' in out.html
+
+    def test_hero_has_a_solid_fallback_behind_the_gradient(self):
+        # Outlook drops the gradient; without bgcolor the white text vanishes.
+        out = render([HERO, SIMPLE[1]], ctx())
+        hero_cell = out.html.split('class="hero-pad"')[1][:400]
+        assert 'bgcolor="#102a43"' in hero_cell
+        assert 'background-color:#102a43' in hero_cell
+
+    def test_adapts_on_a_phone(self):
+        out = render([HERO, SIMPLE[1]], ctx())
+        assert '@media only screen and (max-width:600px)' in out.html
+        assert '.hero-title' in out.html
 
 
 class TestPersonalize:
@@ -353,7 +657,7 @@ class TestPersonalize:
 
     def test_preview_uses_example_values(self):
         subject, html_out = preview(SIMPLE, ctx(), 'Hi {{contact.first_name}}')
-        assert subject == 'Hi Sarah'
+        assert subject == 'Hi John'
         assert '{{' not in html_out
 
 
@@ -418,6 +722,32 @@ class TestFairHousingLinter:
         by_field = {(f.field, f.block_index) for f in findings}
         assert ('subject', None) in by_field
         assert ('text', 1) in by_field
+
+    def test_scans_hero_copy(self):
+        # The hero is the largest text in the email, so it is the worst place
+        # for an unscanned field.
+        blocks = validate_blocks([
+            {'type': 'hero', 'title': 'Perfect for families',
+             'accent': 'in a safe neighborhood', 'eyebrow': 'Adults only'},
+            {'type': 'paragraph', 'text': 'Details inside.'},
+        ])
+        findings = compliance.scan_blocks(blocks)
+        assert {f.field for f in findings} == {'title', 'accent', 'eyebrow'}
+
+    def test_scans_step_copy(self):
+        blocks = validate_blocks([
+            {'type': 'steps', 'steps': [
+                {'title': 'Tour the area', 'text': 'Great schools nearby.'},
+            ]},
+        ])
+        findings = compliance.scan_blocks(blocks)
+        assert any(f.field == 'steps' for f in findings)
+
+    def test_scans_callout_copy(self):
+        blocks = validate_blocks([
+            {'type': 'callout', 'text': 'Perfect for families.'},
+        ])
+        assert compliance.scan_blocks(blocks)
 
     def test_scans_bullets_and_stat_labels(self):
         blocks = validate_blocks([

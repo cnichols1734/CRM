@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, TaskType, TaskSubtype, ContactEmail, ContactVoiceMemo
-from feature_flags import can_access_transactions, feature_required
+from models import db, Contact, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, TaskType, TaskSubtype, ContactEmail, ContactVoiceMemo, MarketingSend
+from feature_flags import can_access_transactions, feature_required, org_has_feature
 from forms import ContactForm
 from services import supabase_storage
 from services.tenant_service import org_query, can_view_all_org_data, org_can_add_contact
@@ -188,6 +188,16 @@ def view_contact(contact_id):
     if gmail_connected:
         email_threads = gmail_service.get_email_threads_for_contact(contact.id, current_user.id)
 
+    show_marketing = org_has_feature('EMAIL_CAMPAIGNS')
+    marketing_sends = []
+    if show_marketing:
+        marketing_sends = (
+            MarketingSend.query.filter_by(contact_id=contact.id)
+            .order_by(MarketingSend.created_at.desc())
+            .limit(20)
+            .all()
+        )
+
     return render_template('contacts/view.html', 
                          contact=contact, 
                          all_groups=all_groups,
@@ -199,7 +209,41 @@ def view_contact(contact_id):
                          contact_files=contact_files,
                          recent_interactions=recent_interactions,
                          gmail_connected=gmail_connected,
-                         email_threads=email_threads)
+                         email_threads=email_threads,
+                         show_marketing=show_marketing,
+                         marketing_sends=marketing_sends)
+
+
+@contacts_bp.route('/contact/<int:contact_id>/marketing-consent', methods=['POST'])
+@login_required
+def update_marketing_consent(contact_id):
+    if not org_has_feature('EMAIL_CAMPAIGNS'):
+        abort(404)
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        abort(403)
+    state = (request.form.get('marketing_consent') or '').strip()
+    if state not in Contact.MARKETING_CONSENT_STATES:
+        flash('Pick a valid marketing preference.', 'error')
+        return redirect(url_for('contacts.view_contact', contact_id=contact.id))
+    contact.marketing_consent = state
+    contact.marketing_consent_source = 'manual'
+    contact.marketing_consent_at = datetime.utcnow()
+    if contact.email:
+        from services.marketing.suppression import (
+            REASON_UNSUBSCRIBE, release, suppress,
+        )
+        if state == 'opted_out':
+            suppress(
+                contact.email, REASON_UNSUBSCRIBE,
+                organization_id=current_user.organization_id,
+                created_by_id=current_user.id,
+            )
+        else:
+            release(contact.email, current_user.organization_id, actor_id=current_user.id)
+    db.session.commit()
+    flash('Marketing preference saved.', 'success')
+    return redirect(url_for('contacts.view_contact', contact_id=contact.id) + '#marketing')
 
 
 @contacts_bp.route('/contact/<int:contact_id>/preview')

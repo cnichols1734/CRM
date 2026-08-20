@@ -167,6 +167,8 @@ def register():
         try:
             create_default_task_types_for_org(org.id)
             create_default_transaction_types_for_org(org.id)
+            from services.marketing.system_templates import seed_for_org
+            seed_for_org(org.id, commit=True)
         except Exception:
             current_app.logger.exception(
                 'Failed to seed default org data during signup org_id=%s owner_email=%s',

@@ -1152,9 +1152,14 @@ def dashboard():
 
 @main_bp.route('/marketing')
 @login_required
-@feature_required('MARKETING')
 def marketing():
-    return render_template('marketing.html')
+    from feature_flags import org_has_feature
+    if org_has_feature('EMAIL_CAMPAIGNS'):
+        return redirect(url_for('marketing.overview'))
+    if org_has_feature('MARKETING'):
+        return render_template('marketing.html')
+    flash('This feature requires a subscription upgrade.', 'warning')
+    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/api/update-task-window', methods=['POST'])

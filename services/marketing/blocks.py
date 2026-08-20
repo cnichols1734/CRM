@@ -12,8 +12,9 @@ schema, the MCP guidelines tool, and server-side validation all read from
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 # Only these schemes may appear in a block URL. Everything else (javascript:,
 # data:, file:) is rejected at validation rather than escaped at render, so a
@@ -23,6 +24,7 @@ ALLOWED_URL_SCHEMES = ('http://', 'https://', 'mailto:', 'tel:')
 MAX_BLOCKS = 40
 MAX_STATS = 4
 MAX_BULLETS = 8
+MAX_STEPS = 4
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,19 @@ class BlockSpec:
 
 
 BLOCK_SPECS: tuple[BlockSpec, ...] = (
+    BlockSpec(
+        type='hero',
+        label='Hero',
+        description=(
+            'The dark banner at the top of the email: a small label, a large '
+            'headline, an italic second line, and a sentence underneath. Sets '
+            'the tone for the whole email. Must be the first block, and there '
+            'can only be one.'
+        ),
+        required=('title',),
+        optional=('eyebrow', 'accent', 'text'),
+        limits={'title': 70, 'eyebrow': 32, 'accent': 60, 'text': 260},
+    ),
     BlockSpec(
         type='heading',
         label='Heading',
@@ -108,6 +123,28 @@ BLOCK_SPECS: tuple[BlockSpec, ...] = (
         limits={'stats': MAX_STATS, 'value': 24, 'label': 40},
     ),
     BlockSpec(
+        type='steps',
+        label='Numbered steps',
+        description=(
+            'Two to four numbered items, each with a bold line and an '
+            'explanation. Use when the email asks the reader to do something '
+            'in order. Numbering is added automatically.'
+        ),
+        required=('steps',),
+        limits={'steps': MAX_STEPS, 'title': 90, 'text': 300},
+    ),
+    BlockSpec(
+        type='callout',
+        label='Callout box',
+        description=(
+            'A tinted box for the one detail the reader must not miss: an open '
+            'house date and time, a deadline, an address.'
+        ),
+        required=('text',),
+        optional=('label',),
+        limits={'text': 300, 'label': 48},
+    ),
+    BlockSpec(
         type='quote',
         label='Quote',
         description='A testimonial or a pulled-out line.',
@@ -143,11 +180,22 @@ HEADING_LEVELS = ('h2', 'h3')
 _ALL_FIELDS: tuple[str, ...] = (
     'type', 'text', 'level', 'items', 'label', 'url', 'image_url', 'alt',
     'caption', 'link_url', 'address', 'price', 'beds', 'baths', 'sqft',
-    'stats', 'attribution',
+    'stats', 'attribution', 'title', 'eyebrow', 'accent', 'steps',
 )
 
-_STRING_FIELDS = frozenset(_ALL_FIELDS) - {'items', 'stats'}
+_STRING_FIELDS = frozenset(_ALL_FIELDS) - {'items', 'stats', 'steps'}
 _URL_FIELDS = ('url', 'image_url', 'link_url')
+
+# Blocks that own the top of the email and cannot be repeated.
+_SINGLETON_FIRST = 'hero'
+
+# Single-value fields holding author copy. The compliance linter and
+# ``collect_text`` both read this, so a new copy field is scanned by both or
+# neither rather than silently by one.
+SCANNED_FIELDS: tuple[str, ...] = (
+    'text', 'label', 'alt', 'caption', 'address', 'attribution',
+    'title', 'eyebrow', 'accent',
+)
 
 
 class BlockError(ValueError):
@@ -262,6 +310,37 @@ def ai_generation_schema() -> dict:
                             'type': ['string', 'null'],
                             'description': 'Who said it, for a quote block.',
                         },
+                        'title': {
+                            'type': ['string', 'null'],
+                            'description': 'The large headline in a hero block.',
+                        },
+                        'eyebrow': {
+                            'type': ['string', 'null'],
+                            'description': (
+                                'Two or three words above a hero headline, '
+                                'shown in small uppercase.'
+                            ),
+                        },
+                        'accent': {
+                            'type': ['string', 'null'],
+                            'description': (
+                                'A second hero line, set in italics. Use it to '
+                                'complete the thought the headline starts.'
+                            ),
+                        },
+                        'steps': {
+                            'type': ['array', 'null'],
+                            'items': {
+                                'type': 'object',
+                                'additionalProperties': False,
+                                'required': ['title', 'text'],
+                                'properties': {
+                                    'title': {'type': 'string'},
+                                    'text': {'type': 'string'},
+                                },
+                            },
+                            'description': 'Entries for a steps block.',
+                        },
                     },
                 },
             },
@@ -285,8 +364,31 @@ def describe_blocks_for_agent() -> list[dict]:
 
 
 def is_safe_url(value: str) -> bool:
-    lowered = (value or '').strip().lower()
-    return lowered.startswith(ALLOWED_URL_SCHEMES)
+    stripped = (value or '').strip()
+    lowered = stripped.lower()
+    if lowered.startswith(ALLOWED_URL_SCHEMES):
+        return True
+    # Starter templates leave the destination as a bracketed placeholder.
+    # A real send still refuses unfilled placeholders; this just lets the
+    # library exist without a fake https URL in every listing email.
+    return bool(re.fullmatch(r'\[[^\[\]]{2,60}\]', stripped))
+
+
+def is_real_url(value: str) -> bool:
+    """A clickable destination, not a bracketed 'fill this in later' token."""
+    return (value or '').strip().lower().startswith(ALLOWED_URL_SCHEMES)
+
+
+def missing_button_url_message(blocks: list[dict]) -> Optional[str]:
+    """Why a template with a button cannot be saved yet, or None if it can."""
+    for block in blocks or []:
+        if block.get('type') != 'button':
+            continue
+        url = (block.get('url') or '').strip()
+        label = (block.get('label') or 'button').strip() or 'button'
+        if not is_real_url(url):
+            return f'Add a URL for the "{label}" button before saving.'
+    return None
 
 
 def _clean_str(value: Any) -> str:
@@ -296,6 +398,20 @@ def _clean_str(value: Any) -> str:
         value = str(value)
     # Collapse the control characters that break table layout in Outlook.
     return value.replace('\r', '').replace('\x00', '').strip()
+
+
+def _clean_pairs(value: Any, keys: tuple[str, str]) -> list[dict]:
+    """Clean a list of two-field objects, dropping entries that are all empty."""
+    if not isinstance(value, list):
+        return []
+    out: list[dict] = []
+    for entry in value:
+        if not isinstance(entry, dict):
+            continue
+        cleaned = {key: _clean_str(entry.get(key)) for key in keys}
+        if any(cleaned.values()):
+            out.append(cleaned)
+    return out
 
 
 def normalize_blocks(raw: Any) -> list[dict]:
@@ -333,16 +449,13 @@ def normalize_blocks(raw: Any) -> list[dict]:
                 if cleaned:
                     block['items'] = cleaned
             elif key == 'stats':
-                cleaned_stats = []
-                for entry in value:
-                    if not isinstance(entry, dict):
-                        continue
-                    stat_value = _clean_str(entry.get('value'))
-                    stat_label = _clean_str(entry.get('label'))
-                    if stat_value or stat_label:
-                        cleaned_stats.append({'value': stat_value, 'label': stat_label})
+                cleaned_stats = _clean_pairs(value, ('value', 'label'))
                 if cleaned_stats:
                     block['stats'] = cleaned_stats
+            elif key == 'steps':
+                cleaned_steps = _clean_pairs(value, ('title', 'text'))
+                if cleaned_steps:
+                    block['steps'] = cleaned_steps
             else:
                 cleaned = _clean_str(value)
                 if cleaned:
@@ -372,20 +485,42 @@ def validate_blocks(raw: Any) -> list[dict]:
     if not has_content:
         raise BlockError('An email needs some actual content, not only a divider or signature.')
 
+    # The hero is a full-width banner rendered outside the padded content area,
+    # so it only works at the very top. Enforced here rather than quietly moved,
+    # because a model that put it in the middle meant something else.
+    heroes = [i for i, b in enumerate(blocks) if b['type'] == _SINGLETON_FIRST]
+    if len(heroes) > 1:
+        raise BlockError('An email can only have one hero block.')
+    if heroes and heroes[0] != 0:
+        raise BlockError('A hero block has to be the first block in the email.')
+
     for index, block in enumerate(blocks, start=1):
         spec = BLOCK_SPECS_BY_TYPE[block['type']]
         where = f'Block {index} ({spec.label})'
 
         for name in spec.required:
             if not block.get(name):
+                if block['type'] == 'button' and name == 'url':
+                    label = block.get('label') or 'button'
+                    raise BlockError(
+                        f'Add a URL for the "{label}" button before saving.'
+                    )
                 raise BlockError(f'{where} is missing {name}.')
+
+        if block['type'] == 'steps':
+            for position, entry in enumerate(block.get('steps') or [], start=1):
+                if not entry.get('title'):
+                    raise BlockError(f'{where} step {position} is missing its title.')
 
         for name in _URL_FIELDS:
             value = block.get(name)
-            if value and not is_safe_url(value):
+            # A bracketed placeholder is a legal draft value; the send path
+            # refuses any template that still carries one.
+            if value and not is_safe_url(value) and not is_placeholder(value):
                 raise BlockError(
                     f'{where} has an unsupported link. Links must start with '
-                    'http://, https://, mailto:, or tel:.'
+                    'http://, https://, mailto:, or tel:, or be a placeholder '
+                    'in brackets to fill in later.'
                 )
 
         for name, limit in spec.limits.items():
@@ -395,6 +530,9 @@ def validate_blocks(raw: Any) -> list[dict]:
             elif name == 'stats':
                 if len(block.get('stats') or []) > limit:
                     raise BlockError(f'{where} can hold at most {limit} figures.')
+            elif name == 'steps':
+                if len(block.get('steps') or []) > limit:
+                    raise BlockError(f'{where} can hold at most {limit} steps.')
             elif name == 'item':
                 for entry in block.get('items') or []:
                     if len(entry) > limit:
@@ -404,6 +542,12 @@ def validate_blocks(raw: Any) -> list[dict]:
                     if len(entry.get(name, '')) > limit:
                         raise BlockError(
                             f'{where} has a figure {name} over {limit} characters.'
+                        )
+            elif name in ('title', 'text') and block['type'] == 'steps':
+                for entry in block.get('steps') or []:
+                    if len(entry.get(name, '')) > limit:
+                        raise BlockError(
+                            f'{where} has a step {name} over {limit} characters.'
                         )
             elif name in _STRING_FIELDS:
                 value = block.get(name) or ''
@@ -416,11 +560,48 @@ def validate_blocks(raw: Any) -> list[dict]:
     return blocks
 
 
+# Bracketed placeholder, as in "Open house Saturday at [address]". Starter
+# templates use them for the details only the agent can supply.
+PLACEHOLDER_RE = re.compile(r'\[[^\[\]]{2,60}\]')
+# A field that is nothing but a placeholder. URL fields allow this and only
+# this: a link is either real or obviously unfilled, never half of each.
+PLACEHOLDER_ONLY_RE = re.compile(r'^\[[^\[\]]{2,60}\]$')
+
+
+def is_placeholder(value: str) -> bool:
+    return bool(PLACEHOLDER_ONLY_RE.match((value or '').strip()))
+
+
+def find_placeholders(blocks: list[dict], *extra_text: str) -> list[str]:
+    """Unfilled placeholders, in the order they appear.
+
+    Sending "[address]" to three hundred clients is the kind of mistake that is
+    obvious afterwards and invisible beforehand, so the send path checks. Drafts
+    are allowed to carry them; that is the whole point of a starter template.
+
+    URL fields are included, because a button pointing at "[listing link]" is
+    the most embarrassing version of this bug.
+    """
+    found: list[str] = []
+    seen: set[str] = set()
+    urls = [
+        value for block in blocks for name in _URL_FIELDS
+        if (value := block.get(name))
+    ]
+    haystack = '\n'.join([*(t for t in extra_text if t), collect_text(blocks), *urls])
+    for match in PLACEHOLDER_RE.finditer(haystack):
+        token = match.group(0)
+        if token not in seen:
+            seen.add(token)
+            found.append(token)
+    return found
+
+
 def collect_text(blocks: list[dict]) -> str:
     """Every author-supplied string in one blob, for compliance scanning."""
     parts: list[str] = []
     for block in blocks:
-        for key in ('text', 'label', 'alt', 'caption', 'address', 'attribution'):
+        for key in SCANNED_FIELDS:
             value = block.get(key)
             if value:
                 parts.append(value)
@@ -429,4 +610,18 @@ def collect_text(blocks: list[dict]) -> str:
         for entry in block.get('stats') or []:
             if entry.get('label'):
                 parts.append(entry['label'])
+        for entry in block.get('steps') or []:
+            parts.extend(v for v in (entry.get('title'), entry.get('text')) if v)
     return '\n'.join(parts)
+
+
+def insert_before_signature(blocks: list, extra: list) -> list:
+    """Slide extra blocks in above the closing signature, if one exists."""
+    extras = [block for block in extra if isinstance(block, dict)]
+    if not extras:
+        return list(blocks or [])
+    out = list(blocks or [])
+    for index in range(len(out) - 1, -1, -1):
+        if out[index].get('type') == 'signature':
+            return out[:index] + extras + out[index:]
+    return out + extras

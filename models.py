@@ -3815,6 +3815,7 @@ class Notification(db.Model):
         'portal': 'Client Portal',
         'bob_action': 'B.O.B. Changes',
         'document_review': 'Document Review',
+        'marketing': 'Email campaigns',
     }
 
     def mark_read(self):
@@ -4644,8 +4645,9 @@ class MarketingSend(db.Model):
         'deferred', 'failed', 'skipped',
     }
     SKIP_REASONS = {
-        'no_email', 'suppressed', 'opted_out', 'duplicate_email',
-        'missing_merge_field', 'over_quota', 'campaign_cancelled',
+        'no_email', 'suppressed', 'opted_out', 'consent_required',
+        'duplicate_email', 'missing_merge_field', 'over_quota',
+        'campaign_cancelled', 'unfilled_placeholder',
     }
     MAX_ATTEMPTS = 3
 

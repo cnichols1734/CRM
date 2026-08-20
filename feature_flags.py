@@ -59,8 +59,8 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
         'MARKETING': False,  # Still disabled for all
-        # Ships dark. Deliverability reputation on the shared sending domain is
-        # only as good as the first orgs to use it, so rollout is per-org.
+        # First live cohort is enterprise plus platform super-admins. Free and
+        # Pro stay off so a bad campaign cannot burn the shared sending domain.
         'EMAIL_CAMPAIGNS': False,
         'TAX_PROTEST': False,
         'MCP_CONNECTOR': True,
@@ -83,7 +83,7 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
         'MARKETING': True,
-        'EMAIL_CAMPAIGNS': False,
+        'EMAIL_CAMPAIGNS': True,
         'TAX_PROTEST': True,
         'MCP_CONNECTOR': True,
     }
@@ -110,6 +110,21 @@ FEATURE_FLAGS = {
 # FEATURE CHECK FUNCTIONS
 # =============================================================================
 
+def _current_user_is_super_admin() -> bool:
+    """Request-scoped platform admin (Chris / Cassie), not an org-tier check."""
+    try:
+        from flask import has_request_context
+        from flask_login import current_user
+    except Exception:
+        return False
+    if not has_request_context():
+        return False
+    return bool(
+        getattr(current_user, 'is_authenticated', False)
+        and getattr(current_user, 'is_super_admin', False)
+    )
+
+
 def org_has_feature(feature_name: str, org=None) -> bool:
     """
     Check if organization has access to a feature.
@@ -133,6 +148,10 @@ def org_has_feature(feature_name: str, org=None) -> bool:
 
     if feature_name in GLOBAL_FEATURE_OVERRIDES:
         return GLOBAL_FEATURE_OVERRIDES[feature_name]
+
+    # Super-admins keep marketing when they switch into a free/pro org.
+    if feature_name == 'EMAIL_CAMPAIGNS' and _current_user_is_super_admin():
+        return True
     
     # Platform admin org (Origen) gets everything
     if org.is_platform_admin:
@@ -280,6 +299,11 @@ def get_org_features(org=None) -> dict:
             features[feature_name] = enabled
 
     features.update(GLOBAL_FEATURE_OVERRIDES)
+    if (
+        'EMAIL_CAMPAIGNS' not in GLOBAL_FEATURE_OVERRIDES
+        and _current_user_is_super_admin()
+    ):
+        features['EMAIL_CAMPAIGNS'] = True
     
     return features
 
