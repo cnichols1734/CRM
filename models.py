@@ -32,6 +32,8 @@ class Organization(db.Model):
     name = db.Column(db.String(200), nullable=False)
     slug = db.Column(db.String(100), unique=True, nullable=False)
     logo_url = db.Column(db.String(500))
+    # Client iPhone app accent. Unset uses the product orange.
+    brand_accent = db.Column(db.String(7))
     
     # Subscription tier
     subscription_tier = db.Column(db.String(50), default='free')  # free, pro, enterprise
@@ -4068,14 +4070,18 @@ class ActivationEvent(db.Model):
 # =============================================================================
 
 class ClientPortalAccess(db.Model):
-    """A private, revocable magic link that lets one transaction participant
-    (a seller) view their own transaction in the client portal.
+    """A private, revocable grant that lets one transaction participant
+    view their own transaction in the client portal.
 
-    Auth is the token itself: a long, url-safe random string. There is no
-    password and no User account. The link can be rotated or revoked by the
-    agent at any time. One row per participant per transaction.
+    The HTML portal still authenticates with ``token`` in the URL. The
+    iPhone app uses ``invite_code`` exchanged for a short-lived JWT.
+    Both bind this one participant on this one transaction. The agent
+    can rotate or revoke the grant at any time.
     """
     __tablename__ = 'client_portal_access'
+
+    INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    INVITE_CODE_LENGTH = 8
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
@@ -4085,8 +4091,14 @@ class ClientPortalAccess(db.Model):
     participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id',
                                ondelete='CASCADE'), nullable=False, index=True)
 
-    # The secret in the URL. ~43 chars from token_urlsafe(32).
+    # The secret in the HTML portal URL. ~43 chars from token_urlsafe(32).
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+
+    # Human invite code for the iPhone app. Stored without a hyphen.
+    invite_code = db.Column(db.String(16), unique=True, nullable=True, index=True)
+    invite_expires_at = db.Column(db.DateTime, nullable=True)
+    # Bumped on rotate and on session leave so existing JWTs stop working.
+    session_version = db.Column(db.Integer, nullable=False, default=1)
 
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -4103,6 +4115,78 @@ class ClientPortalAccess(db.Model):
     def generate_token():
         """Cryptographically secure, url-safe token (~43 chars)."""
         return secrets.token_urlsafe(32)
+
+    @classmethod
+    def generate_invite_code(cls):
+        """Short unambiguous code. Letters and digits that do not look alike."""
+        for _ in range(12):
+            raw = ''.join(
+                secrets.choice(cls.INVITE_ALPHABET)
+                for _ in range(cls.INVITE_CODE_LENGTH)
+            )
+            taken = cls.query.filter_by(invite_code=raw).first()
+            if not taken:
+                return raw
+        return ''.join(
+            secrets.choice(cls.INVITE_ALPHABET)
+            for _ in range(cls.INVITE_CODE_LENGTH + 2)
+        )
+
+    @staticmethod
+    def normalize_invite_code(value):
+        if not value:
+            return ''
+        return ''.join(ch for ch in str(value).upper() if ch.isalnum())
+
+    @classmethod
+    def format_invite_code(cls, value):
+        raw = cls.normalize_invite_code(value)
+        if len(raw) == cls.INVITE_CODE_LENGTH:
+            return f'{raw[:4]}-{raw[4:]}'
+        return raw or None
+
+    @classmethod
+    def find_by_invite_code(cls, value):
+        raw = cls.normalize_invite_code(value)
+        if not raw:
+            return None
+        return cls.query.filter_by(invite_code=raw).first()
+
+    def ensure_invite_code(self):
+        if not self.invite_code:
+            self.invite_code = self.generate_invite_code()
+        if not self.session_version:
+            self.session_version = 1
+        return self.invite_code
+
+    def rotate_invite(self):
+        """Issue a fresh invite code and web token. Existing JWTs die."""
+        self.token = self.generate_token()
+        self.invite_code = self.generate_invite_code()
+        self.session_version = (self.session_version or 1) + 1
+        self.is_active = True
+        self.revoked_at = None
+        self.invite_expires_at = None
+        self.view_count = 0
+        self.last_viewed_at = None
+
+    def revoke(self):
+        self.is_active = False
+        self.revoked_at = datetime.utcnow()
+        self.session_version = (self.session_version or 1) + 1
+
+    def bump_session(self):
+        """Invalidate issued JWTs. The invite code still works."""
+        self.session_version = (self.session_version or 1) + 1
+
+    def invite_is_expired(self, now=None):
+        if not self.invite_expires_at:
+            return False
+        return (now or datetime.utcnow()) > self.invite_expires_at
+
+    @property
+    def invite_code_display(self):
+        return self.format_invite_code(self.invite_code)
 
     def record_view(self):
         self.view_count = (self.view_count or 0) + 1

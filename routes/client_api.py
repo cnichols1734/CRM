@@ -1,0 +1,242 @@
+"""JSON API for the client iPhone app.
+
+Wraps the existing client portal. Auth is a ClientPortalAccess grant:
+invite code in, short-lived JWT out. Flask-Login cookies are ignored.
+Do not put the grant token in a URL.
+"""
+from __future__ import annotations
+
+import logging
+from functools import wraps
+
+from flask import Blueprint, g, jsonify, request
+from sqlalchemy import text
+
+from models import db, PortalMessage, SellerShowing
+from services.client_portal_auth import (
+    JWT_TTL_SECONDS,
+    branding_for_access,
+    exchange_invite_code,
+    issue_client_jwt,
+    load_access_from_jwt,
+)
+from services.portal_service import (
+    CLIENT_PORTAL_ROLES,
+    SELLER_ROLES,
+    documents_for_client_api,
+    list_client_messages,
+    serialize_client_deal,
+)
+
+logger = logging.getLogger(__name__)
+
+client_api_bp = Blueprint('client_api', __name__, url_prefix='/api/client/v1')
+
+
+def _json_error(message, status=401):
+    return jsonify({'error': message}), status
+
+
+def _set_org_context(org_id: int) -> None:
+    try:
+        db.session.execute(
+            text("SELECT set_config('app.current_org_id', :org_id, false)"),
+            {'org_id': str(org_id)},
+        )
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+@client_api_bp.teardown_request
+def _reset_org_context(exc=None):
+    try:
+        db.session.execute(text('RESET app.current_org_id'))
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+def _bearer_token():
+    header = request.headers.get('Authorization') or ''
+    if header.lower().startswith('bearer '):
+        return header[7:].strip()
+    return ''
+
+
+def client_jwt_required(view):
+    """Authorize from the client JWT only. A CRM cookie is not enough."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        token = _bearer_token()
+        if not token:
+            return _json_error('Sign in with your invite code first.', 401)
+        access, error = load_access_from_jwt(token)
+        if error:
+            return _json_error(error, 401)
+
+        _set_org_context(access.organization_id)
+
+        tx = access.transaction
+        participant = access.participant
+        if (
+            tx is None
+            or participant is None
+            or participant.transaction_id != tx.id
+            or (participant.role or '') not in CLIENT_PORTAL_ROLES
+        ):
+            return _json_error('This invite is no longer active.', 401)
+
+        g.client_access = access
+        return view(access, *args, **kwargs)
+
+    return wrapper
+
+
+@client_api_bp.route('/session', methods=['POST'])
+def create_session():
+    data = request.get_json(silent=True) or {}
+    code = data.get('code') or request.form.get('code')
+    access, error = exchange_invite_code(code)
+    if error:
+        return _json_error(error, 401)
+
+    _set_org_context(access.organization_id)
+    tx = access.transaction
+    participant = access.participant
+    if (
+        tx is None
+        or participant is None
+        or participant.transaction_id != tx.id
+        or (participant.role or '') not in CLIENT_PORTAL_ROLES
+    ):
+        return _json_error('This invite is no longer active.', 401)
+
+    try:
+        access.record_view()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    token = issue_client_jwt(access)
+    return jsonify({
+        'token': token,
+        'token_type': 'Bearer',
+        'expires_in': JWT_TTL_SECONDS,
+        'branding': branding_for_access(access),
+    })
+
+
+@client_api_bp.route('/session/leave', methods=['POST'])
+@client_jwt_required
+def leave_session(access):
+    access.bump_session()
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@client_api_bp.route('/deal', methods=['GET'])
+@client_jwt_required
+def get_deal(access):
+    deal = serialize_client_deal(access)
+    deal['branding'] = branding_for_access(access)
+    return jsonify(deal)
+
+
+@client_api_bp.route('/messages', methods=['GET'])
+@client_jwt_required
+def get_messages(access):
+    return jsonify({'messages': list_client_messages(access)})
+
+
+@client_api_bp.route('/messages', methods=['POST'])
+@client_jwt_required
+def post_message(access):
+    data = request.get_json(silent=True) or {}
+    body = (data.get('body') or request.form.get('body') or '').strip()
+    if not body:
+        return _json_error('Write a message before sending.', 400)
+    if len(body) > 4000:
+        body = body[:4000]
+
+    msg = PortalMessage(
+        organization_id=access.organization_id,
+        transaction_id=access.transaction_id,
+        participant_id=access.participant_id,
+        sender='client',
+        kind='message',
+        body=body,
+    )
+    db.session.add(msg)
+    db.session.commit()
+
+    try:
+        from routes.portal import _notify_agent_of_message
+        _notify_agent_of_message(access, body)
+    except Exception:
+        logger.exception('Client API: failed to notify agent of client message.')
+
+    return jsonify({
+        'message': list_client_messages(access)[-1],
+    }), 201
+
+
+@client_api_bp.route('/documents', methods=['GET'])
+@client_jwt_required
+def get_documents(access):
+    return jsonify(documents_for_client_api(access))
+
+
+def _showing_for_access(access, showing_id):
+    role = (getattr(access.participant, 'role', None) or '').lower()
+    if role not in SELLER_ROLES:
+        return None, _json_error('Showing approvals are for sellers on this listing.', 403)
+    showing = SellerShowing.query.filter_by(
+        id=showing_id,
+        transaction_id=access.transaction_id,
+        organization_id=access.organization_id,
+    ).first()
+    if not showing:
+        return None, _json_error('Showing not found.', 404)
+    if showing.status != SellerShowing.STATUS_PENDING_APPROVAL:
+        return None, _json_error('This showing is not waiting for your approval.', 409)
+    return showing, None
+
+
+@client_api_bp.route('/showings/<int:showing_id>/approve', methods=['POST'])
+@client_jwt_required
+def approve_showing(access, showing_id):
+    from datetime import datetime
+
+    showing, error_response = _showing_for_access(access, showing_id)
+    if error_response:
+        return error_response
+    showing.status = SellerShowing.STATUS_APPROVED
+    showing.approved_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({
+        'ok': True,
+        'showing_id': showing.id,
+        'status': showing.status,
+    })
+
+
+@client_api_bp.route('/showings/<int:showing_id>/decline', methods=['POST'])
+@client_jwt_required
+def decline_showing(access, showing_id):
+    showing, error_response = _showing_for_access(access, showing_id)
+    if error_response:
+        return error_response
+    showing.status = SellerShowing.STATUS_DECLINED
+    db.session.commit()
+    return jsonify({
+        'ok': True,
+        'showing_id': showing.id,
+        'status': showing.status,
+    })

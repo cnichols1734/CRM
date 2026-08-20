@@ -497,10 +497,14 @@ def _showings_block(tx):
         lvl = getattr(s, 'feedback_interest_level', None)
         if lvl in interest_counts:
             interest_counts[lvl] += 1
+        status_key = (s.status or 'scheduled')
         items.append({
+            'id': s.id,
             'date': start.strftime('%a, %b %-d') if start else 'Scheduled',
             'time': start.strftime('%-I:%M %p') if start else None,
-            'status': (s.status or 'scheduled').replace('_', ' ').title(),
+            'status': status_key.replace('_', ' ').title(),
+            'status_key': status_key,
+            'can_decide': status_key == 'pending_approval',
             'agent_brokerage': getattr(s, 'showing_agent_brokerage', None),
             'has_feedback': has_fb,
             'interest': INTEREST_LABELS.get(lvl) if lvl else None,
@@ -735,3 +739,165 @@ def _updates_block(tx, participant):
             'author': (f'{author.first_name}' if author else 'Your agent'),
         })
     return out
+
+
+# --------------------------------------------------------------------------
+# JSON projection for the client iPhone app
+# --------------------------------------------------------------------------
+
+_DEAL_KEYS = (
+    'portal_role',
+    'client_first_name',
+    'property',
+    'agent',
+    'headline',
+    'headline_statement',
+    'stages',
+    'current_stage_index',
+    'current_stage',
+    'progress_pct',
+    'showings',
+    'offers',
+    'milestones',
+    'requirements',
+    'documents',
+    'price_changes',
+    'net_proceeds',
+    'updates',
+)
+
+# Keys that must never leave the client-safe DTO, even if a future helper
+# adds them. Commission, lockbox, RentCast, and other-party contact fields.
+_FORBIDDEN_KEY_MARKERS = (
+    'commission',
+    'lockbox',
+    'gate_code',
+    'alarm',
+    'rentcast',
+    'access_instructions',
+    'access_type',
+    'private_notes',
+    'showing_agent_email',
+    'showing_agent_phone',
+    'showing_agent_name',
+    'buyer_name',
+    'buyer_names',
+    'buyer_agent_email',
+    'buyer_agent_phone',
+    'potential_commission',
+)
+
+
+def serialize_client_deal(access):
+    """JSON-ready, client-safe deal from ``build_portal_context``."""
+    ctx = build_portal_context(access)
+    deal = {key: _json_safe(ctx.get(key)) for key in _DEAL_KEYS}
+    _assert_client_safe(deal)
+    return deal
+
+
+def list_client_messages(access, limit=50):
+    """Deal-scoped notes for this participant only."""
+    from models import PortalMessage
+
+    msgs = (
+        PortalMessage.query.filter_by(
+            transaction_id=access.transaction_id,
+            participant_id=access.participant_id,
+        )
+        .order_by(PortalMessage.created_at.asc())
+        .limit(limit)
+        .all()
+    )
+    out = []
+    for m in msgs:
+        author = getattr(m, 'author', None)
+        if m.sender == 'client':
+            author_name = _participant_first_name(access.participant)
+        elif author and author.first_name:
+            author_name = author.first_name
+        else:
+            author_name = 'Your agent'
+        created = getattr(m, 'created_at', None)
+        out.append({
+            'id': m.id,
+            'sender': m.sender,
+            'kind': m.kind,
+            'body': m.body,
+            'author': author_name,
+            'created_at': created.isoformat() if created else None,
+            'date': _day(created),
+        })
+    return out
+
+
+def documents_for_client_api(access):
+    """Participant-only docs, with short-lived signed URLs on completed files."""
+    ctx = build_portal_context(access)
+    documents = ctx.get('documents') or {}
+    completed = []
+    for item in documents.get('completed') or []:
+        row = dict(item)
+        row['view_url'] = None
+        if row.get('can_view') and row.get('doc_id'):
+            row['view_url'] = _signed_doc_url(access, row['doc_id'])
+        completed.append(row)
+    return {
+        'needs_signature': list(documents.get('needs_signature') or []),
+        'completed': completed,
+        'needs_count': documents.get('needs_count', 0),
+        'completed_count': documents.get('completed_count', 0),
+    }
+
+
+def _signed_doc_url(access, doc_id):
+    from models import TransactionDocument
+    from services.supabase_storage import get_transaction_document_url
+
+    doc = TransactionDocument.query.filter_by(
+        id=doc_id, transaction_id=access.transaction_id).first()
+    email = (access.participant.display_email or '').strip().lower()
+    if not doc or doc.status != 'signed' or not doc.signed_file_path:
+        return None
+    sigs = doc.signatures.all()
+    if sigs and not any((s.signer_email or '').strip().lower() == email for s in sigs):
+        return None
+    try:
+        return get_transaction_document_url(doc.signed_file_path, expires_in=3600)
+    except Exception:
+        logger.exception('Client API: failed to sign document URL for doc %s', doc_id)
+        return None
+
+
+def _json_safe(value):
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    try:
+        from decimal import Decimal
+        if isinstance(value, Decimal):
+            return float(value)
+    except Exception:
+        pass
+    return str(value)
+
+
+def _assert_client_safe(payload):
+    """Drop any forbidden keys that slipped into the projection."""
+    if isinstance(payload, dict):
+        for key in list(payload.keys()):
+            hay = str(key).lower()
+            if any(marker in hay for marker in _FORBIDDEN_KEY_MARKERS):
+                payload.pop(key, None)
+                continue
+            _assert_client_safe(payload[key])
+    elif isinstance(payload, list):
+        for item in payload:
+            _assert_client_safe(item)

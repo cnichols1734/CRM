@@ -43,6 +43,8 @@ def _serialize(participant, access):
         'has_link': access is not None,
         'access_id': access.id if access else None,
         'url': _link_url(access) if access else None,
+        'invite_code': (
+            access.invite_code_display if access and access.invite_code else None),
         'view_count': access.view_count if access else 0,
         'last_viewed': (
             access.last_viewed_at.strftime('%b %d, %Y')
@@ -119,9 +121,14 @@ def portal_create_link(id):
             transaction_id=transaction.id,
             participant_id=participant.id,
             token=ClientPortalAccess.generate_token(),
+            invite_code=ClientPortalAccess.generate_invite_code(),
+            session_version=1,
             is_active=True,
         )
         db.session.add(access)
+        db.session.commit()
+    else:
+        access.ensure_invite_code()
         db.session.commit()
 
     return jsonify({'success': True, 'link': _serialize(participant, access)})
@@ -138,11 +145,7 @@ def portal_rotate_link(id, access_id):
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first_or_404()
-    access.token = ClientPortalAccess.generate_token()
-    access.is_active = True
-    access.revoked_at = None
-    access.view_count = 0
-    access.last_viewed_at = None
+    access.rotate_invite()
     db.session.commit()
     return jsonify({'success': True, 'link': _serialize(access.participant, access)})
 
@@ -152,14 +155,12 @@ def portal_rotate_link(id, access_id):
 @transactions_required
 def portal_revoke_link(id, access_id):
     """Turn off a portal link. The seller's URL stops working immediately."""
-    from datetime import datetime
     transaction = _get_transaction(id)
     access = ClientPortalAccess.query.filter_by(
         id=access_id,
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first_or_404()
-    access.is_active = False
-    access.revoked_at = datetime.utcnow()
+    access.revoke()
     db.session.commit()
     return jsonify({'success': True, 'participant_id': access.participant_id})

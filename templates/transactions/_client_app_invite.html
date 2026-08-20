@@ -1,0 +1,108 @@
+{# Invite codes for the client iPhone app. Sellers and buyers only. #}
+{% if can_access_transactions(current_user) %}
+<section class="crm-surface" id="client-app-invite">
+    <div class="crm-surface-header">
+        {{ section_header('Client app invite') }}
+    </div>
+    <div class="crm-surface-body space-y-3">
+        <p class="text-sm" style="color: var(--ink-3);">
+            Give this person a short code to open their transaction in the iPhone app.
+            The code works only for that person on this transaction.
+        </p>
+        {% if client_invite_participants|default([]) %}
+        <ul class="divide-y divide-slate-100">
+            {% for participant in client_invite_participants %}
+            {% set access = (client_invite_by_id|default({})).get(participant.id) %}
+            <li class="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0"
+                data-participant-id="{{ participant.id }}"
+                data-access-id="{{ access.id if access else '' }}">
+                <div class="min-w-0">
+                    <div class="truncate text-sm font-medium text-slate-900">{{ participant.display_name }}</div>
+                    <div class="text-xs text-slate-500">{{ participant.role|replace('_', ' ')|title }}</div>
+                </div>
+                {% if access and access.invite_code %}
+                <div class="flex flex-wrap items-center gap-2">
+                    <code class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-semibold tracking-wider text-slate-900">{{ access.invite_code_display }}</code>
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary"
+                            data-client-invite-action="rotate">
+                        Rotate code
+                    </button>
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary"
+                            data-client-invite-action="revoke">
+                        Revoke
+                    </button>
+                </div>
+                {% else %}
+                <div>
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary"
+                            data-client-invite-action="create">
+                        Create invite
+                    </button>
+                </div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-slate-500">Add a seller or buyer, then you can create an invite.</p>
+        {% endif %}
+    </div>
+</section>
+<script>
+(function () {
+    var card = document.getElementById('client-app-invite');
+    if (!card) return;
+    var txId = {{ transaction.id }};
+
+    function post(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(body || {})
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.error || 'Could not update the invite.');
+                }
+                return data;
+            });
+        });
+    }
+
+    card.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-client-invite-action]');
+        if (!button) return;
+        var row = button.closest('[data-participant-id]');
+        if (!row) return;
+        var action = button.getAttribute('data-client-invite-action');
+        var participantId = row.getAttribute('data-participant-id');
+        var accessId = row.getAttribute('data-access-id');
+        var req;
+        if (action === 'create') {
+            req = post('/transactions/' + txId + '/portal/create', { participant_id: Number(participantId) });
+        } else if (action === 'rotate' && accessId) {
+            req = post('/transactions/' + txId + '/portal/' + accessId + '/rotate', {});
+        } else if (action === 'revoke' && accessId) {
+            req = post('/transactions/' + txId + '/portal/' + accessId + '/revoke', {});
+        } else {
+            return;
+        }
+        button.disabled = true;
+        req.then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            alert(err.message || 'Could not update the invite.');
+            button.disabled = false;
+        });
+    });
+})();
+</script>
+{% endif %}
