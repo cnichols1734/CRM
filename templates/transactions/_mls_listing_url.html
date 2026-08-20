@@ -19,6 +19,7 @@
             Save
         </button>
     </div>
+    <p class="hidden text-xs text-red-700" data-mls-listing-error></p>
     {% if transaction.mls_listing_url %}
     <a href="{{ transaction.mls_listing_url }}"
        target="_blank"
@@ -80,10 +81,14 @@
             }
             window.location.reload();
         }).catch(function (err) {
+            var message = err.message || 'Could not save that listing link.';
             if (typeof showToast === 'function') {
-                showToast(err.message || 'Could not save that listing link.', 'error');
-            } else {
-                alert(err.message || 'Could not save that listing link.');
+                showToast(message, 'error');
+            }
+            var line = field.querySelector('[data-mls-listing-error]');
+            if (line) {
+                line.textContent = message;
+                line.classList.remove('hidden');
             }
             saveBtn.disabled = false;
             saveBtn.textContent = original;
