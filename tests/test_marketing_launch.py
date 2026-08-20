@@ -64,11 +64,18 @@ class TestLaunch:
         with app.app_context():
             org, owner = load_org_user(seed)
             enable_campaigns(org)
-            template = ready_template(org, owner)
-            make_contact(
+            template = ready_template(org, owner, name='Queue sendable')
+            good = make_contact(
+                org, owner, first='Queued', last='Good',
+                email='queued-good@example.com',
+            )
+            missing = make_contact(
                 org, owner, first='No', last='Mail', email=None,
             )
-            campaign = _draft(org, owner, template)
+            campaign = _draft(
+                org, owner, template,
+                filt={'contact_ids': [good.id, missing.id]},
+            )
             result = launchmod.launch(campaign, org, owner)
             assert result.sendable >= 1
             assert result.skipped >= 1
@@ -141,7 +148,7 @@ class TestLaunch:
             org, owner = load_org_user(seed)
             enable_campaigns(org)
             st.seed_for_org(org.id)
-            make_contact(
+            pat = make_contact(
                 org, owner, first='Pat', last='Ready',
                 email='pat-ready@example.com',
             )
@@ -151,7 +158,10 @@ class TestLaunch:
                     source='system',
                     name=spec['name'],
                 ).one()
-                campaign = _draft(org, owner, template)
+                campaign = _draft(
+                    org, owner, template,
+                    filt={'contact_ids': [pat.id]},
+                )
                 result = launchmod.launch(campaign, org, owner)
                 assert result.sendable >= 1, spec['name']
 

@@ -4,8 +4,9 @@ from datetime import datetime
 import pytest
 
 from models import (
-    MarketingCampaign, MarketingCampaignStep, MarketingSend,
-    MarketingTemplate, Organization, User, Contact, db,
+    MarketingAudience, MarketingCampaign, MarketingCampaignStep,
+    MarketingEnrollment, MarketingSend, MarketingTemplate,
+    MarketingTemplateVersion, Organization, User, Contact, db,
 )
 from services.marketing import sending_config as sc
 from services.marketing import suppression
@@ -246,9 +247,12 @@ def usage(app, seed):
 
     with app.app_context():
         MarketingSend.query.delete()
+        MarketingEnrollment.query.delete()
         MarketingCampaignStep.query.delete()
         MarketingCampaign.query.delete()
+        MarketingTemplateVersion.query.delete()
         MarketingTemplate.query.delete()
+        MarketingAudience.query.delete()
         db.session.commit()
 
 

@@ -137,9 +137,20 @@ def _owner_ids(filt: Filter, user) -> Optional[list[int]]:
     return [user.id]
 
 
+def _unique_contacts(contacts) -> list[Contact]:
+    seen: set[int] = set()
+    out: list[Contact] = []
+    for contact in contacts:
+        if contact.id in seen:
+            continue
+        seen.add(contact.id)
+        out.append(contact)
+    return out
+
+
 def _sort_contacts(contacts) -> list[Contact]:
     return sorted(
-        contacts,
+        _unique_contacts(contacts),
         key=lambda c: (
             (c.last_name or '').lower(),
             (c.first_name or '').lower(),
@@ -215,7 +226,7 @@ def matching_contacts(organization_id: int, filt: Filter, user) -> list[Contact]
         for contact in picked:
             by_id[contact.id] = contact
         return _sort_contacts(by_id.values())
-    return _sort_contacts(filtered)
+    return _sort_contacts(_unique_contacts(filtered))
 
 
 @dataclass

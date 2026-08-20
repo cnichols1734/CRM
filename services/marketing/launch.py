@@ -183,7 +183,11 @@ def launch(
             mark_used(step.template or db.session.get(MarketingTemplate, step.template_id))
             seen_templates.add(step.template_id)
 
+    enrolled: set[int] = set()
     for recipient in estimate.sendable:
+        if recipient.contact.id in enrolled:
+            continue
+        enrolled.add(recipient.contact.id)
         enrollment = MarketingEnrollment(
             organization_id=campaign.organization_id,
             campaign_id=campaign.id,
@@ -217,6 +221,9 @@ def launch(
             pass
 
     for exclusion in estimate.excluded:
+        if exclusion.contact.id in enrolled:
+            continue
+        enrolled.add(exclusion.contact.id)
         enrollment = MarketingEnrollment(
             organization_id=campaign.organization_id,
             campaign_id=campaign.id,
