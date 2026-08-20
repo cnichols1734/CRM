@@ -30,7 +30,7 @@
         <form method="post" class="mkt-campaign">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
             <select class="sr-only" name="template_id" required data-marketing-campaign-wizard-target="templateInput" tabindex="-1" aria-hidden="true">
-                <option value="">Choose one</option>
+                <option value="">Pick a template</option>
                 {% for template in templates %}
                 <option value="{{ template.id }}" {% if selected_id|string == template.id|string %}selected{% endif %}>{{ template.name }}</option>
                 {% endfor %}
@@ -88,6 +88,7 @@
                                    value="{{ posted.get('name', '') if posted else '' }}">
                         </label>
                         <span class="crm-label">Template</span>
+                        <p class="crm-section-description">Pick a template</p>
                         <div class="crm-segment mkt-kind mb-3" role="tablist" aria-label="Template source">
                             <button type="button" class="crm-segment__item is-active"
                                     data-marketing-campaign-wizard-target="source"
@@ -389,7 +390,7 @@
                 <aside class="mkt-campaign__rail">
                     <div class="crm-surface mkt-preview">
                         <p class="crm-section-kicker">Template</p>
-                        <p class="mkt-preview__name" data-marketing-campaign-wizard-target="previewMeta">Choose one</p>
+                        <p class="mkt-preview__name" data-marketing-campaign-wizard-target="previewMeta">Pick a template</p>
                         <div class="mkt-preview__stage">
                             <iframe title="Template preview"
                                     class="mkt-preview__frame"
@@ -399,7 +400,7 @@
                                     data-controller="marketing-cover"
                                     data-marketing-cover-target="frame"
                                     data-marketing-campaign-wizard-target="preview"></iframe>
-                            <p class="mkt-preview__empty" data-marketing-campaign-wizard-target="previewEmpty">Choose one</p>
+                            <p class="mkt-preview__empty" data-marketing-campaign-wizard-target="previewEmpty">Pick a template</p>
                         </div>
                         <label class="block mt-4">
                             <span class="crm-label">Preview as</span>

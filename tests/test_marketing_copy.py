@@ -187,3 +187,15 @@ class TestLockedMarketingCopy:
         assert 'Send it before the portals do.' not in starters
         assert 'Numbers, not headlines.' in starters
         assert 'What sold last month.' not in starters
+
+    def test_addendum_54(self):
+        wizard = _read('templates', 'marketing', 'wizard.html')
+        assert '<option value="">Pick a template</option>' in wizard
+        assert '<p class="crm-section-description">Pick a template</p>' in wizard
+        assert 'previewMeta">Pick a template</p>' in wizard
+        assert 'previewEmpty">Pick a template</p>' in wizard
+        assert 'Choose one' not in wizard
+        starters = _read('services', 'marketing', 'system_templates.py')
+        assert 'Numbers, not headlines.' in starters
+        assert 'What sold last month.' not in starters
+
