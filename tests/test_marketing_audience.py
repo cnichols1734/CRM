@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from models import Contact, db
+from models import Contact, ContactGroup, db
 from services.marketing import audience as aud
 from services.marketing.suppression import REASON_MANUAL, suppress
 
@@ -48,9 +48,24 @@ class TestAudienceEstimate:
     def test_filters_by_group(self, app, seed):
         with app.app_context():
             org, owner = load_org_user(seed)
-            estimate = aud.estimate(org.id, {'groups': [seed['group_a1']]}, owner)
+            group = ContactGroup(
+                name='Audience Buyers',
+                organization_id=org.id,
+                user_id=owner.id,
+                category='general',
+                sort_order=99,
+                is_active=True,
+            )
+            db.session.add(group)
+            contact = make_contact(
+                org, owner, first='Group', last='Member',
+                email='group-member@example.com',
+            )
+            contact.groups.append(group)
+            db.session.commit()
+            estimate = aud.estimate(org.id, {'groups': [group.id]}, owner)
             assert estimate.sendable_count == 1
-            assert estimate.sendable[0].contact.id == seed['contact_a']
+            assert estimate.sendable[0].contact.id == contact.id
 
     def test_filters_by_zip_prefix(self, app, seed):
         with app.app_context():
