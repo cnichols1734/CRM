@@ -55,8 +55,9 @@ class TestMarketingPages:
 
     def test_wizard_is_a_campaign_studio_with_preview(self, owner_a_client, app, seed):
         with app.app_context():
-            org, _ = load_org_user(seed)
+            org, owner = load_org_user(seed)
             enable_campaigns(org)
+            ready_template(org, owner, name='Studio preview')
             db.session.commit()
         resp = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
         assert resp.status_code == 200
