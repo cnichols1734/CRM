@@ -34,19 +34,18 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'category': 'check_in',
         'description': 'A short note to past clients when you have nothing to sell.',
         'subject': 'Checking in, {{contact.first_name|there}}',
-        'preheader': 'No agenda here. Just wanted to see how you are doing.',
+        'preheader': 'Checking in. How are you doing?',
         'blocks': [
             {'type': 'hero',
              'eyebrow': 'Checking in',
              'title': 'Just wanted to say hi.',
-             'accent': 'Nothing to sell.',
+             'accent': 'Just saying hi.',
              'text': (
-                 'You crossed my mind. A short note, with no pitch attached.'
+                 'Been thinking about you. Short note, no pitch.'
              )},
             {'type': 'paragraph', 'text': (
                 'Hi {{contact.first_name|there}},\n\n'
-                'No agenda with this one. You crossed my mind and I wanted to '
-                'see how you are doing.'
+                'Checking in. How are things on your end?'
             )},
             {'type': 'paragraph', 'text': (
                 'If anything has changed on your end, or you are just curious '
@@ -228,9 +227,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
                 'me be part of it. From my house to yours, happy holidays.'
             )},
             {'type': 'paragraph', 'text': (
-                'Getting to know the people I work with is the part of this '
-                'job I would keep if I had to give up the rest. Thank you for '
-                'that.'
+                'Thank you for letting me work with you.'
             )},
             {'type': 'signature'},
         ],

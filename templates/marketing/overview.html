@@ -54,7 +54,7 @@
                 {% endfor %}
             </ul>
             {% else %}
-                {% call empty_state('No campaigns yet', 'Pick a template, pick who it goes to, and send.', 'fa-envelope') %}
+                {% call empty_state('No campaigns yet', 'Use New campaign to send a template to contacts in your CRM.', 'fa-envelope') %}
                     <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">Start a campaign</a>
                 {% endcall %}
             {% endif %}

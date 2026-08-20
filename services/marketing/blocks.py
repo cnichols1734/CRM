@@ -81,8 +81,7 @@ BLOCK_SPECS: tuple[BlockSpec, ...] = (
         type='button',
         label='Button',
         description=(
-            'The primary call to action. One per email; a second button splits '
-            'attention and lowers clicks on both.'
+            'One button per email. A second button usually gets ignored.'
         ),
         required=('label', 'url'),
         limits={'label': 40, 'url': 900},

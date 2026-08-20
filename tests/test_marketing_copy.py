@@ -93,3 +93,40 @@ class TestLockedMarketingCopy:
         assert 'Three numbers from last month and what they mean.' in starters
         assert 'A nearby sale, plus an offer to run the same numbers for them.' in starters
         assert 'A short holiday note with nothing to sell.' in starters
+
+    def test_addendum_29_to_38(self):
+        wizard = _read('templates', 'marketing', 'wizard.html')
+        assert 'Pick a group, ZIP, or city to see how many contacts get this.' in wizard
+        assert 'Pick a filter to see how many people this reaches.' not in wizard
+        assert 'Pick people or a filter to see how many this reaches.' not in wizard
+
+        unsubscribe = _read('templates', 'marketing', 'unsubscribe.html')
+        assert 'You&rsquo;re subscribed again.' in unsubscribe
+        assert 'You&rsquo;re back on the list' not in unsubscribe
+
+        overview = _read('templates', 'marketing', 'overview.html')
+        assert 'Use New campaign to send a template to contacts in your CRM.' in overview
+        assert 'Pick a template, pick who it goes to, and send.' not in overview
+
+        settings = _read('templates', 'marketing', 'settings.html')
+        assert (
+            'Brokerage details go in every email footer. '
+            'Fill them in before you send a campaign.'
+        ) in settings
+        assert 'Without them, nothing sends.' not in settings
+
+        blocks = _read('services', 'marketing', 'blocks.py')
+        assert 'One button per email. A second button usually gets ignored.' in blocks
+        assert 'The primary call to action.' not in blocks
+
+        starters = _read('services', 'marketing', 'system_templates.py')
+        assert 'Checking in. How are you doing?' in starters
+        assert 'Just saying hi.' in starters
+        assert 'Been thinking about you. Short note, no pitch.' in starters
+        assert 'Checking in. How are things on your end?' in starters
+        assert 'Thank you for letting me work with you.' in starters
+        assert 'No agenda here. Just wanted to see how you are doing.' not in starters
+        assert 'Nothing to sell.' not in starters
+        assert 'You crossed my mind. A short note, with no pitch attached.' not in starters
+        assert 'No agenda with this one.' not in starters
+        assert 'Getting to know the people I work with' not in starters
