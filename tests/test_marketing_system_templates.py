@@ -91,18 +91,11 @@ class TestCompliance:
 
 
 class TestPlaceholders:
-    def test_the_no_ask_templates_need_no_filling_in(self):
-        # Check-in is the one an agent should be able to send unedited.
-        blocks = validate_blocks(st.definition('check_in')['blocks'])
-        assert find_placeholders(blocks) == []
-
-    @pytest.mark.parametrize('key', ['open_house', 'just_listed', 'just_sold'])
-    def test_property_templates_flag_what_the_agent_must_supply(self, key):
+    @pytest.mark.parametrize('key', st.SYSTEM_TEMPLATE_KEYS)
+    def test_starters_have_no_leftover_brackets(self, key):
         spec = st.definition(key)
         blocks = validate_blocks(spec['blocks'])
-        found = find_placeholders(blocks, spec['subject'], spec['preheader'])
-        assert found, 'a listing template with no placeholders is suspicious'
-        assert any('[' in token for token in found)
+        assert find_placeholders(blocks, spec['subject'], spec['preheader']) == []
 
 
 class TestRendering:

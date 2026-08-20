@@ -7,11 +7,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from models import (
     MarketingCampaign, MarketingCampaignStep, MarketingEnrollment,
-    MarketingSend, db,
+    MarketingSend, MarketingTemplate, db,
 )
 from services.marketing import drip
 from services.marketing import launch as launchmod
 from services.marketing import send as sendmod
+from services.marketing import system_templates as st
 
 from marketing_helpers import (
     enable_campaigns, load_org_user, make_contact, ready_template,
@@ -134,6 +135,25 @@ class TestLaunch:
                     campaign_id=campaign.id, status='queued',
                 ).count()
                 assert leftover == 0
+
+    def test_launch_accepts_every_system_starter(self, app, seed):
+        with app.app_context():
+            org, owner = load_org_user(seed)
+            enable_campaigns(org)
+            st.seed_for_org(org.id)
+            make_contact(
+                org, owner, first='Pat', last='Ready',
+                email='pat-ready@example.com',
+            )
+            for spec in st.SYSTEM_TEMPLATES:
+                template = MarketingTemplate.query.filter_by(
+                    organization_id=org.id,
+                    source='system',
+                    name=spec['name'],
+                ).one()
+                campaign = _draft(org, owner, template)
+                result = launchmod.launch(campaign, org, owner)
+                assert result.sendable >= 1, spec['name']
 
 
 class TestDrip:

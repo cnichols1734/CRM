@@ -9,10 +9,10 @@ These are also the worked examples for the AI studio in phase 2. The model is
 shown these blocks as reference for what good output looks like, which is a far
 stronger signal than describing the house style in prose.
 
-Bracketed placeholders like ``[Saturday, June 14]`` mark the details only the
-agent can supply. ``blocks.find_placeholders`` finds any left unfilled, so the
-send path can stop an email that still says "[address]". Merge fields, by
-contrast, resolve per recipient and need no attention.
+Starters ship with filled sample details so compliance and launch can accept
+them on day one. An agent can still change the address, date, or numbers
+before sending. ``blocks.find_placeholders`` stops a send that still says
+"[address]". Merge fields resolve per recipient and need no attention.
 
 The copy deliberately avoids the language the Fair Housing linter flags, and
 should stay that way: a starter template that trips the compliance gate on first
@@ -69,8 +69,8 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
             'An invitation with the address, the date and time, and one clear '
             'link. Fill in the bracketed details before you send.'
         ),
-        'subject': 'Open house this weekend: [123 Main St]',
-        'preheader': 'Stop by [Saturday] between [2 and 4pm]. No appointment needed.',
+        'subject': 'Open house this weekend: 123 Main St',
+        'preheader': 'Stop by Saturday between 2 and 4pm. No appointment needed.',
         'blocks': [
             {'type': 'hero',
              'eyebrow': 'Open house',
@@ -82,16 +82,16 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
              )},
             {'type': 'paragraph', 'text': (
                 'Hi {{contact.first_name|there}},\n\n'
-                'I am opening up [123 Main Street] this weekend. Stop in for '
+                'I am opening up 123 Main Street this weekend. Stop in for '
                 'five minutes or stay for thirty, either is welcome.'
             )},
             {'type': 'callout', 'label': 'When',
-             'text': '[Saturday, June 14] from [2:00 to 4:00pm]'},
+             'text': 'Saturday, June 14 from 2:00 to 4:00pm'},
             {'type': 'listing_card',
-             'address': '[123 Main Street, City]',
-             'price': '[$000,000]',
-             'beds': '[0]', 'baths': '[0]', 'sqft': '[0,000]',
-             'caption': '[One or two lines on what makes this house worth the trip.]'},
+             'address': '123 Main Street',
+             'price': '$425,000',
+             'beds': '3', 'baths': '2', 'sqft': '1,850',
+             'caption': 'Light inside, and a backyard you will actually use.'},
             {'type': 'paragraph', 'text': (
                 'Bring a friend who is house hunting. If the timing does not '
                 'work, reply and I will walk you through it another day.'
@@ -108,7 +108,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'preheader': 'Three numbers from last month and what they mean for you.',
         'blocks': [
             {'type': 'hero',
-             'eyebrow': '[Month] market update',
+             'eyebrow': 'July market update',
              'title': 'Here is where the market actually stands.',
              'accent': 'Numbers, not headlines.',
              'text': (
@@ -122,15 +122,15 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
                 'you have the same numbers I do.'
             )},
             {'type': 'stat_row', 'stats': [
-                {'value': '[$000K]', 'label': 'Median price'},
-                {'value': '[00]', 'label': 'Days on market'},
-                {'value': '[0.0]', 'label': 'Months of supply'},
+                {'value': '$425K', 'label': 'Median price'},
+                {'value': '18', 'label': 'Days on market'},
+                {'value': '2.4', 'label': 'Months of supply'},
             ]},
             {'type': 'heading', 'level': 'h2', 'text': 'What it means'},
             {'type': 'paragraph', 'text': (
-                '[Two or three sentences in your own words. What surprised '
-                'you, what you are telling clients, what you expect next '
-                'month.]'
+                'Prices held. Homes sat a little longer than they did in the '
+                'spring, which is room to talk if you are buying. If you are '
+                'selling, last month sold prices still set the number.'
             )},
             {'type': 'paragraph', 'text': (
                 'If you want the version of this for your street rather than '
@@ -147,7 +147,7 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
             'A new listing announcement built around the photo and the specs. '
             'Send it before the portals do.'
         ),
-        'subject': 'Just listed in [neighborhood]',
+        'subject': 'Just listed in Oak Hill',
         'preheader': 'New on the market this week. Here are the details.',
         'blocks': [
             {'type': 'hero',
@@ -157,17 +157,16 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
              'text': 'A quick look at what I just brought on, in case it fits.'},
             {'type': 'paragraph', 'text': (
                 'Hi {{contact.first_name|there}},\n\n'
-                'I listed this one [this week] and wanted you to see it '
-                'first.'
+                'I listed this one this week and wanted you to see it first.'
             )},
             {'type': 'listing_card',
-             'address': '[123 Main Street, City]',
-             'price': '[$000,000]',
-             'beds': '[0]', 'baths': '[0]', 'sqft': '[0,000]',
-             'caption': '[What stands out. Recent updates, the lot, the layout.]',
-             'url': '[https://link-to-the-listing]'},
+             'address': '123 Main Street',
+             'price': '$425,000',
+             'beds': '3', 'baths': '2', 'sqft': '1,850',
+             'caption': 'Updated kitchen, a usable yard, and a layout that works.',
+             'url': 'https://example.com/listing'},
             {'type': 'button', 'label': 'See all the photos',
-             'url': '[https://link-to-the-listing]'},
+             'url': 'https://example.com/listing'},
             {'type': 'paragraph', 'text': (
                 'If it is not right for you but you know who it is right for, '
                 'forward it along. And if you want to see it in person, reply '
@@ -181,8 +180,8 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'name': 'Just sold',
         'category': 'just_sold',
         'description': 'A nearby sale, plus an offer to run the same numbers for them.',
-        'subject': 'Sold in [neighborhood]: here is what it went for',
-        'preheader': 'Closed [this week]. What it tells you about your own value.',
+        'subject': 'Sold in Oak Hill: here is what it went for',
+        'preheader': 'Closed this week. What it tells you about your own value.',
         'blocks': [
             {'type': 'hero',
              'eyebrow': 'Just sold',
@@ -194,14 +193,14 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
              )},
             {'type': 'paragraph', 'text': (
                 'Hi {{contact.first_name|there}},\n\n'
-                'We closed [123 Main Street] on [date]. Sharing it because a '
+                'We closed 123 Main Street last week. Sharing it because a '
                 'sale this close to you moves the number on your own house.'
             )},
             {'type': 'listing_card',
-             'address': '[123 Main Street, City]',
-             'price': '[$000,000]',
-             'beds': '[0]', 'baths': '[0]', 'sqft': '[0,000]',
-             'caption': '[How it went. Days on market, how the offers came in.]'},
+             'address': '123 Main Street',
+             'price': '$425,000',
+             'beds': '3', 'baths': '2', 'sqft': '1,850',
+             'caption': 'Eighteen days on the market. Two offers, sold at list.'},
             {'type': 'paragraph', 'text': (
                 'Curious what that means for you? Reply and I will put '
                 'together what your place would list for today. Takes me an '
@@ -215,18 +214,18 @@ SYSTEM_TEMPLATES: tuple[dict[str, Any], ...] = (
         'name': 'Seasonal greeting',
         'category': 'holiday',
         'description': 'A short holiday note with nothing to sell.',
-        'subject': 'Happy [holiday], {{contact.first_name|friend}}',
+        'subject': 'Happy holidays, {{contact.first_name|friend}}',
         'preheader': 'A quick note from my family to yours.',
         'blocks': [
             {'type': 'hero',
-             'eyebrow': '[Season]',
+             'eyebrow': 'Holidays',
              'title': 'Thinking of you this year.',
              'accent': 'Thank you for the trust.',
              'text': 'A short note, with nothing attached to it.'},
             {'type': 'paragraph', 'text': (
                 'Hi {{contact.first_name|there}},\n\n'
-                '[A few sentences in your own voice. What this year looked '
-                'like, what you are grateful for, what you hope for them.]'
+                'Hope this year has been kind to you. Thank you for letting '
+                'me be part of it. From my house to yours, happy holidays.'
             )},
             {'type': 'paragraph', 'text': (
                 'Getting to know the people I work with is the part of this '

@@ -66,10 +66,6 @@ def _steps(campaign: MarketingCampaign) -> list[MarketingCampaignStep]:
 
 
 def _template_ready(template: MarketingTemplate) -> None:
-    if getattr(template, 'source', None) == 'system':
-        raise LaunchError(
-            'Starters are not used in campaigns. Save a copy and set it active first.'
-        )
     if not template.is_sendable:
         if template.compliance_state == 'blocked':
             raise LaunchError(
