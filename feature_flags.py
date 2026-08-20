@@ -38,6 +38,7 @@ TIER_FEATURES = {
         'MARKET_INSIGHTS': True,
         'MARKETING': False,
         'TAX_PROTEST': False,
+        'MCP_CONNECTOR': True,
     },
     'pro': {
         'CONTACTS': True,
@@ -58,6 +59,7 @@ TIER_FEATURES = {
         'MARKET_INSIGHTS': True,
         'MARKETING': False,  # Still disabled for all
         'TAX_PROTEST': False,
+        'MCP_CONNECTOR': True,
     },
     'enterprise': {
         'CONTACTS': True,
@@ -78,6 +80,7 @@ TIER_FEATURES = {
         'MARKET_INSIGHTS': True,
         'MARKETING': True,
         'TAX_PROTEST': True,
+        'MCP_CONNECTOR': True,
     }
 }
 
@@ -159,6 +162,7 @@ FEATURE_LABELS = {
     'MARKET_INSIGHTS': 'Market insights',
     'MARKETING': 'Marketing',
     'TAX_PROTEST': 'Tax protest',
+    'MCP_CONNECTOR': 'AgentFlow MCP',
 }
 
 

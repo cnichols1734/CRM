@@ -19,6 +19,8 @@ from models import (
     ActivationEvent, BobAction, Contact, Interaction, Task, UserTodo, db,
 )
 from services.bob_tools import (
+    CONFIRM_INTERACTIVE,
+    CONFIRM_PRECLEARED,
     RISK_HIGH_WRITE,
     RISK_LOW_WRITE,
     RISK_READ,
@@ -1571,6 +1573,56 @@ class TestDeletes:
             assert applied.ok is True
             assert applied.undoable is False
             assert undo_action(applied.action_id, ctx_owner_a).ok is False
+
+    def test_default_confirmation_is_interactive(self, app, scratch_contact, ctx_owner_a):
+        import inspect
+        signature = inspect.signature(dispatch)
+        assert signature.parameters['confirmation'].default == CONFIRM_INTERACTIVE
+
+        with app.app_context():
+            original = Contact.query.get(scratch_contact).city
+            result = dispatch('update_contact', {
+                'contact_id': scratch_contact, 'fields': {'city': 'Katy'},
+            }, ctx_owner_a)
+            assert result.requires_confirmation is True
+            assert Contact.query.get(scratch_contact).city == original
+
+    def test_precleared_executes_high_write_and_audits(self, app, scratch_contact, ctx_owner_a):
+        with app.app_context():
+            result = dispatch(
+                'update_contact',
+                {'contact_id': scratch_contact, 'fields': {'city': 'Pearland'}},
+                ctx_owner_a,
+                confirmation=CONFIRM_PRECLEARED,
+            )
+
+            assert result.ok is True
+            assert result.requires_confirmation is False
+            assert Contact.query.get(scratch_contact).city == 'Pearland'
+            assert result.data.get('preview') is not None
+
+            action = BobAction.query.filter_by(
+                tool_name='update_contact',
+                user_id=ctx_owner_a.user_id,
+                status=BobAction.STATUS_EXECUTED,
+            ).order_by(BobAction.id.desc()).first()
+            assert action is not None
+            assert action.status == BobAction.STATUS_EXECUTED
+            assert action.executed_at is not None
+
+    def test_unknown_confirmation_falls_back_to_interactive(
+        self, app, scratch_contact, ctx_owner_a,
+    ):
+        with app.app_context():
+            original = Contact.query.get(scratch_contact).city
+            result = dispatch(
+                'update_contact',
+                {'contact_id': scratch_contact, 'fields': {'city': 'Alvin'}},
+                ctx_owner_a,
+                confirmation='not-a-real-policy',
+            )
+            assert result.requires_confirmation is True
+            assert Contact.query.get(scratch_contact).city == original
 
 
 class TestUnknownTool:

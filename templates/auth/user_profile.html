@@ -336,6 +336,25 @@
                         </div>
                         {% endif %}
 
+                        {% if mcp_enabled %}
+                        <div class="integration-row">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="integration-row__icon">
+                                    <i class="fas fa-plug" style="color: var(--accent);"></i>
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="integration-row__title">AgentFlow MCP</p>
+                                    <p class="integration-row__desc">
+                                        Connect Claude Cowork or a similar client. It acts as you.
+                                    </p>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('mcp.settings') }}" class="crm-btn crm-btn-sm crm-btn-primary">
+                                Manage
+                            </a>
+                        </div>
+                        {% endif %}
+
                         {# Calendar #}
                         <div class="integration-row
                             {% if gmail_integration and gmail_integration.calendar_sync_enabled %}is-on{% endif %}

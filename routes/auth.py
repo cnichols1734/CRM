@@ -468,12 +468,17 @@ def view_user_profile():
         and org_has_feature('BOB_TELEGRAM', current_user.organization)
     )
     telegram_channel = get_active_channel(current_user.id) if telegram_enabled else None
+    mcp_enabled = bool(
+        current_user.organization
+        and org_has_feature('MCP_CONNECTOR', current_user.organization)
+    )
     return render_template(
         'auth/user_profile.html',
         user=current_user,
         gmail_integration=gmail_integration,
         telegram_enabled=telegram_enabled,
         telegram_channel=telegram_channel,
+        mcp_enabled=mcp_enabled,
     )
 
 @auth_bp.route('/profile/update', methods=['POST'])
@@ -504,6 +509,8 @@ def update_profile():
                     flash('New passwords do not match', 'error')
                     return redirect(url_for('auth.view_user_profile'))
                 current_user.set_password(new_password)
+                from services.mcp.access import revoke_user_mcp_grants
+                revoke_user_mcp_grants(current_user)
 
             db.session.commit()
             flash('Profile updated successfully', 'success')
@@ -600,6 +607,8 @@ def reset_password(token):
     form = ResetPasswordForm()
     if form.validate_on_submit():
         user.set_password(form.password.data)
+        from services.mcp.access import revoke_user_mcp_grants
+        revoke_user_mcp_grants(user)
         db.session.commit()
         record_event(
             ActivationEvent.PASSWORD_RESET_COMPLETED,
@@ -687,6 +696,8 @@ def edit_user(user_id):
             new_password = request.form.get('new_password')
             if new_password:
                 user.set_password(new_password)
+                from services.mcp.access import revoke_user_mcp_grants
+                revoke_user_mcp_grants(user)
             
             db.session.commit()
             flash('User updated successfully', 'success')

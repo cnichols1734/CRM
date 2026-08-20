@@ -19,6 +19,12 @@ RISK_READ = 'read'
 RISK_LOW_WRITE = 'low_write'
 RISK_HIGH_WRITE = 'high_write'
 
+# How high-risk writes are treated. Interactive is the default so existing
+# chat and Telegram call sites keep the confirm-before-apply gate. Precleared
+# is for hosts that already showed the user the tool call (MCP).
+CONFIRM_INTERACTIVE = 'interactive'
+CONFIRM_PRECLEARED = 'precleared'
+
 ADMIN_ORG_ROLES = ('owner', 'admin')
 
 
