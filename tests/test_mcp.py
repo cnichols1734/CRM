@@ -428,6 +428,17 @@ class TestSettingsPages:
         assert resp.status_code == 200
         assert b'Connector URLs' in resp.data
         assert b'/mcp/readonly' in resp.data
+        assert b'I want to connect a custom MCP' in resp.data
+        assert b'Hosted MCP server' in resp.data
+
+    def test_user_profile_has_cowork_setup(self, owner_a_client):
+        resp = owner_a_client.get('/profile')
+        assert resp.status_code == 200
+        assert b'Claude Cowork' in resp.data
+        assert b'I want to connect a custom MCP' in resp.data
+        assert b'Hosted MCP server' in resp.data
+        assert b'OAuth' in resp.data
+        assert b'/mcp' in resp.data
 
     def test_org_owner_can_save_mcp_controls(self, owner_a_client, app, seed):
         resp = owner_a_client.post('/org/settings/mcp', data={

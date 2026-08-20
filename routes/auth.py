@@ -472,6 +472,16 @@ def view_user_profile():
         current_user.organization
         and org_has_feature('MCP_CONNECTOR', current_user.organization)
     )
+    mcp_allowed = False
+    mcp_blocked_reason = ''
+    mcp_url = None
+    readonly_url = None
+    if mcp_enabled:
+        from services.mcp.access import mcp_allowed_for_user
+        from services.mcp.urls import mcp_resource_url
+        mcp_allowed, mcp_blocked_reason = mcp_allowed_for_user(current_user)
+        mcp_url = mcp_resource_url(readonly=False)
+        readonly_url = mcp_resource_url(readonly=True)
     return render_template(
         'auth/user_profile.html',
         user=current_user,
@@ -479,6 +489,10 @@ def view_user_profile():
         telegram_enabled=telegram_enabled,
         telegram_channel=telegram_channel,
         mcp_enabled=mcp_enabled,
+        mcp_allowed=mcp_allowed,
+        mcp_blocked_reason=mcp_blocked_reason,
+        mcp_url=mcp_url,
+        readonly_url=readonly_url,
     )
 
 @auth_bp.route('/profile/update', methods=['POST'])

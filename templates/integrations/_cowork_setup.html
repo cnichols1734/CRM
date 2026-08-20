@@ -1,0 +1,172 @@
+{# Claude Cowork setup: starter prompt + the exact form values. #}
+{% set cowork_prompt = 'I want to connect a custom MCP' %}
+{% set cowork_service = 'AgentFlow, my real estate CRM' %}
+{% set cowork_can_do = "Work in AgentFlow as me. Contacts, tasks, listings, and deals. Drafts only. Do not send email or SMS." %}
+{% set _allowed = mcp_allowed if mcp_allowed is defined else allowed %}
+{% set _reason = mcp_blocked_reason if mcp_blocked_reason is defined else blocked_reason %}
+{% set _manage = cowork_show_manage if cowork_show_manage is defined else false %}
+
+<section id="claude-cowork" class="crm-surface">
+    <header class="crm-surface-header">
+        <div class="flex items-start gap-3 min-w-0">
+            <span class="crm-icon-block shrink-0" style="background:#DA7756;border-color:#DA7756;color:#F4E4C8;" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.15c.2 0 .36.13.41.32l1.7 6.12 6.12 1.7c.19.05.32.21.32.41s-.13.36-.32.41l-6.12 1.7-1.7 6.12c-.05.19-.21.32-.41.32s-.36-.13-.41-.32l-1.7-6.12-6.12-1.7A.42.42 0 0 1 3.45 12c0-.2.13-.36.32-.41l6.12-1.7 1.7-6.12c.05-.19.21-.32.41-.32Z"/>
+                </svg>
+            </span>
+            <div class="min-w-0">
+                <h2 class="crm-section-title">Claude Cowork</h2>
+                <p class="crm-section-description">Connect Claude so it can work in AgentFlow as you.</p>
+            </div>
+        </div>
+        {% if _manage %}
+        <a href="{{ url_for('mcp.settings') }}" class="crm-btn crm-btn-sm crm-btn-secondary shrink-0">
+            Manage connections
+        </a>
+        {% endif %}
+    </header>
+
+    <div class="crm-surface-body">
+        {% if _allowed is defined and _allowed == false %}
+        <div class="crm-notice crm-notice--danger mb-5">
+            <i class="fas fa-ban crm-notice__icon"></i>
+            <p>{{ _reason }}</p>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <div>
+                <p class="crm-eyebrow mb-2">1 · Start here</p>
+                <p class="text-sm mb-3" style="color: var(--ink-2);">
+                    In Cowork, paste this and send it.
+                </p>
+                <label for="cowork-prompt" class="crm-form-label">Prompt</label>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                    <input id="cowork-prompt" type="text" readonly
+                           value="{{ cowork_prompt }}"
+                           class="crm-input flex-1"
+                           aria-label="Cowork starter prompt">
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary whitespace-nowrap js-cowork-copy"
+                            data-copy-text="{{ cowork_prompt }}">
+                        <i class="far fa-copy text-xs"></i>
+                        <span>Copy</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:row-span-2">
+                <p class="crm-eyebrow mb-2">2 · Fill Claude’s form</p>
+                <p class="text-sm mb-4" style="color: var(--ink-2);">
+                    Auth is OAuth. Do not pick API key, and do not put a key in the URL.
+                </p>
+
+                <div>
+                    <div class="py-3 first:pt-0" style="border-bottom: 1px solid var(--hairline);">
+                        <p class="crm-form-label" style="margin-bottom: 2px;">Auth</p>
+                        <p class="text-sm" style="color: var(--ink);">OAuth</p>
+                    </div>
+                    <div class="py-3" style="border-bottom: 1px solid var(--hairline);">
+                        <p class="crm-form-label" style="margin-bottom: 2px;">How API is exposed</p>
+                        <p class="text-sm" style="color: var(--ink);">Hosted MCP server</p>
+                    </div>
+                    <div class="py-3" style="border-bottom: 1px solid var(--hairline);">
+                        <label class="crm-form-label" for="cowork-mcp-url">MCP URL</label>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                            <input id="cowork-mcp-url" type="text" readonly
+                                   value="{{ mcp_url }}"
+                                   class="crm-input crm-mono flex-1"
+                                   aria-label="AgentFlow MCP URL">
+                            <button type="button"
+                                    class="crm-btn crm-btn-secondary whitespace-nowrap js-cowork-copy"
+                                    data-copy-text="{{ mcp_url }}">
+                                <i class="far fa-copy text-xs"></i>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                        {% if readonly_url %}
+                        <p class="crm-form-help">
+                            Read only:
+                            <button type="button"
+                                    class="js-cowork-copy hover:underline"
+                                    style="color: var(--ink-3); font-family: var(--font-mono);"
+                                    data-copy-text="{{ readonly_url }}">{{ readonly_url }}</button>
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="py-3" style="border-bottom: 1px solid var(--hairline);">
+                        <p class="crm-form-label" style="margin-bottom: 2px;">Service</p>
+                        <div class="flex items-start justify-between gap-3">
+                            <p class="text-sm min-w-0" style="color: var(--ink);">{{ cowork_service }}</p>
+                            <button type="button"
+                                    class="crm-btn crm-btn-sm crm-btn-subtle shrink-0 js-cowork-copy"
+                                    data-copy-text="{{ cowork_service }}"><span>Copy</span></button>
+                        </div>
+                    </div>
+                    <div class="py-3" style="border-bottom: 1px solid var(--hairline);">
+                        <p class="crm-form-label" style="margin-bottom: 2px;">What Claude can do</p>
+                        <div class="flex items-start justify-between gap-3">
+                            <p class="text-sm min-w-0" style="color: var(--ink); line-height: 1.5;">{{ cowork_can_do }}</p>
+                            <button type="button"
+                                    class="crm-btn crm-btn-sm crm-btn-subtle shrink-0 js-cowork-copy"
+                                    data-copy-text="{{ cowork_can_do }}"><span>Copy</span></button>
+                        </div>
+                    </div>
+                    <div class="py-3" style="border-bottom: 1px solid var(--hairline);">
+                        <p class="crm-form-label" style="margin-bottom: 2px;">Docs</p>
+                        <p class="text-sm" style="color: var(--ink);">Leave blank, or paste the same MCP URL.</p>
+                    </div>
+                    <div class="pt-3">
+                        <p class="crm-form-label" style="margin-bottom: 2px;">Scopes, if asked</p>
+                        <p class="text-sm" style="color: var(--ink);">read and write. Skip destructive.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <p class="crm-eyebrow mb-2">3 · Approve</p>
+                <p class="text-sm" style="color: var(--ink-2); line-height: 1.55;">
+                    Stay signed in to AgentFlow in this browser. When Claude opens the
+                    consent page, review the tools and approve. Keep <b>read</b> and
+                    <b>write</b>. Skip anything labeled destructive.
+                </p>
+            </div>
+        </div>
+
+        <p class="text-[11px] mt-6" style="color: var(--ink-4);">
+            Claude cannot send email or SMS.
+            {% if _manage %}
+            Gmail drafts only work if Gmail send is connected on this page.
+            {% else %}
+            Gmail drafts only work if
+            <a href="{{ url_for('auth.view_user_profile') }}" class="hover:underline" style="color: var(--ink-3);">Gmail send is connected in Profile</a>.
+            {% endif %}
+        </p>
+    </div>
+</section>
+<script>
+(function () {
+    var root = document.getElementById('claude-cowork');
+    if (!root || root.dataset.coworkCopyBound) return;
+    root.dataset.coworkCopyBound = '1';
+    root.querySelectorAll('.js-cowork-copy').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var text = btn.getAttribute('data-copy-text') || '';
+            if (!text) return;
+            var label = btn.querySelector('span');
+            var done = function () {
+                if (!label) return;
+                var previous = label.textContent;
+                label.textContent = 'Copied';
+                setTimeout(function () { label.textContent = previous; }, 1500);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(done);
+            } else {
+                done();
+            }
+        });
+    });
+})();
+</script>

@@ -6,7 +6,7 @@
 
 {% block content %}
 <div class="crm-page">
-    <div class="crm-page__inner max-w-[720px]">
+    <div class="crm-page__inner max-w-[880px]">
         <a href="{{ url_for('auth.view_user_profile') }}"
            class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
             <i class="fas fa-arrow-left text-xs"></i>
@@ -16,19 +16,16 @@
         {% set _title = 'AgentFlow <em>MCP</em>' %}
         {% call page_header(_title, 'Let Claude Cowork or a similar client work in AgentFlow as you.', 'Integrations') %}{% endcall %}
 
-        {% if not allowed %}
-        <div class="crm-notice crm-notice--danger mb-6">
-            <i class="fas fa-ban crm-notice__icon"></i>
-            <p>{{ blocked_reason }}</p>
+        <div class="mb-6">
+            {% include 'integrations/_cowork_setup.html' %}
         </div>
-        {% endif %}
 
         <section class="crm-surface mb-6">
             <header class="crm-surface-header">
                 <div>
                     <h2 class="crm-section-title">Connector URLs</h2>
                     <p class="crm-section-description">
-                        In Claude: Connectors → Add custom connector → paste a URL → authorize here.
+                        Cursor and other MCP clients can paste a URL here, then authorize in AgentFlow.
                     </p>
                 </div>
             </header>
