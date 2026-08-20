@@ -57,6 +57,8 @@ from routes.portal import portal_bp
 from routes.groups import groups_bp
 from routes.analytics_webhooks import analytics_webhooks_bp
 from routes.bob_telegram import bob_telegram_bp
+from routes.mcp import mcp_bp
+from routes.mcp_oauth import mcp_oauth_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
@@ -268,6 +270,8 @@ def create_app():
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
+    app.register_blueprint(mcp_oauth_bp)
+    app.register_blueprint(mcp_bp)
 
     @app.route('/robots.txt')
     def robots_txt():

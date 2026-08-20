@@ -25,14 +25,19 @@ from typing import Callable
 
 from models import BobAction, db
 from services.bob_tools import attachments as attachment_tools
+from services.bob_tools import briefing as briefing_tools
 from services.bob_tools import contacts as contact_tools
+from services.bob_tools import email as email_tools
 from services.bob_tools import interactions as interaction_tools
+from services.bob_tools import listings as listing_tools
 from services.bob_tools import tasks as task_tools
 from services.bob_tools import todos as todo_tools
 from services.bob_tools import transactions as tx_tools
 from services.bob_tools.common import ToolError
 from services.bob_tools.notifications import forget_action, notify_actions
 from services.bob_tools.context import (
+    CONFIRM_INTERACTIVE,
+    CONFIRM_PRECLEARED,
     RISK_HIGH_WRITE,
     RISK_LOW_WRITE,
     RISK_READ,
@@ -732,6 +737,39 @@ TOOLS: tuple[Tool, ...] = (
         handler=todo_tools.complete_todo,
         undo=todo_tools.undo_complete_todo,
     ),
+    Tool(
+        name='get_daily_briefing',
+        description=(
+            'Return today\'s CRM briefing slice: overdue work, due-today tasks, '
+            'cold contacts, and open deals. Does not send messages. Quote the '
+            'counts in the payload; do not invent extra items.'
+        ),
+        parameters=_obj({}),
+        risk=RISK_READ,
+        handler=briefing_tools.get_daily_briefing,
+    ),
+    Tool(
+        name='draft_email',
+        description=(
+            'Save a Gmail draft for the signed-in user. Never sends. Use when '
+            'the agent wants a message written and left in Drafts for them to '
+            'review. Requires a connected Gmail account.'
+        ),
+        parameters=_obj({
+            'contact_id': {
+                'type': 'integer',
+                'description': 'CRM contact to address, if known.',
+            },
+            'to': {
+                'type': 'string',
+                'description': 'Comma-separated extra recipients.',
+            },
+            'subject': {'type': 'string', 'description': 'Draft subject.'},
+            'body': {'type': 'string', 'description': 'Plain-text draft body.'},
+        }, ['subject', 'body']),
+        risk=RISK_LOW_WRITE,
+        handler=email_tools.draft_email,
+    ),
 
     # -----------------------------------------------------------------------
     # High-risk writes: previewed and confirmed by the agent
@@ -1049,6 +1087,290 @@ TRANSACTION_TOOLS = (
             include_terminal=bool(args.get('include_terminal', False)),
         ),
     ),
+    Tool(
+        name='create_transaction',
+        description=(
+            'Create a deal from a known contact and a real property address. '
+            'Search contacts first and never invent a contact_id. After it '
+            'succeeds, pass the returned transaction_id on later deal tools.'
+        ),
+        parameters=_obj({
+            'transaction_type': {
+                'type': 'string',
+                'enum': ['seller', 'buyer', 'landlord', 'tenant', 'referral'],
+            },
+            'street_address': {
+                'type': 'string',
+                'description': 'Property street address. Required.',
+            },
+            'city': {'type': 'string', 'description': 'City if known.'},
+            'state': {'type': 'string', 'description': 'Two-letter state. Defaults to TX.'},
+            'zip_code': {'type': 'string', 'description': 'Postal code if known.'},
+            'county': {'type': 'string', 'description': 'County if known.'},
+            'contact_id': {'type': 'integer', 'description': 'Primary client contact from search_contacts.'},
+        }, ['transaction_type', 'street_address', 'contact_id']),
+        risk=RISK_HIGH_WRITE,
+        handler=lambda args, ctx: tx_tools.create_transaction(
+            ctx,
+            transaction_type=args.get('transaction_type', ''),
+            street_address=args.get('street_address', ''),
+            contact_id=args['contact_id'],
+            city=args.get('city', ''),
+            state=args.get('state', 'TX'),
+            zip_code=args.get('zip_code', ''),
+            county=args.get('county', ''),
+        ),
+        preview=tx_tools.preview_create_transaction,
+    ),
+    Tool(
+        name='update_transaction_status',
+        description=(
+            'Set the CRM status on a transaction the user can already edit. '
+            'Use the real transaction_id. Does not send client notices or '
+            'change offer or contract records.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'status': {
+                'type': 'string',
+                'enum': [
+                    'preparing_to_list', 'showing', 'active',
+                    'under_contract', 'closed', 'cancelled',
+                ],
+            },
+        }, ['transaction_id', 'status']),
+        risk=RISK_HIGH_WRITE,
+        handler=lambda args, ctx: tx_tools.update_transaction_status(
+            ctx, transaction_id=args['transaction_id'], status=args['status'],
+        ),
+        preview=tx_tools.preview_update_transaction_status,
+    ),
+    Tool(
+        name='add_transaction_party',
+        description=(
+            'Add a participant to a transaction the user can edit. Prefer a '
+            'contact_id from search_contacts. If the party is not in the CRM, '
+            'pass name and email instead.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'role': {
+                'type': 'string',
+                'description': 'seller, buyer, listing_agent, lender, title_company, or similar.',
+            },
+            'contact_id': {'type': 'integer', 'description': 'Existing CRM contact if there is one.'},
+            'name': {'type': 'string', 'description': 'Display name when there is no contact_id.'},
+            'email': {'type': 'string', 'description': 'Email if known.'},
+            'phone': {'type': 'string', 'description': 'Phone if known.'},
+            'company': {'type': 'string', 'description': 'Company or brokerage if known.'},
+        }, ['transaction_id', 'role']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.add_transaction_party(
+            ctx,
+            transaction_id=args['transaction_id'],
+            role=args.get('role', ''),
+            contact_id=args.get('contact_id'),
+            name=args.get('name', ''),
+            email=args.get('email', ''),
+            phone=args.get('phone', ''),
+            company=args.get('company', ''),
+        ),
+    ),
+    Tool(
+        name='create_offer',
+        description=(
+            'Record an offer on a deal. Does not accept it, expire others, or '
+            'send anything to the other side. Use when the agent wants the '
+            'terms stored for comparison.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'buyer_names': {'type': 'string', 'description': 'Buyer name or names on the offer.'},
+            'offer_price': {'type': 'number', 'description': 'Offered price in dollars.'},
+            'financing_type': {'type': 'string', 'description': 'Cash, conventional, FHA, VA, or similar.'},
+            'earnest_money': {'type': 'number', 'description': 'Earnest money amount if known.'},
+            'option_fee': {'type': 'number', 'description': 'Option fee if known.'},
+            'option_period_days': {'type': 'integer', 'description': 'Option period in days if known.'},
+            'proposed_close_date': {'type': 'string', 'description': 'Proposed close date, YYYY-MM-DD.'},
+        }, ['transaction_id', 'buyer_names']),
+        risk=RISK_HIGH_WRITE,
+        handler=lambda args, ctx: tx_tools.create_offer(
+            ctx,
+            transaction_id=args['transaction_id'],
+            buyer_names=args.get('buyer_names', ''),
+            offer_price=args.get('offer_price'),
+            financing_type=args.get('financing_type', ''),
+            earnest_money=args.get('earnest_money'),
+            option_fee=args.get('option_fee'),
+            option_period_days=args.get('option_period_days'),
+            proposed_close_date=args.get('proposed_close_date', ''),
+        ),
+        preview=tx_tools.preview_create_offer,
+    ),
+    Tool(
+        name='review_offer',
+        description=(
+            'Mark an existing offer reviewing or needs_review after the agent '
+            'has looked at the terms. Does not accept, decline, or notify anyone.'
+        ),
+        parameters=_obj({
+            'offer_id': {'type': 'integer', 'description': 'Offer id from compare_offers or create_offer.'},
+            'status': {'type': 'string', 'enum': ['reviewing', 'needs_review']},
+        }, ['offer_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.review_offer(
+            ctx, offer_id=args['offer_id'], status=args.get('status', 'reviewing'),
+        ),
+    ),
+    Tool(
+        name='accept_offer',
+        description=(
+            'Mark an offer accepted_primary or accepted_backup. Does not run '
+            'contract bootstrap, change other offers, or send notices. Use '
+            'only when the agent asked to record that decision in the CRM.'
+        ),
+        parameters=_obj({
+            'offer_id': {'type': 'integer', 'description': 'Offer id from compare_offers or create_offer.'},
+            'as_backup': {'type': 'boolean', 'description': 'True to mark accepted_backup instead of primary.'},
+        }, ['offer_id']),
+        risk=RISK_HIGH_WRITE,
+        handler=lambda args, ctx: tx_tools.accept_offer(
+            ctx, offer_id=args['offer_id'], as_backup=bool(args.get('as_backup')),
+        ),
+        preview=tx_tools.preview_accept_offer,
+    ),
+    Tool(
+        name='expire_offer',
+        description=(
+            'Expire an active offer in the CRM. Use when the response deadline '
+            'passed or the agent asked to kill that thread. Does not email anyone.'
+        ),
+        parameters=_obj({
+            'offer_id': {'type': 'integer', 'description': 'Offer id from compare_offers.'},
+        }, ['offer_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.expire_offer(ctx, offer_id=args['offer_id']),
+    ),
+    Tool(
+        name='list_listings',
+        description=(
+            'List seller listings the user can already open. Search by address '
+            'fragment or status. Never invent a listing that is not in the results.'
+        ),
+        parameters=_obj({
+            'query': {'type': 'string', 'description': 'Address fragment or status keyword.'},
+            'limit': {'type': 'integer', 'description': 'Max results, default 10.'},
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: listing_tools.list_listings(
+            ctx, query=args.get('query', ''), limit=args.get('limit', 10),
+        ),
+    ),
+    Tool(
+        name='get_listing',
+        description=(
+            'Return listing workspace fields for one seller transaction: '
+            'address, status, list price, MLS number, and stored remarks. '
+            'Pass transaction_id from list_listings or search_transactions.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: listing_tools.get_listing(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='update_listing_fields',
+        description=(
+            'Update list price, MLS number, go-live date, occupancy, or public '
+            'showing notes on a seller listing the user can edit. Only send '
+            'fields that should change.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'list_price': {'type': 'number', 'description': 'New list price in dollars.'},
+            'mls_number': {'type': 'string', 'description': 'MLS number if assigned.'},
+            'go_live_date': {'type': 'string', 'description': 'Go-live date, YYYY-MM-DD.'},
+            'occupancy_status': {'type': 'string', 'description': 'vacant, owner_occupied, or tenant_occupied.'},
+            'public_showing_instructions': {'type': 'string', 'description': 'Public showing instructions.'},
+        }, ['transaction_id']),
+        risk=RISK_HIGH_WRITE,
+        handler=lambda args, ctx: listing_tools.update_listing_fields(
+            ctx,
+            transaction_id=args['transaction_id'],
+            list_price=args.get('list_price'),
+            mls_number=args.get('mls_number', ''),
+            go_live_date=args.get('go_live_date', ''),
+            occupancy_status=args.get('occupancy_status', ''),
+            public_showing_instructions=args.get('public_showing_instructions', ''),
+        ),
+        preview=listing_tools.preview_update_listing_fields,
+    ),
+    Tool(
+        name='generate_listing_description',
+        description=(
+            'Draft MLS public remarks from confirmed listing facts. Does not '
+            'send anything. Set save=true to store the draft on the listing.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'save': {
+                'type': 'boolean',
+                'description': 'If true, store the draft on the listing profile.',
+            },
+        }, ['transaction_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: listing_tools.generate_listing_description(
+            ctx,
+            transaction_id=args['transaction_id'],
+            save=bool(args.get('save')),
+        ),
+    ),
+    Tool(
+        name='complete_requirement',
+        description=(
+            'Mark a transaction requirement completed. Use the requirement_id '
+            'from get_overdue_work or get_upcoming_deadlines. Does not upload '
+            'evidence or send reminders.'
+        ),
+        parameters=_obj({
+            'requirement_id': {
+                'type': 'integer',
+                'description': 'TransactionRequirement id from a deal read tool.',
+            },
+        }, ['requirement_id']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.complete_requirement(
+            ctx, requirement_id=args['requirement_id'],
+        ),
+    ),
+    Tool(
+        name='update_requirement_status',
+        description=(
+            'Set a transaction requirement work_status (pending, completed, '
+            'waived, and so on). Use the requirement_id from a deal read tool. '
+            'Does not create tasks or notify third parties.'
+        ),
+        parameters=_obj({
+            'requirement_id': {
+                'type': 'integer',
+                'description': 'TransactionRequirement id from a deal read tool.',
+            },
+            'work_status': {
+                'type': 'string',
+                'enum': [
+                    'pending', 'in_progress', 'waiting', 'completed',
+                    'waived', 'cancelled', 'not_applicable',
+                ],
+            },
+        }, ['requirement_id', 'work_status']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.update_requirement_status(
+            ctx,
+            requirement_id=args['requirement_id'],
+            work_status=args['work_status'],
+        ),
+    ),
 )
 
 TOOLS = TOOLS + TRANSACTION_TOOLS
@@ -1060,10 +1382,14 @@ TX_READ_TOOL_NAMES = frozenset({
     'search_transactions', 'select_transaction_context', 'get_transaction_summary',
     'list_parties', 'list_documents', 'get_upcoming_deadlines', 'get_overdue_work',
     'closing_readiness_summary', 'identify_missing_documents', 'get_next_step',
-    'compare_offers',
+    'compare_offers', 'list_listings', 'get_listing',
 })
 TX_WRITE_TOOL_NAMES = frozenset({
     'add_transaction_note', 'escalate_transaction_risk',
+    'create_transaction', 'update_transaction_status', 'add_transaction_party',
+    'create_offer', 'review_offer', 'accept_offer', 'expire_offer',
+    'update_listing_fields', 'generate_listing_description',
+    'complete_requirement', 'update_requirement_status',
 })
 
 
@@ -1106,7 +1432,7 @@ def select_tools(ctx: BobContext | None = None) -> tuple[Tool, ...]:
                 'search_transactions', 'select_transaction_context',
             })
             names -= TX_WRITE_TOOL_NAMES
-        elif has_tx or ctx.surface == 'bob_chat':
+        elif has_tx or ctx.surface in ('bob_chat', 'mcp'):
             names.update(TX_WRITE_TOOL_NAMES)
 
     return tuple(t for t in TOOLS if t.name in names)
@@ -1159,11 +1485,16 @@ def sanitize_arguments(tool: Tool, raw_args: dict) -> dict:
 
 def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
              conversation_id: int | None = None,
-             collector=None) -> ToolResult:
+             collector=None,
+             confirmation: str = CONFIRM_INTERACTIVE) -> ToolResult:
     """Run one tool call under the confirmation and audit policy.
 
     Never raises: every failure becomes a ToolResult the model can read and
     recover from, so a bad argument cannot take down the chat stream.
+
+    ``confirmation`` is an explicit policy, not a surface sniff:
+    ``CONFIRM_INTERACTIVE`` (default) previews high-risk writes and waits;
+    ``CONFIRM_PRECLEARED`` executes them and records an executed audit row.
     """
     tool = TOOLS_BY_NAME.get(name)
     if tool is None:
@@ -1183,11 +1514,14 @@ def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
         if turn and turn.attachment_ref:
             args['attachment_ref'] = turn.attachment_ref
 
+    if confirmation not in (CONFIRM_INTERACTIVE, CONFIRM_PRECLEARED):
+        confirmation = CONFIRM_INTERACTIVE
+
     try:
         if tool.risk == RISK_READ:
             return tool.handler(args, ctx)
 
-        if tool.risk == RISK_HIGH_WRITE:
+        if tool.risk == RISK_HIGH_WRITE and confirmation != CONFIRM_PRECLEARED:
             preview = (tool.preview or _no_preview)(args, ctx)
             action = _create_pending_action(tool, args, preview, ctx,
                                            conversation_id=conversation_id)
@@ -1197,8 +1531,19 @@ def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
                 preview=preview,
             )
 
+        preview = None
+        if tool.risk == RISK_HIGH_WRITE and confirmation == CONFIRM_PRECLEARED:
+            preview = (tool.preview or _no_preview)(args, ctx)
+
         result = tool.handler(args, ctx)
         if result.ok:
+            if preview is not None:
+                result.data = {
+                    'before': preview.get('before') or preview.get('current'),
+                    'after': preview.get('after') or preview.get('changes'),
+                    'preview': preview,
+                    **result.data,
+                }
             action = _record_executed_action(tool, args, result, ctx,
                                             conversation_id=conversation_id)
             if collector is not None:

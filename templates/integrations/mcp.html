@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}AgentFlow MCP - AgentFlow{% endblock %}
+{% block mobile_title %}MCP{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[720px]">
+        <a href="{{ url_for('auth.view_user_profile') }}"
+           class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+            <i class="fas fa-arrow-left text-xs"></i>
+            <span>Profile</span>
+        </a>
+
+        {% set _title = 'AgentFlow <em>MCP</em>' %}
+        {% call page_header(_title, 'Let Claude Cowork or a similar client work in AgentFlow as you.', 'Integrations') %}{% endcall %}
+
+        {% if not allowed %}
+        <div class="crm-notice crm-notice--danger mb-6">
+            <i class="fas fa-ban crm-notice__icon"></i>
+            <p>{{ blocked_reason }}</p>
+        </div>
+        {% endif %}
+
+        <section class="crm-surface mb-6">
+            <header class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Connector URLs</h2>
+                    <p class="crm-section-description">
+                        In Claude: Connectors → Add custom connector → paste a URL → authorize here.
+                    </p>
+                </div>
+            </header>
+            <div class="crm-surface-body space-y-4">
+                <div>
+                    <label class="crm-form-label" for="mcp-url">Full access</label>
+                    <div class="flex gap-2">
+                        <input id="mcp-url" class="crm-input" readonly value="{{ mcp_url }}">
+                        <button type="button" class="crm-btn crm-btn-secondary" data-copy="#mcp-url">Copy</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="crm-form-label" for="mcp-readonly-url">Read only</label>
+                    <div class="flex gap-2">
+                        <input id="mcp-readonly-url" class="crm-input" readonly value="{{ readonly_url }}">
+                        <button type="button" class="crm-btn crm-btn-secondary" data-copy="#mcp-readonly-url">Copy</button>
+                    </div>
+                    <p class="crm-form-help">Use this when the client should look up records and not change them.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="crm-surface mb-6">
+            <header class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Connected clients</h2>
+                    <p class="crm-section-description">Revoke immediately if a client should no longer act as you.</p>
+                </div>
+            </header>
+            <div class="crm-surface-body">
+                {% if grants %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left" style="color: var(--ink-4);">
+                                <th class="pb-2 font-medium">Client</th>
+                                <th class="pb-2 font-medium">Access</th>
+                                <th class="pb-2 font-medium">Last used</th>
+                                <th class="pb-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in grants %}
+                            <tr style="border-top: 1px solid var(--hairline);">
+                                <td class="py-3 pr-3">
+                                    <p class="font-medium" style="color: var(--ink);">
+                                        {{ row.client.client_name if row.client else row.grant.client_id }}
+                                    </p>
+                                    <p class="text-xs" style="color: var(--ink-4);">{{ row.grant.resource }}</p>
+                                </td>
+                                <td class="py-3 pr-3" style="color: var(--ink-2);">
+                                    {{ (row.grant.scopes or [])|join(', ') }}
+                                </td>
+                                <td class="py-3 pr-3" style="color: var(--ink-3);">
+                                    {% if row.grant.last_used_at %}
+                                    {{ row.grant.last_used_at.strftime('%b %d, %Y %H:%M') }}
+                                    {% else %}
+                                    Never
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 text-right">
+                                    <form method="POST" action="{{ url_for('mcp.revoke_connection', grant_id=row.grant.id) }}">
+                                        <input type="hidden" name="csrf" value="{{ csrf }}">
+                                        <button type="submit" class="crm-btn crm-btn-sm crm-btn-secondary">Revoke</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm" style="color: var(--ink-3);">No clients are connected yet.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="crm-surface">
+            <header class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Recent MCP actions</h2>
+                    <p class="crm-section-description">Last 20 changes this connection made in your CRM.</p>
+                </div>
+            </header>
+            <div class="crm-surface-body">
+                {% if actions %}
+                <ul class="space-y-3">
+                    {% for action in actions %}
+                    <li class="text-sm">
+                        <p class="font-medium" style="color: var(--ink);">{{ action.tool_name }}</p>
+                        <p style="color: var(--ink-3);">
+                            {{ action.summary or action.status }}
+                            {% if action.created_at %}
+                            <span style="color: var(--ink-4);">· {{ action.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                            {% endif %}
+                        </p>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-sm" style="color: var(--ink-3);">No MCP actions recorded yet.</p>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var input = document.querySelector(button.getAttribute('data-copy'));
+        if (!input) return;
+        navigator.clipboard.writeText(input.value).then(function () {
+            button.textContent = 'Copied';
+            setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+        });
+    });
+});
+</script>
+{% endblock %}

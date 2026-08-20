@@ -43,6 +43,9 @@ class Organization(db.Model):
     
     # Per-org feature overrides (beyond tier defaults)
     feature_flags = db.Column(db.JSON, default=dict)
+
+    # When True, only owner/admin users may approve or use MCP grants.
+    mcp_admin_only = db.Column(db.Boolean, default=False, nullable=False)
     
     # Platform admin flag (Origen only)
     is_platform_admin = db.Column(db.Boolean, default=False)
@@ -4137,3 +4140,119 @@ class PortalMessage(db.Model):
     def __repr__(self):
         return (f'<PortalMessage {self.id} tx={self.transaction_id} '
                 f'sender={self.sender} kind={self.kind}>')
+
+
+class McpOAuthClient(db.Model):
+    """Dynamically registered OAuth client (Claude Cowork, Cursor, etc.)."""
+    __tablename__ = 'mcp_oauth_clients'
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    client_name = db.Column(db.String(200), nullable=False)
+    redirect_uris = db.Column(db.JSON, nullable=False, default=list)
+    token_endpoint_auth_method = db.Column(db.String(50), nullable=False, default='none')
+    grant_types = db.Column(db.JSON, nullable=False, default=list)
+    response_types = db.Column(db.JSON, nullable=False, default=list)
+    dedupe_hash = db.Column(db.String(64), nullable=False, index=True)
+    authorized_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<McpOAuthClient {self.client_id} {self.client_name}>'
+
+
+class McpUserGrant(db.Model):
+    """A user's consent for one MCP client. Revoking this kills live tokens."""
+    __tablename__ = 'mcp_user_grants'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    client_id = db.Column(db.String(64), nullable=False, index=True)
+    scopes = db.Column(db.JSON, nullable=False, default=list)
+    resource = db.Column(db.String(500), nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True, index=True)
+    approved_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    selected_transaction_id = db.Column(db.Integer, nullable=True)
+    calls_on = db.Column(db.Date, nullable=True)
+    calls_today = db.Column(db.Integer, nullable=False, default=0)
+    read_calls_today = db.Column(db.Integer, nullable=False, default=0)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+    organization = db.relationship('Organization', foreign_keys=[organization_id])
+
+    __table_args__ = (
+        db.Index('ix_mcp_user_grants_user_client', 'user_id', 'client_id'),
+    )
+
+    @property
+    def is_revoked(self) -> bool:
+        return self.revoked_at is not None
+
+
+class McpAuthorizationCode(db.Model):
+    __tablename__ = 'mcp_authorization_codes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    grant_id = db.Column(
+        db.Integer, db.ForeignKey('mcp_user_grants.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    client_id = db.Column(db.String(64), nullable=False)
+    redirect_uri = db.Column(db.String(500), nullable=False)
+    scopes = db.Column(db.JSON, nullable=False, default=list)
+    resource = db.Column(db.String(500), nullable=False)
+    code_challenge = db.Column(db.String(128), nullable=False)
+    code_challenge_method = db.Column(db.String(16), nullable=False, default='S256')
+    expires_at = db.Column(db.DateTime, nullable=False)
+    consumed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    grant = db.relationship('McpUserGrant', foreign_keys=[grant_id])
+
+
+class McpAccessToken(db.Model):
+    __tablename__ = 'mcp_access_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    grant_id = db.Column(
+        db.Integer, db.ForeignKey('mcp_user_grants.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    client_id = db.Column(db.String(64), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(db.Integer, nullable=False, index=True)
+    scopes = db.Column(db.JSON, nullable=False, default=list)
+    resource = db.Column(db.String(500), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    grant = db.relationship('McpUserGrant', foreign_keys=[grant_id])
+
+
+class McpRefreshToken(db.Model):
+    __tablename__ = 'mcp_refresh_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    grant_id = db.Column(
+        db.Integer, db.ForeignKey('mcp_user_grants.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    client_id = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    absolute_expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    grant = db.relationship('McpUserGrant', foreign_keys=[grant_id])

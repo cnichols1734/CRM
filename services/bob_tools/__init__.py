@@ -5,6 +5,8 @@ Transport-agnostic on purpose: handlers take a ``BobContext`` and never touch
 SMS webhook can share the same tools and the same safety policy.
 """
 from services.bob_tools.context import (
+    CONFIRM_INTERACTIVE,
+    CONFIRM_PRECLEARED,
     RISK_HIGH_WRITE,
     RISK_LOW_WRITE,
     RISK_READ,
@@ -32,6 +34,8 @@ __all__ = [
     'RISK_READ',
     'RISK_LOW_WRITE',
     'RISK_HIGH_WRITE',
+    'CONFIRM_INTERACTIVE',
+    'CONFIRM_PRECLEARED',
     'TOOLS',
     'TOOLS_BY_NAME',
     'dispatch',

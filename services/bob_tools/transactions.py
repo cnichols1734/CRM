@@ -509,3 +509,424 @@ def compare_offers(
         include_terminal=bool(include_terminal),
     )
     return ToolResult.success(result['summary'], result)
+
+
+TX_STATUSES = (
+    'preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled',
+)
+PARTY_ROLES = (
+    'seller', 'co_seller', 'buyer', 'co_buyer', 'listing_agent', 'buyers_agent',
+    'title_company', 'lender', 'transaction_coordinator', 'landlord', 'tenant',
+    'referral_client',
+)
+OFFER_REVIEW_STATUSES = ('reviewing', 'needs_review')
+REQ_STATUSES = (
+    'pending', 'in_progress', 'waiting', 'completed', 'waived', 'cancelled',
+    'not_applicable',
+)
+
+
+def create_transaction(
+    ctx: BobContext,
+    *,
+    transaction_type: str,
+    street_address: str,
+    contact_id: int,
+    city: str = '',
+    state: str = 'TX',
+    zip_code: str = '',
+    county: str = '',
+) -> ToolResult:
+    from models import TransactionType
+    from services.bob_tools.common import get_contact_for_write
+    from services import audit_service
+
+    address = (street_address or '').strip()
+    if not address:
+        return ToolResult.failure('street_address is required.')
+    type_name = (transaction_type or '').strip().lower()
+    tx_type = TransactionType.query.filter_by(
+        organization_id=ctx.organization_id, name=type_name, is_active=True,
+    ).first()
+    if tx_type is None:
+        return ToolResult.failure('transaction_type must be seller, buyer, landlord, tenant, or referral.')
+    try:
+        contact = get_contact_for_write(ctx, contact_id)
+    except Exception as exc:
+        return ToolResult.failure(str(exc))
+    if not contact.first_name or not contact.last_name:
+        return ToolResult.failure('The contact needs a first and last name first.')
+    if not contact.email:
+        return ToolResult.failure('The contact needs an email address first.')
+
+    status = 'showing' if tx_type.name in {'buyer', 'tenant'} else 'preparing_to_list'
+    tx = Transaction(
+        organization_id=ctx.organization_id,
+        created_by_id=ctx.user_id,
+        transaction_type_id=tx_type.id,
+        street_address=address[:200],
+        city=(city or '').strip()[:100] or None,
+        state=(state or 'TX').strip()[:50] or 'TX',
+        zip_code=(zip_code or '').strip()[:20] or None,
+        county=(county or '').strip()[:100] or None,
+        status=status,
+    )
+    db.session.add(tx)
+    db.session.flush()
+
+    role_map = {
+        'seller': 'seller', 'buyer': 'buyer', 'landlord': 'landlord',
+        'tenant': 'tenant', 'referral': 'referral_client',
+    }
+    db.session.add(TransactionParticipant(
+        organization_id=ctx.organization_id,
+        transaction_id=tx.id,
+        contact_id=contact.id,
+        role=role_map.get(tx_type.name, 'client'),
+        is_primary=True,
+    ))
+    agent_role = 'listing_agent' if tx_type.name in {'seller', 'landlord'} else 'buyers_agent'
+    if tx_type.name in {'seller', 'landlord', 'buyer', 'tenant'}:
+        db.session.add(TransactionParticipant(
+            organization_id=ctx.organization_id,
+            transaction_id=tx.id,
+            user_id=ctx.user_id,
+            role=agent_role,
+            is_primary=True,
+        ))
+    audit_service.log_transaction_created(tx, actor_id=ctx.user_id)
+    if tx_type.name == 'seller':
+        from services.listing_prep_checklist import seed_listing_prep_checklist
+        seed_listing_prep_checklist(tx, ctx.organization_id, actor_id=ctx.user_id)
+    db.session.commit()
+    return ToolResult.success(
+        f'Created {tx_type.name} transaction at {tx.street_address}.',
+        {
+            'transaction_id': tx.id,
+            'address': tx.street_address,
+            'status': tx.status,
+            'type': tx_type.name,
+        },
+        record_url=f'/transactions/{tx.id}',
+    )
+
+
+def preview_create_transaction(args: dict, ctx: BobContext) -> dict:
+    return {
+        'action': 'create_transaction',
+        'after': {
+            'street_address': args.get('street_address'),
+            'transaction_type': args.get('transaction_type'),
+            'city': args.get('city'),
+            'contact_id': args.get('contact_id'),
+        },
+    }
+
+
+def update_transaction_status(
+    ctx: BobContext,
+    *,
+    transaction_id: int,
+    status: str,
+) -> ToolResult:
+    tx, err = _load_tx(ctx, transaction_id, CAP_EDIT)
+    if err:
+        return err
+    new_status = (status or '').strip().lower()
+    if new_status not in TX_STATUSES:
+        return ToolResult.failure(f'status must be one of: {", ".join(TX_STATUSES)}.')
+    old = tx.status
+    tx.status = new_status
+    db.session.add(_status_audit(ctx, tx, old, new_status))
+    db.session.commit()
+    return ToolResult.success(
+        f'Status updated from {old} to {new_status}.',
+        {'transaction_id': tx.id, 'old_status': old, 'status': new_status},
+        record_url=f'/transactions/{tx.id}',
+    )
+
+
+def preview_update_transaction_status(args: dict, ctx: BobContext) -> dict:
+    tx, err = _load_tx(ctx, args.get('transaction_id'), CAP_EDIT)
+    if err:
+        return {'action': 'update_transaction_status', 'error': err.error}
+    return {
+        'action': 'update_transaction_status',
+        'before': {'status': tx.status},
+        'after': {'status': args.get('status')},
+    }
+
+
+def add_transaction_party(
+    ctx: BobContext,
+    *,
+    transaction_id: int,
+    role: str,
+    contact_id: int | None = None,
+    name: str = '',
+    email: str = '',
+    phone: str = '',
+    company: str = '',
+) -> ToolResult:
+    from services.bob_tools.common import get_contact_for_read
+    from services import audit_service
+
+    tx, err = _load_tx(ctx, transaction_id, CAP_EDIT)
+    if err:
+        return err
+    role_name = (role or '').strip().lower()
+    if role_name not in PARTY_ROLES:
+        return ToolResult.failure(f'role must be one of: {", ".join(PARTY_ROLES)}.')
+    contact = None
+    if contact_id:
+        try:
+            contact = get_contact_for_read(ctx, contact_id)
+        except Exception as exc:
+            return ToolResult.failure(str(exc))
+    display_name = (name or '').strip()
+    if contact:
+        display_name = display_name or f'{contact.first_name} {contact.last_name}'.strip()
+    if not display_name and not contact:
+        return ToolResult.failure('Pass contact_id or a name for the party.')
+    party = TransactionParticipant(
+        organization_id=ctx.organization_id,
+        transaction_id=tx.id,
+        contact_id=contact.id if contact else None,
+        role=role_name,
+        name=display_name[:200] if not contact else None,
+        email=(email or (contact.email if contact else '') or '')[:200] or None,
+        phone=(phone or (contact.phone if contact else '') or '')[:20] or None,
+        company=(company or '').strip()[:200] or None,
+        is_primary=False,
+    )
+    db.session.add(party)
+    db.session.flush()
+    audit_service.log_participant_added(tx, party, actor_id=ctx.user_id)
+    db.session.commit()
+    return ToolResult.success(
+        f'Added {role_name} to the transaction.',
+        {
+            'transaction_id': tx.id,
+            'participant_id': party.id,
+            'role': role_name,
+            'name': display_name,
+        },
+        record_url=f'/transactions/{tx.id}',
+    )
+
+
+def _load_offer(ctx: BobContext, offer_id: int, capability: str = CAP_VIEW):
+    from models import SellerOffer
+    offer = SellerOffer.query.filter_by(
+        id=offer_id, organization_id=ctx.organization_id,
+    ).first()
+    if offer is None:
+        return None, ToolResult.failure('Offer not found.')
+    tx, err = _load_tx(ctx, offer.transaction_id, capability)
+    if err:
+        return None, err
+    return offer, None
+
+
+def create_offer(
+    ctx: BobContext,
+    *,
+    transaction_id: int,
+    buyer_names: str = '',
+    offer_price=None,
+    financing_type: str = '',
+    earnest_money=None,
+    option_fee=None,
+    option_period_days=None,
+    proposed_close_date: str = '',
+) -> ToolResult:
+    from decimal import Decimal, InvalidOperation
+    from models import SellerOffer
+    from services.seller_workflow import create_offer_activity
+
+    tx, err = _load_tx(ctx, transaction_id, CAP_EDIT)
+    if err:
+        return err
+    names = (buyer_names or '').strip()
+    if not names:
+        return ToolResult.failure('buyer_names is required.')
+
+    def _money(value):
+        if value in (None, ''):
+            return None
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+
+    close = None
+    if proposed_close_date:
+        try:
+            close = datetime.strptime(proposed_close_date, '%Y-%m-%d').date()
+        except ValueError:
+            return ToolResult.failure('proposed_close_date must be YYYY-MM-DD.')
+
+    offer = SellerOffer(
+        organization_id=ctx.organization_id,
+        transaction_id=tx.id,
+        created_by_id=ctx.user_id,
+        buyer_names=names[:500],
+        offer_price=_money(offer_price),
+        financing_type=(financing_type or '').strip()[:100] or None,
+        earnest_money=_money(earnest_money),
+        option_fee=_money(option_fee),
+        option_period_days=int(option_period_days) if option_period_days not in (None, '') else None,
+        proposed_close_date=close,
+        creation_source='manual_entry',
+        status='new',
+    )
+    db.session.add(offer)
+    db.session.flush()
+    create_offer_activity(offer, 'offer_created', 'Offer entered', actor_id=ctx.user_id)
+    db.session.commit()
+    return ToolResult.success(
+        f'Offer {offer.id} recorded for {tx.street_address}.',
+        {'offer_id': offer.id, 'transaction_id': tx.id, 'status': offer.status},
+        record_url=f'/transactions/{tx.id}',
+    )
+
+
+def preview_create_offer(args: dict, ctx: BobContext) -> dict:
+    return {
+        'action': 'create_offer',
+        'after': {
+            'transaction_id': args.get('transaction_id'),
+            'buyer_names': args.get('buyer_names'),
+            'offer_price': args.get('offer_price'),
+        },
+    }
+
+
+def review_offer(ctx: BobContext, *, offer_id: int, status: str = 'reviewing') -> ToolResult:
+    from services.seller_workflow import create_offer_activity
+
+    offer, err = _load_offer(ctx, offer_id, CAP_EDIT)
+    if err:
+        return err
+    new_status = (status or 'reviewing').strip().lower()
+    if new_status not in OFFER_REVIEW_STATUSES:
+        return ToolResult.failure('status must be reviewing or needs_review.')
+    old = offer.status
+    offer.status = new_status
+    create_offer_activity(
+        offer, 'offer_reviewed', f'Offer marked {new_status}', actor_id=ctx.user_id,
+    )
+    db.session.commit()
+    return ToolResult.success(
+        f'Offer {offer.id} moved from {old} to {new_status}.',
+        {'offer_id': offer.id, 'old_status': old, 'status': new_status},
+        record_url=f'/transactions/{offer.transaction_id}',
+    )
+
+
+def accept_offer(ctx: BobContext, *, offer_id: int, as_backup: bool = False) -> ToolResult:
+    from services.seller_workflow import create_offer_activity
+
+    offer, err = _load_offer(ctx, offer_id, CAP_EDIT)
+    if err:
+        return err
+    new_status = 'accepted_backup' if as_backup else 'accepted_primary'
+    old = offer.status
+    offer.status = new_status
+    create_offer_activity(
+        offer, 'offer_accepted', f'Offer marked {new_status}', actor_id=ctx.user_id,
+    )
+    db.session.commit()
+    return ToolResult.success(
+        f'Offer {offer.id} marked {new_status}. Contract bootstrap still happens in the app.',
+        {'offer_id': offer.id, 'old_status': old, 'status': new_status},
+        record_url=f'/transactions/{offer.transaction_id}',
+    )
+
+
+def preview_accept_offer(args: dict, ctx: BobContext) -> dict:
+    offer, err = _load_offer(ctx, args.get('offer_id'), CAP_EDIT)
+    if err:
+        return {'action': 'accept_offer', 'error': err.error}
+    return {
+        'action': 'accept_offer',
+        'before': {'status': offer.status},
+        'after': {'status': 'accepted_backup' if args.get('as_backup') else 'accepted_primary'},
+    }
+
+
+def expire_offer(ctx: BobContext, *, offer_id: int) -> ToolResult:
+    from services.seller_workflow import ACTIVE_OFFER_STATUSES, create_offer_activity
+
+    offer, err = _load_offer(ctx, offer_id, CAP_EDIT)
+    if err:
+        return err
+    if offer.status not in ACTIVE_OFFER_STATUSES and offer.status != 'expired':
+        return ToolResult.failure(f'Offer {offer.id} is {offer.status} and cannot be expired.')
+    if offer.status == 'expired':
+        return ToolResult.success(
+            f'Offer {offer.id} is already expired.',
+            {'offer_id': offer.id, 'status': 'expired'},
+        )
+    now = datetime.utcnow()
+    offer.status = 'expired'
+    offer.expired_at = now
+    create_offer_activity(offer, 'expired', 'Offer expired', actor_id=ctx.user_id)
+    db.session.commit()
+    return ToolResult.success(
+        f'Offer {offer.id} expired.',
+        {'offer_id': offer.id, 'status': 'expired'},
+        record_url=f'/transactions/{offer.transaction_id}',
+    )
+
+
+def complete_requirement(ctx: BobContext, *, requirement_id: int) -> ToolResult:
+    return update_requirement_status(ctx, requirement_id=requirement_id, work_status='completed')
+
+
+def update_requirement_status(
+    ctx: BobContext,
+    *,
+    requirement_id: int,
+    work_status: str,
+) -> ToolResult:
+    from services.requirements_service import RequirementsService
+
+    status = (work_status or '').strip().lower()
+    if status not in REQ_STATUSES:
+        return ToolResult.failure(f'work_status must be one of: {", ".join(REQ_STATUSES)}.')
+    req = TransactionRequirement.query.filter_by(
+        id=requirement_id, organization_id=ctx.organization_id,
+    ).first()
+    if req is None:
+        return ToolResult.failure('Requirement not found.')
+    tx, err = _load_tx(ctx, req.transaction_id, CAP_EDIT)
+    if err:
+        return err
+    old = req.work_status
+    RequirementsService.update_work_status(req.id, status, actor_id=ctx.user_id)
+    db.session.commit()
+    return ToolResult.success(
+        f'Requirement {req.id} moved from {old} to {status}.',
+        {
+            'requirement_id': req.id,
+            'transaction_id': tx.id,
+            'old_status': old,
+            'work_status': status,
+            'title': req.title,
+        },
+        record_url=f'/transactions/{tx.id}',
+    )
+
+
+def _status_audit(ctx, tx, old, new_status):
+    from models import AuditEvent
+    return AuditEvent(
+        organization_id=ctx.organization_id,
+        transaction_id=tx.id,
+        actor_id=ctx.user_id,
+        event_type='transaction_status_changed',
+        description=f'Status changed: {old} → {new_status}',
+        event_data={'old_status': old, 'new_status': new_status},
+        source='app',
+    )

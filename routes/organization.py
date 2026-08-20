@@ -25,8 +25,13 @@ org_bp = Blueprint('org', __name__, url_prefix='/org')
 @org_admin_required
 def settings():
     """View organization settings."""
+    from feature_flags import org_has_feature
     org = current_user.organization
-    return render_template('organization/settings.html', org=org)
+    return render_template(
+        'organization/settings.html',
+        org=org,
+        mcp_enabled=org_has_feature('MCP_CONNECTOR', org),
+    )
 
 
 @org_bp.route('/settings/update', methods=['POST'])
@@ -49,6 +54,23 @@ def update_settings():
     
     db.session.commit()
     flash('Organization settings updated.', 'success')
+    return redirect(url_for('org.settings'))
+
+
+@org_bp.route('/settings/mcp', methods=['POST'])
+@login_required
+@org_owner_required
+def update_mcp_settings():
+    """Owner kill switch and optional admin-only MCP mode."""
+    from feature_flags import describe_org_features, set_org_feature_overrides
+
+    org = current_user.organization
+    desired = {row['name']: row['enabled'] for row in describe_org_features(org)}
+    desired['MCP_CONNECTOR'] = request.form.get('mcp_enabled') == '1'
+    set_org_feature_overrides(org, desired)
+    org.mcp_admin_only = request.form.get('mcp_admin_only') == '1'
+    db.session.commit()
+    flash('MCP settings updated.', 'success')
     return redirect(url_for('org.settings'))
 
 

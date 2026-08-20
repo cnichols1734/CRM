@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Connect MCP - AgentFlow{% endblock %}
+{% block mobile_title %}Connect MCP{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[640px]">
+        {% set _title = 'Connect an <em>outside agent</em>' %}
+        {% call page_header(_title, 'This client will act as you in AgentFlow — same records, same limits.', 'Integrations') %}{% endcall %}
+
+        {% if blocked %}
+        <section class="crm-surface">
+            <div class="crm-surface-body">
+                <div class="crm-notice crm-notice--danger">
+                    <i class="fas fa-ban crm-notice__icon"></i>
+                    <p>{{ blocked_reason }}</p>
+                </div>
+                <p class="mt-4 text-sm" style="color: var(--ink-3);">
+                    Ask an owner to turn MCP back on in organization settings, or open
+                    <a href="{{ url_for('mcp.settings') }}" class="underline" style="color: var(--accent);">MCP settings</a>.
+                </p>
+            </div>
+        </section>
+        {% else %}
+        <section class="crm-surface mb-6">
+            <header class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Who is connecting</h2>
+                    <p class="crm-section-description">Taken from our registration record, not the request URL.</p>
+                </div>
+            </header>
+            <div class="crm-surface-body space-y-2">
+                <p class="text-sm font-medium" style="color: var(--ink);">{{ client.client_name }}</p>
+                <p class="text-sm" style="color: var(--ink-3);">
+                    After you approve, it returns to <span class="font-medium" style="color: var(--ink-2);">{{ redirect_host }}</span>.
+                </p>
+                {% if loopback %}
+                <div class="crm-notice">
+                    <i class="fas fa-laptop crm-notice__icon"></i>
+                    <p>This redirect stays on this computer (localhost). Use that only for local tools such as Claude Code.</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="crm-surface mb-6">
+            <header class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Who they will act as</h2>
+                </div>
+            </header>
+            <div class="crm-surface-body space-y-1">
+                <p class="text-sm font-medium" style="color: var(--ink);">
+                    {{ user.first_name }} {{ user.last_name }}
+                    <span style="color: var(--ink-4);">·</span>
+                    {{ user.email }}
+                </p>
+                <p class="text-sm" style="color: var(--ink-3);">
+                    {{ org.name if org else 'No organization' }}
+                    <span style="color: var(--ink-4);">·</span>
+                    {{ (user.org_role or 'agent')|capitalize }}
+                </p>
+                <p class="mt-3 text-sm" style="color: var(--ink-3);">
+                    This client can only see and change what you can in AgentFlow.
+                </p>
+            </div>
+        </section>
+
+        <form method="POST" action="{{ url_for('mcp_oauth.authorize') }}" class="space-y-6">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+
+            <section class="crm-surface">
+                <header class="crm-surface-header">
+                    <div>
+                        <h2 class="crm-section-title">Access being granted</h2>
+                        <p class="crm-section-description">
+                            This client will be able to read your contact and deal notes, and anything written in them.
+                        </p>
+                    </div>
+                </header>
+                <div class="crm-surface-body space-y-3">
+                    <label class="flex items-start gap-3">
+                        <input type="checkbox" name="scope_read" value="1" class="mt-1" checked>
+                        <span>
+                            <span class="block text-sm font-medium" style="color: var(--ink);">Look up records</span>
+                            <span class="block text-sm" style="color: var(--ink-3);">{{ scope_labels['read'] }}</span>
+                        </span>
+                    </label>
+                    {% if not readonly %}
+                    <label class="flex items-start gap-3">
+                        <input type="checkbox" name="scope_write" value="1" class="mt-1" {% if 'write' in scopes %}checked{% endif %}>
+                        <span>
+                            <span class="block text-sm font-medium" style="color: var(--ink);">Create and update</span>
+                            <span class="block text-sm" style="color: var(--ink-3);">{{ scope_labels['write'] }}</span>
+                        </span>
+                    </label>
+                    <label class="flex items-start gap-3">
+                        <input type="checkbox" name="scope_destructive" value="1" class="mt-1">
+                        <span>
+                            <span class="block text-sm font-medium" style="color: var(--ink);">Delete permanently</span>
+                            <span class="block text-sm" style="color: var(--ink-3);">{{ scope_labels['destructive'] }} Off unless you check this.</span>
+                        </span>
+                    </label>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="crm-surface">
+                <header class="crm-surface-header">
+                    <div>
+                        <h2 class="crm-section-title">Tools this connection can use</h2>
+                        <p class="crm-section-description">Filtered to your role and this organization's features.</p>
+                    </div>
+                </header>
+                <div class="crm-surface-body space-y-4">
+                    {% if tool_groups %}
+                    {% for group, names in tool_groups.items() %}
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--ink-4);">{{ group }}</p>
+                        <p class="mt-1 text-sm" style="color: var(--ink-2);">{{ names|join(', ') }}</p>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-sm" style="color: var(--ink-3);">No tools are available for the selected access.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button type="submit" name="decision" value="deny" class="crm-btn crm-btn-secondary">Deny</button>
+                <button type="submit" name="decision" value="approve" class="crm-btn crm-btn-primary">Approve</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

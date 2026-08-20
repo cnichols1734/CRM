@@ -133,6 +133,46 @@
             </section>
         </div>
 
+        {% if current_user.org_role == 'owner' %}
+        <section class="crm-surface mt-6">
+            <header class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">AgentFlow MCP</h2>
+                    <p class="crm-section-description">
+                        Outside agents connect as a signed-in teammate. Turning this off kills live connections on the next request.
+                    </p>
+                </div>
+            </header>
+            <div class="crm-surface-body">
+                <form action="{{ url_for('org.update_mcp_settings') }}" method="POST" class="space-y-4">
+                    <label class="flex items-start gap-3">
+                        <input type="checkbox" name="mcp_enabled" value="1" class="mt-1"
+                               {% if mcp_enabled %}checked{% endif %}>
+                        <span>
+                            <span class="block text-sm font-medium" style="color: var(--ink);">Allow MCP connections</span>
+                            <span class="block text-sm" style="color: var(--ink-3);">
+                                Uncheck to stop Claude Cowork and similar clients for everyone in this organization.
+                            </span>
+                        </span>
+                    </label>
+                    <label class="flex items-start gap-3">
+                        <input type="checkbox" name="mcp_admin_only" value="1" class="mt-1"
+                               {% if org.mcp_admin_only %}checked{% endif %}>
+                        <span>
+                            <span class="block text-sm font-medium" style="color: var(--ink);">Owners and admins only</span>
+                            <span class="block text-sm" style="color: var(--ink-3);">
+                                Agents can still use the CRM. They just cannot connect an outside agent.
+                            </span>
+                        </span>
+                    </label>
+                    <div class="flex justify-end">
+                        <button type="submit" class="crm-btn crm-btn-primary">Save MCP settings</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+
         {# ── Danger zone ──────────────────────────────────────── #}
         {% if current_user.org_role == 'owner' and not org.is_platform_admin and org.status != 'pending_deletion' %}
         <section class="crm-surface mt-6">
