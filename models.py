@@ -4764,6 +4764,12 @@ class MarketingSuppression(db.Model):
     __table_args__ = (
         db.UniqueConstraint('organization_id', 'email', 'scope',
                             name='uq_marketing_suppression_email'),
+        # Platform rows have no organization_id, and NULLs are distinct in a
+        # unique constraint, so the constraint above does not cover them. Two
+        # webhook deliveries for one complaint would otherwise both insert.
+        db.Index('uq_marketing_suppression_platform', 'email', unique=True,
+                 postgresql_where=db.text("scope = 'platform'"),
+                 sqlite_where=db.text("scope = 'platform'")),
         db.Index('ix_marketing_suppressions_lookup', 'email', 'scope'),
     )
 

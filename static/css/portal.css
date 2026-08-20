@@ -470,3 +470,6 @@ body.pp {
 .pp-center h1 { font-weight: 700; font-size: 22px;
   margin: 0 0 var(--s2); letter-spacing: -0.01em; color: var(--pp-ink); }
 .pp-center p { color: var(--pp-muted); font-size: 14.5px; margin: 0; line-height: 1.55; }
+.pp-center__actions { margin-top: var(--s5); display: grid; gap: var(--s3); }
+.pp-center__aside { margin-top: var(--s4); font-size: 13px; }
+.pp-center strong { color: var(--pp-ink); font-weight: 600; }

@@ -1,11 +1,17 @@
-from flask import Blueprint, render_template, jsonify, current_app, request
+"""Admin view over the SendGrid dynamic templates used by transactional mail.
+
+Predates campaign marketing and is unrelated to it: campaign templates are
+authored in AgentFlow and stored in marketing_templates. This page stays because
+it is still how an admin checks what SendGrid has.
+"""
+from flask import render_template, jsonify, current_app, request
 from flask_login import login_required, current_user
 from functools import wraps
 from models import db, SendGridTemplate
 from services.sendgrid_service import SendGridService
 
-# Create blueprint
-marketing = Blueprint('marketing', __name__)
+from routes.marketing import marketing
+
 
 def admin_required(f):
     @wraps(f)

@@ -261,6 +261,14 @@ def upgrade():
             sa.Column('created_at', sa.DateTime(), nullable=False),
             sa.UniqueConstraint('organization_id', 'email', 'scope', name='uq_marketing_suppression_email'),
         )
+        # Platform rows carry a NULL organization_id, and NULLs are distinct in
+        # a unique constraint, so the constraint above does not cover them.
+        op.create_index(
+            'uq_marketing_suppression_platform', 'marketing_suppressions', ['email'],
+            unique=True,
+            postgresql_where=sa.text("scope = 'platform'"),
+            sqlite_where=sa.text("scope = 'platform'"),
+        )
         op.create_index('ix_marketing_suppressions_organization_id', 'marketing_suppressions', ['organization_id'])
         op.create_index('ix_marketing_suppressions_email', 'marketing_suppressions', ['email'])
         op.create_index('ix_marketing_suppressions_scope', 'marketing_suppressions', ['scope'])

@@ -1,0 +1,55 @@
+{% extends "portal/base.html" %}
+{% block title %}Email preferences{% endblock %}
+
+{% block body %}
+<div class="pp-center">
+  <div class="pp-center__box">
+
+    {% if state == 'confirm' %}
+      <h1>Stop marketing emails?</h1>
+      <p>
+        We&rsquo;ll stop sending market updates and campaign emails to
+        <strong>{{ email }}</strong> from {{ sender_name }}.
+        Your agent can still email you directly.
+      </p>
+      <div class="pp-center__actions">
+        <form method="post" action="{{ url_for('marketing_public.unsubscribe', token=token) }}">
+          <button type="submit" class="pp-btn pp-btn--ink pp-btn--block">Unsubscribe</button>
+        </form>
+      </div>
+
+    {% elif state == 'already' %}
+      <h1>You&rsquo;re already unsubscribed</h1>
+      <p>
+        <strong>{{ email }}</strong> is not receiving marketing emails from
+        {{ sender_name }}.
+      </p>
+      <div class="pp-center__actions">
+        <form method="post" action="{{ url_for('marketing_public.undo', token=token) }}">
+          <button type="submit" class="pp-btn pp-btn--ghost pp-btn--block">Start receiving them again</button>
+        </form>
+      </div>
+
+    {% elif state == 'restored' %}
+      <h1>You&rsquo;re back on the list</h1>
+      <p>
+        <strong>{{ email }}</strong> will receive marketing emails from
+        {{ sender_name }} again.
+      </p>
+
+    {% else %}
+      <h1>You&rsquo;re unsubscribed</h1>
+      <p>
+        <strong>{{ email }}</strong> won&rsquo;t receive marketing emails from
+        {{ sender_name }} anymore.
+      </p>
+      <div class="pp-center__actions pp-center__aside">
+        <form method="post" action="{{ url_for('marketing_public.undo', token=token) }}">
+          <button type="submit" class="pp-btn pp-btn--ghost pp-btn--sm pp-btn--block">Undo</button>
+        </form>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
