@@ -786,7 +786,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    {% call empty_state('No upcoming client tasks', 'Create a task to get started.', 'fa-tasks') %}
+                    {% call empty_state('No upcoming client tasks', 'Add a task for a contact.', 'fa-tasks') %}
                         <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-primary">Create task</a>
                     {% endcall %}
                     {% endif %}
