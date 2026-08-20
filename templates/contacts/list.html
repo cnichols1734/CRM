@@ -382,7 +382,7 @@
             </aside>
         </div>
         {% else %}
-        {% call empty_state('No contacts yet', 'Add a contact, import a CSV, or forward an email to Magic Inbox.', 'fa-address-book') %}
+        {% call empty_state('No contacts yet', 'Add a contact, import a CSV, or forward an email to Magic Inbox. We save the contact for you.', 'fa-address-book') %}
             <a href="{{ url_for('inbound_email.inbox_home') }}" class="crm-btn crm-btn-secondary">
                 <i class="fas fa-paper-plane text-xs"></i>
                 Use Magic Inbox
