@@ -23,6 +23,7 @@ from services.client_portal_auth import (
 from services.portal_service import (
     CLIENT_PORTAL_ROLES,
     SELLER_ROLES,
+    _participant_first_name,
     client_document_file_url,
     documents_for_client_api,
     list_client_messages,
@@ -145,6 +146,8 @@ def create_session():
         'token': token,
         'token_type': 'Bearer',
         'expires_in': JWT_TTL_SECONDS,
+        'participant_first_name': _participant_first_name(participant),
+        'role': (participant.role or 'seller').lower(),
         'branding': branding_for_access(access),
     })
 

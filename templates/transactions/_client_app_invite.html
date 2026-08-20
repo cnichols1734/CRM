@@ -10,6 +10,8 @@
             The code works only for that person on this transaction.
         </p>
         <p class="hidden text-sm text-red-700" data-invite-error></p>
+        {% set mls_field_id = 'client-app-mls-listing-url' %}
+        {% include 'transactions/_mls_listing_url.html' %}
         {% if client_invite_participants|default([]) %}
         <ul class="divide-y divide-slate-100">
             {% for participant in client_invite_participants %}

@@ -200,6 +200,13 @@ def test_session_exchange_valid_invalid_revoked_expired(app, seed, client):
         assert branding['logo_url'] == 'https://example.com/origen-logo.png'
         assert branding['accent'] == '#123456'
 
+        iphone = _open_session(client, valid_code, key='invite_code')
+        assert iphone.status_code == 200
+        assert iphone.get_json()['participant_first_name']
+        assert iphone.get_json()['role'] in (
+            'seller', 'co_seller', 'buyer', 'co_buyer',
+        )
+
         assert _open_session(client, 'NOTA-CODE').status_code == 422
         assert _open_session(client, revoked_code).status_code == 422
         assert _open_session(client, expired_code).status_code == 422
@@ -761,3 +768,53 @@ def test_default_branding_uses_product_orange(app, seed, client):
     assert branding['accent'] == '#f97316'
     assert branding['accent_ink'] == '#ea580c'
     assert branding['name'] == 'Test Realty A'
+
+
+def test_mls_listing_url_round_trip_on_deal(app, seed, owner_a_client, client):
+    from services.portal_service import normalize_mls_listing_url, public_mls_listing_url
+
+    assert normalize_mls_listing_url('') is None
+    assert normalize_mls_listing_url('https://har.com/listing/123') == (
+        'https://har.com/listing/123'
+    )
+    assert public_mls_listing_url('javascript:alert(1)') is None
+
+    with app.app_context():
+        tx = _seller_tx(seed, '913 Mls Link Ln')
+        seller = _participant(seed, tx, contact_id=seed['contact_a'])
+        access = _grant(seed, tx, seller)
+        db.session.commit()
+        tx_id, code = tx.id, access.invite_code
+
+    token = _open_session(client, code).get_json()['token']
+    empty = client.get('/api/client/v1/deal', headers=_auth_headers(token)).get_json()
+    assert empty['mls_listing_url'] is None
+    assert empty['headline']['mls_listing_url'] is None
+
+    rejected = owner_a_client.post(
+        f'/transactions/{tx_id}/mls-listing-url',
+        json={'mls_listing_url': 'javascript:alert(1)'},
+    )
+    assert rejected.status_code == 400
+
+    saved = owner_a_client.post(
+        f'/transactions/{tx_id}/mls-listing-url',
+        json={'mls_listing_url': 'https://har.com/listing/913'},
+    )
+    assert saved.status_code == 200
+    assert saved.get_json()['mls_listing_url'] == 'https://har.com/listing/913'
+
+    deal = client.get('/api/client/v1/deal', headers=_auth_headers(token)).get_json()
+    assert deal['mls_listing_url'] == 'https://har.com/listing/913'
+    assert deal['headline']['mls_listing_url'] == 'https://har.com/listing/913'
+
+    cleared = owner_a_client.post(
+        f'/transactions/{tx_id}/mls-listing-url',
+        json={'mls_listing_url': ''},
+    )
+    assert cleared.status_code == 200
+    assert cleared.get_json()['mls_listing_url'] is None
+    cleared_deal = client.get(
+        '/api/client/v1/deal', headers=_auth_headers(token),
+    ).get_json()
+    assert cleared_deal['mls_listing_url'] is None

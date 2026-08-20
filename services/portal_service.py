@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, date
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,30 @@ STAGE_DEFS = [
     ('closing', 'Closing', 'fa-key'),
     ('closed', 'Sold', 'fa-champagne-glasses'),
 ]
+
+def normalize_mls_listing_url(value):
+    """Return a cleaned http(s) listing URL, or None if blank.
+
+    Raises ValueError when the value is present but not a public web link.
+    """
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    parsed = urlparse(raw)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ValueError('Use a full http or https link.')
+    if len(raw) > 500:
+        raise ValueError('That link is too long.')
+    return raw
+
+
+def public_mls_listing_url(value):
+    """Same as normalize, but bad stored values become None instead of raising."""
+    try:
+        return normalize_mls_listing_url(value)
+    except ValueError:
+        return None
+
 
 BUYER_STAGE_DEFS = [
     ('showing', 'Searching & touring', 'fa-magnifying-glass'),
@@ -128,6 +153,7 @@ def build_portal_context(access):
         'property': _property_block(tx),
         'agent': _agent_block(tx),
         'headline': _headline_block(tx, profile, is_buyer=is_buyer),
+        'mls_listing_url': public_mls_listing_url(getattr(tx, 'mls_listing_url', None)),
         'updated_label': _updated_label(tx),
     }
 
@@ -308,6 +334,7 @@ def _headline_block(tx, profile, *, is_buyer=False):
         'price_reduced': bool(original_price and list_price and float(original_price) > float(list_price)),
         'days_on_market': days_on_market,
         'mls_number': None if is_buyer else (profile.mls_number if profile else None),
+        'mls_listing_url': public_mls_listing_url(getattr(tx, 'mls_listing_url', None)),
         'status': tx.status,
         'status_label': _status_label(tx.status, is_buyer=is_buyer),
         'expected_close': _full_day(getattr(tx, 'expected_close_date', None)),
@@ -498,10 +525,21 @@ def _showings_block(tx):
         if lvl in interest_counts:
             interest_counts[lvl] += 1
         status_key = (s.status or 'scheduled')
+        duration = 30
+        end = getattr(s, 'scheduled_end_at', None)
+        if start and end:
+            duration = max(int((end - start).total_seconds() / 60), 15)
+        starts_at = None
+        if start:
+            starts_at = start.isoformat()
+            if start.tzinfo is None and not starts_at.endswith('Z'):
+                starts_at = f'{starts_at}Z'
         items.append({
             'id': s.id,
             'date': start.strftime('%a, %b %-d') if start else 'Scheduled',
             'time': start.strftime('%-I:%M %p') if start else None,
+            'starts_at': starts_at,
+            'duration_minutes': duration,
             'status': status_key.replace('_', ' ').title(),
             'status_key': status_key,
             'can_decide': status_key == 'pending_approval',
@@ -751,6 +789,7 @@ _DEAL_KEYS = (
     'property',
     'agent',
     'headline',
+    'mls_listing_url',
     'headline_statement',
     'stages',
     'current_stage_index',

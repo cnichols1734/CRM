@@ -12,6 +12,7 @@ from models import (
     TransactionParticipant,
     db,
 )
+from services.portal_service import normalize_mls_listing_url
 from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
@@ -159,3 +160,21 @@ def portal_revoke_link(id, access_id):
     access.revoke()
     db.session.commit()
     return jsonify({'success': True, 'participant_id': access.participant_id})
+
+
+@transactions_bp.route('/<int:id>/mls-listing-url', methods=['POST'])
+@login_required
+@transactions_required
+def update_mls_listing_url(id):
+    """Save the public MLS listing link shown on the client Home screen."""
+    transaction = _get_transaction(id)
+    data = request.get_json(silent=True) or request.form
+    raw = data.get('mls_listing_url', data.get('url', ''))
+    try:
+        url = normalize_mls_listing_url(raw)
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+    transaction.mls_listing_url = url
+    db.session.commit()
+    return jsonify({'success': True, 'mls_listing_url': url})

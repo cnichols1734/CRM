@@ -1332,8 +1332,10 @@
                         </form>
                         {% endif %}
 
-                        {# Lockbox combo (always editable) #}
-                        <div class="{% if listing_info %}mt-4 border-t border-slate-100 pt-4{% endif %}">
+                        {# MLS listing link + lockbox (always editable) #}
+                        <div class="{% if listing_info %}mt-4 border-t border-slate-100 pt-4{% endif %} space-y-4">
+                            {% set mls_field_id = 'listing-info-mls-listing-url' %}
+                            {% include 'transactions/_mls_listing_url.html' %}
                             <div class="flex items-center justify-between gap-3">
                                 <span class="text-sm text-[color:var(--ink-3)]">Lockbox combo</span>
                                 <div class="flex items-center gap-2">

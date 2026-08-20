@@ -994,6 +994,9 @@ class Transaction(db.Model):
     
     # Flexible extra data for additional fields
     extra_data = db.Column(db.JSON, default={})
+
+    # Public MLS / listing page shown to the client in the iPhone app
+    mls_listing_url = db.Column(db.String(500))
     
     # RentCast property intelligence data (buyer transactions)
     rentcast_data = db.Column(db.JSON, default=None)  # Full API response
