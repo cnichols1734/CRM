@@ -62,9 +62,32 @@ def sendgrid_events():
     if not isinstance(events, list):
         return ('ok', 200)
 
+    from jobs.base import set_job_org_context
+    from models import db
+    from services.marketing.attribution import apply_event as apply_marketing_event
+
+    marketing_touched = False
     for item in events:
         if not isinstance(item, dict):
             continue
+        org_hint = item.get('organization_id') or (item.get('unique_args') or {}).get(
+            'organization_id'
+        )
+        if org_hint:
+            try:
+                set_job_org_context(int(org_hint))
+            except Exception:
+                db.session.rollback()
+
+        try:
+            if apply_marketing_event(item):
+                marketing_touched = True
+                continue
+        except Exception:
+            logger.exception('Marketing webhook event failed')
+            db.session.rollback()
+            continue
+
         event_name = item.get('event')
         mapped = _EVENT_MAP.get(event_name)
         if not mapped:
@@ -110,4 +133,11 @@ def sendgrid_events():
             },
             sync_person=False,
         )
+
+    if marketing_touched:
+        try:
+            db.session.commit()
+        except Exception:
+            logger.exception('Marketing webhook commit failed')
+            db.session.rollback()
     return ('ok', 200)

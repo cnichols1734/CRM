@@ -13,6 +13,11 @@ import OfferCompareController from "./controllers/offer_compare_controller";
 import DocumentUploadHubController from "./controllers/document_upload_hub_controller";
 import OfferPackageReviewController from "./controllers/offer_package_review_controller";
 import ListingInfoCompareController from "./controllers/listing_info_compare_controller";
+import MarketingCampaignMonitorController from "./controllers/marketing_campaign_monitor_controller";
+import MarketingCampaignWizardController from "./controllers/marketing_campaign_wizard_controller";
+import MarketingCoverController from "./controllers/marketing_cover_controller";
+import MarketingTemplateLibraryController from "./controllers/marketing_template_library_controller";
+import MarketingTemplateStudioController from "./controllers/marketing_template_studio_controller";
 import "./analytics";
 import "./styles/app.css";
 
@@ -32,5 +37,10 @@ application.register("offer-compare", OfferCompareController);
 application.register("document-upload-hub", DocumentUploadHubController);
 application.register("offer-package-review", OfferPackageReviewController);
 application.register("listing-info-compare", ListingInfoCompareController);
+application.register("marketing-campaign-monitor", MarketingCampaignMonitorController);
+application.register("marketing-campaign-wizard", MarketingCampaignWizardController);
+application.register("marketing-cover", MarketingCoverController);
+application.register("marketing-template-library", MarketingTemplateLibraryController);
+application.register("marketing-template-studio", MarketingTemplateStudioController);
 
 window.Stimulus = application;

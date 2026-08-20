@@ -1,0 +1,10 @@
+<div class="crm-segment mkt-nav mb-6" role="tablist" aria-label="Marketing">
+    <a href="{{ url_for('marketing.overview') }}"
+       class="crm-segment__item {% if nav == 'overview' %}is-active{% endif %}">Overview</a>
+    <a href="{{ url_for('marketing.campaigns_list') }}"
+       class="crm-segment__item {% if nav == 'campaigns' %}is-active{% endif %}">Campaigns</a>
+    <a href="{{ url_for('marketing.library') }}"
+       class="crm-segment__item {% if nav == 'templates' %}is-active{% endif %}">Templates</a>
+    <a href="{{ url_for('marketing.settings') }}"
+       class="crm-segment__item {% if nav == 'settings' %}is-active{% endif %}">Settings</a>
+</div>

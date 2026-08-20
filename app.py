@@ -39,7 +39,7 @@ from routes.ai_chat import ai_chat
 from routes.daily_todo import daily_todo
 from routes.user_todo import bp as user_todo_bp
 from routes.admin import admin_bp
-from routes.marketing import marketing
+from routes.marketing import marketing, marketing_public
 from routes.action_plan import action_plan_bp
 from routes.company_updates import company_updates_bp
 from routes.transactions import transactions_bp
@@ -253,6 +253,7 @@ def create_app():
     app.register_blueprint(user_todo_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(marketing)
+    app.register_blueprint(marketing_public)
     app.register_blueprint(action_plan_bp)
     app.register_blueprint(company_updates_bp)
     app.register_blueprint(transactions_bp)

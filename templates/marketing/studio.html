@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import badge %}
+
+{% block title %}{{ draft.name if draft and draft.get('name') else (template.name if template else 'Template') }} - AgentFlow{% endblock %}
+{% block mobile_title %}Template{% endblock %}
+
+{% block content %}
+<div class="crm-page mkt-page" data-controller="marketing-template-studio"
+     data-marketing-template-studio-preview-url-value="{{ url_for('marketing.api_preview') }}"
+     data-marketing-template-studio-upload-url-value="{{ url_for('marketing.api_upload') }}"
+     data-marketing-template-studio-test-url-value="{{ url_for('marketing.api_send_test') }}">
+    <div class="mkt-busy" hidden data-marketing-template-studio-target="busy">
+        <div class="mkt-busy__card crm-surface">
+            <div class="mkt-spinner" aria-hidden="true"></div>
+            <p class="mkt-busy__title">Making the email</p>
+            <p class="mkt-busy__copy">Hang on.</p>
+        </div>
+    </div>
+
+    <div class="crm-page__inner">
+        <a href="{{ url_for('marketing.library') }}" class="crm-back mb-3">
+            <i class="fas fa-arrow-left text-xs"></i> Templates
+        </a>
+        {% include 'marketing/_nav.html' %}
+
+        <div class="mkt-studio">
+            <form id="mkt-save" method="post" class="mkt-studio__canvas" data-marketing-template-studio-target="saveForm"
+                  data-action="submit->marketing-template-studio#guardSave">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="action" value="save">
+                <input type="hidden" name="generated_by_ai" value="{{ '1' if draft and draft.get('model') else '' }}">
+                <input type="hidden" name="prompt" value="{{ prompt }}">
+                <textarea class="hidden" name="blocks" data-marketing-template-studio-target="blocksField">{{ (draft.blocks if draft else []) | tojson }}</textarea>
+                <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
+                <input type="hidden" name="category" value="{{ (draft.category if draft and draft.get('category') else (template.category if template else 'other')) }}">
+
+                <div class="mkt-studio__top">
+                    <label class="mkt-name">
+                        <span class="crm-label">Template name</span>
+                        <input class="crm-input" name="name" required
+                               value="{{ draft.name if draft and draft.get('name') else (template.name if template else '') }}"
+                               placeholder="June open house">
+                    </label>
+                    <div class="mkt-studio__actions">
+                        <div class="crm-segment">
+                            <button type="button" class="crm-segment__item is-active" data-action="click->marketing-template-studio#desktop">Desktop</button>
+                            <button type="button" class="crm-segment__item" data-action="click->marketing-template-studio#mobile">Phone</button>
+                        </div>
+                        <button class="crm-btn crm-btn-primary" type="submit">Save template</button>
+                    </div>
+                </div>
+
+                <div class="mkt-inbox crm-surface">
+                    <label class="block">
+                        <span class="crm-label">Subject</span>
+                        <input class="crm-input mkt-inbox__subject" name="subject"
+                               data-marketing-template-studio-target="subject"
+                               data-action="focus->marketing-template-studio#rememberInput keyup->marketing-template-studio#rememberInput mouseup->marketing-template-studio#rememberInput"
+                               value="{{ draft.subject if draft else '' }}"
+                               placeholder="Subject line">
+                    </label>
+                    <p class="mkt-inbox__filled" hidden data-marketing-template-studio-target="filledSubject"></p>
+                    <label class="block mt-3">
+                        <span class="crm-label">Inbox preview line</span>
+                        <input class="crm-input" name="preheader"
+                               data-marketing-template-studio-target="preheader"
+                               data-action="focus->marketing-template-studio#rememberInput keyup->marketing-template-studio#rememberInput mouseup->marketing-template-studio#rememberInput"
+                               value="{{ draft.preheader if draft else '' }}"
+                               placeholder="The line under the subject in Gmail">
+                    </label>
+                    <div class="mkt-links" hidden data-marketing-template-studio-target="links">
+                        <span class="crm-label">Links</span>
+                        <p class="mt-1 text-xs crm-muted mb-2">Where the button in the email goes. Needs a full https:// address.</p>
+                        <div class="mkt-link-list" data-marketing-template-studio-target="linkList"></div>
+                        <p class="mt-2 text-sm" hidden data-marketing-template-studio-target="linkStatus"></p>
+                    </div>
+                    <div class="mkt-test">
+                        <span class="crm-label">Send test email</span>
+                        <p class="mt-1 text-xs crm-muted mb-2">Uses the sample data on the right. Add more addresses with commas.</p>
+                        <div class="mkt-test__row">
+                            <input class="crm-input" type="text"
+                                   data-marketing-template-studio-target="testTo"
+                                   value="{{ current_user.email or '' }}"
+                                   placeholder="you@example.com"
+                                   autocomplete="off">
+                            <button type="button" class="crm-btn"
+                                    data-marketing-template-studio-target="testButton"
+                                    data-action="click->marketing-template-studio#sendTest">Send test</button>
+                        </div>
+                        <p class="mt-2 text-sm" hidden data-marketing-template-studio-target="testStatus"></p>
+                    </div>
+                </div>
+
+                <div class="mkt-preview-bar">
+                    <p class="mkt-edit-hint">Click any line in the email to edit it.</p>
+                    <label class="mkt-sample-toggle">
+                        <span>Show sample data</span>
+                        <span class="crm-toggle">
+                            <input type="checkbox"
+                                   data-marketing-template-studio-target="sampleToggle"
+                                   data-action="change->marketing-template-studio#toggleSamples">
+                            <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                        </span>
+                    </label>
+                </div>
+                <iframe title="Email preview" sandbox="allow-same-origin"
+                        class="mkt-frame"
+                        style="color-scheme: light"
+                        srcdoc="{{ (preview_html or '') | e }}"
+                        data-controller="marketing-cover"
+                        data-marketing-cover-target="frame"
+                        data-marketing-template-studio-target="frame"></iframe>
+            </form>
+
+            <aside class="mkt-studio__rail">
+                <form method="post" data-action="submit->marketing-template-studio#busy">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                    <input type="hidden" name="action" value="generate">
+                    <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
+                    <details class="mkt-rewrite crm-surface">
+                        <summary>Rewrite this email</summary>
+                        <div class="mkt-rewrite__body">
+                            <p class="text-sm crm-muted mb-3">This overwrites the current email. Save first if you want to keep it.</p>
+                            <label class="block mb-3">
+                                <span class="crm-label">Describe the email</span>
+                                <textarea class="crm-textarea" name="prompt" rows="4" required
+                                          placeholder="Same email, but shorter and warmer.">{{ prompt }}</textarea>
+                            </label>
+                            {% include 'marketing/_composer_options.html' %}
+                            <button class="crm-btn crm-btn-accent mt-4" type="submit">Rewrite this email</button>
+                        </div>
+                    </details>
+                </form>
+
+                <div>
+                    <span class="crm-label">Photo</span>
+                    <p class="mt-1 text-xs crm-muted">Goes in above the signature.</p>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                           class="crm-input mt-2"
+                           data-marketing-template-studio-target="fileInput"
+                           data-action="change->marketing-template-studio#upload">
+                    <p class="mt-2 text-sm" hidden data-marketing-template-studio-target="uploadStatus"></p>
+                    <div class="crm-photo-list" hidden data-marketing-template-studio-target="imageList"></div>
+                </div>
+
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="share" form="mkt-save"
+                           {% if template and template.visibility == 'org' %}checked{% endif %}>
+                    <span>Share with my organization</span>
+                </label>
+                <input type="hidden" name="active" form="mkt-save" value="0">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="active" form="mkt-save" value="1"
+                           {% if not template or template.status == 'ready' %}checked{% endif %}>
+                    <span>Active</span>
+                </label>
+
+                {% if draft and draft.compliance_state == 'warn' %}
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="acknowledge" form="mkt-save">
+                    <span>I reviewed the Fair Housing warnings</span>
+                </label>
+                {% endif %}
+
+                <div>
+                    <span class="crm-label">Merge fields</span>
+                    <p class="mt-1 text-xs crm-muted mb-3">Click a name to insert it at the cursor.</p>
+                    {% for group in merge_groups %}
+                    <p class="mkt-merge-group">{{ group.title }}</p>
+                    <div class="mkt-merge-chips">
+                        {% for field in group.fields %}
+                        <button type="button" class="mkt-merge-chip"
+                                data-action="mousedown->marketing-template-studio#insertMerge click->marketing-template-studio#insertMerge"
+                                data-key="{{ field.key }}"
+                                data-label="{{ field.label }}"
+                                data-fallback="{{ field.fallback }}">{{ field.label }}</button>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="mkt-samples">
+                        <span class="crm-label">Sample data</span>
+                        <p class="mt-1 text-xs crm-muted mb-3">Highlighted fields are in this email. Fill those, then turn on Show sample data.</p>
+                        {% for group in merge_groups %}
+                        <p class="mkt-merge-group">{{ group.title }}</p>
+                        <div class="mkt-sample-list">
+                            {% for field in group.fields %}
+                            <label class="mkt-sample-row{% if field.used %} is-used{% endif %}">
+                                <span>{{ field.label }}</span>
+                                <input class="crm-input"
+                                       data-marketing-template-studio-target="sample"
+                                       data-key="{{ field.key }}"
+                                       placeholder="{{ field.example }}"
+                                       autocomplete="off"
+                                       spellcheck="false"
+                                       data-action="input->marketing-template-studio#samplesChanged">
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if draft and draft.findings %}
+                <div>
+                    <h3 class="crm-section-title mb-2">Compliance</h3>
+                    <ul class="space-y-2 text-sm">
+                        {% for finding in draft.findings %}
+                        <li>
+                            {{ badge(finding.severity, 'danger' if finding.severity == 'block' else 'warning') }}
+                            {{ finding.message }}
+                            {% if finding.matched_text %}<code>{{ finding.matched_text }}</code>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </aside>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+<div class="mkt-options">
+    <label class="block">
+        <span class="crm-label">Kind of email</span>
+        <div class="mkt-choices">
+            {% for value, label in category_choices %}
+            <label class="mkt-choice">
+                <input type="radio" name="category" value="{{ value }}"
+                       {% if (draft and draft.get('category') == value) or (not draft and value == 'check_in') %}checked{% endif %}>
+                <span>{{ label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </label>
+
+    <div class="mkt-options__grid">
+        <label class="block">
+            <span class="crm-label">Tone</span>
+            <select class="crm-input" name="tone">
+                {% for value, label in tone_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="block">
+            <span class="crm-label">Length</span>
+            <select class="crm-input" name="length">
+                {% for value, label in length_choices %}
+                <option value="{{ value }}" {% if value == 'regular' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="block">
+            <span class="crm-label">Who it's for</span>
+            <select class="crm-input" name="audience">
+                <option value="">Doesn't matter</option>
+                {% for value, label in audience_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </div>
+
+    <div class="mkt-checks">
+        <label class="mkt-check">
+            <input type="checkbox" name="include_hero" value="1" checked>
+            <span>Dark header at the top</span>
+        </label>
+        <label class="mkt-check">
+            <input type="checkbox" name="include_cta" value="1">
+            <span>Add a button</span>
+        </label>
+    </div>
+</div>

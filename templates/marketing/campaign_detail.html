@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge %}
+
+{% block title %}{{ campaign.name }} - AgentFlow{% endblock %}
+{% block mobile_title %}Campaign{% endblock %}
+
+{% block content %}
+<div class="crm-page mkt-page" data-controller="marketing-campaign-monitor"
+     data-marketing-campaign-monitor-url-value="{{ url_for('marketing.campaign_progress', campaign_id=campaign.id) }}"
+     data-marketing-campaign-monitor-running-value="{{ 'true' if campaign.is_running else 'false' }}">
+    <div class="crm-page__inner">
+        <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-back mb-3">
+            <i class="fas fa-arrow-left text-xs"></i> Campaigns
+        </a>
+        {% call page_header(campaign.name, campaign.kind.replace('_', ' ') | capitalize) %}
+            {% if campaign.is_editable %}
+            <form method="post" action="{{ url_for('marketing.campaign_launch', campaign_id=campaign.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <button type="submit" class="crm-btn crm-btn-accent">Launch</button>
+            </form>
+            {% elif campaign.is_running %}
+            <form method="post" action="{{ url_for('marketing.campaign_pause', campaign_id=campaign.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <button type="submit" class="crm-btn">Pause</button>
+            </form>
+            {% elif campaign.status == 'paused' %}
+            <form method="post" action="{{ url_for('marketing.campaign_resume', campaign_id=campaign.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <button type="submit" class="crm-btn crm-btn-accent">Resume</button>
+            </form>
+            {% endif %}
+            {% if campaign.status not in ('completed', 'cancelled') %}
+            <form method="post" action="{{ url_for('marketing.campaign_cancel', campaign_id=campaign.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <button type="submit" class="crm-btn">Cancel</button>
+            </form>
+            {% endif %}
+        {% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        {% if campaign.auto_paused_reason %}
+        <div class="crm-callout crm-callout-warning mb-5">
+            <p>Paused automatically: {{ campaign.auto_paused_reason }}</p>
+        </div>
+        {% endif %}
+
+        <div class="mkt-kpi mb-6">
+            <div class="crm-surface crm-stat"><div class="crm-stat__label">Queued</div><div class="crm-stat__value" data-marketing-campaign-monitor-target="queued">{{ campaign.queued_count }}</div></div>
+            <div class="crm-surface crm-stat"><div class="crm-stat__label">Sent</div><div class="crm-stat__value" data-marketing-campaign-monitor-target="sent">{{ campaign.sent_count }}</div></div>
+            <div class="crm-surface crm-stat"><div class="crm-stat__label">Delivered</div><div class="crm-stat__value" data-marketing-campaign-monitor-target="delivered">{{ campaign.delivered_count }}</div></div>
+            <div class="crm-surface crm-stat"><div class="crm-stat__label">Bounced</div><div class="crm-stat__value" data-marketing-campaign-monitor-target="bounced">{{ campaign.bounced_count }}</div></div>
+            <div class="crm-surface crm-stat"><div class="crm-stat__label">Skipped</div><div class="crm-stat__value" data-marketing-campaign-monitor-target="skipped">{{ campaign.skipped_count }}</div></div>
+            <div class="crm-surface crm-stat"><div class="crm-stat__label">Status</div><div class="crm-stat__value mkt-stat-status" data-marketing-campaign-monitor-target="status">{{ campaign.status.replace('_',' ') }}</div></div>
+        </div>
+
+        {% if steps %}
+        <div class="crm-surface mkt-catalog mb-6">
+            <h2 class="crm-section-title mb-4">Steps</h2>
+            <ol class="mkt-steps">
+                {% for step in steps %}
+                <li class="mkt-steps__item">
+                    <span class="mkt-steps__day">Day {{ step.delay_days }} at {{ '%02d' % step.send_hour_local }}:00, {{ step.template.name if step.template else 'Template' }}</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+
+        <div class="crm-surface mkt-catalog">
+            <h2 class="crm-section-title mb-4">Sends</h2>
+            <div class="crm-table-wrap">
+                <table class="crm-table">
+                    <thead>
+                        <tr>
+                            <th>To</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Subject</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for send in sends %}
+                        <tr>
+                            <td>{{ send.to_email }}</td>
+                            <td>{{ badge(send.status) }}</td>
+                            <td>{{ send.skip_reason or send.error or '' }}</td>
+                            <td>{{ send.subject_rendered or '' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4">No sends yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

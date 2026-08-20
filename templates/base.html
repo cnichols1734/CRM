@@ -2443,13 +2443,6 @@
                     <i class="fas fa-link w-5 mr-3 text-gray-400"></i>
                     Manage Resources
                 </a>
-                {% if org_has_feature('MARKETING') %}
-                <a href="{{ url_for('marketing.templates_list') }}"
-                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                    <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
-                    Email Templates
-                </a>
-                {% endif %}
                 {% if org_has_feature('DOCUMENT_GENERATION') %}
                 <a href="{{ url_for('admin.document_mapper_v2_list') }}"
                     class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
@@ -2593,9 +2586,9 @@
                     <i class="fas fa-circle-check w-6 mr-3"></i>
                     To Do List
                 </a>
-                {% if org_has_feature('MARKETING') %}
+                {% if org_has_feature('EMAIL_CAMPAIGNS') or org_has_feature('MARKETING') %}
                 <a href="{{ url_for('main.marketing') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.marketing' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and (request.endpoint == 'main.marketing' or request.endpoint.startswith('marketing.')) %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-bullhorn w-6 mr-3"></i>
                     Marketing
                 </a>
@@ -2738,7 +2731,7 @@
                 </div>
 
                 {# ── Insights & Tools (only render if at least one item is visible) ── #}
-                {% set _has_marketing = org_has_feature('MARKETING') %}
+                {% set _has_marketing = org_has_feature('EMAIL_CAMPAIGNS') or org_has_feature('MARKETING') %}
                 {% set _has_reports   = can_access_reports(current_user) %}
                 {% set _has_tax       = org_has_feature('TAX_PROTEST') %}
                 {% set _has_action    = org_has_feature('AI_ACTION_PLAN') %}
@@ -2762,7 +2755,7 @@
                     {% endif %}
                     {% if _has_marketing %}
                     <a href="{{ url_for('main.marketing') }}"
-                       class="crm-nav-link {% if request.endpoint == 'main.marketing' %}is-active{% endif %}">
+                       class="crm-nav-link {% if request.endpoint and (request.endpoint == 'main.marketing' or request.endpoint.startswith('marketing.')) %}is-active{% endif %}">
                         <i class="fas fa-bullhorn"></i>
                         <span>Marketing</span>
                     </a>
@@ -2880,11 +2873,6 @@
                         <a href="{{ url_for('admin.manage_resources') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                             <i class="fas fa-link w-5 mr-3 text-gray-400"></i>Manage Resources
                         </a>
-                        {% if org_has_feature('MARKETING') %}
-                        <a href="{{ url_for('marketing.templates_list') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                            <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>Email Templates
-                        </a>
-                        {% endif %}
                         {% if org_has_feature('DOCUMENT_GENERATION') %}
                         <a href="{{ url_for('admin.document_mapper_v2_list') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                             <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>Document Mapping

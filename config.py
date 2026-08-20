@@ -68,6 +68,25 @@ class Config:
     # SendGrid configuration
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
+    # Marketing campaigns send from their own authenticated subdomain so a
+    # campaign that draws complaints cannot take password resets and org
+    # invites down with it. Same brand, separate DKIM signing domain.
+    MARKETING_FROM_EMAIL = os.getenv(
+        'MARKETING_FROM_EMAIL', 'agents@mail.origentechnolog.com'
+    )
+    MARKETING_FROM_NAME = os.getenv('MARKETING_FROM_NAME', 'AgentFlow')
+    # Address in the List-Unsubscribe header for clients that prefer mailto.
+    MARKETING_UNSUBSCRIBE_MAILTO = os.getenv('MARKETING_UNSUBSCRIBE_MAILTO')
+    # Bounce rate that auto-pauses a running campaign, as a fraction of
+    # attempted sends. Above roughly 5% mailbox providers start filtering.
+    MARKETING_BOUNCE_PAUSE_RATE = float(
+        os.getenv('MARKETING_BOUNCE_PAUSE_RATE', '0.05')
+    )
+    # Attempts below which the bounce rate is too noisy to act on.
+    MARKETING_BOUNCE_PAUSE_MIN = int(
+        os.getenv('MARKETING_BOUNCE_PAUSE_MIN', '50')
+    )
+
     # Product analytics. The project token is intentionally public-safe; never
     # expose a PostHog personal API key to the application or browser.
     POSTHOG_PROJECT_TOKEN = os.getenv('POSTHOG_PROJECT_TOKEN')

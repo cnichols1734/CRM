@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
+
+{% block title %}Campaigns - AgentFlow{% endblock %}
+{% block mobile_title %}Campaigns{% endblock %}
+
+{% block content %}
+<div class="crm-page mkt-page">
+    <div class="crm-page__inner">
+        {% call page_header('Campaigns') %}
+            <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">New campaign</a>
+        {% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        <div class="crm-segment mb-5">
+            <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-segment__item {% if not status %}is-active{% endif %}">All</a>
+            <a href="{{ url_for('marketing.campaigns_list', status='sending') }}" class="crm-segment__item {% if status == 'sending' %}is-active{% endif %}">Sending</a>
+            <a href="{{ url_for('marketing.campaigns_list', status='active') }}" class="crm-segment__item {% if status == 'active' %}is-active{% endif %}">Drips</a>
+            <a href="{{ url_for('marketing.campaigns_list', status='draft') }}" class="crm-segment__item {% if status == 'draft' %}is-active{% endif %}">Drafts</a>
+            <a href="{{ url_for('marketing.campaigns_list', status='completed') }}" class="crm-segment__item {% if status == 'completed' %}is-active{% endif %}">Done</a>
+        </div>
+
+        {% if campaigns %}
+        <ul class="mkt-catalog__list mkt-catalog__list--solo">
+            {% for campaign in campaigns %}
+            <li>
+                <a class="mkt-catalog__row crm-surface" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id) }}">
+                    <div class="mkt-catalog__copy">
+                        <p class="mkt-catalog__name">{{ campaign.name }}</p>
+                        <p class="mkt-catalog__meta">{{ 'Drip' if campaign.kind == 'drip' else 'One-time' }}</p>
+                    </div>
+                    {{ badge(campaign.status.replace('_', ' ')) }}
+                    <span class="mkt-catalog__metric" title="Recipients">{{ campaign.total_recipients }}</span>
+                    <span class="mkt-catalog__metric" title="Sent">{{ campaign.sent_count }}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+            {% call empty_state('No campaigns', 'No campaigns match that filter.', 'fa-folder-open') %}{% endcall %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

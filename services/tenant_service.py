@@ -15,7 +15,10 @@ TENANT_MODELS = [
     'Contact', 'ContactGroup', 'Task', 'Transaction', 'TransactionDocument',
     'TransactionParticipant', 'DocumentSignature', 'ActionPlan',
     'DailyTodoList', 'UserTodo', 'CompanyUpdate', 'ContactFile', 'SendGridTemplate',
-    'PartnerOrganization', 'PartnerContact'
+    'PartnerOrganization', 'PartnerContact',
+    'MarketingTemplate', 'MarketingTemplateVersion', 'MarketingAudience',
+    'MarketingCampaign', 'MarketingCampaignStep', 'MarketingEnrollment',
+    'MarketingSend', 'MarketingSuppression',
 ]
 
 

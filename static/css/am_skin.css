@@ -2163,3 +2163,67 @@ html.am-skin .audit-mobile-card {
   border-color: var(--hairline) !important;
   box-shadow: none !important;
 }
+
+/* ── Marketing chrome: liquid glass, not Atelier paper wells ─ */
+html.am-skin .mkt-page .crm-surface,
+html.am-skin .mkt-page .crm-panel,
+html.am-skin .mkt-page .mkt-composer,
+html.am-skin .mkt-page .mkt-inbox,
+html.am-skin .mkt-page .mkt-rewrite,
+html.am-skin .mkt-page .mkt-saved__row,
+html.am-skin .mkt-page .mkt-busy__card,
+html.am-skin .mkt-page .mkt-catalog,
+html.am-skin .mkt-page .mkt-preview,
+html.am-skin .mkt-page .mkt-pane,
+html.am-skin .mkt-page .mkt-settings__form,
+html.am-skin .mkt-page .crm-stat,
+html.am-skin .mkt-modal__panel {
+  background: var(--am-glass) !important;
+  background-color: var(--am-glass) !important;
+  backdrop-filter: var(--am-glass-blur) !important;
+  -webkit-backdrop-filter: var(--am-glass-blur) !important;
+  border: 0.5px solid var(--am-glass-border) !important;
+  box-shadow: none !important;
+}
+html.am-skin[data-theme="light"] .mkt-page .crm-surface,
+html.am-skin[data-theme="light"] .mkt-page .crm-panel,
+html.am-skin[data-theme="light"] .mkt-page .mkt-composer,
+html.am-skin[data-theme="light"] .mkt-page .mkt-inbox,
+html.am-skin[data-theme="light"] .mkt-page .mkt-rewrite,
+html.am-skin[data-theme="light"] .mkt-page .mkt-saved__row,
+html.am-skin[data-theme="light"] .mkt-page .mkt-busy__card,
+html.am-skin[data-theme="light"] .mkt-page .mkt-catalog,
+html.am-skin[data-theme="light"] .mkt-page .mkt-preview,
+html.am-skin[data-theme="light"] .mkt-page .mkt-pane,
+html.am-skin[data-theme="light"] .mkt-page .mkt-settings__form,
+html.am-skin[data-theme="light"] .mkt-page .crm-stat,
+html.am-skin[data-theme="light"] .mkt-modal__panel {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html.am-skin .mkt-page .crm-surface .crm-table-wrap,
+html.am-skin .mkt-page .mkt-catalog .crm-table-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+html.am-skin .mkt-page .mkt-cover__stage,
+html.am-skin .mkt-page .mkt-preview__stage {
+  background: #f0f4f8 !important;
+  color-scheme: light;
+  border-color: var(--am-glass-border) !important;
+}
+html.am-skin .mkt-page .mkt-step-rail__item.is-active {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent-line) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .mkt-page .mkt-chip input:checked + span,
+html.am-skin .mkt-page .mkt-choice input:checked + span {
+  border-color: var(--accent-line) !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important;
+}
+html.am-skin .mkt-page .mkt-pane.is-current {
+  box-shadow: inset 0 0 0 1px var(--accent-line) !important;
+}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
+
+{% block title %}Marketing - AgentFlow{% endblock %}
+{% block mobile_title %}Marketing{% endblock %}
+
+{% block content %}
+<div class="crm-page mkt-page">
+    <div class="crm-page__inner">
+        {% call page_header('Marketing', 'Send a one-time email or a drip to your contacts.') %}
+            <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">New campaign</a>
+        {% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        {% if not readiness.ok %}
+        <div class="crm-callout crm-callout-warning mb-5">
+            <p>{{ readiness.message }} <a href="{{ url_for('marketing.settings') }}" class="underline">Add them in Settings</a>.</p>
+        </div>
+        {% endif %}
+
+        <div class="mkt-kpi mb-6">
+            <div class="crm-surface crm-stat">
+                <div class="crm-stat__label">Sends this month</div>
+                <div class="crm-stat__value">{{ quota.used }}{% if quota.limit %}<span class="crm-stat__unit"> / {{ quota.limit }}</span>{% endif %}</div>
+            </div>
+            <div class="crm-surface crm-stat">
+                <div class="crm-stat__label">Active campaigns</div>
+                <div class="crm-stat__value">{{ active_count }}</div>
+            </div>
+            <div class="crm-surface crm-stat">
+                <div class="crm-stat__label">Left this month</div>
+                <div class="crm-stat__value">{{ quota.remaining }}</div>
+            </div>
+        </div>
+
+        <div class="crm-surface mkt-catalog">
+            <div class="mkt-catalog__header">
+                <h2 class="crm-section-title">Recent campaigns</h2>
+                <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-btn">View all</a>
+            </div>
+            {% if campaigns %}
+            <ul class="mkt-catalog__list">
+                {% for campaign in campaigns %}
+                <li>
+                    <a class="mkt-catalog__row" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id) }}">
+                        <div class="mkt-catalog__copy">
+                            <p class="mkt-catalog__name">{{ campaign.name }}</p>
+                            <p class="mkt-catalog__meta">{{ campaign.kind.replace('_', ' ') }}</p>
+                        </div>
+                        {{ badge(campaign.status.replace('_', ' '), 'info' if campaign.is_running else 'neutral') }}
+                        <span class="mkt-catalog__metric">{{ campaign.sent_count }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+                {% call empty_state('No campaigns', 'Use New campaign to send a template to contacts in your CRM.', 'fa-envelope') %}
+                    <a href="{{ url_for('marketing.campaign_new') }}" class="crm-btn crm-btn-accent">Start a campaign</a>
+                {% endcall %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

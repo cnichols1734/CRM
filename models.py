@@ -354,6 +354,20 @@ class Contact(db.Model):
     financial_status = db.Column(db.Text, nullable=True)
     additional_notes = db.Column(db.Text, nullable=True)
 
+    # Marketing consent. CAN-SPAM is opt-out, so 'unknown' is sendable and only
+    # 'opted_out' blocks a campaign. Orgs wanting express opt-in set
+    # require_consent on the audience filter instead.
+    MARKETING_CONSENT_STATES = {'unknown', 'opted_in', 'opted_out'}
+    MARKETING_CONSENT_SOURCES = {
+        'manual', 'import', 'web_form', 'inbound_email', 'existing_client',
+        'unsubscribe_link', 'bounce', 'spam_report',
+    }
+    marketing_consent = db.Column(db.String(20), nullable=False,
+                                  default='unknown', server_default='unknown',
+                                  index=True)
+    marketing_consent_source = db.Column(db.String(30), nullable=True)
+    marketing_consent_at = db.Column(db.DateTime, nullable=True)
+
     # Relationships
     owner = db.relationship('User', foreign_keys=[user_id], backref=db.backref('contacts', lazy=True))
     created_by = db.relationship('User', foreign_keys=[created_by_id],
@@ -377,6 +391,12 @@ class Contact(db.Model):
             self.last_contact_date  # Preserve existing value from meeting/other
         ] if d is not None]
         self.last_contact_date = max(dates) if dates else None
+
+    @property
+    def can_receive_marketing(self) -> bool:
+        """Address present and not explicitly opted out. Suppression is checked
+        separately, since it applies to an address rather than a contact."""
+        return bool(self.email) and self.marketing_consent != 'opted_out'
 
     def __repr__(self):
         return f'<Contact {self.first_name} {self.last_name}>'
@@ -3795,6 +3815,7 @@ class Notification(db.Model):
         'portal': 'Client Portal',
         'bob_action': 'B.O.B. Changes',
         'document_review': 'Document Review',
+        'marketing': 'Email campaigns',
     }
 
     def mark_read(self):
@@ -4256,3 +4277,503 @@ class McpRefreshToken(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     grant = db.relationship('McpUserGrant', foreign_keys=[grant_id])
+
+
+# =============================================================================
+# EMAIL MARKETING (templates, audiences, campaigns, sends, suppression)
+# =============================================================================
+
+class MarketingTemplate(db.Model):
+    """An email template owned by an agent or shared across the org.
+
+    Template HTML lives here, not in SendGrid. SendGrid caps an account at a
+    few hundred dynamic templates and has no tenant isolation, so agent-created
+    templates would collide across orgs. Owning the markup also means preview
+    needs no API round trip and the compliance gate is ours to enforce.
+
+    ``blocks`` is the authored form (see services/marketing/blocks.py).
+    ``html_cached``/``text_cached`` are rendered from it on save so sending and
+    preview never re-render.
+    """
+    __tablename__ = 'marketing_templates'
+
+    VISIBILITIES = {'private', 'org'}
+    STATUSES = {'draft', 'ready', 'archived'}
+    SOURCES = {'ai', 'manual', 'system'}
+    COMPLIANCE_STATES = {'pass', 'warn', 'blocked'}
+    CATEGORIES = {
+        'check_in', 'open_house', 'market_update', 'just_listed',
+        'just_sold', 'holiday', 'newsletter', 'other',
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    # Null for system templates seeded by the platform.
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'),
+        nullable=True, index=True,
+    )
+
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(500))
+    category = db.Column(db.String(50), nullable=False, default='other', index=True)
+
+    subject = db.Column(db.String(300), nullable=False)
+    preheader = db.Column(db.String(300))
+    blocks = db.Column(db.JSON, nullable=False, default=list)
+    html_cached = db.Column(db.Text)
+    text_cached = db.Column(db.Text)
+
+    visibility = db.Column(db.String(20), nullable=False, default='private', index=True)
+    status = db.Column(db.String(20), nullable=False, default='draft', index=True)
+    source = db.Column(db.String(20), nullable=False, default='manual')
+
+    version = db.Column(db.Integer, nullable=False, default=1)
+
+    compliance_state = db.Column(db.String(20), nullable=False, default='pass')
+    compliance_findings = db.Column(db.JSON, nullable=False, default=list)
+    # Set when an agent acknowledges non-blocking Fair Housing warnings.
+    compliance_ack_by_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True,
+    )
+    compliance_ack_at = db.Column(db.DateTime, nullable=True)
+
+    merge_fields_used = db.Column(db.JSON, nullable=False, default=list)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+
+    creator = db.relationship('User', foreign_keys=[created_by_id])
+    organization = db.relationship('Organization', foreign_keys=[organization_id])
+
+    __table_args__ = (
+        db.Index('ix_marketing_templates_org_visibility', 'organization_id', 'visibility'),
+        db.Index('ix_marketing_templates_org_creator', 'organization_id', 'created_by_id'),
+    )
+
+    @property
+    def is_shared(self) -> bool:
+        return self.visibility == 'org'
+
+    @property
+    def is_sendable(self) -> bool:
+        """Blocked compliance findings stop a template from being used."""
+        return self.status == 'ready' and self.compliance_state != 'blocked'
+
+    def __repr__(self):
+        return f'<MarketingTemplate {self.id} {self.name!r} {self.visibility}>'
+
+
+class MarketingTemplateVersion(db.Model):
+    """Immutable snapshot of a template, written on every save.
+
+    Agents edit templates by re-prompting the AI, which can make a good
+    template worse. History makes that recoverable, and keeping the prompt
+    means "do that again but warmer" has something to build on.
+    """
+    __tablename__ = 'marketing_template_versions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    template_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_templates.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    version = db.Column(db.Integer, nullable=False)
+
+    subject = db.Column(db.String(300), nullable=False)
+    preheader = db.Column(db.String(300))
+    blocks = db.Column(db.JSON, nullable=False, default=list)
+    html = db.Column(db.Text)
+
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True,
+    )
+    change_note = db.Column(db.String(500))
+    generated_by_ai = db.Column(db.Boolean, nullable=False, default=False)
+    prompt = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    template = db.relationship('MarketingTemplate', backref=db.backref(
+        'versions', lazy='dynamic', cascade='all, delete-orphan',
+        order_by='MarketingTemplateVersion.version.desc()'))
+
+    __table_args__ = (
+        db.UniqueConstraint('template_id', 'version', name='uq_marketing_template_version'),
+    )
+
+    def __repr__(self):
+        return f'<MarketingTemplateVersion tpl={self.template_id} v{self.version}>'
+
+
+class MarketingAudience(db.Model):
+    """A contact filter, either saved for reuse or built inline for one campaign.
+
+    ``filter`` holds the selection criteria rather than a contact list, so a
+    saved audience stays current. Campaign enrollment resolves it once at launch
+    and snapshots the result.
+    """
+    __tablename__ = 'marketing_audiences'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+
+    name = db.Column(db.String(200))
+    # {groups: [], zips: [], cities: [], states: [], owners: [],
+    #  require_consent: bool, whole_org: bool}
+    filter = db.Column(db.JSON, nullable=False, default=dict)
+
+    # False for throwaway audiences created inside the campaign wizard.
+    is_saved = db.Column(db.Boolean, nullable=False, default=True, index=True)
+
+    cached_count = db.Column(db.Integer)
+    cached_at = db.Column(db.DateTime)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+
+    owner = db.relationship('User', foreign_keys=[user_id])
+
+    def __repr__(self):
+        return f'<MarketingAudience {self.id} {self.name!r} saved={self.is_saved}>'
+
+
+class MarketingCampaign(db.Model):
+    """A one-time send or a drip sequence.
+
+    Counters are denormalized because the campaign monitor reads them on every
+    poll and counting send rows on each request does not scale past a few
+    thousand recipients.
+    """
+    __tablename__ = 'marketing_campaigns'
+
+    KINDS = {'one_time', 'drip'}
+    STATUSES = {
+        'draft', 'pending_review', 'scheduled', 'sending', 'active',
+        'paused', 'completed', 'cancelled', 'failed',
+    }
+    CREATED_VIA = {'web', 'mcp', 'bob'}
+    # Statuses an agent can still edit from.
+    EDITABLE_STATUSES = {'draft', 'pending_review', 'scheduled'}
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+
+    name = db.Column(db.String(200), nullable=False)
+    kind = db.Column(db.String(20), nullable=False, default='one_time')
+    status = db.Column(db.String(20), nullable=False, default='draft', index=True)
+
+    audience_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_audiences.id', ondelete='RESTRICT'),
+        nullable=True,
+    )
+
+    from_name = db.Column(db.String(200))
+    reply_to = db.Column(db.String(200))
+
+    scheduled_at = db.Column(db.DateTime, nullable=True, index=True)
+    timezone = db.Column(db.String(64), nullable=False, default='America/Chicago')
+
+    launched_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    paused_at = db.Column(db.DateTime, nullable=True)
+    # Set when the bounce-rate circuit breaker trips.
+    auto_paused_reason = db.Column(db.String(200), nullable=True)
+
+    created_via = db.Column(db.String(20), nullable=False, default='web')
+
+    total_recipients = db.Column(db.Integer, nullable=False, default=0)
+    queued_count = db.Column(db.Integer, nullable=False, default=0)
+    sent_count = db.Column(db.Integer, nullable=False, default=0)
+    delivered_count = db.Column(db.Integer, nullable=False, default=0)
+    bounced_count = db.Column(db.Integer, nullable=False, default=0)
+    failed_count = db.Column(db.Integer, nullable=False, default=0)
+    skipped_count = db.Column(db.Integer, nullable=False, default=0)
+    unsubscribed_count = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+
+    owner = db.relationship('User', foreign_keys=[user_id])
+    audience = db.relationship('MarketingAudience', foreign_keys=[audience_id])
+
+    __table_args__ = (
+        db.Index('ix_marketing_campaigns_org_status', 'organization_id', 'status'),
+        db.Index('ix_marketing_campaigns_org_user', 'organization_id', 'user_id'),
+    )
+
+    @property
+    def is_editable(self) -> bool:
+        return self.status in self.EDITABLE_STATUSES
+
+    @property
+    def is_running(self) -> bool:
+        return self.status in ('sending', 'active')
+
+    @property
+    def bounce_rate(self) -> float:
+        """Bounces over attempted sends. The circuit breaker reads this."""
+        attempted = self.delivered_count + self.bounced_count
+        if attempted <= 0:
+            return 0.0
+        return self.bounced_count / attempted
+
+    def __repr__(self):
+        return f'<MarketingCampaign {self.id} {self.name!r} {self.status}>'
+
+
+class MarketingCampaignStep(db.Model):
+    """One email in a campaign. A one-time campaign has a single step at day 0."""
+    __tablename__ = 'marketing_campaign_steps'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_campaigns.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    template_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_templates.id', ondelete='RESTRICT'),
+        nullable=False,
+    )
+
+    step_index = db.Column(db.Integer, nullable=False, default=0)
+    name = db.Column(db.String(200))
+    # Days after enrollment, not after the previous step.
+    delay_days = db.Column(db.Integer, nullable=False, default=0)
+    send_hour_local = db.Column(db.Integer, nullable=False, default=9)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    campaign = db.relationship('MarketingCampaign', backref=db.backref(
+        'steps', lazy='dynamic', cascade='all, delete-orphan',
+        order_by='MarketingCampaignStep.step_index'))
+    template = db.relationship('MarketingTemplate', foreign_keys=[template_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('campaign_id', 'step_index', name='uq_marketing_step_index'),
+    )
+
+    def __repr__(self):
+        return f'<MarketingCampaignStep c={self.campaign_id} #{self.step_index}>'
+
+
+class MarketingEnrollment(db.Model):
+    """A contact's place in a campaign. Created at launch; the audience is a
+    snapshot, so contacts added to a group later do not join a running drip.
+    """
+    __tablename__ = 'marketing_enrollments'
+
+    STATUSES = {'active', 'completed', 'stopped', 'failed'}
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_campaigns.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    contact_id = db.Column(
+        db.Integer, db.ForeignKey('contact.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+
+    status = db.Column(db.String(20), nullable=False, default='active', index=True)
+    current_step_index = db.Column(db.Integer, nullable=False, default=0)
+    next_send_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    enrolled_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    stop_reason = db.Column(db.String(100), nullable=True)
+
+    campaign = db.relationship('MarketingCampaign', backref=db.backref(
+        'enrollments', lazy='dynamic', cascade='all, delete-orphan'))
+    contact = db.relationship('Contact', foreign_keys=[contact_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('campaign_id', 'contact_id', name='uq_marketing_enrollment'),
+        db.Index('ix_marketing_enrollments_due', 'status', 'next_send_at'),
+    )
+
+    def __repr__(self):
+        return (f'<MarketingEnrollment c={self.campaign_id} '
+                f'contact={self.contact_id} step={self.current_step_index}>')
+
+
+class MarketingSend(db.Model):
+    """One row per email, including ones we deliberately did not send.
+
+    Skipped recipients get a row with a ``skip_reason`` instead of vanishing, so
+    the campaign monitor can account for every contact in the audience. An
+    agent who is told "312 recipients" and sees 265 delivered needs the other 47
+    explained.
+    """
+    __tablename__ = 'marketing_sends'
+
+    STATUSES = {
+        'queued', 'sending', 'sent', 'delivered', 'bounced', 'dropped',
+        'deferred', 'failed', 'skipped',
+    }
+    SKIP_REASONS = {
+        'no_email', 'suppressed', 'opted_out', 'consent_required',
+        'duplicate_email', 'missing_merge_field', 'over_quota',
+        'campaign_cancelled', 'unfilled_placeholder',
+    }
+    MAX_ATTEMPTS = 3
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_campaigns.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    step_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_campaign_steps.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    enrollment_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_enrollments.id', ondelete='CASCADE'),
+        nullable=True, index=True,
+    )
+    contact_id = db.Column(
+        db.Integer, db.ForeignKey('contact.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    template_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_templates.id', ondelete='RESTRICT'),
+        nullable=False,
+    )
+    # The sending agent, kept even if the contact is later reassigned.
+    user_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True,
+    )
+
+    # Snapshot at queue time: the contact's address may change afterwards.
+    to_email = db.Column(db.String(200), nullable=False, index=True)
+    subject_rendered = db.Column(db.String(300))
+
+    status = db.Column(db.String(20), nullable=False, default='queued', index=True)
+    skip_reason = db.Column(db.String(50), nullable=True)
+
+    scheduled_for = db.Column(db.DateTime, nullable=True, index=True)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    # Populated only once engagement tracking is switched on. Present now so
+    # enabling it later is a webhook change with no migration.
+    opened_at = db.Column(db.DateTime, nullable=True)
+    clicked_at = db.Column(db.DateTime, nullable=True)
+
+    provider_message_id = db.Column(db.String(200), nullable=True, index=True)
+    error = db.Column(db.String(500), nullable=True)
+    attempt_count = db.Column(db.Integer, nullable=False, default=0)
+    last_attempt_at = db.Column(db.DateTime, nullable=True)
+
+    # Format is "<org_id>.<secret>" so the unauthenticated unsubscribe route can
+    # set org context before it queries, keeping RLS forced on this table.
+    unsubscribe_token = db.Column(db.String(120), unique=True, nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    campaign = db.relationship('MarketingCampaign', backref=db.backref(
+        'sends', lazy='dynamic', cascade='all, delete-orphan'))
+    step = db.relationship('MarketingCampaignStep', foreign_keys=[step_id])
+    contact = db.relationship('Contact', foreign_keys=[contact_id])
+    template = db.relationship('MarketingTemplate', foreign_keys=[template_id])
+
+    __table_args__ = (
+        db.Index('ix_marketing_sends_claim', 'status', 'scheduled_for'),
+        db.Index('ix_marketing_sends_campaign_status', 'campaign_id', 'status'),
+        db.Index('ix_marketing_sends_contact_created', 'contact_id', 'created_at'),
+    )
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in ('delivered', 'bounced', 'dropped', 'failed', 'skipped')
+
+    def __repr__(self):
+        return f'<MarketingSend {self.id} {self.to_email} {self.status}>'
+
+
+class MarketingSuppression(db.Model):
+    """An address we will not email again.
+
+    ``scope`` matters because marketing shares one sending domain. An
+    unsubscribe is a decision about one org's mail, but a spam complaint or hard
+    bounce is a reputation problem for every org on the domain, so those are
+    recorded platform-wide.
+    """
+    __tablename__ = 'marketing_suppressions'
+
+    SCOPES = {'org', 'platform'}
+    REASONS = {'unsubscribe', 'bounce', 'spam_report', 'manual', 'invalid'}
+    # Reasons that damage the shared sending domain, not just one org's list.
+    PLATFORM_REASONS = {'spam_report', 'bounce'}
+
+    id = db.Column(db.Integer, primary_key=True)
+    # Nullable for platform-scoped rows, which belong to no single tenant.
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=True, index=True,
+    )
+    email = db.Column(db.String(200), nullable=False, index=True)
+    scope = db.Column(db.String(20), nullable=False, default='org', index=True)
+    reason = db.Column(db.String(30), nullable=False)
+
+    source_send_id = db.Column(
+        db.Integer, db.ForeignKey('marketing_sends.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True,
+    )
+    note = db.Column(db.String(300))
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'email', 'scope',
+                            name='uq_marketing_suppression_email'),
+        # Platform rows have no organization_id, and NULLs are distinct in a
+        # unique constraint, so the constraint above does not cover them. Two
+        # webhook deliveries for one complaint would otherwise both insert.
+        db.Index('uq_marketing_suppression_platform', 'email', unique=True,
+                 postgresql_where=db.text("scope = 'platform'"),
+                 sqlite_where=db.text("scope = 'platform'")),
+        db.Index('ix_marketing_suppressions_lookup', 'email', 'scope'),
+    )
+
+    def __repr__(self):
+        return f'<MarketingSuppression {self.email} {self.scope}/{self.reason}>'

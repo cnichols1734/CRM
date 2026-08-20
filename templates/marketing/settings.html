@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Marketing settings - AgentFlow{% endblock %}
+{% block mobile_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="crm-page mkt-page">
+    <div class="crm-page__inner mkt-settings">
+        {% call page_header('Marketing settings', 'Brokerage details go in every email footer. Fill them in before you send a campaign.') %}{% endcall %}
+        {% include 'marketing/_nav.html' %}
+
+        <form method="post" class="crm-surface mkt-settings__form mb-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+            <label class="block mb-4">
+                <span class="crm-label">Brokerage name</span>
+                <input class="crm-input" name="broker_name" value="{{ org.broker_name or '' }}">
+            </label>
+            <label class="block mb-4">
+                <span class="crm-label">License number</span>
+                <input class="crm-input" name="broker_license_number" value="{{ org.broker_license_number or '' }}">
+            </label>
+            <label class="block mb-5">
+                <span class="crm-label">Mailing address</span>
+                <input class="crm-input" name="broker_address" value="{{ org.broker_address or '' }}">
+            </label>
+            <button class="crm-btn crm-btn-primary" type="submit">Save</button>
+        </form>
+
+        <p class="text-sm crm-muted mb-6">{{ quota.used }} of {{ quota.limit }} sends used this month.</p>
+
+        <div class="crm-surface mkt-catalog">
+            <h2 class="crm-section-title mb-4">Unsubscribed addresses</h2>
+            <div class="crm-table-wrap">
+                <table class="crm-table">
+                    <thead>
+                        <tr><th>Email</th><th>Reason</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in suppressions %}
+                        <tr>
+                            <td>{{ row.email }}</td>
+                            <td>{{ row.reason }}</td>
+                            <td>
+                                <form method="post" action="{{ url_for('marketing.release_suppression', suppression_id=row.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                                    <button class="crm-btn" type="submit">Allow again</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3">No unsubscribed addresses.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

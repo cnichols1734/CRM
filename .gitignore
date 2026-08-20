@@ -166,6 +166,18 @@ node_modules/
 !static/dist/
 !static/dist/**
 
+# Local marketing studio uploads (production uses Supabase)
+static/marketing-uploads/
+
 # Tax data (large reference files, imported via scripts/import_tax_data.py)
 tax_data/
 tmp/
+
+# Local MCP client config (can hold credentials)
+.cursor/mcp.json
+
+# Scratch working files: sample contracts and design references dropped at the
+# repo root while testing. Committed forms belong in documents/.
+/*.pdf
+offer_docs/
+agentflow_*_mode.png

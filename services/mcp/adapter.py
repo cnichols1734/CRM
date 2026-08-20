@@ -80,6 +80,7 @@ def grouped_tool_names(ctx: BobContext, scopes: list[str]) -> dict[str, list[str
         'Tasks': [],
         'To-dos': [],
         'Deals': [],
+        'Marketing': [],
         'Other': [],
     }
     contact_names = {
@@ -92,6 +93,15 @@ def grouped_tool_names(ctx: BobContext, scopes: list[str]) -> dict[str, list[str
         'update_task', 'complete_task', 'delete_task',
     }
     todo_names = {'list_todos', 'add_todo', 'complete_todo'}
+    marketing_names = {
+        'get_email_template_guidelines', 'list_email_templates',
+        'get_email_template', 'preview_email_template',
+        'list_marketing_audiences', 'estimate_audience',
+        'list_campaigns', 'get_campaign',
+        'create_email_template', 'update_email_template',
+        'create_campaign', 'stage_campaign_for_review',
+        'add_marketing_suppression', 'set_contact_marketing_consent',
+    }
     for item in mcp_tool_catalog(ctx, scopes):
         name = item['name']
         if name in {'whoami', 'get_capabilities'}:
@@ -102,6 +112,8 @@ def grouped_tool_names(ctx: BobContext, scopes: list[str]) -> dict[str, list[str
             groups['Tasks'].append(name)
         elif name in todo_names:
             groups['To-dos'].append(name)
+        elif name in marketing_names:
+            groups['Marketing'].append(name)
         elif any(token in name for token in (
             'transaction', 'listing', 'offer', 'requirement', 'deadline',
             'parties', 'documents', 'closing',
