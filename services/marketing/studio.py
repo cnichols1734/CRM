@@ -106,7 +106,7 @@ def generate(
         raise TemplateError(str(exc)) from exc
     except Exception as exc:
         logger.exception('Marketing template generation failed')
-        raise TemplateError('The generator could not finish. Try again.') from exc
+        raise TemplateError('Could not finish that email. Try again.') from exc
 
     subject = (parsed or {}).get('subject') or ''
     preheader = (parsed or {}).get('preheader') or ''

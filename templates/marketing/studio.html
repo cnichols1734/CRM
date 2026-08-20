@@ -12,7 +12,7 @@
     <div class="mkt-busy" hidden data-marketing-template-studio-target="busy">
         <div class="mkt-busy__card crm-surface">
             <div class="mkt-spinner" aria-hidden="true"></div>
-            <p class="mkt-busy__title">Writing the email</p>
+            <p class="mkt-busy__title">Making the email</p>
             <p class="mkt-busy__copy">Usually takes a few seconds.</p>
         </div>
     </div>
@@ -118,7 +118,7 @@
                     <input type="hidden" name="action" value="generate">
                     <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
                     <details class="mkt-rewrite crm-surface">
-                        <summary>Write a new version</summary>
+                        <summary>Rewrite this email</summary>
                         <div class="mkt-rewrite__body">
                             <p class="text-sm crm-muted mb-3">Replaces the email. Save first if you want to keep this one.</p>
                             <label class="block mb-3">
@@ -127,7 +127,7 @@
                                           placeholder="Same email, but shorter and warmer.">{{ prompt }}</textarea>
                             </label>
                             {% include 'marketing/_composer_options.html' %}
-                            <button class="crm-btn crm-btn-accent mt-4" type="submit">Write a new version</button>
+                            <button class="crm-btn crm-btn-accent mt-4" type="submit">Rewrite this email</button>
                         </div>
                     </details>
                 </form>
@@ -147,6 +147,12 @@
                     <input type="checkbox" name="share" form="mkt-save"
                            {% if template and template.visibility == 'org' %}checked{% endif %}>
                     <span>Share with my organization</span>
+                </label>
+                <input type="hidden" name="active" form="mkt-save" value="0">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="active" form="mkt-save" value="1"
+                           {% if not template or template.status == 'ready' %}checked{% endif %}>
+                    <span>Active</span>
                 </label>
 
                 {% if draft and draft.compliance_state == 'warn' %}

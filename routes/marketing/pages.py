@@ -28,8 +28,8 @@ from services.marketing import templates as tpl
 from services.marketing.context import shell_for
 from services.marketing.blocks import insert_before_signature
 from services.marketing.merge_fields import (
-    MERGE_FIELDS, coerce_sample_values, short_label, studio_sample_values,
-    used_keys,
+    MERGE_FIELDS, coerce_sample_values, resolve_values, short_label,
+    studio_sample_values, used_keys,
 )
 from services.marketing.render import preview as preview_email
 from services.marketing import send as sendmod
@@ -169,6 +169,82 @@ def _starter_cards(org, templates):
 def _template_cards(org, templates):
     ctx = shell_for(org, current_user)
     return [_preview_card(org, template, ctx) for template in templates]
+
+
+def _blank_draft() -> dict:
+    return {
+        'subject': '',
+        'preheader': '',
+        'blocks': [
+            {'type': 'paragraph', 'text': ''},
+            {'type': 'signature'},
+        ],
+        'name': '',
+        'category': 'other',
+        'findings': [],
+        'placeholders': [],
+    }
+
+
+def _require_campaign_template(template):
+    if getattr(template, 'source', None) == 'system':
+        raise ValueError(
+            'Starters are not used in campaigns. Save a copy and set it active first.'
+        )
+    if not tpl.is_active(template):
+        raise ValueError(f'"{template.name}" is not active.')
+    return template
+
+
+WAIT_DAYS = {'week': 7, 'month': 30}
+
+
+def _wizard_context(org, templates, groups, posted=None):
+    mine, org_saved = tpl.split_saved(templates, current_user.id)
+    posted = posted or {}
+    picked = []
+    raw_ids = posted.getlist('contact_id') if hasattr(posted, 'getlist') else []
+    if raw_ids:
+        ids = []
+        for raw in raw_ids:
+            try:
+                ids.append(int(raw))
+            except (TypeError, ValueError):
+                continue
+        if ids:
+            query = Contact.query.filter(
+                Contact.organization_id == org.id,
+                Contact.id.in_(ids),
+            )
+            if not aud.can_use_org_scope(current_user):
+                query = query.filter_by(user_id=current_user.id)
+            by_id = {contact.id: contact for contact in query.all()}
+            picked = [by_id[i] for i in ids if i in by_id]
+    extra_steps = []
+    if hasattr(posted, 'getlist'):
+        extra_ids = posted.getlist('step_template_id')
+        extra_waits = posted.getlist('step_wait')
+        for index, raw_id in enumerate(extra_ids):
+            extra_steps.append({
+                'template_id': raw_id,
+                'wait': extra_waits[index] if index < len(extra_waits) else 'week',
+            })
+    return {
+        'templates': templates,
+        'template_cards': _template_cards(org, templates),
+        'mine_cards': _template_cards(org, mine),
+        'org_cards': _template_cards(org, org_saved),
+        'groups': groups,
+        'merge_fields': MERGE_FIELDS,
+        'can_org': aud.can_use_org_scope(current_user),
+        'readiness': sending_config.readiness_for(org),
+        'quota': sending_config.quota_for(org),
+        'campaign': None,
+        'nav': 'campaigns',
+        'posted': posted,
+        'picked_contacts': picked,
+        'extra_steps': extra_steps,
+    }
 
 
 def _merge_groups(samples: dict, used: set | None = None):
@@ -315,7 +391,7 @@ def campaigns_list():
 @feature_required('EMAIL_CAMPAIGNS')
 def campaign_new():
     org = _enable_flag_seed()
-    templates = tpl.visible_to(org.id, current_user.id).filter_by(status='ready').all()
+    templates = tpl.campaign_pickable(org.id, current_user.id).all()
     groups = aud.group_choices(org.id, current_user)
     if request.method == 'POST':
         try:
@@ -331,17 +407,13 @@ def campaign_new():
         except (launchmod.LaunchError, aud.AudienceError, ValueError) as exc:
             db.session.rollback()
             flash(str(exc), 'error')
+            return render_template(
+                'marketing/wizard.html',
+                **_wizard_context(org, templates, groups, posted=request.form),
+            )
     return render_template(
         'marketing/wizard.html',
-        templates=templates,
-        template_cards=_template_cards(org, templates),
-        groups=groups,
-        merge_fields=MERGE_FIELDS,
-        can_org=aud.can_use_org_scope(current_user),
-        readiness=sending_config.readiness_for(org),
-        quota=sending_config.quota_for(org),
-        campaign=None,
-        nav='campaigns',
+        **_wizard_context(org, templates, groups),
     )
 
 
@@ -350,17 +422,23 @@ def _build_campaign_from_form(org) -> MarketingCampaign:
     if not name:
         raise ValueError('Name this campaign so you can find it later.')
     template_id = int(request.form.get('template_id') or 0)
-    template = template_or_404(template_id)
+    if not template_id:
+        raise ValueError('Pick a template.')
+    template = _require_campaign_template(template_or_404(template_id))
 
+    contact_ids = request.form.getlist('contact_id')
     filt = aud.parse_filter({
         'groups': request.form.getlist('groups'),
         'zips': [z.strip() for z in (request.form.get('zips') or '').split(',') if z.strip()],
         'cities': [c.strip() for c in (request.form.get('cities') or '').split(',') if c.strip()],
         'states': [s.strip() for s in (request.form.get('states') or '').split(',') if s.strip()],
         'owners': request.form.getlist('owners'),
+        'contact_ids': contact_ids,
         'require_consent': bool(request.form.get('require_consent')),
         'whole_org': bool(request.form.get('whole_org')),
     })
+    if not filt.has_selection():
+        raise ValueError('Pick people or a filter. An empty list sends to nobody.')
     audience = MarketingAudience(
         organization_id=org.id,
         user_id=current_user.id,
@@ -371,7 +449,12 @@ def _build_campaign_from_form(org) -> MarketingCampaign:
     db.session.add(audience)
     db.session.flush()
 
-    kind = 'drip' if request.form.get('kind') == 'drip' else 'one_time'
+    extra_ids = [raw for raw in request.form.getlist('step_template_id') if raw]
+    extra_waits = request.form.getlist('step_wait')
+    kind = 'drip' if extra_ids or request.form.get('kind') == 'drip' else 'one_time'
+    if not extra_ids:
+        kind = 'one_time'
+    hour = int(request.form.get('send_hour') or 9)
     campaign = MarketingCampaign(
         organization_id=org.id,
         user_id=current_user.id,
@@ -400,27 +483,22 @@ def _build_campaign_from_form(org) -> MarketingCampaign:
         step_index=0,
         name='Email 1',
         delay_days=0,
-        send_hour_local=int(request.form.get('send_hour') or 9),
+        send_hour_local=hour,
     ))
-    if kind == 'drip':
-        extra_ids = request.form.getlist('drip_template_id')
-        extra_delays = request.form.getlist('drip_delay_days')
-        extra_hours = request.form.getlist('drip_send_hour')
-        for index, raw_id in enumerate(extra_ids, start=1):
-            if not raw_id:
-                continue
-            extra = template_or_404(int(raw_id))
-            delay = int(extra_delays[index - 1] or 3) if index - 1 < len(extra_delays) else 3
-            hour = int(extra_hours[index - 1] or 9) if index - 1 < len(extra_hours) else 9
-            db.session.add(MarketingCampaignStep(
-                organization_id=org.id,
-                campaign_id=campaign.id,
-                template_id=extra.id,
-                step_index=index,
-                name=f'Email {index + 1}',
-                delay_days=max(delay, 1),
-                send_hour_local=hour,
-            ))
+    delay = 0
+    for index, raw_id in enumerate(extra_ids, start=1):
+        extra = _require_campaign_template(template_or_404(int(raw_id)))
+        wait = extra_waits[index - 1] if index - 1 < len(extra_waits) else 'week'
+        delay += WAIT_DAYS.get(wait, 7)
+        db.session.add(MarketingCampaignStep(
+            organization_id=org.id,
+            campaign_id=campaign.id,
+            template_id=extra.id,
+            step_index=index,
+            name=f'Email {index + 1}',
+            delay_days=delay,
+            send_hour_local=hour,
+        ))
     db.session.flush()
     return campaign
 
@@ -527,11 +605,14 @@ def campaign_progress(campaign_id):
 def library():
     org = _enable_flag_seed()
     templates = tpl.visible_to(org.id, current_user.id).all()
-    saved = [t for t in templates if t.source != 'system']
+    saved = [t for t in templates if tpl.is_saved(t)]
+    mine, org_saved = tpl.split_saved(saved, current_user.id)
     return render_template(
         'marketing/library.html',
         starters=_starter_cards(org, templates),
         saved=saved,
+        mine_cards=_template_cards(org, mine),
+        org_cards=_template_cards(org, org_saved),
         prompt=request.args.get('prompt') or '',
         **_studio_chrome(),
     )
@@ -581,13 +662,20 @@ def studio(template_id=None):
                 acknowledge_warnings=bool(request.form.get('acknowledge')),
                 generated_by_ai=bool(request.form.get('generated_by_ai')),
                 prompt=request.form.get('prompt') or None,
+                active=(
+                    request.form.getlist('active')[-1] in ('1', 'true', 'on')
+                    if request.form.getlist('active') else None
+                ),
             )
             flash('Template saved.', 'success')
             return redirect(url_for('marketing.studio', template_id=saved.id))
         except (TemplateError, json.JSONDecodeError, ValueError) as exc:
             flash(str(exc), 'error')
             if action == 'generate' and template is None:
-                return redirect(url_for('marketing.library'))
+                return _render_studio(
+                    org, None, _blank_draft(),
+                    prompt=request.form.get('prompt') or '',
+                )
             if action != 'generate':
                 try:
                     posted_blocks = json.loads(request.form.get('blocks') or '[]')
@@ -632,7 +720,7 @@ def studio(template_id=None):
             'placeholders': [],
         }
         return _render_studio(org, None, draft)
-    return redirect(url_for('marketing.library'))
+    return _render_studio(org, None, _blank_draft())
 
 
 @marketing.route('/marketing/api/preview', methods=['POST'])
@@ -717,6 +805,74 @@ def api_estimate():
         return jsonify(estimate.as_dict())
     except aud.AudienceError as exc:
         return jsonify({'error': str(exc)}), 400
+
+
+@marketing.route('/marketing/api/contacts')
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def api_contacts():
+    require_campaigns()
+    query_text = (request.args.get('q') or '').strip()
+    query = Contact.query.filter_by(organization_id=current_user.organization_id)
+    if not aud.can_use_org_scope(current_user):
+        query = query.filter_by(user_id=current_user.id)
+    if query_text:
+        like = f'%{query_text}%'
+        query = query.filter(
+            db.or_(
+                Contact.first_name.ilike(like),
+                Contact.last_name.ilike(like),
+                Contact.email.ilike(like),
+            )
+        )
+    contacts = query.order_by(Contact.last_name, Contact.first_name).limit(20).all()
+    return jsonify([
+        {
+            'id': contact.id,
+            'name': f'{contact.first_name or ""} {contact.last_name or ""}'.strip(),
+            'email': contact.email or '',
+        }
+        for contact in contacts
+    ])
+
+
+@marketing.route('/marketing/api/preview-as', methods=['POST'])
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def api_preview_as():
+    require_campaigns()
+    payload = request.get_json(silent=True) or {}
+    try:
+        template = template_or_404(int(payload.get('template_id') or 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Pick a template.'}), 400
+    contact = None
+    raw_id = payload.get('contact_id')
+    if raw_id:
+        contact_query = Contact.query.filter_by(
+            id=int(raw_id),
+            organization_id=current_user.organization_id,
+        )
+        if not aud.can_use_org_scope(current_user):
+            contact_query = contact_query.filter_by(user_id=current_user.id)
+        contact = contact_query.first()
+        if contact is None:
+            return jsonify({'error': 'That contact is not available.'}), 404
+    org = _org()
+    values = {
+        key: value or ''
+        for key, value in resolve_values(contact, current_user, org).items()
+    }
+    ctx = shell_for(org, current_user, preheader=template.preheader)
+    try:
+        subject, html = preview_email(
+            template.blocks or [], ctx, template.subject or '',
+            fill_samples=bool(contact),
+            sample_values=values,
+        )
+    except (TemplateError, ValueError) as exc:
+        return jsonify({'error': str(exc)}), 400
+    return jsonify({'html': _cover_html(html), 'subject': subject})
 
 
 @marketing.route('/marketing/api/upload', methods=['POST'])

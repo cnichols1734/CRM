@@ -59,9 +59,7 @@
             <ol class="mkt-steps">
                 {% for step in steps %}
                 <li class="mkt-steps__item">
-                    <span class="mkt-steps__day">Day {{ step.delay_days }}</span>
-                    <span class="mkt-steps__time">at {{ '%02d' % step.send_hour_local }}:00</span>
-                    <span class="mkt-steps__name">{{ step.template.name if step.template else 'Template' }}</span>
+                    <span class="mkt-steps__day">Day {{ step.delay_days }} at {{ '%02d' % step.send_hour_local }}:00, {{ step.template.name if step.template else 'Template' }}</span>
                 </li>
                 {% endfor %}
             </ol>

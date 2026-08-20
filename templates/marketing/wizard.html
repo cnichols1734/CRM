@@ -4,14 +4,20 @@
 {% block title %}New campaign - AgentFlow{% endblock %}
 {% block mobile_title %}New campaign{% endblock %}
 
+{% set selected_id = posted.get('template_id') if posted else '' %}
+{% set posted_groups = posted.getlist('groups') if posted and posted.getlist is defined else [] %}
+{% set posted_kind = posted.get('kind') if posted else 'one_time' %}
+
 {% block content %}
 <div class="crm-page mkt-page" data-controller="marketing-campaign-wizard"
-     data-marketing-campaign-wizard-estimate-url-value="{{ url_for('marketing.api_estimate') }}">
+     data-marketing-campaign-wizard-estimate-url-value="{{ url_for('marketing.api_estimate') }}"
+     data-marketing-campaign-wizard-contacts-url-value="{{ url_for('marketing.api_contacts') }}"
+     data-marketing-campaign-wizard-preview-as-url-value="{{ url_for('marketing.api_preview_as') }}">
     <div class="crm-page__inner">
         <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-back mb-3">
             <i class="fas fa-arrow-left text-xs"></i> Campaigns
         </a>
-        {% call page_header('New campaign', 'Template, audience, send.') %}{% endcall %}
+        {% call page_header('New campaign', 'Pick a template, pick who gets it, then send.') %}{% endcall %}
         {% include 'marketing/_nav.html' %}
 
         {% if not readiness.ok %}
@@ -25,10 +31,10 @@
             <select class="sr-only" name="template_id" required data-marketing-campaign-wizard-target="templateInput" tabindex="-1" aria-hidden="true">
                 <option value="">Choose one</option>
                 {% for template in templates %}
-                <option value="{{ template.id }}">{{ template.name }}</option>
+                <option value="{{ template.id }}" {% if selected_id|string == template.id|string %}selected{% endif %}>{{ template.name }}</option>
                 {% endfor %}
             </select>
-            <input type="hidden" name="kind" value="one_time" data-marketing-campaign-wizard-target="kindValue">
+            <input type="hidden" name="kind" value="{{ posted_kind or 'one_time' }}" data-marketing-campaign-wizard-target="kindValue">
 
             <ol class="mkt-step-rail" aria-label="Campaign steps">
                 <li>
@@ -68,20 +74,31 @@
                         <h2 class="crm-section-title mb-4">Name and template</h2>
                         <label class="block mb-5">
                             <span class="crm-label">Campaign name</span>
-                            <input class="crm-input" name="name" required maxlength="200" placeholder="June check-in">
+                            <input class="crm-input" name="name" required maxlength="200" placeholder="June check-in"
+                                   value="{{ posted.get('name', '') if posted else '' }}">
                         </label>
                         <span class="crm-label">Template</span>
-                        {% if template_cards %}
-                        <div class="mkt-pick" role="listbox" aria-label="Template">
-                            {% for card in template_cards %}
+                        <div class="crm-segment mkt-kind mb-3" role="tablist" aria-label="Template source">
+                            <button type="button" class="crm-segment__item is-active"
+                                    data-marketing-campaign-wizard-target="source"
+                                    data-source="mine"
+                                    data-action="click->marketing-campaign-wizard#showSource">My templates</button>
+                            <button type="button" class="crm-segment__item"
+                                    data-marketing-campaign-wizard-target="source"
+                                    data-source="org"
+                                    data-action="click->marketing-campaign-wizard#showSource">Org templates</button>
+                        </div>
+                        <div class="mkt-pick is-current" role="listbox" aria-label="My templates"
+                             data-source="mine" data-marketing-campaign-wizard-target="sourcePanel">
+                            {% for card in mine_cards %}
                             <button type="button"
-                                    class="mkt-pick__card"
+                                    class="mkt-pick__card{% if selected_id|string == card.template.id|string %} is-selected{% endif %}"
                                     role="option"
-                                    aria-pressed="false"
+                                    aria-pressed="{{ 'true' if selected_id|string == card.template.id|string else 'false' }}"
                                     data-marketing-campaign-wizard-target="pick"
                                     data-template-id="{{ card.template.id }}"
                                     data-template-name="{{ card.template.name }}"
-                                    data-action="click->marketing-campaign-wizard#pick">
+                                    data-action="click->marketing-campaign-wizard#previewPick">
                                 {% set html = card.html %}
                                 {% include 'marketing/_cover.html' %}
                                 <p class="mkt-cover__kicker">{{ card.kicker }}</p>
@@ -89,21 +106,66 @@
                                 <p class="mkt-cover__blurb">{{ card.subject }}</p>
                             </button>
                             {% endfor %}
+                            {% if not mine_cards %}
+                            <p class="crm-section-description">No templates of yours are active yet.</p>
+                            {% endif %}
                         </div>
-                        {% else %}
-                        <p class="crm-section-description">Choose one</p>
-                        {% endif %}
+                        <div class="mkt-pick" role="listbox" aria-label="Org templates" hidden
+                             data-source="org" data-marketing-campaign-wizard-target="sourcePanel">
+                            {% for card in org_cards %}
+                            <button type="button"
+                                    class="mkt-pick__card{% if selected_id|string == card.template.id|string %} is-selected{% endif %}"
+                                    role="option"
+                                    aria-pressed="{{ 'true' if selected_id|string == card.template.id|string else 'false' }}"
+                                    data-marketing-campaign-wizard-target="pick"
+                                    data-template-id="{{ card.template.id }}"
+                                    data-template-name="{{ card.template.name }}"
+                                    data-action="click->marketing-campaign-wizard#previewPick">
+                                {% set html = card.html %}
+                                {% include 'marketing/_cover.html' %}
+                                <p class="mkt-cover__kicker">{{ card.kicker }}</p>
+                                <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
+                                <p class="mkt-cover__blurb">{{ card.subject }}</p>
+                            </button>
+                            {% endfor %}
+                            {% if not org_cards %}
+                            <p class="crm-section-description">Nobody has shared an active template yet.</p>
+                            {% endif %}
+                        </div>
+                        <div class="mkt-pick-actions mt-4">
+                            <button type="button" class="crm-btn crm-btn-primary"
+                                    data-marketing-campaign-wizard-target="useButton"
+                                    data-action="click->marketing-campaign-wizard#usePreviewed"
+                                    {% if not selected_id %}disabled{% endif %}>Use this template</button>
+                        </div>
                         <p class="mt-4 text-sm crm-muted">Need a different email? <a class="underline" href="{{ url_for('marketing.library') }}">Open templates</a>.</p>
                     </section>
 
                     <section class="crm-surface mkt-pane" data-step="2" data-marketing-campaign-wizard-target="panel">
                         <p class="crm-section-kicker">2</p>
                         <h2 class="crm-section-title mb-4">Who gets it</h2>
+                        <label class="block mb-4">
+                            <span class="crm-label">Search contacts</span>
+                            <input class="crm-input" type="search" autocomplete="off" placeholder="Name or email"
+                                   data-marketing-campaign-wizard-target="contactQuery"
+                                   data-action="input->marketing-campaign-wizard#searchContacts">
+                        </label>
+                        <ul class="mkt-search" hidden data-marketing-campaign-wizard-target="contactResults"></ul>
+                        <div class="mkt-picked mb-5" data-marketing-campaign-wizard-target="picked">
+                            {% for contact in picked_contacts %}
+                            <span class="mkt-picked__chip">
+                                <input type="hidden" name="contact_id" value="{{ contact.id }}">
+                                {{ contact.first_name }} {{ contact.last_name }}
+                                <button type="button" class="mkt-picked__remove" data-action="click->marketing-campaign-wizard#removeContact" aria-label="Remove">×</button>
+                            </span>
+                            {% endfor %}
+                        </div>
                         <span class="crm-label">Groups</span>
                         <div class="mkt-chip-row mb-5">
                             {% for group in groups %}
                             <label class="mkt-chip">
                                 <input type="checkbox" name="groups" value="{{ group.id }}"
+                                       {% if group.id|string in posted_groups %}checked{% endif %}
                                        data-action="change->marketing-campaign-wizard#estimate">
                                 <span>{{ group.name }}</span>
                             </label>
@@ -112,31 +174,41 @@
                         <div class="mkt-geo">
                             <label class="block">
                                 <span class="crm-label">ZIP codes</span>
-                                <input class="crm-input" name="zips" placeholder="78130, 78132" data-action="input->marketing-campaign-wizard#estimate">
+                                <input class="crm-input" name="zips" placeholder="78130, 78132"
+                                       value="{{ posted.get('zips', '') if posted else '' }}"
+                                       data-action="input->marketing-campaign-wizard#estimate">
                             </label>
                             <label class="block">
                                 <span class="crm-label">Cities</span>
-                                <input class="crm-input" name="cities" placeholder="New Braunfels" data-action="input->marketing-campaign-wizard#estimate">
+                                <input class="crm-input" name="cities" placeholder="New Braunfels"
+                                       value="{{ posted.get('cities', '') if posted else '' }}"
+                                       data-action="input->marketing-campaign-wizard#estimate">
                             </label>
                             <label class="block">
                                 <span class="crm-label">States</span>
-                                <input class="crm-input" name="states" placeholder="TX" data-action="input->marketing-campaign-wizard#estimate">
+                                <input class="crm-input" name="states" placeholder="TX"
+                                       value="{{ posted.get('states', '') if posted else '' }}"
+                                       data-action="input->marketing-campaign-wizard#estimate">
                             </label>
                         </div>
                         <div class="mkt-checks mt-4">
                             {% if can_org %}
                             <label class="mkt-check">
-                                <input type="checkbox" name="whole_org" data-action="change->marketing-campaign-wizard#estimate">
+                                <input type="checkbox" name="whole_org"
+                                       {% if posted and posted.get('whole_org') %}checked{% endif %}
+                                       data-action="change->marketing-campaign-wizard#estimate">
                                 <span>Everyone in the org</span>
                             </label>
                             {% endif %}
                             <label class="mkt-check">
-                                <input type="checkbox" name="require_consent" data-action="change->marketing-campaign-wizard#estimate">
+                                <input type="checkbox" name="require_consent"
+                                       {% if posted and posted.get('require_consent') %}checked{% endif %}
+                                       data-action="change->marketing-campaign-wizard#estimate">
                                 <span>Only contacts who opted in</span>
                             </label>
                         </div>
                         <div class="mkt-reach">
-                            <p class="mkt-reach__count" data-marketing-campaign-wizard-target="count">Pick a filter to see how many people this reaches.</p>
+                            <p class="mkt-reach__count" data-marketing-campaign-wizard-target="count">Pick people or a filter to see how many this reaches.</p>
                             <p class="mkt-reach__meta" data-marketing-campaign-wizard-target="breakdown"></p>
                         </div>
                     </section>
@@ -146,42 +218,83 @@
                         <h2 class="crm-section-title mb-4">When</h2>
                         <span class="crm-label">Send</span>
                         <div class="crm-segment mkt-kind mb-4" role="group" aria-label="Send">
-                            <button type="button" class="crm-segment__item is-active"
+                            <button type="button" class="crm-segment__item {% if posted_kind != 'drip' %}is-active{% endif %}"
                                     data-marketing-campaign-wizard-target="kind"
                                     data-kind="one_time"
                                     data-action="click->marketing-campaign-wizard#setKind">Once</button>
-                            <button type="button" class="crm-segment__item"
+                            <button type="button" class="crm-segment__item {% if posted_kind == 'drip' %}is-active{% endif %}"
                                     data-marketing-campaign-wizard-target="kind"
                                     data-kind="drip"
                                     data-action="click->marketing-campaign-wizard#setKind">Drip sequence</button>
                         </div>
-                        <label class="block mb-4">
-                            <span class="crm-label">Schedule (leave blank to send now)</span>
-                            <input class="crm-input" type="datetime-local" name="scheduled_at">
-                        </label>
-                        <div class="hidden mkt-drip" data-marketing-campaign-wizard-target="drip" hidden>
-                            <p class="text-sm crm-muted mb-3">First email is the template above, sent on day 0. Add up to two more.</p>
-                            {% for n in [1, 2] %}
-                            <div class="mkt-drip__row">
-                                <label>
-                                    <span class="crm-label">Email {{ n + 1 }} template</span>
-                                    <select class="crm-input" name="drip_template_id">
-                                        <option value="">None</option>
-                                        {% for template in templates %}
-                                        <option value="{{ template.id }}">{{ template.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </label>
-                                <label>
-                                    <span class="crm-label">Days after start</span>
-                                    <input class="crm-input" type="number" min="1" name="drip_delay_days" value="{{ 3 if n == 1 else 7 }}">
-                                </label>
-                                <label>
-                                    <span class="crm-label">Hour</span>
-                                    <input class="crm-input" type="number" min="0" max="23" name="drip_send_hour" value="9">
-                                </label>
+                        <div class="mkt-geo mb-4">
+                            <label class="block">
+                                <span class="crm-label">Hour</span>
+                                <input class="crm-input" type="number" min="0" max="23" name="send_hour"
+                                       value="{{ posted.get('send_hour', 9) if posted else 9 }}">
+                            </label>
+                            <label class="block">
+                                <span class="crm-label">Time zone</span>
+                                <select class="crm-input" name="timezone">
+                                    {% set tz = posted.get('timezone') if posted else 'America/Chicago' %}
+                                    {% for zone in ['America/Chicago', 'America/New_York', 'America/Denver', 'America/Los_Angeles', 'America/Phoenix'] %}
+                                    <option value="{{ zone }}" {% if tz == zone %}selected{% endif %}>{{ zone }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="block">
+                                <span class="crm-label">Schedule (leave blank to send now)</span>
+                                <input class="crm-input" type="datetime-local" name="scheduled_at"
+                                       value="{{ posted.get('scheduled_at', '') if posted else '' }}">
+                            </label>
+                        </div>
+                        <div class="mkt-drip {% if posted_kind != 'drip' %}hidden{% endif %}" data-marketing-campaign-wizard-target="drip" {% if posted_kind != 'drip' %}hidden{% endif %}>
+                            <p class="text-sm crm-muted mb-3">The first email uses the template above and sends right away. You can add two more after that.</p>
+                            <div data-marketing-campaign-wizard-target="stepList">
+                                {% for step in extra_steps %}
+                                <div class="mkt-drip__row">
+                                    <label>
+                                        <span class="crm-label">Email {{ loop.index + 1 }} template</span>
+                                        <select class="crm-input" name="step_template_id">
+                                            <option value="">None</option>
+                                            {% for template in templates %}
+                                            <option value="{{ template.id }}" {% if step.template_id|string == template.id|string %}selected{% endif %}>{{ template.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span class="crm-label">Wait</span>
+                                        <select class="crm-input" name="step_wait">
+                                            <option value="week" {% if step.wait == 'week' %}selected{% endif %}>A week</option>
+                                            <option value="month" {% if step.wait == 'month' %}selected{% endif %}>A month</option>
+                                        </select>
+                                    </label>
+                                    <button type="button" class="crm-btn" data-action="click->marketing-campaign-wizard#removeStep">Remove</button>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
+                            <template data-marketing-campaign-wizard-target="stepTemplate">
+                                <div class="mkt-drip__row">
+                                    <label>
+                                        <span class="crm-label">Next email template</span>
+                                        <select class="crm-input" name="step_template_id">
+                                            <option value="">None</option>
+                                            {% for template in templates %}
+                                            <option value="{{ template.id }}">{{ template.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span class="crm-label">Wait</span>
+                                        <select class="crm-input" name="step_wait">
+                                            <option value="week">A week</option>
+                                            <option value="month">A month</option>
+                                        </select>
+                                    </label>
+                                    <button type="button" class="crm-btn" data-action="click->marketing-campaign-wizard#removeStep">Remove</button>
+                                </div>
+                            </template>
+                            <button type="button" class="crm-btn mt-2" data-action="click->marketing-campaign-wizard#addStep">Add another email</button>
                         </div>
                     </section>
 
@@ -208,7 +321,17 @@
                                     data-marketing-campaign-wizard-target="preview"></iframe>
                             <p class="mkt-preview__empty" data-marketing-campaign-wizard-target="previewEmpty">Choose one</p>
                         </div>
-                        <p class="mkt-preview__reach" data-marketing-campaign-wizard-target="count">Pick a filter to see how many people this reaches.</p>
+                        <label class="block mt-4">
+                            <span class="crm-label">Preview as</span>
+                            <select class="crm-input" data-marketing-campaign-wizard-target="previewAs"
+                                    data-action="change->marketing-campaign-wizard#previewAs">
+                                <option value="">Sample data</option>
+                                {% for contact in picked_contacts %}
+                                <option value="{{ contact.id }}">{{ contact.first_name }} {{ contact.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <p class="mkt-preview__reach" data-marketing-campaign-wizard-target="count">Pick people or a filter to see how many this reaches.</p>
                     </div>
                 </aside>
             </div>

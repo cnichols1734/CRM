@@ -9,19 +9,21 @@
     <div class="mkt-busy" hidden data-marketing-template-library-target="busy">
         <div class="mkt-busy__card crm-surface">
             <div class="mkt-spinner" aria-hidden="true"></div>
-            <p class="mkt-busy__title">Writing the email</p>
+            <p class="mkt-busy__title">Making the email</p>
             <p class="mkt-busy__copy">Usually takes a few seconds.</p>
         </div>
     </div>
 
     <div class="crm-page__inner">
-        {% call page_header('Templates', 'Start from one we already wrote, or describe a new one.') %}{% endcall %}
+        {% call page_header('Templates', 'Pick a template or write a new one.') %}
+            <a href="{{ url_for('marketing.studio') }}" class="crm-btn crm-btn-primary">Create Template</a>
+        {% endcall %}
         {% include 'marketing/_nav.html' %}
 
         <section class="mkt-section" aria-labelledby="mkt-start-title">
-            <p class="crm-section-kicker">Start here</p>
-            <h2 id="mkt-start-title" class="mkt-section-title">Start from a template</h2>
-            <p class="crm-section-description mb-4">Pick one. Change the details. Send it.</p>
+            <p class="crm-section-kicker">Use one of these</p>
+            <h2 id="mkt-start-title" class="mkt-section-title">Pick a template</h2>
+            <p class="crm-section-description mb-4">Pick a template, change the details, and send it.</p>
 
             {% if starters %}
             <div class="mkt-rail" role="list">
@@ -37,14 +39,14 @@
                 {% endfor %}
             </div>
             {% else %}
-                {% call empty_state('No starters yet', 'Open this page once more and the starter library should load.', 'fa-file') %}{% endcall %}
+                {% call empty_state('No templates yet', 'Refresh the page to load the templates.', 'fa-file') %}{% endcall %}
             {% endif %}
         </section>
 
         <section class="mkt-section" aria-labelledby="mkt-create-title">
-            <p class="crm-section-kicker">Or start from scratch</p>
-            <h2 id="mkt-create-title" class="mkt-section-title">Create your own</h2>
-            <p class="crm-section-description mb-4">Say what the email is for. We write it. You edit the copy in the preview.</p>
+            <p class="crm-section-kicker">New</p>
+            <h2 id="mkt-create-title" class="mkt-section-title">Create Template</h2>
+            <p class="crm-section-description mb-4">Describe the email. You can edit it in the preview before you save.</p>
 
             <form method="post" action="{{ url_for('marketing.studio') }}" class="mkt-composer crm-surface"
                   data-action="submit->marketing-template-library#busy">
@@ -60,28 +62,49 @@
                 {% include 'marketing/_composer_options.html' %}
 
                 <div class="mt-5">
-                    <button class="crm-btn crm-btn-primary" type="submit">Write this email</button>
+                    <button class="crm-btn crm-btn-primary" type="submit">Create Template</button>
                 </div>
             </form>
         </section>
 
-        {% if saved %}
         <section class="mkt-section" aria-labelledby="mkt-yours-title">
-            <p class="crm-section-kicker">Already saved</p>
-            <h2 id="mkt-yours-title" class="mkt-section-title">Your templates</h2>
-            <div class="mkt-saved">
-                {% for template in saved %}
-                <a href="{{ url_for('marketing.studio', template_id=template.id) }}" class="mkt-saved__row crm-surface">
-                    <div>
-                        <p class="mkt-saved__name">{{ template.name }}</p>
-                        <p class="mkt-saved__meta">{{ template.subject }}</p>
-                    </div>
-                    {{ badge('Shared' if template.visibility == 'org' else 'Private') }}
+            <p class="crm-section-kicker">Saved templates</p>
+            <h2 id="mkt-yours-title" class="mkt-section-title">My templates</h2>
+            {% if mine_cards %}
+            <div class="mkt-rail" role="list">
+                {% for card in mine_cards %}
+                <a href="{{ url_for('marketing.studio', template_id=card.template.id) }}"
+                   class="mkt-cover" role="listitem">
+                    {% set html = card.html %}
+                    {% include 'marketing/_cover.html' %}
+                    <p class="mkt-cover__kicker">{{ card.kicker }}</p>
+                    <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
+                    <p class="mkt-cover__blurb">{{ card.template.subject }}</p>
+                    <p class="mkt-cover__badge">{{ 'Org templates' if card.template.visibility == 'org' else 'Private' }}</p>
                 </a>
                 {% endfor %}
             </div>
+            {% elif not org_cards %}
+                {% call empty_state('Saved templates', 'Templates you save show up here.', 'fa-file') %}{% endcall %}
+            {% endif %}
+
+            {% if org_cards %}
+            <h2 class="mkt-section-title mt-8">Org templates</h2>
+            <div class="mkt-rail" role="list">
+                {% for card in org_cards %}
+                <a href="{{ url_for('marketing.studio', template_id=card.template.id) }}"
+                   class="mkt-cover" role="listitem">
+                    {% set html = card.html %}
+                    {% include 'marketing/_cover.html' %}
+                    <p class="mkt-cover__kicker">{{ card.kicker }}</p>
+                    <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
+                    <p class="mkt-cover__blurb">{{ card.template.subject }}</p>
+                    <p class="mkt-cover__badge">Org templates</p>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
         </section>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

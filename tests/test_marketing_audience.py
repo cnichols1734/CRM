@@ -16,11 +16,34 @@ class TestAudienceEstimate:
         with app.app_context():
             org, owner = load_org_user(seed)
             jane = db.session.get(Contact, seed['contact_a'])
-            estimate = aud.estimate(org.id, {}, owner)
+            estimate = aud.estimate(org.id, {'owners': [owner.id]}, owner)
             ids = {row.contact.id for row in estimate.sendable}
             assert jane.id in ids
             assert seed['contact_a2'] not in ids
             assert seed['contact_b'] not in ids
+
+    def test_empty_filter_matches_nobody(self, app, seed):
+        with app.app_context():
+            org, owner = load_org_user(seed)
+            estimate = aud.estimate(org.id, {}, owner)
+            assert estimate.matched == 0
+            assert estimate.sendable_count == 0
+
+    def test_picked_contact_ids_build_the_list(self, app, seed):
+        with app.app_context():
+            org, owner = load_org_user(seed)
+            extra = make_contact(
+                org, owner, first='Pat', last='Lee',
+                email='pat-lee@example.com',
+            )
+            jane = db.session.get(Contact, seed['contact_a'])
+            estimate = aud.estimate(
+                org.id, {'contact_ids': [jane.id, extra.id]}, owner,
+            )
+            ids = {row.contact.id for row in estimate.sendable}
+            assert jane.id in ids
+            assert extra.id in ids
+            assert seed['contact_a2'] not in ids
 
     def test_filters_by_group(self, app, seed):
         with app.app_context():
@@ -62,7 +85,7 @@ class TestAudienceEstimate:
                 org, owner, first='Out', last='Person',
                 email='opted-out@example.com', marketing_consent='opted_out',
             )
-            estimate = aud.estimate(org.id, {}, owner)
+            estimate = aud.estimate(org.id, {'owners': [owner.id]}, owner)
             emails = {row.email for row in estimate.sendable}
             assert 'opted-out@example.com' not in emails
             assert estimate.breakdown().get('opted_out', 0) >= 1
@@ -75,7 +98,7 @@ class TestAudienceEstimate:
                 email='suppressed@example.com',
             )
             suppress('suppressed@example.com', REASON_MANUAL, organization_id=org.id)
-            estimate = aud.estimate(org.id, {}, owner)
+            estimate = aud.estimate(org.id, {'owners': [owner.id]}, owner)
             emails = {row.email for row in estimate.sendable}
             assert 'suppressed@example.com' not in emails
             assert estimate.breakdown().get('suppressed', 0) >= 1
@@ -85,7 +108,9 @@ class TestAudienceEstimate:
             org, owner = load_org_user(seed)
             jane = db.session.get(Contact, seed['contact_a'])
             jane.marketing_consent = 'unknown'
-            estimate = aud.estimate(org.id, {'require_consent': True}, owner)
+            estimate = aud.estimate(
+                org.id, {'owners': [owner.id], 'require_consent': True}, owner,
+            )
             ids = {row.contact.id for row in estimate.sendable}
             assert jane.id not in ids
             assert estimate.breakdown().get('consent_required', 0) >= 1
@@ -117,7 +142,7 @@ class TestAudienceEstimate:
                 org, owner, first='Jane', last='Copy',
                 email=jane.email,
             )
-            estimate = aud.estimate(org.id, {}, owner)
+            estimate = aud.estimate(org.id, {'owners': [owner.id]}, owner)
             emails = [row.email for row in estimate.sendable if row.email == jane.email]
             assert len(emails) == 1
             assert estimate.breakdown().get('duplicate_email', 0) >= 1

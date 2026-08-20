@@ -36,6 +36,7 @@ class Filter:
     cities: list[str] = field(default_factory=list)
     states: list[str] = field(default_factory=list)
     owners: list[int] = field(default_factory=list)
+    contact_ids: list[int] = field(default_factory=list)
     require_consent: bool = False
     whole_org: bool = False
 
@@ -46,14 +47,28 @@ class Filter:
             'cities': list(self.cities),
             'states': list(self.states),
             'owners': list(self.owners),
+            'contact_ids': list(self.contact_ids),
             'require_consent': bool(self.require_consent),
             'whole_org': bool(self.whole_org),
         }
+
+    def has_selection(self) -> bool:
+        """True when the agent actually picked people or a filter.
+
+        An empty filter is nobody, not every contact they own.
+        """
+        return bool(
+            self.groups or self.zips or self.cities or self.states
+            or self.owners or self.whole_org or self.contact_ids
+        )
 
     def summarize(self) -> str:
         parts = []
         if self.whole_org and not self.owners:
             parts.append('everyone in the org')
+        if self.contact_ids:
+            n = len(self.contact_ids)
+            parts.append(f'{n} picked contact{"s" if n != 1 else ""}')
         if self.groups:
             parts.append(f'{len(self.groups)} group{"s" if len(self.groups) != 1 else ""}')
         if self.zips:
@@ -64,7 +79,7 @@ class Filter:
             parts.append(', '.join(self.states))
         if self.require_consent:
             parts.append('opted-in only')
-        return ', '.join(parts) or 'your contacts'
+        return ', '.join(parts) or 'nobody yet'
 
 
 def parse_filter(raw: Any) -> Filter:
@@ -99,6 +114,7 @@ def parse_filter(raw: Any) -> Filter:
         cities=_strs('cities'),
         states=_strs('states'),
         owners=_ints('owners'),
+        contact_ids=_ints('contact_ids'),
         require_consent=bool(raw.get('require_consent')),
         whole_org=bool(raw.get('whole_org')),
     )
@@ -121,8 +137,30 @@ def _owner_ids(filt: Filter, user) -> Optional[list[int]]:
     return [user.id]
 
 
-def matching_contacts(organization_id: int, filt: Filter, user) -> list[Contact]:
-    """Contacts that match the filter, before sendability checks."""
+def _sort_contacts(contacts) -> list[Contact]:
+    return sorted(
+        contacts,
+        key=lambda c: (
+            (c.last_name or '').lower(),
+            (c.first_name or '').lower(),
+            c.id,
+        ),
+    )
+
+
+def _picked_contacts(organization_id: int, filt: Filter, user) -> list[Contact]:
+    if not filt.contact_ids:
+        return []
+    query = Contact.query.filter(
+        Contact.organization_id == organization_id,
+        Contact.id.in_(filt.contact_ids),
+    )
+    if not can_use_org_scope(user):
+        query = query.filter(Contact.user_id == user.id)
+    return query.all()
+
+
+def _filtered_contacts(organization_id: int, filt: Filter, user) -> list[Contact]:
     query = Contact.query.filter(Contact.organization_id == organization_id)
 
     owner_ids = _owner_ids(filt, user)
@@ -155,11 +193,29 @@ def matching_contacts(organization_id: int, filt: Filter, user) -> list[Contact]
         ]
         query = query.filter(or_(*state_clauses))
 
-    return (
-        query.distinct()
-        .order_by(Contact.last_name.asc(), Contact.first_name.asc(), Contact.id.asc())
-        .all()
+    return query.distinct().all()
+
+
+def matching_contacts(organization_id: int, filt: Filter, user) -> list[Contact]:
+    """Contacts that match the filter, before sendability checks."""
+    if not filt.has_selection():
+        return []
+
+    picked = _picked_contacts(organization_id, filt, user)
+    has_filters = bool(
+        filt.groups or filt.zips or filt.cities or filt.states
+        or filt.owners or filt.whole_org
     )
+    if picked and not has_filters:
+        return _sort_contacts(picked)
+
+    filtered = _filtered_contacts(organization_id, filt, user)
+    if picked:
+        by_id = {contact.id: contact for contact in filtered}
+        for contact in picked:
+            by_id[contact.id] = contact
+        return _sort_contacts(by_id.values())
+    return _sort_contacts(filtered)
 
 
 @dataclass

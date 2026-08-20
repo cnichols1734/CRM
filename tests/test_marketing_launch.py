@@ -33,7 +33,7 @@ def _audience(org, user, filt=None):
 
 
 def _draft(org, user, template, filt=None, kind='one_time'):
-    audience = _audience(org, user, filt)
+    audience = _audience(org, user, filt or {'owners': [user.id]})
     campaign = MarketingCampaign(
         organization_id=org.id,
         user_id=user.id,

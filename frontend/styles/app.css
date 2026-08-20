@@ -3575,7 +3575,8 @@ main#mainContent:has(.document-review-workspace) > .content-wrapper {
 .mkt-cover:hover .mkt-cover__stage,
 .mkt-cover:focus-visible .mkt-cover__stage,
 .mkt-pick__card:hover .mkt-cover__stage,
-.mkt-pick__card.is-selected .mkt-cover__stage {
+.mkt-pick__card.is-selected .mkt-cover__stage,
+.mkt-pick__card.is-previewed .mkt-cover__stage {
   border-color: var(--accent-line);
 }
 .mkt-cover__stage {
@@ -3631,6 +3632,12 @@ main#mainContent:has(.document-review-workspace) > .content-wrapper {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.mkt-cover__badge {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
 }
 .mkt-composer {
   border: 0.5px solid var(--hairline);
@@ -4079,6 +4086,9 @@ html[data-theme="dark"] .mkt-page {
   gap: 14px;
   margin-top: 8px;
 }
+.mkt-pick[hidden] {
+  display: none;
+}
 .mkt-pick__card {
   display: block;
   width: 100%;
@@ -4095,8 +4105,54 @@ html[data-theme="dark"] .mkt-page {
 .mkt-pick__card .mkt-cover__viewport {
   transform: translateX(-50%) scale(0.327);
 }
-.mkt-pick__card.is-selected .mkt-cover__title {
+.mkt-pick__card.is-selected .mkt-cover__title,
+.mkt-pick__card.is-previewed .mkt-cover__title {
   color: var(--accent-ink);
+}
+.mkt-search {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface);
+  max-height: 220px;
+  overflow: auto;
+}
+.mkt-search__item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.mkt-search__item:hover {
+  background: var(--accent-soft);
+}
+.mkt-picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mkt-picked__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 0.5px solid var(--hairline);
+  border-radius: 1000px;
+  font-size: 13px;
+}
+.mkt-picked__remove {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
 }
 .mkt-chip-row {
   display: flex;

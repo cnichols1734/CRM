@@ -19,6 +19,46 @@ class TemplateError(ValueError):
     """A template cannot be saved or used. Message is shown to the agent."""
 
 
+def is_saved(template: MarketingTemplate) -> bool:
+    return getattr(template, 'source', None) != 'system'
+
+
+def is_active(template: MarketingTemplate) -> bool:
+    return (
+        getattr(template, 'status', None) == 'ready'
+        and getattr(template, 'compliance_state', None) != 'blocked'
+    )
+
+
+def saved_visible(organization_id: int, user_id: int, *, include_archived: bool = False):
+    """Agent-saved templates only. Starters stay in the library, not here."""
+    return visible_to(organization_id, user_id, include_archived=include_archived).filter(
+        MarketingTemplate.source != 'system',
+    )
+
+
+def campaign_pickable(organization_id: int, user_id: int):
+    """Active saved templates an agent can put on a campaign."""
+    return saved_visible(organization_id, user_id).filter(
+        MarketingTemplate.status == 'ready',
+        MarketingTemplate.compliance_state != 'blocked',
+    )
+
+
+def split_saved(templates, user_id: int) -> tuple[list, list]:
+    """Mine first, then org-wide templates someone else shared."""
+    mine = []
+    org = []
+    for template in templates:
+        if not is_saved(template):
+            continue
+        if template.created_by_id == user_id:
+            mine.append(template)
+        elif template.visibility == 'org':
+            org.append(template)
+    return mine, org
+
+
 def visible_to(organization_id: int, user_id: int, *, include_archived: bool = False):
     """Templates this agent can pick: theirs, plus org-shared, plus system."""
     query = MarketingTemplate.query.filter(
@@ -193,6 +233,7 @@ def save(
     prompt: Optional[str] = None,
     change_note: Optional[str] = None,
     source: Optional[str] = None,
+    active: Optional[bool] = None,
     commit: bool = True,
 ) -> MarketingTemplate:
     name = (name or '').strip()
@@ -255,6 +296,11 @@ def save(
     elif prepared['compliance_state'] != 'warn':
         template.compliance_ack_by_id = None
         template.compliance_ack_at = None
+
+    if active is False:
+        template.status = 'draft'
+    elif active is True and template.status == 'draft' and prepared['status'] == 'ready':
+        template.status = 'ready'
 
     cache_render(template, org, agent)
     db.session.flush()
