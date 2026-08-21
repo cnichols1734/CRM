@@ -33,6 +33,7 @@ from routes.agent_api import (
     _serialize_transaction,
     agent_api_bp,
     agent_jwt_required,
+    transactions_flag_required,
 )
 from routes.contacts import (
     format_email,
@@ -179,6 +180,7 @@ def contact_desk_tasks(user, contact_id):
 
 
 @agent_jwt_required
+@transactions_flag_required
 def contact_desk_transactions(user, contact_id):
     contact, error = _load_contact(user, contact_id)
     if error:
