@@ -169,6 +169,20 @@ def test_file_get_returns_json_url(app, seed, client, monkeypatch):
     assert body['url'] == 'https://signed.example/contacts/1/listing.pdf'
 
 
+def test_free_plan_cannot_read_contact_transactions(app, seed, client):
+    token = _agent_session(client, email='owner_b@test.com').get_json()['token']
+    resp = client.get(
+        f'/api/agent/v1/contacts/{seed["contact_b"]}/transactions',
+        headers=_auth(token),
+    )
+    assert resp.status_code == 403
+    _assert_json_not_redirect(resp)
+    assert resp.get_json() == {
+        'code': 'transactions_required',
+        'error': 'Transactions are not on this plan.',
+    }
+
+
 def test_task_suggestions_require_jwt_and_feature(app, seed, client):
     unauth = client.post(
         f'/api/agent/v1/contacts/{seed["contact_a"]}/task-suggestions',
