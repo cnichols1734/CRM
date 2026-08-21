@@ -13,10 +13,12 @@ from flask import jsonify
 from sqlalchemy.orm.attributes import flag_modified
 
 from models import (
+    ClientPortalAccess,
     SellerListingProfile,
     SellerOffer,
     SellerOfferVersion,
     Task,
+    TransactionDocument,
     TransactionRequirement,
     TransactionParticipant,
     db,
@@ -39,7 +41,14 @@ from services.controlling_contracts import (
     get_active_primary_contract,
 )
 from services.deadline_recompute import recompute_from_changes
-from services.listing_prep_checklist import AUTO_KEYS
+from services.listing_prep_checklist import (
+    AUTO_KEYS,
+    HIDDEN_KEYS,
+    LISTING_PREP_PHASES,
+    listing_prep_groups,
+)
+from services.portal_service import CLIENT_PORTAL_ROLES
+from services.transaction_helpers import build_listing_info
 from services.offer_compare import OfferCompareService
 from services.offer_side import opening_direction_for_side, side_for_transaction, supports_offers
 from services.requirements_service import RequirementsService
@@ -62,6 +71,10 @@ _LISTING_OVERRIDE_KEYS = frozenset({
     'total_commission',
     'listing_side_commission',
     'buyer_commission',
+    'broker_fee',
+    'protection_period_days',
+    'financing_types',
+    'has_hoa',
 })
 _PROFILE_LISTING_KEYS = frozenset({'list_price', 'go_live_date', 'mls_number', 'occupancy'})
 _OFFER_TERM_KEYS = frozenset({
@@ -215,6 +228,30 @@ def register(bp):
             add_note,
             ['POST'],
         ),
+        (
+            '/transactions/<int:transaction_id>/client-invites',
+            'deal_desk_list_client_invites',
+            list_client_invites,
+            ['GET'],
+        ),
+        (
+            '/transactions/<int:transaction_id>/client-invites',
+            'deal_desk_create_client_invite',
+            create_client_invite,
+            ['POST'],
+        ),
+        (
+            '/transactions/<int:transaction_id>/client-invites/<int:access_id>/rotate',
+            'deal_desk_rotate_client_invite',
+            rotate_client_invite,
+            ['POST'],
+        ),
+        (
+            '/transactions/<int:transaction_id>/client-invites/<int:access_id>/revoke',
+            'deal_desk_revoke_client_invite',
+            revoke_client_invite,
+            ['POST'],
+        ),
     )
     for rule, endpoint, view, methods in rules:
         bp.add_url_rule(rule, endpoint=endpoint, view_func=view, methods=methods)
@@ -235,15 +272,8 @@ def enrich_transaction_detail(tx, payload: dict) -> None:
         .all()
     )
     payload['offers'] = [serialize_offer(offer) for offer in offers]
-    requirements = (
-        TransactionRequirement.query.filter_by(
-            transaction_id=tx.id,
-            organization_id=tx.organization_id,
-        )
-        .order_by(TransactionRequirement.due_at.asc().nullslast())
-        .all()
-    )
-    payload['requirements'] = [serialize_requirement(row) for row in requirements]
+    payload['requirements'] = serialize_requirements(tx)
+    payload['client_invites'] = serialize_client_invites(tx)
     tasks = (
         Task.query.filter_by(
             transaction_id=tx.id,
@@ -330,33 +360,86 @@ def _extra(tx):
     return dict(tx.extra_data or {})
 
 
+def _iso_date(*values):
+    for value in values:
+        if value in (None, ''):
+            continue
+        if hasattr(value, 'isoformat'):
+            return value.isoformat()[:10]
+        text = str(value).strip()
+        if len(text) >= 10 and text[4] == '-' and text[7] == '-':
+            return text[:10]
+    return None
+
+
+def _display_text(value):
+    if value in (None, ''):
+        return None
+    if isinstance(value, bool):
+        return 'Yes' if value else 'No'
+    return str(value).strip() or None
+
+
 def serialize_listing(tx):
     extra = tx.extra_data or {}
     overrides = extra.get('listing_info_overrides') or {}
     profile = getattr(tx, 'seller_listing_profile', None)
+    documents = TransactionDocument.query.filter_by(transaction_id=tx.id).all()
+    info = build_listing_info(
+        documents,
+        overrides,
+        transaction=tx,
+        listing_profile=profile,
+    ) or {}
+    listing_doc = next(
+        (row for row in documents if row.template_slug == 'listing-agreement'),
+        None,
+    )
+    field_data = listing_doc.field_data if listing_doc and isinstance(listing_doc.field_data, dict) else {}
+
     list_price = None
     if profile is not None and profile.current_list_price is not None:
         list_price = _money_json(profile.current_list_price)
     elif overrides.get('list_price') not in (None, ''):
         list_price = _money_json(overrides.get('list_price'))
-    go_live = None
-    if profile is not None and profile.go_live_date:
-        go_live = profile.go_live_date.isoformat()
-    elif overrides.get('go_live_date'):
-        go_live = _as_date_str(overrides.get('go_live_date'))
+    elif field_data.get('list_price') not in (None, ''):
+        list_price = _money_json(field_data.get('list_price'))
+    elif info.get('list_price') not in (None, ''):
+        list_price = _money_json(info.get('list_price'))
+
+    occupancy = profile.occupancy_status if profile is not None else None
     listing = {
         'list_price': list_price,
-        'go_live_date': go_live,
-        'listing_start_date': _as_date_str(overrides.get('listing_start_date')),
-        'listing_end_date': _as_date_str(overrides.get('listing_end_date')),
+        'list_price_display': info.get('list_price'),
+        'go_live_date': _iso_date(
+            overrides.get('go_live_date'),
+            getattr(profile, 'go_live_date', None),
+            field_data.get('go_live_date'),
+        ),
+        'listing_start_date': _iso_date(
+            overrides.get('listing_start_date'),
+            field_data.get('listing_start_date'),
+        ),
+        'listing_end_date': _iso_date(
+            overrides.get('listing_end_date'),
+            field_data.get('listing_end_date'),
+        ),
+        'total_commission': _display_text(info.get('total_commission')),
+        'listing_side_commission': _display_text(info.get('listing_side_commission')),
+        'buyer_commission': _display_text(info.get('buyer_commission')),
+        'protection_period_days': _display_text(
+            info.get('protection_period_days')
+            or overrides.get('protection_period_days')
+            or field_data.get('protection_period_days')
+        ),
+        'financing_types': _display_text(
+            info.get('financing_types') or field_data.get('financing_types')
+        ),
+        'has_hoa': _display_text(info.get('has_hoa')),
         'mls_listing_url': tx.mls_listing_url,
         'mls_number': profile.mls_number if profile is not None else None,
         'lockbox_combo': extra.get('lockbox_combo'),
     }
-    for key in ('total_commission', 'listing_side_commission', 'buyer_commission'):
-        if overrides.get(key) not in (None, ''):
-            listing[key] = overrides[key]
-    occupancy = profile.occupancy_status if profile is not None else None
     if occupancy:
         listing['occupancy'] = occupancy
     return listing
@@ -408,20 +491,66 @@ def serialize_contract(contract):
     }
 
 
-def serialize_requirement(req):
-    return {
+def serialize_requirement(req, *, group_label=None, subtitle=None, title=None, is_auto=None):
+    phase_labels = dict(LISTING_PREP_PHASES)
+    payload = {
         'id': req.id,
-        'title': req.title,
-        'name': req.title,
+        'title': title or req.title,
+        'name': title or req.title,
         'requirement_key': req.requirement_key,
         'group': req.phase_key,
+        'group_label': group_label or phase_labels.get(req.phase_key) or (
+            (req.phase_key or 'Checklist').replace('_', ' ').title()
+        ),
         'due_at': req.due_at.isoformat() if req.due_at else None,
         'work_status': req.work_status,
         'timing_state': req.timing_state,
         'risk_level': req.risk_level,
         'due_at_manual_override': bool(req.due_at_manual_override),
-        'is_auto': req.requirement_key in AUTO_KEYS,
+        'is_auto': bool(is_auto) if is_auto is not None else req.requirement_key in AUTO_KEYS,
     }
+    if subtitle:
+        payload['subtitle'] = subtitle
+    return payload
+
+
+def serialize_requirements(tx):
+    all_reqs = TransactionRequirement.query.filter_by(
+        transaction_id=tx.id,
+        organization_id=tx.organization_id,
+    ).all()
+    by_id = {row.id: row for row in all_reqs}
+    seen = set()
+    rows = []
+    for group in listing_prep_groups(tx):
+        for item in group.get('rows') or []:
+            req = by_id.get(item.get('id'))
+            if req is None:
+                continue
+            seen.add(req.id)
+            subtitle = None
+            remaining = item.get('remaining_count')
+            if remaining:
+                subtitle = f"{remaining} still needed"
+            rows.append(serialize_requirement(
+                req,
+                group_label=group.get('label'),
+                subtitle=subtitle,
+                title=item.get('title'),
+                is_auto=item.get('auto'),
+            ))
+            rows[-1]['group'] = group.get('key') or req.phase_key
+    leftover = [
+        req for req in all_reqs
+        if req.id not in seen and req.requirement_key not in HIDDEN_KEYS
+    ]
+    leftover.sort(key=lambda req: (
+        req.phase_key or 'zzz',
+        req.due_at.isoformat() if req.due_at else '9999',
+        req.id or 0,
+    ))
+    rows.extend(serialize_requirement(req) for req in leftover)
+    return rows
 
 
 def serialize_task(task):
@@ -433,6 +562,42 @@ def serialize_task(task):
         'due_date': task.due_date.isoformat() if task.due_date else None,
         'contact_id': task.contact_id,
     }
+
+
+def _client_participants(tx):
+    return TransactionParticipant.query.filter(
+        TransactionParticipant.transaction_id == tx.id,
+        TransactionParticipant.organization_id == tx.organization_id,
+        TransactionParticipant.role.in_(tuple(CLIENT_PORTAL_ROLES)),
+    ).all()
+
+
+def _active_invite_for(tx, participant_id):
+    return ClientPortalAccess.query.filter_by(
+        transaction_id=tx.id,
+        organization_id=tx.organization_id,
+        participant_id=participant_id,
+        is_active=True,
+    ).first()
+
+
+def serialize_client_invite(participant, access):
+    return {
+        'participant_id': participant.id,
+        'access_id': access.id if access else None,
+        'name': participant.display_name,
+        'role': participant.role,
+        'invite_code': (
+            access.invite_code_display if access and access.invite_code else None
+        ),
+    }
+
+
+def serialize_client_invites(tx):
+    return [
+        serialize_client_invite(participant, _active_invite_for(tx, participant.id))
+        for participant in _client_participants(tx)
+    ]
 
 
 def _detail_transaction(tx):
@@ -958,15 +1123,7 @@ def list_requirements(user, transaction_id):
     tx, error = _load_tx(user, transaction_id, CAP_VIEW)
     if error:
         return error
-    rows = (
-        TransactionRequirement.query.filter_by(
-            transaction_id=tx.id,
-            organization_id=user.organization_id,
-        )
-        .order_by(TransactionRequirement.due_at.asc().nullslast())
-        .all()
-    )
-    return jsonify({'requirements': [serialize_requirement(row) for row in rows]})
+    return jsonify({'requirements': serialize_requirements(tx)})
 
 
 @agent_jwt_required
@@ -1085,6 +1242,98 @@ def add_note(user, transaction_id):
     flag_modified(tx, 'extra_data')
     db.session.commit()
     return jsonify({'notes': extra['bob_notes']}), 201
+
+
+def _load_client_participant(tx, participant_id):
+    participant = TransactionParticipant.query.filter_by(
+        id=participant_id,
+        transaction_id=tx.id,
+        organization_id=tx.organization_id,
+    ).first()
+    if not participant or (participant.role or '').strip().lower() not in CLIENT_PORTAL_ROLES:
+        return None, _json_error('Not a seller or buyer on this transaction.', 400)
+    return participant, None
+
+
+def _load_client_access(tx, access_id):
+    access = ClientPortalAccess.query.filter_by(
+        id=access_id,
+        transaction_id=tx.id,
+        organization_id=tx.organization_id,
+    ).first()
+    if access is None:
+        return None, _json_error('That invite was not found.', 404)
+    return access, None
+
+
+@agent_jwt_required
+@transactions_flag_required
+def list_client_invites(user, transaction_id):
+    tx, error = _load_tx(user, transaction_id, CAP_VIEW)
+    if error:
+        return error
+    return jsonify({'invites': serialize_client_invites(tx)})
+
+
+@agent_jwt_required
+@transactions_flag_required
+def create_client_invite(user, transaction_id):
+    tx, error = _load_tx(user, transaction_id, CAP_EDIT)
+    if error:
+        return error
+    data = _json_body()
+    try:
+        participant_id = int(data.get('participant_id'))
+    except (TypeError, ValueError):
+        return _json_error('participant_id is required.', 400)
+    participant, error = _load_client_participant(tx, participant_id)
+    if error:
+        return error
+    access = _active_invite_for(tx, participant.id)
+    if access is None:
+        access = ClientPortalAccess(
+            organization_id=user.organization_id,
+            transaction_id=tx.id,
+            participant_id=participant.id,
+            token=ClientPortalAccess.generate_token(),
+            invite_code=ClientPortalAccess.generate_invite_code(),
+            session_version=1,
+            is_active=True,
+        )
+        db.session.add(access)
+    else:
+        access.ensure_invite_code()
+    db.session.commit()
+    return jsonify({'invite': serialize_client_invite(participant, access)})
+
+
+@agent_jwt_required
+@transactions_flag_required
+def rotate_client_invite(user, transaction_id, access_id):
+    tx, error = _load_tx(user, transaction_id, CAP_EDIT)
+    if error:
+        return error
+    access, error = _load_client_access(tx, access_id)
+    if error:
+        return error
+    access.rotate_invite()
+    db.session.commit()
+    return jsonify({'invite': serialize_client_invite(access.participant, access)})
+
+
+@agent_jwt_required
+@transactions_flag_required
+def revoke_client_invite(user, transaction_id, access_id):
+    tx, error = _load_tx(user, transaction_id, CAP_EDIT)
+    if error:
+        return error
+    access, error = _load_client_access(tx, access_id)
+    if error:
+        return error
+    participant = access.participant
+    access.revoke()
+    db.session.commit()
+    return jsonify({'invite': serialize_client_invite(participant, None)})
 
 
 register(agent_api_bp)

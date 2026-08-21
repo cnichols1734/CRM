@@ -5,6 +5,7 @@ from models import (
     SellerAcceptedContract,
     SellerListingProfile,
     Transaction,
+    TransactionDocument,
     TransactionParticipant,
     TransactionRequirement,
     db,
@@ -310,3 +311,158 @@ def test_org_b_cannot_see_org_a_tx(app, seed, client):
     )
     assert resp.status_code in (403, 404)
     assert resp.content_type.startswith('application/json')
+
+
+def test_listing_includes_agreement_fields(app, seed, client):
+    headers = _auth(_owner_token(client))
+    tx_id = _fresh_seller(app, seed, '515 Listing Info Ln')
+    with app.app_context():
+        db.session.add(TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=tx_id,
+            template_slug='listing-agreement',
+            template_name='Listing Agreement',
+            status='signed',
+            field_data={
+                'list_price': '485000',
+                'listing_start_date': '2026-08-21',
+                'listing_end_date': '2027-02-26',
+                'total_commission_display': '$8,000 + 2%',
+                'listing_side_flat': '8000',
+                'buyer_agent_percent': '2',
+                'protection_period_days': '180',
+                'financing_types': 'Conventional, VA, FHA, Cash',
+                'has_hoa': 'yes',
+            },
+        ))
+        db.session.commit()
+
+    patched = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}/listing',
+        headers=headers,
+        json={'lockbox_combo': '2468', 'mls_listing_url': 'https://www.har.com/listing'},
+    )
+    assert patched.status_code == 200, patched.get_json()
+    listing = patched.get_json()['transaction']['listing']
+    assert _as_money(listing['list_price']) == 485000
+    assert listing['listing_start_date'] == '2026-08-21'
+    assert listing['listing_end_date'] == '2027-02-26'
+    assert listing['total_commission'] == '$8,000 + 2%'
+    assert listing['listing_side_commission'] == '$8,000'
+    assert listing['buyer_commission'] == '2%'
+    assert listing['protection_period_days'] == '180'
+    assert listing['financing_types'] == 'Conventional, VA, FHA, Cash'
+    assert listing['has_hoa'] == 'Yes'
+    assert listing['lockbox_combo'] == '2468'
+    assert listing['mls_listing_url'] == 'https://www.har.com/listing'
+
+    saved = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}/listing',
+        headers=headers,
+        json={
+            'protection_period_days': '90',
+            'financing_types': 'Cash',
+            'has_hoa': 'No',
+        },
+    )
+    assert saved.status_code == 200, saved.get_json()
+    updated = saved.get_json()['transaction']['listing']
+    assert updated['protection_period_days'] == '90'
+    assert updated['financing_types'] == 'Cash'
+    assert updated['has_hoa'] == 'No'
+
+
+def test_requirements_follow_listing_prep_order(app, seed, client):
+    from services.listing_prep_checklist import LISTING_PREP_PHASES, VISIBLE_KEYS
+
+    headers = _auth(_owner_token(client))
+    tx_id = _fresh_seller(app, seed, '516 Checklist Order Ln')
+    with app.app_context():
+        for index, key in enumerate(reversed(VISIBLE_KEYS)):
+            db.session.add(TransactionRequirement(
+                organization_id=seed['org_a'],
+                transaction_id=tx_id,
+                package_key='listing',
+                phase_key='mls_setup',
+                requirement_key=key,
+                title=key,
+                work_status='pending',
+            ))
+        db.session.commit()
+
+    listed = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/requirements',
+        headers=headers,
+    )
+    assert listed.status_code == 200, listed.get_json()
+    rows = listed.get_json()['requirements']
+    keys = [row['requirement_key'] for row in rows]
+    assert keys[:len(VISIBLE_KEYS)] == list(VISIBLE_KEYS)
+    labels = [row['group_label'] for row in rows]
+    assert labels[0] == LISTING_PREP_PHASES[0][1]
+    assert 'Listing Documents' in labels
+    assert 'Property & Marketing Prep' in labels
+    assert 'MLS Setup' in labels
+
+
+def test_client_invite_create_returns_existing_code(app, seed, client):
+    headers = _auth(_owner_token(client))
+    tx_id = _fresh_seller(app, seed, '517 Invite Code Ln')
+    with app.app_context():
+        party = TransactionParticipant(
+            organization_id=seed['org_a'],
+            transaction_id=tx_id,
+            role='seller',
+            name='Michael Mayeux',
+            is_primary=True,
+        )
+        db.session.add(party)
+        db.session.commit()
+        party_id = party.id
+
+    created = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/client-invites',
+        headers=headers,
+        json={'participant_id': party_id},
+    )
+    assert created.status_code == 200, created.get_json()
+    invite = created.get_json()['invite']
+    code = invite['invite_code']
+    access_id = invite['access_id']
+    assert code
+    assert '-' in code
+    assert invite['participant_id'] == party_id
+
+    again = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/client-invites',
+        headers=headers,
+    )
+    assert again.status_code == 200
+    row = again.get_json()['invites'][0]
+    assert row['invite_code'] == code
+    assert row['access_id'] == access_id
+
+    detail = client.get(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+    )
+    assert detail.status_code == 200
+    assert detail.get_json()['transaction']['client_invites'][0]['invite_code'] == code
+
+    rotated = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/client-invites/{access_id}/rotate',
+        headers=headers,
+        json={},
+    )
+    assert rotated.status_code == 200, rotated.get_json()
+    new_code = rotated.get_json()['invite']['invite_code']
+    assert new_code
+    assert new_code != code
+
+    revoked = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/client-invites/{access_id}/revoke',
+        headers=headers,
+        json={},
+    )
+    assert revoked.status_code == 200, revoked.get_json()
+    assert revoked.get_json()['invite']['invite_code'] is None
