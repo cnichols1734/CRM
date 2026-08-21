@@ -10,6 +10,7 @@ from models import (
     SellerAcceptedContract,
     Task,
     Transaction,
+    TransactionDocument,
     TransactionParticipant,
     db,
 )
@@ -17,6 +18,12 @@ from models import (
 
 def _auth(token):
     return {'Authorization': f'Bearer {token}'}
+
+
+def _assert_json_not_redirect(resp):
+    assert resp.status_code not in (301, 302, 303, 307, 308)
+    assert 'Location' not in resp.headers
+    assert resp.content_type.startswith('application/json')
 
 
 def _agent_session(client, *, email=None, username=None, password='password123'):
@@ -550,3 +557,195 @@ def test_jwt_user_not_cookie_user(app, seed, owner_a_client):
     emails = [c['email'] for c in listed.get_json()['contacts']]
     assert 'john@test.com' in emails
     assert 'jane@test.com' not in emails
+
+
+def _document_with_file(seed, tx, path='transactions/406/listing.pdf'):
+    doc = TransactionDocument(
+        organization_id=seed['org_a'],
+        transaction_id=tx.id,
+        template_slug='listing-agreement',
+        template_name='Listing Agreement',
+        status='signed',
+        document_source='external',
+        signed_file_path=path,
+        signed_original_filename='listing.pdf',
+    )
+    db.session.add(doc)
+    db.session.flush()
+    return doc
+
+
+def test_document_file_returns_json_signed_url(app, seed, client, monkeypatch):
+    monkeypatch.setattr(
+        'services.supabase_storage.get_transaction_document_url',
+        lambda path, expires_in=3600: f'https://signed.example/{path}?exp={expires_in}',
+    )
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    with app.app_context():
+        tx, _seller, _access = _seller_thread(seed, '410 File Json Ln')
+        doc = _document_with_file(seed, tx, 'transactions/410/listing.pdf')
+        db.session.commit()
+        tx_id = tx.id
+        doc_id = doc.id
+
+    listed = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents',
+        headers=headers,
+    )
+    assert listed.status_code == 200
+    row = next(item for item in listed.get_json()['documents'] if item['id'] == doc_id)
+    assert row['has_file'] is True
+    assert 'url' not in row
+
+    cookie_only = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
+    )
+    assert cookie_only.status_code == 401
+    _assert_json_not_redirect(cookie_only)
+
+    resp = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
+        headers={**headers, 'Accept': 'application/pdf'},
+    )
+    assert resp.status_code == 200
+    _assert_json_not_redirect(resp)
+    body = resp.get_json()
+    assert set(body.keys()) == {'url'}
+    assert body['url'].startswith('https://signed.example/transactions/410/listing.pdf')
+
+    with app.app_context():
+        tx = db.session.get(Transaction, tx_id)
+        bare = _document_with_file(seed, tx, path=None)
+        db.session.commit()
+        bare_id = bare.id
+
+    missing = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents/{bare_id}/file',
+        headers=headers,
+    )
+    assert missing.status_code == 404
+    _assert_json_not_redirect(missing)
+    assert 'url' not in (missing.get_json() or {})
+
+
+def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monkeypatch):
+    from services.client_portal_auth import issue_client_jwt
+
+    monkeypatch.setattr(
+        'services.supabase_storage.get_transaction_document_url',
+        lambda path, expires_in=3600: f'https://signed.example/{path}',
+    )
+
+    with app.app_context():
+        tx, _seller, access = _seller_thread(seed, '411 File Auth Ln')
+        doc = _document_with_file(seed, tx, 'transactions/411/listing.pdf')
+        db.session.commit()
+        tx_id = tx.id
+        doc_id = doc.id
+        client_token = issue_client_jwt(access)
+
+    file_url = f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file'
+    rejected = client.get(file_url, headers=_auth(client_token))
+    assert rejected.status_code == 401
+    assert rejected.content_type.startswith('application/json')
+
+    other = client.get(
+        f'/api/agent/v1/transactions/{seed["tx_b"]}/documents/{doc_id}/file',
+        headers=_auth(_owner_token(client)),
+    )
+    assert other.status_code == 404
+    _assert_json_not_redirect(other)
+
+    free = _agent_session(client, email='owner_b@test.com').get_json()['token']
+    gated = client.get(file_url, headers=_auth(free))
+    assert gated.status_code == 403
+    assert gated.get_json() == {
+        'code': 'transactions_required',
+        'error': 'Transactions are not on this plan.',
+    }
+
+
+def test_status_persist_reload_and_guards(app, seed, client):
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    with app.app_context():
+        tx, _seller, _access = _seller_thread(seed, '412 Status Persist Ln')
+        db.session.commit()
+        tx_id = tx.id
+
+    posted = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=headers,
+        json={'status': 'under_contract'},
+    )
+    assert posted.status_code == 200
+    assert posted.content_type.startswith('application/json')
+    assert posted.get_json() == {'ok': True, 'status': 'under_contract'}
+
+    reloaded = client.get(f'/api/agent/v1/transactions/{tx_id}', headers=headers)
+    assert reloaded.status_code == 200
+    assert reloaded.get_json()['transaction']['status'] == 'under_contract'
+
+    with app.app_context():
+        assert db.session.get(Transaction, tx_id).status == 'under_contract'
+
+    refused = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+        json={
+            'city': 'Dallas',
+            'status': 'cancelled',
+            'transaction_type': 'buyer',
+        },
+    )
+    assert refused.status_code == 400
+    assert refused.content_type.startswith('application/json')
+    assert refused.get_json()['error']
+
+    after_refuse = client.get(f'/api/agent/v1/transactions/{tx_id}', headers=headers)
+    assert after_refuse.get_json()['transaction']['status'] == 'under_contract'
+    assert after_refuse.get_json()['transaction']['transaction_type'] == 'seller'
+    assert after_refuse.get_json()['transaction']['city'] == 'Austin'
+
+    address_only = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+        json={'city': 'Dallas'},
+    )
+    assert address_only.status_code == 200
+    assert address_only.get_json()['transaction']['city'] == 'Dallas'
+    assert address_only.get_json()['transaction']['status'] == 'under_contract'
+
+    bad = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=headers,
+        json={'status': 'not_a_real_status'},
+    )
+    assert bad.status_code == 400
+    assert bad.content_type.startswith('application/json')
+    assert bad.get_json()['error']
+    assert client.get(
+        f'/api/agent/v1/transactions/{tx_id}', headers=headers,
+    ).get_json()['transaction']['status'] == 'under_contract'
+
+    cookie_only = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        json={'status': 'active'},
+    )
+    assert cookie_only.status_code == 401
+    assert cookie_only.content_type.startswith('application/json')
+
+    free = _agent_session(client, email='owner_b@test.com').get_json()['token']
+    gated = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=_auth(free),
+        json={'status': 'active'},
+    )
+    assert gated.status_code == 403
+    assert gated.get_json() == {
+        'code': 'transactions_required',
+        'error': 'Transactions are not on this plan.',
+    }

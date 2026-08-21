@@ -2,6 +2,14 @@
 
 Auth is an agent JWT (typ=agent). Flask-Login cookies are ignored.
 Do not reuse /transactions/api/* or the client_portal JWT.
+
+File GET is JSON only: ``{"url": "<signed url>"}``. Native downloads that
+URL. This route does not 302 and does not stream bytes.
+
+Status persist is ``POST /transactions/<id>/status``. That writes the
+status and returns ``{"ok": true, "status": "<new>"}``.
+``PATCH /transactions/<id>`` rejects status and type. It does not write
+them.
 """
 from __future__ import annotations
 
@@ -91,6 +99,10 @@ ROLE_MAP = {
 }
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
+_DEAL_PATCH_STATUS_TYPE_KEYS = frozenset({
+    'status', 'type', 'transaction_type', 'transaction_type_id',
+})
 
 
 def _json_error(message, status=401, code=None):
@@ -758,6 +770,11 @@ def patch_transaction(user, transaction_id):
     if error:
         return error
     data = _json_body()
+    if _DEAL_PATCH_STATUS_TYPE_KEYS.intersection(data):
+        return _json_error(
+            'Status and type are not writable here. POST /transactions/<id>/status.',
+            400,
+        )
     for field in (
         'street_address', 'city', 'state', 'zip_code', 'county',
         'ownership_status', 'mls_listing_url',
@@ -789,10 +806,14 @@ def delete_transaction(user, transaction_id):
 @agent_jwt_required
 @transactions_flag_required
 def post_transaction_status(user, transaction_id):
+    """Write deal status. Native reloads the deal to read it back."""
     tx, error = _load_tx(user, transaction_id, CAP_EDIT)
     if error:
         return error
-    new_status = (_json_body().get('status') or '').strip()
+    raw_status = _json_body().get('status')
+    if not isinstance(raw_status, str):
+        return _json_error('Invalid status.', 400)
+    new_status = raw_status.strip()
     tx_type_name = tx.transaction_type.name if tx.transaction_type else 'seller'
     valid = STATUS_OPTIONS_BY_TYPE.get(tx_type_name, STATUS_OPTIONS_BY_TYPE['seller'])
     if new_status not in valid:
@@ -1081,6 +1102,10 @@ def upload_document(user, transaction_id):
 @agent_jwt_required
 @transactions_flag_required
 def get_document_file(user, transaction_id, doc_id):
+    """Return JSON ``{"url": "<signed url>"}``. Native downloads that URL.
+
+    This is not a 302. List metadata stays on GET .../documents.
+    """
     tx, error = _load_tx(user, transaction_id, CAP_VIEW)
     if error:
         return error
@@ -1099,6 +1124,8 @@ def get_document_file(user, transaction_id, doc_id):
         url = get_transaction_document_url(path, expires_in=3600)
     except Exception:
         logger.exception('Agent API signed URL failed')
+        return _json_error('Could not create a file link.', 502)
+    if not isinstance(url, str) or not url.strip():
         return _json_error('Could not create a file link.', 502)
     return jsonify({'url': url})
 
