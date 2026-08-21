@@ -531,6 +531,15 @@ def test_transaction_routes_round_trip(app, seed, client):
     assert missing.status_code == 404
 
 
+def test_contacts_list_is_mine_for_owner(app, seed, client):
+    token = _owner_token(client)
+    listed = client.get('/api/agent/v1/contacts', headers=_auth(token))
+    assert listed.status_code == 200
+    emails = [c['email'] for c in listed.get_json()['contacts']]
+    assert 'jane@test.com' in emails
+    assert 'john@test.com' not in emails
+
+
 def test_jwt_user_not_cookie_user(app, seed, owner_a_client):
     agent_token = _agent_session(owner_a_client, email='agent_a@test.com').get_json()['token']
     listed = owner_a_client.get(

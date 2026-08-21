@@ -138,22 +138,14 @@ def _json_body():
     return data if isinstance(data, dict) else {}
 
 
-def _can_view_all(user):
-    return user.org_role in ('owner', 'admin')
-
-
 def _contacts_query(user):
-    query = org_query_for_id(Contact, user.organization_id)
-    if not _can_view_all(user):
-        query = query.filter_by(user_id=user.id)
-    return query
+    """AgentDesk is personal CRM. Match the web default and /dashboard KPIs."""
+    return org_query_for_id(Contact, user.organization_id).filter_by(user_id=user.id)
 
 
 def _contact_visible(user, contact):
     if contact is None or contact.organization_id != user.organization_id:
         return False
-    if _can_view_all(user):
-        return True
     return contact.user_id == user.id
 
 
