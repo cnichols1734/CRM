@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import pytz
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import joinedload
 
@@ -11,6 +12,8 @@ from models import Contact, Task, Transaction, TransactionParticipant
 from services.agent_auth import serialize_org, serialize_user
 from services.contact_group_service import aggregate_group_stats
 from services.tenant_service import org_query_for_id
+
+_CHICAGO = pytz.timezone('America/Chicago')
 
 
 def build_dashboard(user):
@@ -61,9 +64,14 @@ def me_payload(user):
 
 
 def _today_tasks(user, org_id):
-    utc_now = datetime.utcnow()
-    start = utc_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    end = start + timedelta(days=1)
+    today = datetime.now(_CHICAGO).date()
+    start_local = _CHICAGO.localize(datetime.combine(today, datetime.min.time()))
+    end_local = _CHICAGO.localize(
+        datetime.combine(today + timedelta(days=1), datetime.min.time()),
+    )
+    start = start_local.astimezone(pytz.UTC).replace(tzinfo=None)
+    end = end_local.astimezone(pytz.UTC).replace(tzinfo=None)
+    now_utc = datetime.now(_CHICAGO).astimezone(pytz.UTC).replace(tzinfo=None)
     rows = (
         org_query_for_id(Task, org_id)
         .options(joinedload(Task.contact), joinedload(Task.task_type))
@@ -74,7 +82,7 @@ def _today_tasks(user, org_id):
             or_(Task.due_date < start, Task.due_date.between(start, end)),
         )
         .order_by(
-            case((Task.due_date < utc_now, 0), else_=1),
+            case((Task.due_date < now_utc, 0), else_=1),
             Task.due_date.asc(),
         )
         .limit(20)

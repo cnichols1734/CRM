@@ -749,3 +749,92 @@ def test_status_persist_reload_and_guards(app, seed, client):
         'code': 'transactions_required',
         'error': 'Transactions are not on this plan.',
     }
+
+
+def test_transaction_types_list(app, seed, client):
+    token = _owner_token(client)
+    resp = client.get('/api/agent/v1/transaction-types', headers=_auth(token))
+    assert resp.status_code == 200
+    rows = resp.get_json()['transaction_types']
+    by_name = {row['name']: row for row in rows}
+    assert 'seller' in by_name
+    assert 'buyer' in by_name
+    assert by_name['seller']['id'] == seed['tx_type_a']
+    assert by_name['buyer']['id'] == seed['tx_type_a2']
+    assert by_name['seller']['display_name']
+    assert by_name['buyer']['display_name']
+
+    free = _agent_session(client, email='owner_b@test.com').get_json()['token']
+    gated = client.get('/api/agent/v1/transaction-types', headers=_auth(free))
+    assert gated.status_code == 403
+    assert gated.get_json()['code'] == 'transactions_required'
+
+
+def test_contact_serialize_includes_client_fields(app, seed, client):
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    created = client.post(
+        '/api/agent/v1/contacts',
+        headers=headers,
+        json={
+            'first_name': 'Dana',
+            'last_name': 'ClientFields',
+            'move_timeline': '30-60 days',
+            'motivation': 'Job relocation',
+            'financial_status': 'Pre-approved',
+            'additional_notes': 'Prefers texts',
+            'group_ids': [seed['group_a1']],
+        },
+    )
+    assert created.status_code == 201
+    contact = created.get_json()['contact']
+    assert contact['move_timeline'] == '30-60 days'
+    assert contact['motivation'] == 'Job relocation'
+    assert contact['financial_status'] == 'Pre-approved'
+    assert contact['additional_notes'] == 'Prefers texts'
+    assert contact['last_email_date'] is None
+    assert contact['last_text_date'] is None
+    assert contact['last_phone_call_date'] is None
+    assert contact['last_contact_date'] is None
+
+    patched = client.patch(
+        f'/api/agent/v1/contacts/{contact["id"]}',
+        headers=headers,
+        json={
+            'move_timeline': 'This month',
+            'motivation': 'School district',
+            'financial_status': 'Cash',
+            'additional_notes': 'Call after 6',
+        },
+    )
+    assert patched.status_code == 200
+    body = patched.get_json()['contact']
+    assert body['move_timeline'] == 'This month'
+    assert body['motivation'] == 'School district'
+    assert body['financial_status'] == 'Cash'
+    assert body['additional_notes'] == 'Call after 6'
+
+
+def test_dates_recompute_does_not_500(app, seed, client):
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    with app.app_context():
+        tx, _seller, _access = _seller_thread(seed, '420 Recompute Dates Ln')
+        db.session.commit()
+        tx_id = tx.id
+
+    updated = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}/dates',
+        headers=headers,
+        json={'closing_date': '2026-07-15'},
+    )
+    assert updated.status_code == 200
+    body = updated.get_json()
+    assert body['ok'] is True
+    assert body['dates']['closing_date'] == '2026-07-15'
+    assert body['transaction']['id'] == tx_id
+    assert 'milestones' in body['transaction']
+    assert 'documents' in body['transaction']
+

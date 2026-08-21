@@ -221,6 +221,10 @@ def _parse_datetime(value):
         raise ValueError('Use an ISO datetime.') from exc
 
 
+def _iso_date(value):
+    return value.isoformat() if value else None
+
+
 def _serialize_contact(contact):
     return {
         'id': contact.id,
@@ -235,6 +239,14 @@ def _serialize_contact(contact):
         'notes': contact.notes,
         'potential_commission': float(contact.potential_commission or 0),
         'current_objective': contact.current_objective,
+        'move_timeline': contact.move_timeline,
+        'motivation': contact.motivation,
+        'financial_status': contact.financial_status,
+        'additional_notes': contact.additional_notes,
+        'last_email_date': _iso_date(contact.last_email_date),
+        'last_text_date': _iso_date(contact.last_text_date),
+        'last_phone_call_date': _iso_date(contact.last_phone_call_date),
+        'last_contact_date': _iso_date(contact.last_contact_date),
         'group_ids': [g.id for g in (contact.groups or [])],
         'groups': [
             {
@@ -310,6 +322,11 @@ def _serialize_transaction(tx, *, detail=False, participants=None):
                 TransactionDocument.created_at.desc(),
             ).all()
         ]
+        try:
+            from routes.agent_deal_desk import enrich_transaction_detail
+            enrich_transaction_detail(tx, payload)
+        except ImportError:
+            pass
     return payload
 
 
@@ -521,6 +538,10 @@ def create_contact(user):
         notes=(data.get('notes') or '').strip() or None,
         potential_commission=data.get('potential_commission') or 5000.00,
         current_objective=(data.get('current_objective') or '').strip() or None,
+        move_timeline=(data.get('move_timeline') or '').strip() or None,
+        motivation=(data.get('motivation') or '').strip() or None,
+        financial_status=(data.get('financial_status') or '').strip() or None,
+        additional_notes=(data.get('additional_notes') or '').strip() or None,
     )
     try:
         contact.groups = resolve_groups_for_owner(
@@ -568,7 +589,8 @@ def patch_contact(user, contact_id):
         contact.last_name = last_name
     for field in (
         'email', 'phone', 'street_address', 'city', 'state', 'zip_code',
-        'notes', 'current_objective',
+        'notes', 'current_objective', 'move_timeline', 'motivation',
+        'financial_status', 'additional_notes',
     ):
         if field in data:
             value = data.get(field)
@@ -643,6 +665,27 @@ def list_contact_groups(user):
                 'category': getattr(group, 'category', None),
             }
             for group in groups
+        ],
+    })
+
+
+@agent_api_bp.route('/transaction-types', methods=['GET'])
+@agent_jwt_required
+@transactions_flag_required
+def list_transaction_types(user):
+    rows = (
+        org_query_for_id(TransactionType, user.organization_id)
+        .order_by(TransactionType.sort_order, TransactionType.id)
+        .all()
+    )
+    return jsonify({
+        'transaction_types': [
+            {
+                'id': row.id,
+                'name': row.name,
+                'display_name': row.display_name,
+            }
+            for row in rows
         ],
     })
 
@@ -829,8 +872,8 @@ def post_transaction_status(user, transaction_id):
 def patch_transaction_dates(user, transaction_id):
     """Write portal-visible dates only.
 
-    Do not call seller contract-details replace here. That rebuilds
-    milestones from frozen terms and can wipe dates that were not sent.
+    Option/closing anchors recompute checklist due dates. Do not call
+    seller contract-details replace or create_contract_milestones here.
     """
     tx, error = _load_tx(user, transaction_id, CAP_EDIT)
     if error:
@@ -867,8 +910,26 @@ def patch_transaction_dates(user, transaction_id):
                 contract.closing_date = _parse_date(data.get('closing_date'))
     except ValueError as exc:
         return _json_error(str(exc), 400)
+
+    recompute_changes = {
+        key: data[key]
+        for key in ('expected_close_date', 'effective_date', 'closing_date')
+        if key in data
+    }
+    if recompute_changes:
+        from services.deadline_recompute import recompute_from_changes
+        recompute_from_changes(
+            tx,
+            recompute_changes,
+            actor_id=user.id,
+            source='agent_api_dates',
+        )
     db.session.commit()
-    return jsonify({'ok': True, 'dates': _tx_dates(tx)})
+    return jsonify({
+        'ok': True,
+        'dates': _tx_dates(tx),
+        'transaction': _serialize_transaction(tx, detail=True),
+    })
 
 
 @agent_api_bp.route('/transactions/<int:transaction_id>/participants', methods=['GET'])
@@ -1264,3 +1325,24 @@ def post_conversation_message(user, participant_id):
     )
     listed = list_client_messages(access)
     return jsonify({'message': listed[-1] if listed else None}), 201
+
+
+def _register_desk_extensions():
+    try:
+        from routes import agent_contact_desk
+        agent_contact_desk.register(agent_api_bp)
+    except ImportError:
+        pass
+    try:
+        from routes import agent_task_desk
+        agent_task_desk.register(agent_api_bp)
+    except ImportError:
+        pass
+    try:
+        from routes import agent_deal_desk
+        agent_deal_desk.register(agent_api_bp)
+    except ImportError:
+        pass
+
+
+_register_desk_extensions()
