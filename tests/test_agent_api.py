@@ -598,17 +598,34 @@ def test_document_file_returns_json_signed_url(app, seed, client, monkeypatch):
     )
     assert cookie_only.status_code == 401
     assert cookie_only.content_type.startswith('application/json')
+    assert not cookie_only.is_redirect
 
     resp = client.get(
         f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
-        headers=headers,
+        headers={**headers, 'Accept': 'application/pdf'},
     )
     assert resp.status_code == 200
     assert resp.content_type.startswith('application/json')
+    assert not resp.is_redirect
     body = resp.get_json()
     assert set(body.keys()) == {'url'}
     assert body['url'].startswith('https://signed.example/transactions/410/listing.pdf')
     assert 'Location' not in resp.headers
+
+    with app.app_context():
+        tx = db.session.get(Transaction, tx_id)
+        bare = _document_with_file(seed, tx, path=None)
+        db.session.commit()
+        bare_id = bare.id
+
+    missing = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents/{bare_id}/file',
+        headers=headers,
+    )
+    assert missing.status_code == 404
+    assert missing.content_type.startswith('application/json')
+    assert not missing.is_redirect
+    assert 'url' not in (missing.get_json() or {})
 
 
 def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monkeypatch):
@@ -638,6 +655,15 @@ def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monke
     )
     assert other.status_code == 404
     assert other.content_type.startswith('application/json')
+    assert not other.is_redirect
+
+    free = _agent_session(client, email='owner_b@test.com').get_json()['token']
+    gated = client.get(file_url, headers=_auth(free))
+    assert gated.status_code == 403
+    assert gated.get_json() == {
+        'code': 'transactions_required',
+        'error': 'Transactions are not on this plan.',
+    }
 
 
 def test_status_persist_reload_and_guards(app, seed, client):
@@ -662,22 +688,35 @@ def test_status_persist_reload_and_guards(app, seed, client):
     assert reloaded.status_code == 200
     assert reloaded.get_json()['transaction']['status'] == 'under_contract'
 
-    via_patch_status = client.patch(
-        f'/api/agent/v1/transactions/{tx_id}/status',
-        headers=headers,
-        json={'status': 'closed'},
-    )
-    assert via_patch_status.status_code == 200
-    assert via_patch_status.get_json()['status'] == 'closed'
+    with app.app_context():
+        assert db.session.get(Transaction, tx_id).status == 'under_contract'
 
-    ignored = client.patch(
+    refused = client.patch(
         f'/api/agent/v1/transactions/{tx_id}',
         headers=headers,
-        json={'status': 'cancelled', 'transaction_type': 'buyer'},
+        json={
+            'city': 'Dallas',
+            'status': 'cancelled',
+            'transaction_type': 'buyer',
+        },
     )
-    assert ignored.status_code == 200
-    assert ignored.get_json()['transaction']['status'] == 'closed'
-    assert ignored.get_json()['transaction']['transaction_type'] == 'seller'
+    assert refused.status_code == 400
+    assert refused.content_type.startswith('application/json')
+    assert refused.get_json()['error']
+
+    after_refuse = client.get(f'/api/agent/v1/transactions/{tx_id}', headers=headers)
+    assert after_refuse.get_json()['transaction']['status'] == 'under_contract'
+    assert after_refuse.get_json()['transaction']['transaction_type'] == 'seller'
+    assert after_refuse.get_json()['transaction']['city'] == 'Austin'
+
+    address_only = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+        json={'city': 'Dallas'},
+    )
+    assert address_only.status_code == 200
+    assert address_only.get_json()['transaction']['city'] == 'Dallas'
+    assert address_only.get_json()['transaction']['status'] == 'under_contract'
 
     bad = client.post(
         f'/api/agent/v1/transactions/{tx_id}/status',
@@ -687,6 +726,9 @@ def test_status_persist_reload_and_guards(app, seed, client):
     assert bad.status_code == 400
     assert bad.content_type.startswith('application/json')
     assert bad.get_json()['error']
+    assert client.get(
+        f'/api/agent/v1/transactions/{tx_id}', headers=headers,
+    ).get_json()['transaction']['status'] == 'under_contract'
 
     cookie_only = client.post(
         f'/api/agent/v1/transactions/{tx_id}/status',
@@ -702,4 +744,7 @@ def test_status_persist_reload_and_guards(app, seed, client):
         json={'status': 'active'},
     )
     assert gated.status_code == 403
-    assert gated.get_json()['code'] == 'transactions_required'
+    assert gated.get_json() == {
+        'code': 'transactions_required',
+        'error': 'Transactions are not on this plan.',
+    }
