@@ -380,6 +380,18 @@ def _build_buyer_stages(tx):
     else:
         current = 0
 
+    effective = _as_date(primary_contract.effective_date) if primary_contract else None
+    closing = _as_date(primary_contract.closing_date) if primary_contract else None
+    if not closing:
+        closing = _as_date(getattr(tx, 'expected_close_date', None))
+    closed_on = _as_date(getattr(tx, 'actual_close_date', None))
+    stage_dates = {
+        'showing': None,
+        'under_contract': effective,
+        'closing': closing,
+        'closed': closed_on or closing,
+    }
+
     stages = []
     for i, (key, label, icon) in enumerate(BUYER_STAGE_DEFS):
         if i < current:
@@ -388,7 +400,14 @@ def _build_buyer_stages(tx):
             state = 'current'
         else:
             state = 'upcoming'
-        stages.append({'key': key, 'label': label, 'icon': icon, 'state': state})
+        stages.append({
+            'key': key,
+            'label': label,
+            'icon': icon,
+            'state': state,
+            'date': _day(stage_dates.get(key)),
+            'index': i,
+        })
     return stages, current
 
 
@@ -421,6 +440,8 @@ def _build_stages(tx, profile):
     first_offer = _first_offer_date(tx)
     effective = _as_date(primary_contract.effective_date) if primary_contract else None
     closing = _as_date(primary_contract.closing_date) if primary_contract else None
+    if not closing:
+        closing = _as_date(getattr(tx, 'expected_close_date', None))
     closed_on = _as_date(getattr(tx, 'actual_close_date', None))
     stage_dates = {
         'preparing': _as_date(getattr(tx, 'created_at', None)),
@@ -447,6 +468,70 @@ def _build_stages(tx, profile):
             'state': state,
             'date': _day(stage_dates.get(key)),
             'index': idx,
+        })
+    return stages, current
+
+
+def portal_tracker(tx, *, rich=True):
+    """Pizza-tracker stages the client app already renders.
+
+    ``rich=False`` uses status only so list endpoints stay cheap.
+    """
+    tx_type = tx.transaction_type.name if getattr(tx, 'transaction_type', None) else 'seller'
+    is_buyer = tx_type in {'buyer', 'tenant'}
+    if rich:
+        if is_buyer:
+            stages, current = _build_buyer_stages(tx)
+        else:
+            stages, current = _build_stages(
+                tx, getattr(tx, 'seller_listing_profile', None),
+            )
+    else:
+        stages, current = _status_only_stages(tx, is_buyer=is_buyer)
+    key = stages[current]['key'] if stages else None
+    default = 'Under contract' if is_buyer else 'Live on the market'
+    return {
+        'stages': stages,
+        'current_stage_index': current,
+        'headline_statement': STAGE_STATEMENTS.get(key, default),
+    }
+
+
+def _status_only_stages(tx, *, is_buyer):
+    status = tx.status
+    if is_buyer:
+        defs = BUYER_STAGE_DEFS
+        if status == 'closed':
+            current = 3
+        elif status == 'under_contract':
+            current = 1
+        else:
+            current = 0
+    else:
+        defs = STAGE_DEFS
+        if status == 'closed':
+            current = 6
+        elif status == 'under_contract':
+            current = 4
+        elif status in {'active', 'cancelled'}:
+            current = 1
+        else:
+            current = 0
+    stages = []
+    for index, (key, label, icon) in enumerate(defs):
+        if index < current:
+            state = 'done'
+        elif index == current:
+            state = 'current'
+        else:
+            state = 'upcoming'
+        stages.append({
+            'key': key,
+            'label': label,
+            'icon': icon,
+            'state': state,
+            'date': None,
+            'index': index,
         })
     return stages, current
 
