@@ -227,6 +227,58 @@ def test_transactions_flag_403_json(app, seed, client):
     assert resp.get_json().get('error')
 
 
+def test_contact_groups_catalog(app, seed, client):
+    token = _owner_token(client)
+    resp = client.get('/api/agent/v1/contact-groups', headers=_auth(token))
+    assert resp.status_code == 200
+    names = [row['name'] for row in resp.get_json()['groups']]
+    assert names
+
+
+def test_dates_without_contract_write_portal_fields(app, seed, client):
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    with app.app_context():
+        tx, _seller, _access = _seller_thread(seed, '408 No Contract Dates Ln')
+        db.session.commit()
+        tx_id = tx.id
+
+    updated = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}/dates',
+        headers=headers,
+        json={
+            'go_live_date': '2026-03-15',
+            'expected_close_date': '2026-06-01',
+            'effective_date': '2026-04-02',
+            'closing_date': '2026-05-20',
+        },
+    )
+    assert updated.status_code == 200
+    dates = updated.get_json()['dates']
+    assert dates['go_live_date'] == '2026-03-15'
+    assert dates['expected_close_date'] == '2026-06-01'
+    assert dates['effective_date'] == '2026-04-02'
+    assert dates['closing_date'] == '2026-05-20'
+
+    from tests.test_client_portal_api import _auth_headers, _open_session
+
+    with app.app_context():
+        access = ClientPortalAccess.query.filter_by(transaction_id=tx_id).first()
+        invite = access.invite_code
+
+    client_token = _open_session(client, invite).get_json()['token']
+    deal = client.get(
+        '/api/client/v1/deal',
+        headers=_auth_headers(client_token),
+    )
+    assert deal.status_code == 200
+    stages = {row['key']: row for row in deal.get_json()['stages']}
+    assert stages['active']['date']
+    assert stages['under_contract']['date']
+    assert stages['closing']['date']
+
+
 def test_dates_allowlist(app, seed, client):
     token = _owner_token(client)
     headers = _auth(token)
@@ -391,7 +443,20 @@ def test_transaction_routes_round_trip(app, seed, client):
 
     listed = client.get('/api/agent/v1/transactions', headers=headers)
     assert listed.status_code == 200
-    assert any(row['id'] == tx_id for row in listed.get_json()['transactions'])
+    listed_row = next(
+        row for row in listed.get_json()['transactions'] if row['id'] == tx_id
+    )
+    assert listed_row['participants']
+    assert listed_row['stages']
+    assert listed_row['headline_statement']
+
+    detail = client.get(f'/api/agent/v1/transactions/{tx_id}', headers=headers)
+    assert detail.status_code == 200
+    body = detail.get_json()['transaction']
+    assert body['participants']
+    assert body['stages']
+    assert 'documents' in body
+    assert 'milestones' in body
 
     patched = client.patch(
         f'/api/agent/v1/transactions/{tx_id}',

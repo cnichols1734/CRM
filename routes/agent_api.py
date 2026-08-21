@@ -21,6 +21,7 @@ from models import (
     DeviceToken,
     Interaction,
     PortalMessage,
+    SellerAcceptedContract,
     SellerContractMilestone,
     SellerListingProfile,
     Task,
@@ -41,10 +42,14 @@ from services.agent_auth import (
     serialize_user,
 )
 from services.agent_dashboard import build_dashboard, me_payload
-from services.contact_group_service import ContactGroupError, resolve_groups_for_owner
+from services.contact_group_service import (
+    ContactGroupError,
+    list_user_groups,
+    resolve_groups_for_owner,
+)
 from services.controlling_contracts import get_active_primary_contract
 from services.device_push import enqueue_portal_push, register_device
-from services.portal_service import CLIENT_PORTAL_ROLES, list_client_messages
+from services.portal_service import CLIENT_PORTAL_ROLES, list_client_messages, portal_tracker
 from services.tenant_service import org_query_for_id
 from services.transaction_auth import (
     CAP_EDIT,
@@ -227,6 +232,14 @@ def _serialize_contact(contact):
         'potential_commission': float(contact.potential_commission or 0),
         'current_objective': contact.current_objective,
         'group_ids': [g.id for g in (contact.groups or [])],
+        'groups': [
+            {
+                'id': g.id,
+                'name': g.name,
+                'category': getattr(g, 'category', None),
+            }
+            for g in (contact.groups or [])
+        ],
         'user_id': contact.user_id,
         'created_at': contact.created_at.isoformat() if contact.created_at else None,
     }
@@ -257,7 +270,9 @@ def _tx_dates(tx):
     }
 
 
-def _serialize_transaction(tx, *, detail=False):
+def _serialize_transaction(tx, *, detail=False, participants=None):
+    people = participants if participants is not None else tx.participants.all()
+    tracker = portal_tracker(tx, rich=detail)
     payload = {
         'id': tx.id,
         'street_address': tx.street_address,
@@ -272,13 +287,54 @@ def _serialize_transaction(tx, *, detail=False):
         ),
         'mls_listing_url': tx.mls_listing_url,
         'created_by_id': tx.created_by_id,
+        'headline_statement': tracker['headline_statement'],
+        'current_stage_index': tracker['current_stage_index'],
+        'stages': tracker['stages'],
+        'participants': [_serialize_participant(p) for p in people],
         **_tx_dates(tx),
     }
     if detail:
-        payload['participants'] = [
-            _serialize_participant(p) for p in tx.participants.all()
+        payload['milestones'] = [
+            _serialize_milestone(m)
+            for m in tx.seller_contract_milestones.order_by(
+                SellerContractMilestone.due_at.asc().nullslast(),
+            ).all()
+        ]
+        payload['documents'] = [
+            _serialize_document(doc)
+            for doc in tx.documents.order_by(
+                TransactionDocument.created_at.desc(),
+            ).all()
         ]
     return payload
+
+
+def _participants_by_transaction(transaction_ids):
+    if not transaction_ids:
+        return {}
+    rows = TransactionParticipant.query.filter(
+        TransactionParticipant.transaction_id.in_(transaction_ids),
+    ).all()
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row.transaction_id, []).append(row)
+    return grouped
+
+
+def _ensure_primary_contract(tx, user):
+    contract = get_active_primary_contract(tx.id, tx.organization_id)
+    if contract is not None:
+        return contract
+    contract = SellerAcceptedContract(
+        organization_id=user.organization_id,
+        transaction_id=tx.id,
+        created_by_id=user.id,
+        position='primary',
+        status='active',
+    )
+    db.session.add(contract)
+    db.session.flush()
+    return contract
 
 
 def _serialize_participant(participant):
@@ -310,12 +366,15 @@ def _serialize_milestone(milestone):
 
 
 def _serialize_document(doc):
+    title = doc.review_filename or doc.template_name or 'Document'
     return {
         'id': doc.id,
+        'title': title,
         'name': doc.template_name,
         'slug': doc.template_slug,
         'status': doc.status,
         'source': doc.document_source,
+        'original_filename': getattr(doc, 'signed_original_filename', None),
         'has_file': bool(doc.signed_file_path or doc.source_file_path),
         'created_at': doc.created_at.isoformat() if doc.created_at else None,
     }
@@ -568,6 +627,22 @@ def delete_contact(user, contact_id):
     return jsonify({'ok': True})
 
 
+@agent_api_bp.route('/contact-groups', methods=['GET'])
+@agent_jwt_required
+def list_contact_groups(user):
+    groups = list_user_groups(user.organization_id, user.id, active_only=True)
+    return jsonify({
+        'groups': [
+            {
+                'id': group.id,
+                'name': group.name,
+                'category': getattr(group, 'category', None),
+            }
+            for group in groups
+        ],
+    })
+
+
 @agent_api_bp.route('/transactions', methods=['GET'])
 @agent_jwt_required
 @transactions_flag_required
@@ -586,8 +661,15 @@ def list_transactions(user):
             Transaction.city.ilike(like),
         ))
     rows = query.order_by(Transaction.created_at.desc()).limit(200).all()
+    people = _participants_by_transaction([tx.id for tx in rows])
     return jsonify({
-        'transactions': [_serialize_transaction(tx) for tx in rows],
+        'transactions': [
+            _serialize_transaction(
+                tx,
+                participants=people.get(tx.id, []),
+            )
+            for tx in rows
+        ],
     })
 
 
@@ -765,12 +847,7 @@ def patch_transaction_dates(user, transaction_id):
                 db.session.add(profile)
             profile.go_live_date = _parse_date(data.get('go_live_date'))
         if 'effective_date' in data or 'closing_date' in data:
-            contract = get_active_primary_contract(tx.id, tx.organization_id)
-            if contract is None:
-                return _json_error(
-                    'No controlling contract to date. Do not send a contract-details dump.',
-                    400,
-                )
+            contract = _ensure_primary_contract(tx, user)
             if 'effective_date' in data:
                 contract.effective_date = _parse_date(data.get('effective_date'))
             if 'closing_date' in data:
