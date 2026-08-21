@@ -2,6 +2,10 @@
 
 This is the canonical AI agent guide for this repository. If an agent-specific file in this repo says to follow another file, follow this one first.
 
+## Unslop (every task)
+
+Before you write any user-facing text, comments, PR body, commit message, or docs, read and apply `.cursor/skills/unslop/SKILL.md`. This is mandatory on every task. Do not skip it. Existing copy law still applies: `documentation/skill.md` for in-app/public copy, plus public website copy rules already in this file.
+
 ## Priority Reading
 
 ### For all work
