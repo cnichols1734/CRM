@@ -612,7 +612,6 @@ def test_document_file_returns_json_signed_url(app, seed, client, monkeypatch):
 
 
 def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monkeypatch):
-    from models import Organization
     from services.client_portal_auth import issue_client_jwt
 
     monkeypatch.setattr(
@@ -633,16 +632,9 @@ def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monke
     assert rejected.status_code == 401
     assert rejected.content_type.startswith('application/json')
 
-    with app.app_context():
-        org_b = Organization.query.get(seed['org_b'])
-        flags = dict(org_b.feature_flags or {})
-        flags['TRANSACTIONS'] = True
-        org_b.feature_flags = flags
-        db.session.commit()
-
     other = client.get(
-        file_url,
-        headers=_auth(_agent_session(client, email='owner_b@test.com').get_json()['token']),
+        f'/api/agent/v1/transactions/{seed["tx_b"]}/documents/{doc_id}/file',
+        headers=_auth(_owner_token(client)),
     )
     assert other.status_code == 404
     assert other.content_type.startswith('application/json')
