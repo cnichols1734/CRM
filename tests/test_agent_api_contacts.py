@@ -90,6 +90,8 @@ def test_log_activity_creates_interaction(app, seed, client):
         assert row.contact_id == seed['contact_a']
         assert row.type == 'call'
         assert row.notes == 'Left a voicemail'
+        db.session.delete(row)
+        db.session.commit()
 
 
 def test_timeline_returns_count_keys(app, seed, client):
