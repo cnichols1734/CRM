@@ -20,6 +20,12 @@ def _auth(token):
     return {'Authorization': f'Bearer {token}'}
 
 
+def _assert_json_not_redirect(resp):
+    assert resp.status_code not in (301, 302, 303, 307, 308)
+    assert 'Location' not in resp.headers
+    assert resp.content_type.startswith('application/json')
+
+
 def _agent_session(client, *, email=None, username=None, password='password123'):
     body = {'password': password}
     if email is not None:
@@ -597,20 +603,17 @@ def test_document_file_returns_json_signed_url(app, seed, client, monkeypatch):
         f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
     )
     assert cookie_only.status_code == 401
-    assert cookie_only.content_type.startswith('application/json')
-    assert not cookie_only.is_redirect
+    _assert_json_not_redirect(cookie_only)
 
     resp = client.get(
         f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
         headers={**headers, 'Accept': 'application/pdf'},
     )
     assert resp.status_code == 200
-    assert resp.content_type.startswith('application/json')
-    assert not resp.is_redirect
+    _assert_json_not_redirect(resp)
     body = resp.get_json()
     assert set(body.keys()) == {'url'}
     assert body['url'].startswith('https://signed.example/transactions/410/listing.pdf')
-    assert 'Location' not in resp.headers
 
     with app.app_context():
         tx = db.session.get(Transaction, tx_id)
@@ -623,8 +626,7 @@ def test_document_file_returns_json_signed_url(app, seed, client, monkeypatch):
         headers=headers,
     )
     assert missing.status_code == 404
-    assert missing.content_type.startswith('application/json')
-    assert not missing.is_redirect
+    _assert_json_not_redirect(missing)
     assert 'url' not in (missing.get_json() or {})
 
 
@@ -654,8 +656,7 @@ def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monke
         headers=_auth(_owner_token(client)),
     )
     assert other.status_code == 404
-    assert other.content_type.startswith('application/json')
-    assert not other.is_redirect
+    _assert_json_not_redirect(other)
 
     free = _agent_session(client, email='owner_b@test.com').get_json()['token']
     gated = client.get(file_url, headers=_auth(free))
