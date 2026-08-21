@@ -10,6 +10,7 @@ from models import (
     SellerAcceptedContract,
     Task,
     Transaction,
+    TransactionDocument,
     TransactionParticipant,
     db,
 )
@@ -550,3 +551,163 @@ def test_jwt_user_not_cookie_user(app, seed, owner_a_client):
     emails = [c['email'] for c in listed.get_json()['contacts']]
     assert 'john@test.com' in emails
     assert 'jane@test.com' not in emails
+
+
+def _document_with_file(seed, tx, path='transactions/406/listing.pdf'):
+    doc = TransactionDocument(
+        organization_id=seed['org_a'],
+        transaction_id=tx.id,
+        template_slug='listing-agreement',
+        template_name='Listing Agreement',
+        status='signed',
+        document_source='external',
+        signed_file_path=path,
+        signed_original_filename='listing.pdf',
+    )
+    db.session.add(doc)
+    db.session.flush()
+    return doc
+
+
+def test_document_file_returns_json_signed_url(app, seed, client, monkeypatch):
+    monkeypatch.setattr(
+        'services.supabase_storage.get_transaction_document_url',
+        lambda path, expires_in=3600: f'https://signed.example/{path}?exp={expires_in}',
+    )
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    with app.app_context():
+        tx, _seller, _access = _seller_thread(seed, '410 File Json Ln')
+        doc = _document_with_file(seed, tx, 'transactions/410/listing.pdf')
+        db.session.commit()
+        tx_id = tx.id
+        doc_id = doc.id
+
+    listed = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents',
+        headers=headers,
+    )
+    assert listed.status_code == 200
+    row = next(item for item in listed.get_json()['documents'] if item['id'] == doc_id)
+    assert row['has_file'] is True
+    assert 'url' not in row
+
+    cookie_only = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
+    )
+    assert cookie_only.status_code == 401
+    assert cookie_only.content_type.startswith('application/json')
+
+    resp = client.get(
+        f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file',
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.content_type.startswith('application/json')
+    body = resp.get_json()
+    assert set(body.keys()) == {'url'}
+    assert body['url'].startswith('https://signed.example/transactions/410/listing.pdf')
+    assert 'Location' not in resp.headers
+
+
+def test_document_file_rejects_client_jwt_and_other_org(app, seed, client, monkeypatch):
+    from models import Organization
+    from services.client_portal_auth import issue_client_jwt
+
+    monkeypatch.setattr(
+        'services.supabase_storage.get_transaction_document_url',
+        lambda path, expires_in=3600: f'https://signed.example/{path}',
+    )
+
+    with app.app_context():
+        tx, _seller, access = _seller_thread(seed, '411 File Auth Ln')
+        doc = _document_with_file(seed, tx, 'transactions/411/listing.pdf')
+        db.session.commit()
+        tx_id = tx.id
+        doc_id = doc.id
+        client_token = issue_client_jwt(access)
+
+    file_url = f'/api/agent/v1/transactions/{tx_id}/documents/{doc_id}/file'
+    rejected = client.get(file_url, headers=_auth(client_token))
+    assert rejected.status_code == 401
+    assert rejected.content_type.startswith('application/json')
+
+    with app.app_context():
+        org_b = Organization.query.get(seed['org_b'])
+        flags = dict(org_b.feature_flags or {})
+        flags['TRANSACTIONS'] = True
+        org_b.feature_flags = flags
+        db.session.commit()
+
+    other = client.get(
+        file_url,
+        headers=_auth(_agent_session(client, email='owner_b@test.com').get_json()['token']),
+    )
+    assert other.status_code == 404
+    assert other.content_type.startswith('application/json')
+
+
+def test_status_persist_reload_and_guards(app, seed, client):
+    token = _owner_token(client)
+    headers = _auth(token)
+
+    with app.app_context():
+        tx, _seller, _access = _seller_thread(seed, '412 Status Persist Ln')
+        db.session.commit()
+        tx_id = tx.id
+
+    posted = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=headers,
+        json={'status': 'under_contract'},
+    )
+    assert posted.status_code == 200
+    assert posted.content_type.startswith('application/json')
+    assert posted.get_json() == {'ok': True, 'status': 'under_contract'}
+
+    reloaded = client.get(f'/api/agent/v1/transactions/{tx_id}', headers=headers)
+    assert reloaded.status_code == 200
+    assert reloaded.get_json()['transaction']['status'] == 'under_contract'
+
+    via_patch_status = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=headers,
+        json={'status': 'closed'},
+    )
+    assert via_patch_status.status_code == 200
+    assert via_patch_status.get_json()['status'] == 'closed'
+
+    ignored = client.patch(
+        f'/api/agent/v1/transactions/{tx_id}',
+        headers=headers,
+        json={'status': 'cancelled', 'transaction_type': 'buyer'},
+    )
+    assert ignored.status_code == 200
+    assert ignored.get_json()['transaction']['status'] == 'closed'
+    assert ignored.get_json()['transaction']['transaction_type'] == 'seller'
+
+    bad = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=headers,
+        json={'status': 'not_a_real_status'},
+    )
+    assert bad.status_code == 400
+    assert bad.content_type.startswith('application/json')
+    assert bad.get_json()['error']
+
+    cookie_only = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        json={'status': 'active'},
+    )
+    assert cookie_only.status_code == 401
+    assert cookie_only.content_type.startswith('application/json')
+
+    free = _agent_session(client, email='owner_b@test.com').get_json()['token']
+    gated = client.post(
+        f'/api/agent/v1/transactions/{tx_id}/status',
+        headers=_auth(free),
+        json={'status': 'active'},
+    )
+    assert gated.status_code == 403
+    assert gated.get_json()['code'] == 'transactions_required'

@@ -2,6 +2,11 @@
 
 Auth is an agent JWT (typ=agent). Flask-Login cookies are ignored.
 Do not reuse /transactions/api/* or the client_portal JWT.
+
+Document file GET returns JSON ``{"url": "<signed url>"}``. Native downloads
+that URL. It does not 302. Status persist is POST (also PATCH)
+``/transactions/<id>/status``. PATCH ``/transactions/<id>`` does not write
+status or type.
 """
 from __future__ import annotations
 
@@ -785,7 +790,7 @@ def delete_transaction(user, transaction_id):
     return jsonify({'ok': True})
 
 
-@agent_api_bp.route('/transactions/<int:transaction_id>/status', methods=['POST'])
+@agent_api_bp.route('/transactions/<int:transaction_id>/status', methods=['POST', 'PATCH'])
 @agent_jwt_required
 @transactions_flag_required
 def post_transaction_status(user, transaction_id):
