@@ -146,7 +146,7 @@
                                 {%- set cell = block.cells.get(spec['key']) %}
                                 <tr>
                                     <td style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:{{ MUTED }};">{{ spec['label'] }}</td>
-                                    <td align="right" style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:15px;font-weight:500;color:#ffffff;">{{ cell.value if cell else '&mdash;'|safe }}</td>
+                                    <td align="right" style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:15px;font-weight:500;color:#ffffff;">{{ block.value(spec['key']) }}</td>
                                 </tr>
                                 {%- endfor %}
                             </table>
@@ -193,7 +193,7 @@
                         {%- set cell = offer.cells.get(spec['key']) %}
                         {%- set won = cell and cell.wins %}
                         {%- set cellbg = TEAL_TINT if won else band %}
-                        <td bgcolor="{{ cellbg }}" style="background-color:{{ cellbg }};padding:{{ cellpad }};border-bottom:1px solid {{ HAIRLINE }};border-left:1px solid {{ HAIRLINE }};font-family:{{ FONT }};font-size:13.5px;line-height:19px;font-weight:{{ '700' if won else '500' }};color:{{ TEAL_INK if won else INK }};">{{ cell.value if cell else '&mdash;'|safe }}</td>
+                        <td bgcolor="{{ cellbg }}" style="background-color:{{ cellbg }};padding:{{ cellpad }};border-bottom:1px solid {{ HAIRLINE }};border-left:1px solid {{ HAIRLINE }};font-family:{{ FONT }};font-size:13.5px;line-height:19px;font-weight:{{ '700' if won else '500' }};color:{{ TEAL_INK if won else INK }};">{{ offer.value(spec['key']) }}</td>
                         {%- endfor %}
                     </tr>
                     {%- endfor %}

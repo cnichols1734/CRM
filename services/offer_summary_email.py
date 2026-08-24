@@ -55,6 +55,17 @@ MISSING_TERMS_NOTE = (
     "Anything not listed here is still open. I'll send an update once I have it."
 )
 
+# Missing figures used to render as an em dash. Keep those tokens empty so
+# a preview saved before the copy change still parses.
+EMPTY_TERM_DISPLAY = 'Not set'
+_EMPTY_TERM_TOKENS = frozenset({
+    '',
+    '-',
+    'not set',
+    '\u2014',
+    '\u2013',
+})
+
 # Offers that no longer need a client decision. A summary of a withdrawn offer
 # only confuses the person reading it.
 _INACTIVE_STATUSES = frozenset({
@@ -112,7 +123,9 @@ class OfferBlock:
 
     def value(self, key: str) -> str:
         cell = self.cells.get(key)
-        return cell.value if cell else '—'
+        if cell is None or _is_empty_term(cell.value):
+            return EMPTY_TERM_DISPLAY
+        return cell.value
 
 
 @dataclass
@@ -320,6 +333,8 @@ def _offer_block(offer, *, net_sheet, include_net: bool, overrides: dict) -> Off
     cells: dict[str, TermCell] = {}
     for key, produced in generated.items():
         supplied = _text(overrides.get(key))
+        if _is_empty_term(supplied):
+            supplied = None
         if supplied is not None and supplied != (produced or ''):
             cells[key] = TermCell(key=key, value=supplied, edited=True)
         elif produced:
@@ -976,7 +991,17 @@ def _decimal(value) -> Optional[Decimal]:
 
 
 def _decimal_from_display(value: str) -> Optional[Decimal]:
-    return _decimal(value) if value and value != '—' else None
+    if _is_empty_term(value):
+        return None
+    return _decimal(value)
+
+
+def _is_empty_term(value) -> bool:
+    """True for a blank figure, including the old dash placeholders."""
+    if value is None:
+        return True
+    cleaned = str(value).strip()
+    return cleaned.casefold() in _EMPTY_TERM_TOKENS
 
 
 def _int(value) -> Optional[int]:

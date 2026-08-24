@@ -217,6 +217,29 @@ def test_no_price_still_produces_a_usable_subject():
     assert draft.headline['value'] == 'Price not set yet'
 
 
+def test_a_missing_cell_reads_not_set():
+    block = ose.OfferBlock(offer_id=1, label='A', sublabel=None, status='new')
+    assert block.value('earnest_money') == 'Not set'
+
+
+def test_legacy_dash_override_does_not_reach_the_client():
+    offer = full_offer()
+    draft = build(offer, overrides={
+        'terms': {str(offer.id): {'earnest_money': '\u2014'}},
+    })
+    assert draft.offers[0].value('earnest_money') == '$5,000'
+
+
+def test_decimal_from_display_treats_placeholders_as_empty():
+    assert ose._decimal_from_display('Not set') is None
+    assert ose._decimal_from_display('-') is None
+    assert ose._decimal_from_display('') is None
+    assert ose._decimal_from_display('   ') is None
+    assert ose._decimal_from_display('\u2014') is None
+    assert ose._decimal_from_display('\u2013') is None
+    assert ose._decimal_from_display('$425,000') == Decimal('425000')
+
+
 # ---------------------------------------------------------------------------
 # Buyer side
 # ---------------------------------------------------------------------------
@@ -427,6 +450,13 @@ def test_a_participant_without_an_email_is_skipped():
 # Rendering
 # ---------------------------------------------------------------------------
 
+def _assert_no_dash_placeholder(text: str) -> None:
+    assert '&mdash;' not in text
+    assert '&#8212;' not in text
+    assert '\u2014' not in text
+    assert '\u2013' not in text
+
+
 def test_single_offer_html_renders(app):
     draft = build(full_offer())
     with app.app_context():
@@ -439,6 +469,7 @@ def test_single_offer_html_renders(app):
     assert 'Brokerage license #9003104' in html
     # Transactional mail must not carry a marketing opt-out.
     assert 'Unsubscribe' not in html
+    _assert_no_dash_placeholder(html)
 
 
 def test_the_brand_marks_are_absolute_urls(app):
@@ -480,6 +511,18 @@ def test_comparison_html_renders_a_column_per_offer(app):
     assert ose.NET_ROW_LABEL in html
     assert ose.NET_CAVEAT in html
     assert 'Offer comparison' in html
+    _assert_no_dash_placeholder(html)
+
+
+def test_comparison_html_writes_not_set_for_a_gap(app):
+    low, high = compare_set()
+    low.earnest_money = None
+    draft = build([low, high])
+    assert draft.offers[1].value('earnest_money') == 'Not set'
+    with app.app_context():
+        html = ose.render_html(draft)
+    assert 'Not set' in html
+    _assert_no_dash_placeholder(html)
 
 
 def test_the_agent_note_survives_into_the_html(app):
@@ -516,6 +559,7 @@ def test_text_alternative_covers_each_offer_in_a_comparison():
     assert 'Alpha Buyer' in text
     assert 'Bravo Buyer' in text
     assert text.count('Price:') == 2
+    _assert_no_dash_placeholder(text)
 
 
 # ---------------------------------------------------------------------------
