@@ -1,18 +1,29 @@
 """Seller offer routes."""
 
 import logging
+import re
 from datetime import datetime
 
 from flask import abort, jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from models import (
+    SellerCommissionTerms,
     SellerOffer,
     SellerOfferDocument,
     SellerOfferVersion,
     TransactionDocument,
     Transaction,
     db,
+)
+from services import net_sheet as net_sheet_service
+from services.offer_summary_email import (
+    OfferEmailError,
+    build_draft,
+    render_html,
+    resolve_sender,
+    selectable_offers,
+    send_draft,
 )
 from services.controlling_contracts import (
     ControllingContractConflict,
@@ -39,7 +50,12 @@ from services.seller_workflow import (
     offer_urgency,
 )
 from services.intake_service import post_upload_processing
-from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
+from services.transaction_auth import (
+    CAP_EDIT,
+    CAP_SEND_COMMS,
+    CAP_VIEW,
+    get_transaction_for_user,
+)
 from . import transactions_bp
 from .decorators import transactions_required
 
@@ -163,6 +179,7 @@ def _offer_payload(offer):
         'proposed_close_date': offer.proposed_close_date.isoformat() if offer.proposed_close_date else None,
         'option_period_days': offer.option_period_days,
         'earnest_money': str(offer.earnest_money) if offer.earnest_money is not None else None,
+        'option_fee': str(offer.option_fee) if offer.option_fee is not None else None,
         'seller_concessions_amount': str(offer.seller_concessions_amount) if offer.seller_concessions_amount is not None else None,
         'survey_furnished_by': offer.survey_furnished_by,
         'residential_service_contract': offer.residential_service_contract,
@@ -531,6 +548,209 @@ def confirm_offer_package_review(id, offer_id):
         db.session.rollback()
         logger.exception('confirm_offer_package failed offer=%s', offer_id)
         return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+def _client_email_transaction(id, capability):
+    """Load a transaction that can host a client offer email, or an error tuple."""
+    transaction, decision = get_transaction_for_user(id, capability=capability)
+    if not transaction:
+        status = 404 if decision.reason == 'not_found' else 403
+        message = (
+            'Not found' if status == 404
+            else 'You do not have permission to email this client.'
+        )
+        return None, (jsonify({'success': False, 'error': message}), status)
+    if not supports_offers(transaction):
+        return None, (jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400)
+    return transaction, None
+
+
+def _client_email_selection(transaction, requested_ids):
+    """Offers the email may cover, plus everything the agent could have picked."""
+    available = selectable_offers(
+        transaction.seller_offers.order_by(SellerOffer.received_at.desc()).all()
+    )
+    wanted = []
+    for raw in requested_ids or []:
+        try:
+            wanted.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    if wanted:
+        chosen = [offer for offer in available if offer.id in wanted]
+    else:
+        # Header "Email all" sends an empty list. That means every live offer,
+        # not whichever one happened to sort first.
+        chosen = list(available)
+    return chosen, available
+
+
+def _client_email_net_sheets(transaction, offers, side):
+    """Seller proceeds per offer. A buyer has no net sheet to show."""
+    if side != 'seller' or not offers:
+        return {}
+    commission_terms = SellerCommissionTerms.query.filter_by(
+        transaction_id=transaction.id,
+        organization_id=current_user.organization_id,
+    ).first()
+    sheets = net_sheet_service.build_for_offers(
+        offers, commission_terms=commission_terms,
+    )
+    return {sheet.offer_id: sheet for sheet in sheets if sheet.offer_id}
+
+
+def _client_email_draft(transaction, offers, overrides):
+    side = side_for_transaction(transaction)
+    return build_draft(
+        transaction,
+        offers,
+        agent=current_user,
+        organization=getattr(current_user, 'organization', None),
+        side=side,
+        net_sheets=_client_email_net_sheets(transaction, offers, side),
+        overrides=overrides,
+    )
+
+
+def _client_email_candidates(available, chosen_ids):
+    return [
+        {
+            'offer_id': offer.id,
+            'label': offer.buyer_names or offer.buyer_agent_name or f'Offer {offer.id}',
+            'price': f'${offer.offer_price:,.0f}' if offer.offer_price is not None else 'Price TBD',
+            'status': offer.status,
+            'selected': offer.id in chosen_ids,
+        }
+        for offer in available
+    ]
+
+
+def _email_list(value):
+    """Accept a JSON array or a comma-separated string of addresses."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        parts = re.split(r'[,;\s]+', value)
+    elif isinstance(value, (list, tuple)):
+        parts = value
+    else:
+        return []
+    return [str(part).strip() for part in parts if str(part).strip()]
+
+
+@transactions_bp.route('/<int:id>/offers/client-email/preview', methods=['POST'])
+@login_required
+@transactions_required
+def preview_offer_client_email(id):
+    """Build the client email from the saved terms and the agent's edits."""
+    transaction, error = _client_email_transaction(id, CAP_VIEW)
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    chosen, available = _client_email_selection(transaction, data.get('offer_ids'))
+    if not chosen:
+        return jsonify({
+            'success': False,
+            'error': 'There are no active offers to summarize yet.',
+        }), 400
+
+    try:
+        draft = _client_email_draft(transaction, chosen, data)
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+    return jsonify({
+        'success': True,
+        'draft': draft.as_payload(),
+        'html': render_html(draft),
+        'candidates': _client_email_candidates(available, {o.id for o in chosen}),
+        'sender': resolve_sender(current_user),
+    })
+
+
+@transactions_bp.route('/<int:id>/offers/client-email/send', methods=['POST'])
+@login_required
+@transactions_required
+def send_offer_client_email(id):
+    """Email the summary to the client and log it against each offer."""
+    transaction, error = _client_email_transaction(id, CAP_SEND_COMMS)
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    chosen, _available = _client_email_selection(transaction, data.get('offer_ids'))
+    if not chosen:
+        return jsonify({
+            'success': False,
+            'error': 'There are no active offers to summarize yet.',
+        }), 400
+
+    to_emails = _email_list(data.get('to'))
+    if not to_emails:
+        return jsonify({'success': False, 'error': 'Add who this goes to.'}), 400
+
+    try:
+        draft = _client_email_draft(transaction, chosen, data)
+        result = send_draft(
+            draft,
+            to_emails=to_emails,
+            cc_emails=_email_list(data.get('cc')),
+            agent=current_user,
+            organization=getattr(current_user, 'organization', None),
+            transaction_id=transaction.id,
+        )
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except OfferEmailError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 502
+
+    recipients = result['recipients']
+    label = (
+        f'Offer summary emailed to {", ".join(recipients)}'
+        if len(chosen) == 1
+        else f'{len(chosen)}-offer comparison emailed to {", ".join(recipients)}'
+    )
+    try:
+        for offer in chosen:
+            create_offer_activity(
+                offer,
+                'client_email_sent',
+                label[:200],
+                actor_id=current_user.id,
+                event_data={
+                    'subject': draft.subject,
+                    'to': recipients,
+                    'cc': result['cc'],
+                    'offer_ids': draft.offer_ids,
+                    'skipped': result['skipped'],
+                    'via': result.get('via'),
+                    'from_email': result.get('from_email'),
+                },
+            )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception(
+            'Offer summary sent but logging failed transaction=%s', transaction.id,
+        )
+
+    from_email = result.get('from_email')
+    return jsonify({
+        'success': True,
+        'skipped': result['skipped'],
+        'recipients': recipients,
+        'cc': result['cc'],
+        'via': result.get('via'),
+        'from_email': from_email,
+        'message': (
+            (
+                f'Email sent from {from_email} to {", ".join(recipients)}'
+                if from_email else 'Email sent to ' + ', '.join(recipients)
+            ) if not result['skipped']
+            else 'Sending is disabled for this address, so nothing went out.'
+        ),
+    })
 
 
 @transactions_bp.route('/<int:id>/offers/<int:offer_id>', methods=['POST', 'PATCH'])
