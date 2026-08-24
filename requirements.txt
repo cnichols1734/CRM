@@ -10,20 +10,20 @@ Flask-Migrate==4.1.0
 Flask-Login==0.6.3
 
 # Config / utilities
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 pytz==2026.3.post1
 email-validator==2.2.0
 
 # External APIs / HTTP
-openai==3.0.0
+openai==3.3.1
 sendgrid==6.12.5
 requests==2.34.2
-posthog==7.39.0
+posthog==7.39.2
 
 # Google Gmail Integration
 google-auth==2.56.3
 google-auth-oauthlib==1.4.0
-google-api-python-client==2.198.0
+google-api-python-client==2.199.0
 
 # Database driver
 psycopg2-binary==2.9.12
@@ -32,7 +32,7 @@ psycopg2-binary==2.9.12
 supabase==2.31.0
 
 # Security / serialization / templating dependencies
-Authlib==1.6.12
+Authlib==1.7.2
 itsdangerous==2.2.0
 PyYAML==6.0.3
 jsonschema==4.26.0
@@ -53,10 +53,10 @@ PyMuPDF==1.28.2
 
 # Task queue (background document extraction)
 redis==8.1.0
-rq==2.10.0
+rq==2.11.0
 
 # Server
-gunicorn==26.0.0
+gunicorn==26.1.0
 flask-compress==1.24
 
 # System monitoring (for health checks)
