@@ -18,6 +18,12 @@
                                         </p>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
+                                        {% if active_seller_offers %}
+                                        <button type="button" class="crm-btn crm-btn-secondary" onclick="openOfferClientEmail()">
+                                            <i class="fas fa-envelope text-xs" aria-hidden="true"></i>
+                                            {% if active_seller_offers|length >= 2 %}Email all to client{% else %}Email to client{% endif %}
+                                        </button>
+                                        {% endif %}
                                         {# Compare is seller-only: its net sheet is seller proceeds. #}
                                         {% if offer_side == 'seller' and active_seller_offers and active_seller_offers|length >= 2 %}
                                         <a href="{{ url_for('transactions.compare_offers_view', id=transaction.id) }}"
@@ -100,6 +106,9 @@
                                                             Review
                                                         </a>
                                                         {% endif %}
+                                                        <button type="button" class="crm-btn crm-btn-subtle px-2.5 py-1.5 text-xs" onclick="event.stopPropagation(); openOfferClientEmail({{ offer.id }})">
+                                                            Email
+                                                        </button>
                                                         <button type="button" class="crm-btn crm-btn-secondary px-2.5 py-1.5 text-xs" onclick="event.stopPropagation(); openSellerOfferModal({{ offer.id }})">
                                                             Open
                                                         </button>
@@ -241,6 +250,10 @@
                                             </div>
                                         </div>
                                         <div class="flex flex-wrap items-center gap-2">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="openOfferClientEmail({{ offer.id }})">
+                                                <i class="fas fa-envelope text-xs" aria-hidden="true"></i>
+                                                Email to client
+                                            </button>
                                             <a href="{{ review_url }}" class="crm-btn crm-btn-accent">Review package</a>
                                             {% if offer_side == 'seller' and offer.status in ['new', 'reviewing', 'needs_review', 'countered'] %}
                                             <button type="button" class="crm-btn crm-btn-secondary" onclick="acceptSellerOffer({{ offer.id }}, 'backup')">{{ offer_labels.accept_backup_label }}</button>
@@ -540,6 +553,100 @@
                                 </div>
                             </div>
                             {% endfor %}
+
+                            {# Client offer email. One composer for the whole panel: the
+                               offer set is chosen inside it, so a per-offer copy would
+                               only duplicate state. #}
+                            {# z-index 80 beats the shell chrome (sidebar 55, topbar 60).
+                               The JS also moves this node onto document.body so it
+                               does not stay trapped in #mainContent's stacking context. #}
+                            <div id="offerClientEmailModal" class="fixed inset-0 hidden" style="z-index: 80;" role="dialog" aria-modal="true" aria-labelledby="offerClientEmailTitle">
+                                <button type="button" class="absolute inset-0 bg-slate-900/60" onclick="closeOfferClientEmail()" aria-label="Close"></button>
+                                <div class="absolute inset-2 flex min-h-0 flex-col overflow-hidden rounded-[16px] sm:inset-4 xl:inset-x-12"
+                                     style="background: var(--paper); border: 1px solid var(--hairline); color: var(--ink);">
+                                    <div class="flex items-start justify-between gap-4 px-5 py-4" style="border-bottom: 1px solid var(--hairline);">
+                                        <div class="min-w-0">
+                                            <p class="crm-eyebrow">Email to client</p>
+                                            <h3 id="offerClientEmailTitle" class="mt-1 text-base font-semibold leading-snug text-[color:var(--ink)]" data-oce-title>Offer summary</h3>
+                                            <p class="mt-1 text-sm text-[color:var(--ink-3)]">Figures come from the saved offer. Change anything here before it goes out.</p>
+                                        </div>
+                                        <button type="button" class="crm-modal__close" onclick="closeOfferClientEmail()" aria-label="Close">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[380px_minmax(0,1fr)]">
+                                        <div class="min-h-0 overflow-y-auto px-5 py-5" style="border-right: 1px solid var(--hairline);" data-oce-form>
+                                            <div class="space-y-3.5">
+                                                <label class="block">
+                                                    <span class="crm-field-label">To</span>
+                                                    <input type="text" class="crm-input" data-oce-to placeholder="client@email.com">
+                                                    <span class="mt-1 block text-xs text-[color:var(--ink-3)]" data-oce-to-hint></span>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Cc</span>
+                                                    <input type="text" class="crm-input" data-oce-cc placeholder="Optional">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Subject</span>
+                                                    <input type="text" class="crm-input" data-oce-subject>
+                                                </label>
+
+                                                <div class="hidden" data-oce-picker-wrap>
+                                                    <span class="crm-field-label">Offers in this email</span>
+                                                    <div class="mt-1 space-y-1.5 rounded-md px-3 py-2.5" style="border: 1px solid var(--hairline); background: var(--paper-2);" data-oce-picker></div>
+                                                </div>
+
+                                                <label class="block">
+                                                    <span class="crm-field-label">Greeting</span>
+                                                    <input type="text" class="crm-input" data-oce-greeting>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Opening line</span>
+                                                    <textarea class="crm-textarea w-full" rows="3" data-oce-intro></textarea>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Your note</span>
+                                                    <textarea class="crm-textarea w-full" rows="4" data-oce-note placeholder="Optional. What you'd tell them on the phone."></textarea>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="crm-field-label">Closing line</span>
+                                                    <textarea class="crm-textarea w-full" rows="2" data-oce-closing></textarea>
+                                                </label>
+
+                                                <label class="hidden items-start gap-2 text-sm text-[color:var(--ink-2)]" data-oce-net-wrap>
+                                                    <input type="checkbox" class="mt-0.5" data-oce-net checked>
+                                                    <span>Show estimated net to seller</span>
+                                                </label>
+
+                                                <div data-oce-figures-wrap>
+                                                    <span class="crm-field-label">Figures</span>
+                                                    <div class="mt-1 space-y-2" data-oce-figures></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="min-h-0 overflow-hidden p-4" style="background: var(--paper-2);">
+                                            {# Matches the email's own canvas so the frame edge is invisible. #}
+                                            <div class="relative h-full overflow-hidden rounded-[12px]" style="border: 1px solid var(--hairline); background: #e8ebee;">
+                                                <iframe title="Email preview" class="h-full w-full" style="border: 0;" data-oce-preview></iframe>
+                                                <div class="absolute inset-0 hidden items-center justify-center bg-white/70 text-sm text-[color:var(--ink-3)]" data-oce-loading>
+                                                    <i class="fas fa-spinner fa-spin mr-2"></i> Building the preview
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap items-center justify-end gap-2 px-5 py-3" style="border-top: 1px solid var(--hairline);">
+                                        <p class="mr-auto min-w-0 text-xs text-[color:var(--ink-3)]">
+                                            <span data-oce-from></span>
+                                            <span data-oce-status></span>
+                                        </p>
+                                        <button type="button" class="crm-btn crm-btn-secondary" onclick="closeOfferClientEmail()">Cancel</button>
+                                        <button type="button" class="crm-btn crm-btn-accent" data-oce-send onclick="sendOfferClientEmail()">Send to client</button>
+                                    </div>
+                                </div>
+                            </div>
 
                         {% if document_packages and offer_side in ('seller', 'buyer') %}
                         <div class="mt-4">
