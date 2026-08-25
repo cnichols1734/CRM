@@ -20,10 +20,24 @@ PUBLIC_PATHS = (
     "/wise-agent-alternative",
     "/kvcore-alternative",
 )
+SITEMAP_LASTMOD = {
+    "/": "2026-08-18",
+    "/register": "2026-08-20",
+    "/login": "2026-08-20",
+    "/terms-privacy": "2026-08-18",
+    "/free-real-estate-crm": "2026-08-25",
+    "/follow-up-boss-alternative": "2026-08-25",
+    "/wise-agent-alternative": "2026-08-25",
+    "/kvcore-alternative": "2026-08-25",
+}
 
 
 def test_default_app_base_url_is_agentflow():
     assert DEFAULT_APP_BASE_URL == "https://agentflow.origentechnolog.com"
+
+
+def _sitemap_path(loc):
+    return loc.replace("https://agentflow.origentechnolog.com", "", 1) or "/"
 
 
 def test_sitemap_locs_use_agentflow_host():
@@ -35,6 +49,20 @@ def test_sitemap_locs_use_agentflow_host():
     for loc in locs:
         assert loc.startswith("https://agentflow.origentechnolog.com"), loc
         assert "www.origentechnolog.com" not in loc
+
+
+def test_sitemap_has_one_lastmod_per_url():
+    urls = ET.parse(SITEMAP).getroot().findall("sm:url", SITEMAP_NS)
+    lastmods = {}
+    for url in urls:
+        loc = url.findtext("sm:loc", default="", namespaces=SITEMAP_NS) or ""
+        path = _sitemap_path(loc)
+        mods = [el.text for el in url.findall("sm:lastmod", SITEMAP_NS)]
+        assert len(mods) == 1, path
+        lastmods[path] = mods[0]
+        tags = [child.tag.split("}")[-1] for child in list(url)]
+        assert tags == ["loc", "lastmod"], path
+    assert lastmods == SITEMAP_LASTMOD
 
 
 def test_robots_sitemap_points_at_agentflow():
