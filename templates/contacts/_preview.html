@@ -9,7 +9,7 @@
 {% if contact.state %}{% set _ = location_parts.append(contact.state) %}{% endif %}
 {% if contact.zip_code %}{% set _ = location_parts.append(contact.zip_code) %}{% endif %}
 
-<div class="crm-rail__panel">
+<div class="crm-rail__panel t-panel-slide" data-open="false">
     <header class="crm-rail__header">
         <div class="crm-eyebrow">Contact &middot; #{{ "%04d"|format(contact.id) }}</div>
         <button type="button"

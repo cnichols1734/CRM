@@ -67,6 +67,10 @@
             toast.remove();
             return;
         }
+        if (window.TMotion) {
+            TMotion.closeToast(toast, function () { toast.remove(); });
+            return;
+        }
         toast.classList.remove('is-in');
         toast.classList.add('is-out');
         setTimeout(function () {
@@ -104,7 +108,8 @@
         });
 
         requestAnimationFrame(function () {
-            toast.classList.add('is-in');
+            if (window.TMotion) TMotion.openToast(toast);
+            else toast.classList.add('is-in');
         });
         armTimer(toast, duration);
     }
@@ -117,7 +122,7 @@
         var host = region();
 
         var toast = document.createElement('div');
-        toast.className = 'crm-toast crm-toast--' + kind;
+        toast.className = 'crm-toast crm-toast--' + kind + ' t-toast';
         toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
 
         var icon = document.createElement('span');
@@ -126,7 +131,7 @@
         icon.innerHTML = '<i class="fas ' + ICONS[kind] + '"></i>';
 
         var text = document.createElement('p');
-        text.className = 'crm-toast__message';
+        text.className = 'crm-toast__message toast-message';
         text.textContent = String(message);
 
         var closeBtn = document.createElement('button');

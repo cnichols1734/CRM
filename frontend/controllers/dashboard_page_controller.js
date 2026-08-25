@@ -60,7 +60,14 @@ export default class extends Controller {
     const taskId = event.currentTarget.dataset.taskId;
     if (!taskId) return;
 
-    const completed = event.currentTarget.checked;
+    const target = event.currentTarget;
+    const completed = target.matches("input")
+      ? target.checked
+      : target.getAttribute("aria-checked") !== "true";
+    if (!target.matches("input")) {
+      if (window.TMotion) TMotion.setChecked(target, completed);
+      else target.setAttribute("aria-checked", completed ? "true" : "false");
+    }
 
     try {
       const response = await fetch(`/tasks/${taskId}/quick-update`, {
@@ -80,7 +87,8 @@ export default class extends Controller {
       }
     } catch (error) {
       console.error(error);
-      event.currentTarget.checked = !completed;
+      if (target.matches("input")) target.checked = !completed;
+      else if (window.TMotion) TMotion.setChecked(target, !completed);
       window.alert("Unable to update the task right now.");
     }
   }

@@ -235,6 +235,11 @@ class TodoManager {
         todoText.textContent = text;
         editInput.value = text;
         if (checkbox) checkbox.checked = completed;
+        const check = todoItem.querySelector('.t-check');
+        if (check) {
+            check.setAttribute('aria-checked', completed ? 'true' : 'false');
+            if (window.TMotion) TMotion.initCheck(check);
+        }
 
         // Setup transitions
         todoItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';

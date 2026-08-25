@@ -125,6 +125,8 @@ class ActivityTimelineManager {
             this.filterContainer.querySelectorAll('[data-filter]').forEach(btn => {
                 btn.classList.toggle('is-active', btn.dataset.filter === filter);
             });
+            const tabs = this.filterContainer.querySelector('.t-tabs, .crm-activity-tabs');
+            if (tabs && window.TMotion) TMotion.syncTabs(tabs);
         }
 
         this.loadActivities();

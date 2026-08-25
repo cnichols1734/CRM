@@ -121,7 +121,7 @@
     
     <div class="fixed inset-0 z-[302] overflow-y-auto">
         <div class="flex min-h-full items-center justify-center p-4">
-            <div class="modal-content relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
+            <div class="modal-content t-modal relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full mx-4 sm:mx-auto">
                 
                 <!-- Sending Overlay (hidden by default) -->
                 <div id="emailSendingOverlay" class="sending-overlay hidden">
@@ -402,14 +402,13 @@ window.emailModal = (function() {
         document.body.style.overflow = 'hidden';
         modal.classList.remove('pointer-events-none');
         modal.classList.add('pointer-events-auto');
-        
-        // Trigger reflow
-        modal.offsetHeight;
-        
-        // Add the fade-in classes
         modal.classList.add('opacity-100');
-        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
-        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+        if (window.TMotion) TMotion.openModal(modalContent);
+        else {
+            modal.offsetHeight;
+            modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+            modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+        }
         
         isOpen = true;
         
@@ -428,19 +427,21 @@ window.emailModal = (function() {
         const modal = document.getElementById('emailModal');
         const modalContent = modal.querySelector('.modal-content');
         
-        // Start the fade-out animation
-        modal.classList.remove('opacity-100');
-        modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
-        modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
-        
-        // After the animation completes, disable pointer events
-        setTimeout(() => {
+        const finish = () => {
             document.body.style.overflow = '';
-            modal.classList.remove('pointer-events-auto');
+            modal.classList.remove('pointer-events-auto', 'opacity-100');
             modal.classList.add('pointer-events-none');
             isOpen = false;
             onSendCallback = null;
-        }, 300);
+        };
+        if (window.TMotion) {
+            TMotion.closeModal(modalContent, finish);
+        } else {
+            modal.classList.remove('opacity-100');
+            modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+            modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+            setTimeout(finish, 300);
+        }
     }
     
     // Reset the form
