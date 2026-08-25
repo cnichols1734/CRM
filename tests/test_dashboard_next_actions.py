@@ -7,12 +7,20 @@ ROOT = Path(__file__).resolve().parents[1]
 GONE = (
     "Next actions",
     "Work the next relationship, then move on.",
+    "Schedule next action",
+    "data-next-action-prompt",
+    "_showNextActionPrompt",
+    "data-dismiss-next-action",
 )
 CHROME = frozenset(("header", "segment", "banner"))
 
 
 def _dashboard_source():
     return ROOT.joinpath("templates", "dashboard.html").read_text()
+
+
+def _read(*parts):
+    return ROOT.joinpath(*parts).read_text()
 
 
 def _workspace_order(html):
@@ -41,8 +49,10 @@ def _workspace_order(html):
 class TestDashboardNextActionsRemoved:
     def test_source_drops_next_actions_block(self):
         text = _dashboard_source()
+        controller = _read("frontend", "controllers", "dashboard_page_controller.js")
         for phrase in GONE:
             assert phrase not in text
+            assert phrase not in controller
         assert "section_header('Today'" not in text
 
         follow_up = text.index(
@@ -56,6 +66,20 @@ class TestDashboardNextActionsRemoved:
             "Upcoming Client Tasks"
         )
 
+    def test_kpi_currency_sits_on_baseline(self):
+        css = _read("frontend", "styles", "app.css")
+        assert "vertical-align: 6px;" not in css
+        start = css.index(".crm-kpi__value .currency {")
+        block = css[start:css.index("}", start) + 1]
+        assert "vertical-align" not in block
+        assert "align-items: baseline;" in css[
+            css.index(".crm-kpi__value {") : start
+        ]
+        assert "font-size: 24px;" in block
+        assert ".crm-kpi .currency {" in css
+        assert "vertical-align: baseline;" in css
+        assert "macro with_currency" in _dashboard_source()
+
     def test_rendered_kpi_is_first_main_content(self, owner_a_client, seed):
         resp = owner_a_client.get("/dashboard")
         html = resp.get_data(as_text=True)
@@ -66,6 +90,7 @@ class TestDashboardNextActionsRemoved:
         assert "Tracked contacts" in html
         assert "Average commission" in html
         assert "crm-kpi-skel" in html
+        assert '<span class="currency">$</span>' in html
 
         inner = html.split('class="crm-page__inner"', 1)[1]
         kpi = inner.index("crm-kpi-skel")

@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import page_header, section_header, avatar, badge, empty_state %}
 
+{% macro with_currency(text) -%}
+{%- set parts = (text|string).split('$') -%}
+{%- if parts|length == 1 -%}
+{{ parts[0] }}
+{%- else -%}
+{{ parts[0] }}{% for part in parts[1:] %}<span class="currency">$</span>{{ part }}{% endfor %}
+{%- endif -%}
+{%- endmacro %}
+
 {% macro kpi_breakdown(rows, tone='blue', empty='No data yet') -%}
 {% set fill_class = 'am-bar-accent' if tone == 'orange' else ('am-bar-ink' if tone == 'slate' else 'am-bar-info') %}
 {% if rows %}
@@ -8,8 +17,8 @@
     {% for row in rows %}
     <div>
         <div class="mb-1 flex items-center justify-between gap-3 text-[11px] leading-none">
-            <span class="max-w-[6.5rem] truncate" style="color: var(--ink-3);" title="{{ row.label }}">{{ row.label }}</span>
-            <span class="shrink-0 font-semibold" style="color: var(--ink-2);">{{ row.value }}</span>
+            <span class="max-w-[6.5rem] truncate" style="color: var(--ink-3);" title="{{ row.label }}">{{ with_currency(row.label) }}</span>
+            <span class="shrink-0 font-semibold" style="color: var(--ink-2);">{{ with_currency(row.value) }}</span>
         </div>
         <div class="h-1.5 overflow-hidden rounded-full am-bar-track">
             <div class="h-full rounded-full {{ fill_class }}" style="width: {{ row.percent }}%"></div>
@@ -55,7 +64,7 @@
               style="top: {{ '%.2f' % spark.end_y_pct }}%"></span>
         {% endif %}
     </div>
-    <div class="crm-kpi__rail-meta">{{ spark.meta }}</div>
+    <div class="crm-kpi__rail-meta">{{ with_currency(spark.meta) }}</div>
 </div>
 {%- endmacro %}
 

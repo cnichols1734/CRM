@@ -79,12 +79,7 @@ export default class extends Controller {
       });
 
       if (!response.ok) throw new Error("Unable to update task");
-      const data = await response.json();
-      if (completed && data.contact_id) {
-        this._showNextActionPrompt(data.contact_id);
-      } else {
-        window.location.reload();
-      }
+      window.location.reload();
     } catch (error) {
       console.error(error);
       if (target.matches("input")) target.checked = !completed;
@@ -343,29 +338,6 @@ export default class extends Controller {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path })
     }).catch(() => {});
-  }
-
-  _showNextActionPrompt(contactId) {
-    this.element.querySelector("[data-next-action-prompt]")?.remove();
-    const prompt = document.createElement("div");
-    prompt.dataset.nextActionPrompt = "";
-    prompt.className = "crm-surface mb-6 border-emerald-200 bg-emerald-50";
-    prompt.innerHTML = `
-      <div class="crm-surface-body flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="text-sm font-semibold text-emerald-900">Follow-up complete.</div>
-          <p class="mt-1 text-sm text-emerald-800">Log the next action while the conversation is fresh.</p>
-        </div>
-        <div class="flex gap-2">
-          <a class="crm-btn crm-btn-primary" href="/tasks/new?contact_id=${encodeURIComponent(contactId)}&return_to=contact">Schedule next action</a>
-          <button type="button" class="crm-btn crm-btn-secondary" data-dismiss-next-action>Not now</button>
-        </div>
-      </div>`;
-    prompt.querySelector("[data-dismiss-next-action]").addEventListener("click", () => {
-      window.location.reload();
-    });
-    this.element.querySelector(".crm-page__inner")?.prepend(prompt);
-    prompt.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   animatePipelineValue() {

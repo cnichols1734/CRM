@@ -1314,11 +1314,16 @@
     line-height: 1;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+  }
+  .crm-kpi .currency {
+    vertical-align: baseline;
   }
   .crm-kpi__value .currency {
     color: var(--ink-4);
     font-size: 24px;
-    vertical-align: 6px;
+    line-height: 1;
     margin-right: 2px;
   }
   .crm-kpi__meta {
