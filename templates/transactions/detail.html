@@ -1285,12 +1285,12 @@
                                 {% include 'transactions/_listing_info_fields.html' %}
                             </div>
                             {% elif listing_extraction_status in ('pending', 'processing') %}
-                            <div class="mb-4 py-6 text-center" id="extraction-loading">
-                                <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-md bg-sky-50 text-sky-600">
-                                    <i class="fas fa-spinner fa-spin"></i>
+                            <div class="t-skel crm-panel-skel mb-4 py-6 text-center" id="extraction-loading" data-state="loading">
+                                <div class="t-skel-skeleton is-pulsing">
+                                    <div class="mx-auto mb-3 crm-list-skel-row" style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem;"></div>
+                                    <p class="text-sm font-medium text-slate-700">Extracting listing data...</p>
+                                    <p class="mt-1 text-xs text-slate-400">This usually takes 10–20 seconds</p>
                                 </div>
-                                <p class="text-sm font-medium text-slate-700">Extracting listing data...</p>
-                                <p class="mt-1 text-xs text-slate-400">This usually takes 10–20 seconds</p>
                             </div>
                             {% elif listing_extraction_status == 'failed' %}
                             <div class="mb-4 py-6 text-center">

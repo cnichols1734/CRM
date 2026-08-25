@@ -312,6 +312,11 @@ class TodoManager {
         todoItem.style.opacity = '0';
         todoItem.style.transform = 'translateX(20px)';
 
+        if (isChecked && !isInCompleted && window.TMotion && TMotion.burstConfetti) {
+            const check = todoItem.querySelector('.t-check') || checkbox;
+            TMotion.burstConfetti(check);
+        }
+
         setTimeout(() => {
             if (isChecked && !isInCompleted) {
                 // Moving to completed

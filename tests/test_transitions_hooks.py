@@ -47,9 +47,15 @@ class TestSnippetGuards:
             ".t-tabs",
             ".t-toast",
             ".t-check",
+            ".t-resize",
+            ".t-success-check",
+            ".t-shimmer",
+            ".t-tt",
+            ".t-stagger",
+            ".t-toggle",
         ):
             assert selector in css
-        assert css.count("@media (prefers-reduced-motion: reduce)") >= 11
+        assert css.count("@media (prefers-reduced-motion: reduce)") >= 16
         assert "transition: all" not in css
 
 
@@ -102,6 +108,46 @@ class TestChromeHooks:
         assert "t-check" in tasks
         assert "t-check" in todo
         assert "M1 5.52L3.92 9.17L9.17 1" in tasks
+        assert "burstConfetti" in tasks
+        assert "t-stagger" in todo
+
+    def test_wave2_list_skeletons(self):
+        tasks = _read("templates", "tasks", "list.html")
+        inbox = _read("templates", "inbox", "home.html")
+        deals = _read("templates", "transactions", "list.html")
+        briefing = _read("templates", "briefing", "index.html")
+        studio = _read("templates", "marketing", "studio.html")
+        contact = _read("templates", "contacts", "view.html")
+        deal_file = _read("templates", "transactions", "detail.html")
+        assert "list_skel" in tasks
+        assert "list_skel" in inbox
+        assert "list_skel" in deals
+        assert "t-skel crm-briefing-skel" in briefing
+        assert "t-shimmer" in briefing
+        assert "t-skel crm-panel-skel" in studio
+        assert 'id="smartActionsLoading"' in contact
+        assert "t-skel crm-panel-skel" in contact
+        assert 'id="extraction-loading"' in deal_file
+        assert "t-skel crm-panel-skel" in deal_file
+
+    def test_wave2_save_toggle_tooltip_resize(self):
+        ui = _read("templates", "components", "ui.html")
+        listing = _read("templates", "contacts", "list.html")
+        settings = _read("templates", "notifications", "settings.html")
+        profile = _read("templates", "auth", "user_profile.html")
+        base = _read("templates", "base.html")
+        assert "t-stagger-line t-stagger-line--1" in ui
+        assert "t-resize" in listing
+        assert "t-toggle" in settings
+        assert "data-t-save" in settings
+        assert "success_check()" in settings
+        assert "t-success-check" in ui
+        assert "t-save" in profile
+        assert "t-icon-swap" in profile
+        assert "t-tt-wrap" in base
+        assert 'className = \'t-tt\'' in base or 'tip.className = \'t-tt\'' in base
+        assert "t-morph" not in settings
+        assert "t-acc" not in settings
 
     def test_orchestration_reads_css_ms(self):
         js = _read("static", "js", "transitions.js")
@@ -111,6 +157,11 @@ class TestChromeHooks:
         assert "openModal" in js
         assert "openToast" in js
         assert "path.getTotalLength" in js
+        assert "burstConfetti" in js
+        assert "playSuccessCheck" in js
+        assert "setSaveState" in js
+        assert "initToggle" in js
+        assert "showText" in js
 
 
 class TestRestState:
@@ -175,5 +226,18 @@ class TestRestState:
         assert "--like-color: #f40051;" in root
         for blob in (snippets, bridge, js):
             assert "--like-color" not in blob
-            assert "confetti" not in blob
             assert "t-tilt" not in blob
+        assert "burstConfetti" in js
+        assert "t-confetti-overlay" in bridge
+
+    def test_wave2_rest_layers_stay_quiet(self):
+        bridge = _read("static", "css", "transitions-bridge.css")
+        js = _read("static", "js", "transitions.js")
+        assert ".t-success-check[data-state=\"out\"]" in bridge
+        assert "opacity: 0;" in bridge
+        assert ".t-confetti-overlay:not(.is-running)" in bridge
+        assert "visibility: hidden;" in bridge
+        assert "--toggle-travel: 15px;" in bridge
+        assert "transform: none;" in bridge
+        assert "prefersReducedMotion()" in js
+        assert "burstConfetti" in js

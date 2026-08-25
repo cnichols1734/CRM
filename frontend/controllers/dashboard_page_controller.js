@@ -68,6 +68,7 @@ export default class extends Controller {
       if (window.TMotion) TMotion.setChecked(target, completed);
       else target.setAttribute("aria-checked", completed ? "true" : "false");
     }
+    if (completed && window.TMotion && TMotion.burstConfetti) TMotion.burstConfetti(target);
 
     try {
       const response = await fetch(`/tasks/${taskId}/quick-update`, {

@@ -6,8 +6,8 @@
 
 {% block content %}
 <div class="crm-page mkt-page" data-controller="marketing-template-library">
-    <div class="mkt-busy" hidden data-marketing-template-library-target="busy">
-        <div class="mkt-busy__card crm-surface">
+    <div class="mkt-busy t-skel crm-panel-skel" hidden data-state="loading" data-marketing-template-library-target="busy">
+        <div class="mkt-busy__card crm-surface t-skel-skeleton is-pulsing">
             <div class="mkt-spinner" aria-hidden="true"></div>
             <p class="mkt-busy__title">Making the email</p>
             <p class="mkt-busy__copy">Hang on.</p>

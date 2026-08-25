@@ -140,7 +140,7 @@
                                        data-action="groups-page#toggleActive"
                                        data-group-id="{{ group.id }}"
                                        aria-label="Show {{ group.name }} in contact pickers">
-                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                <span class="crm-toggle__track t-toggle" data-on="{{ 'true' if group.is_active else 'false' }}"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                             </label>
                         </div>
                     </li>
@@ -219,7 +219,7 @@
                             <input type="checkbox"
                                    data-groups-page-target="activeInput"
                                    checked>
-                            <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                            <span class="crm-toggle__track t-toggle" data-on="true"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                         </label>
                     </div>
                     <p class="crm-form-error hidden"

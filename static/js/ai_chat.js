@@ -1166,7 +1166,7 @@ class BOBChatPanel {
         typingEl.innerHTML = `
             <span class="t-think" role="status">
                 <span class="t-think-sizer" aria-hidden="true">Thinking...</span>
-                <span class="t-think-text" data-text="Thinking...">Thinking...</span>
+                <span class="t-think-text t-shimmer" data-text="Thinking...">Thinking...</span>
             </span>
         `;
         messagesDiv.appendChild(typingEl);

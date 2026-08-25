@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header %}
+{% from "components/ui.html" import page_header, success_check %}
 
 {% block title %}Organization Settings - AgentFlow{% endblock %}
 {% block mobile_title %}Organization{% endblock %}
@@ -88,9 +88,10 @@
 
                         {% if current_user.org_role == 'owner' %}
                         <div class="flex items-center justify-end pt-2">
-                            <button type="submit" class="crm-btn crm-btn-primary">
+                            <button type="submit" class="crm-btn crm-btn-primary t-save" data-t-save>
                                 <i class="fas fa-check text-xs"></i>
                                 Save changes
+                                {{ success_check() }}
                             </button>
                         </div>
                         {% else %}
