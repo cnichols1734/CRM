@@ -1909,21 +1909,42 @@
         if (count) count.textContent = done + ' of ' + items.length;
     }
 
-    function applyDone(item, done) {
+    function checkMarkSvg() {
+        return '<svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>';
+    }
+
+    function successCheckHtml() {
+        return '<span class="t-success-check" data-state="out" aria-hidden="true">'
+            + '<svg viewBox="0 0 48 48" fill="none"><path d="M10 24.5L20 34.5L38 14" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            + '</span>';
+    }
+
+    function setChecklistChecked(box, done) {
+        if (!box) return;
+        if (window.TMotion && TMotion.setChecked) TMotion.setChecked(box, done);
+        else box.setAttribute('aria-checked', done ? 'true' : 'false');
+    }
+
+    function celebrateChecklistCheck(item) {
+        const box = item && item.querySelector('.t-check');
+        if (!box || !window.TMotion) return;
+        if (TMotion.burstConfetti) TMotion.burstConfetti(box, { localOrigin: true });
+        const success = item.querySelector('.t-success-check');
+        if (success && TMotion.playSuccessCheck) {
+            TMotion.playSuccessCheck(success);
+            window.setTimeout(function () {
+                success.setAttribute('data-state', 'out');
+            }, 900);
+        }
+    }
+
+    function applyDone(item, done, celebrate) {
         item.dataset.done = done ? 'true' : 'false';
         const box = item.querySelector('[data-checklist-toggle], [data-checklist-box]');
         const title = item.querySelector('[data-checklist-title]');
-        if (box) {
-            box.classList.toggle('border-emerald-600', done);
-            box.classList.toggle('bg-emerald-600', done);
-            box.classList.toggle('text-white', done);
-            box.classList.toggle('border-slate-300', !done);
-            box.classList.toggle('bg-white', !done);
-            box.classList.toggle('text-transparent', !done);
-        }
+        setChecklistChecked(box, done);
         const toggle = item.querySelector('[data-checklist-toggle]');
         if (toggle) {
-            toggle.setAttribute('aria-pressed', done ? 'true' : 'false');
             const name = title ? title.textContent.trim() : 'item';
             toggle.setAttribute('aria-label', (done ? 'Mark incomplete: ' : 'Mark complete: ') + name);
         }
@@ -1932,6 +1953,7 @@
             title.classList.toggle('text-[color:var(--ink-3)]', done);
             title.classList.toggle('text-[color:var(--ink)]', !done);
         }
+        if (celebrate && done) celebrateChecklistCheck(item);
         updateChecklistCount();
     }
 
@@ -2066,9 +2088,12 @@
             : 'text-[color:var(--ink-3)] hover:text-[color:var(--ink)]';
         return ''
             + '<div class="flex items-start gap-3">'
-            + '  <button type="button" class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-slate-300 bg-white text-transparent hover:border-slate-400" data-checklist-toggle aria-pressed="false" aria-label="Mark complete: ' + title + '">'
-            + '    <i class="fas fa-check text-[10px]"></i>'
-            + '  </button>'
+            + '  <span class="t-check-wrap mt-0.5 shrink-0">'
+            + '    <button type="button" class="t-check" role="checkbox" aria-checked="false" data-checklist-toggle aria-label="Mark complete: ' + title + '">'
+            + checkMarkSvg()
+            + '    </button>'
+            + successCheckHtml()
+            + '  </span>'
             + '  <div class="min-w-0 flex-1">'
             + '    <div class="flex items-center justify-between gap-3">'
             + '      <div class="min-w-0 flex items-center gap-2">'
@@ -2097,6 +2122,8 @@
         item.dataset.custom = 'true';
         item.dataset.done = 'false';
         item.innerHTML = customRowHtml(data);
+        const check = item.querySelector('.t-check');
+        if (window.TMotion && TMotion.initCheck) TMotion.initCheck(check);
         list.appendChild(item);
         updateChecklistCount();
         item.scrollIntoView({ block: 'nearest' });
@@ -2183,10 +2210,12 @@
             const item = toggle.closest('[data-checklist-item]');
             const reqId = item && item.dataset.requirementId;
             if (!reqId) return;
+            const wasDone = item.dataset.done === 'true';
             toggle.disabled = true;
             try {
                 const data = await postJson(`/transactions/${txId}/requirements/${reqId}/toggle`);
-                applyDone(item, Boolean(data.done));
+                const done = Boolean(data.done);
+                applyDone(item, done, done && !wasDone);
                 upsertTransactionTask(data.task);
             } catch (err) {
                 alert(err.message || 'Could not update this item.');

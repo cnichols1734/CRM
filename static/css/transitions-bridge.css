@@ -390,6 +390,22 @@ html[data-theme="dark"] .crm-utility-search.t-clear .t-clear-placeholder {
   border-color: var(--accent, #f97316);
 }
 
+/* DaisyUI Preflight zeroes <button> backgrounds. Manual checklist rows
+   are buttons, so a completed row kept strikethrough and the date while
+   the box stayed an empty ring. Auto rows were <span> and still filled.
+   Element+class beats that reset the same way button.crm-btn-* does. */
+button.t-check {
+  background: var(--paper, #fff);
+  border: 1px solid var(--hairline-strong, #cbd5e1);
+}
+button.t-check[aria-checked="true"] {
+  background: var(--accent, #f97316);
+  border-color: var(--accent, #f97316);
+}
+.t-check[aria-disabled="true"] {
+  cursor: default;
+}
+
 .t-check svg {
   width: 10px;
   height: 10px;
@@ -417,6 +433,16 @@ html[data-theme="dark"] .crm-utility-search.t-clear .t-clear-placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+#transaction-checklist .t-check-wrap > .t-success-check {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  pointer-events: none;
 }
 
 .t-input.is-error {

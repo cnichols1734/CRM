@@ -12,6 +12,7 @@ from models import (
     TransactionType,
     db,
 )
+from services.listing_prep_checklist import seed_listing_prep_checklist
 
 
 def _buyer_type(org_id):
@@ -100,6 +101,74 @@ def test_seller_preparing_to_list_renders_grouped_checklist(app, seed, owner_a_c
         assert 'id="transaction-required-documents"' not in html
         assert 'click any date' not in html.lower()
         assert 'Overdue' not in html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
+    finally:
+        with app.app_context():
+            _cleanup(seed['org_a'], tx_id)
+
+
+def _checklist_row(html, item_key):
+    marker = f'data-item-key="{item_key}"'
+    start = html.find(marker)
+    assert start != -1, f'missing {item_key}'
+    li_start = html.rfind('<li', 0, start)
+    li_end = html.find('</li>', start)
+    assert li_start != -1 and li_end != -1
+    return html[li_start:li_end + 5]
+
+
+def test_completed_property_details_row_shows_checked_visual(app, seed, owner_a_client):
+    """Manual completed rows must bind the checked visual, not just date/strike."""
+    tx_id = None
+    with app.app_context():
+        tx = _make_tx(
+            seed, side='seller', address='907 Checked Visual Ln',
+            status='preparing_to_list',
+        )
+        tx_id = tx.id
+        seed_listing_prep_checklist(tx, seed['org_a'], actor_id=seed['owner_a'])
+        req = TransactionRequirement.query.filter_by(
+            transaction_id=tx_id,
+            requirement_key='confirm_property_details',
+        ).one()
+        req.work_status = 'completed'
+        req.due_at = datetime(2026, 8, 25)
+        db.session.add(TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=tx_id,
+            template_slug='listing-agreement',
+            template_name='Listing Agreement',
+            status='signed',
+            is_placeholder=False,
+            document_source='completed',
+            signed_file_path='/tmp/listing-agreement.pdf',
+        ))
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        checklist = html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
+
+        details = _checklist_row(checklist, 'confirm_property_details')
+        assert 'Confirm Property Details with Seller' in details
+        assert 'data-done="true"' in details
+        assert 'line-through' in details
+        assert 'Aug 25' in details
+        assert 'class="t-check"' in details
+        assert 'aria-checked="true"' in details
+        assert 'aria-checked="false"' not in details
+        assert 't-check-native' not in details
+        assert 'type="checkbox"' not in details
+        assert 't-success-check' in details
+        assert 'data-state="out"' in details
+
+        agreement = _checklist_row(checklist, 'listing_agreement')
+        assert 'Sign Listing Agreement' in agreement
+        assert 'data-done="true"' in agreement
+        assert 'class="t-check"' in agreement
+        assert 'aria-checked="true"' in agreement
+        assert 'On file' in agreement
     finally:
         with app.app_context():
             _cleanup(seed['org_a'], tx_id)

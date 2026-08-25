@@ -674,11 +674,13 @@
     confettiWaiters.push(after);
   }
 
-  function burstConfetti(anchor) {
+  function burstConfetti(anchor, opts) {
     if (!anchor || prefersReducedMotion()) {
       settleConfetti();
       return;
     }
+    opts = opts || {};
+    var useLocalOrigin = !!opts.localOrigin;
     var overlay = ensureConfettiOverlay();
     var canvas = overlay.querySelector('canvas');
     if (!canvas) return;
@@ -735,12 +737,16 @@
     var count = Math.round(readConfettiNum(overlay, '--pv1o', 120));
     var size = readConfettiNum(overlay, '--pv22', 4);
     var spawnWindow = 500;
+    var origin = buttonRect();
+    var originX = (origin.left + origin.right) / 2;
+    var originY = origin.top;
+    var spreadX = Math.max(origin.right - origin.left, 16) * 5;
     for (var i = 0; i < count; i++) {
       particles.push({
         start: now + Math.random() * spawnWindow,
-        x: Math.random() * stageW,
-        y: -12 - Math.random() * 30,
-        py: -12,
+        x: useLocalOrigin ? originX + (Math.random() - 0.5) * spreadX : Math.random() * stageW,
+        y: useLocalOrigin ? originY - 10 - Math.random() * 36 : -12 - Math.random() * 30,
+        py: useLocalOrigin ? originY - 12 : -12,
         vx: (Math.random() - 0.5) * 60,
         vy: 40 + Math.random() * 120,
         w: size * (0.7 + Math.random() * 0.6),
@@ -815,6 +821,9 @@
           }
         }
         if (p.x < -30 || p.x > stageW + 30 || p.y > stageH + 30) {
+          p.dead = true;
+        }
+        if (useLocalOrigin && !p.resting && p.y > b.bottom + 96) {
           p.dead = true;
         }
       }

@@ -115,6 +115,23 @@ class TestChromeHooks:
         assert "burstConfetti" in todo_js
         assert "whenConfettiSettled" in todo_js
 
+    def test_checklist_has_check_and_confetti_hooks(self):
+        checklist = _read("templates", "transactions", "_checklist.html")
+        detail = _read("templates", "transactions", "detail.html")
+        assert 'class="t-check"' in checklist
+        assert "M1 5.52L3.92 9.17L9.17 1" in checklist
+        assert "{{ 'true' if item.done else 'false' }}" in checklist
+        assert "aria-checked=" in checklist
+        assert "success_check()" in checklist
+        assert "t-check-native" not in checklist
+        assert "celebrateChecklistCheck" in detail
+        assert "burstConfetti" in detail
+        assert "localOrigin: true" in detail
+        assert "playSuccessCheck" in detail
+        assert "setChecked" in detail
+        assert "applyDone(item, done, done && !wasDone)" in detail
+        assert "if (celebrate && done) celebrateChecklistCheck(item);" in detail
+
     def test_wave2_list_skeletons(self):
         tasks = _read("templates", "tasks", "list.html")
         inbox = _read("templates", "inbox", "home.html")
@@ -163,6 +180,9 @@ class TestChromeHooks:
         assert "path.getTotalLength" in js
         assert "burstConfetti" in js
         assert "whenConfettiSettled" in js
+        assert "useLocalOrigin" in js
+        assert "originX + (Math.random() - 0.5) * spreadX" in js
+        assert "p.y > b.bottom + 96" in js
         dash = _read("frontend", "controllers", "dashboard_page_controller.js")
         assert "burstConfetti" in dash
         assert "whenConfettiSettled" in dash
@@ -225,6 +245,8 @@ class TestRestState:
         bridge = _read("static", "css", "transitions-bridge.css")
         assert "background: var(--accent, #f97316);" in bridge
         assert ".t-check[aria-checked=\"true\"]" in bridge
+        assert "button.t-check[aria-checked=\"true\"]" in bridge
+        assert "#transaction-checklist .t-check-wrap > .t-success-check" in bridge
 
     def test_like_tokens_stay_unhooked(self):
         root = _read("static", "css", "transitions-root.css")
