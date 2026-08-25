@@ -349,7 +349,9 @@ function quickUpdateStatus(taskId, completed) {
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
+        var reload = function () { window.location.reload(); };
+        if (window.TMotion && TMotion.whenConfettiSettled) TMotion.whenConfettiSettled(reload);
+        else reload();
     })
     .catch(error => {
         console.error('Error:', error);

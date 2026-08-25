@@ -80,7 +80,9 @@ export default class extends Controller {
       });
 
       if (!response.ok) throw new Error("Unable to update task");
-      window.location.reload();
+      const reload = () => window.location.reload();
+      if (window.TMotion && TMotion.whenConfettiSettled) TMotion.whenConfettiSettled(reload);
+      else reload();
     } catch (error) {
       console.error(error);
       if (target.matches("input")) target.checked = !completed;

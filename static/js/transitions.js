@@ -656,8 +656,29 @@
     return overlay;
   }
 
+  var confettiWaiters = [];
+
+  function settleConfetti() {
+    var waiters = confettiWaiters;
+    confettiWaiters = [];
+    for (var w = 0; w < waiters.length; w++) waiters[w]();
+  }
+
+  function whenConfettiSettled(after) {
+    if (!after) return;
+    var overlay = document.getElementById('t-confetti-overlay');
+    if (!overlay || !overlay.classList.contains('is-running')) {
+      after();
+      return;
+    }
+    confettiWaiters.push(after);
+  }
+
   function burstConfetti(anchor) {
-    if (!anchor || prefersReducedMotion()) return;
+    if (!anchor || prefersReducedMotion()) {
+      settleConfetti();
+      return;
+    }
     var overlay = ensureConfettiOverlay();
     var canvas = overlay.querySelector('canvas');
     if (!canvas) return;
@@ -844,6 +865,7 @@
           particles = [];
           ctx.clearRect(0, 0, stageW, stageH);
           overlay.classList.remove('is-running');
+          settleConfetti();
           return;
         }
       }
@@ -929,7 +951,8 @@
     initToggle: initToggle,
     playSuccessCheck: playSuccessCheck,
     setSaveState: setSaveState,
-    burstConfetti: burstConfetti
+    burstConfetti: burstConfetti,
+    whenConfettiSettled: whenConfettiSettled
   };
 
   if (document.readyState === 'loading') {

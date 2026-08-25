@@ -109,7 +109,11 @@ class TestChromeHooks:
         assert "t-check" in todo
         assert "M1 5.52L3.92 9.17L9.17 1" in tasks
         assert "burstConfetti" in tasks
+        assert "whenConfettiSettled" in tasks
         assert "t-stagger" in todo
+        todo_js = _read("static", "js", "todo-manager.js")
+        assert "burstConfetti" in todo_js
+        assert "whenConfettiSettled" in todo_js
 
     def test_wave2_list_skeletons(self):
         tasks = _read("templates", "tasks", "list.html")
@@ -158,6 +162,10 @@ class TestChromeHooks:
         assert "openToast" in js
         assert "path.getTotalLength" in js
         assert "burstConfetti" in js
+        assert "whenConfettiSettled" in js
+        dash = _read("frontend", "controllers", "dashboard_page_controller.js")
+        assert "burstConfetti" in dash
+        assert "whenConfettiSettled" in dash
         assert "playSuccessCheck" in js
         assert "setSaveState" in js
         assert "initToggle" in js
@@ -241,3 +249,4 @@ class TestRestState:
         assert "transform: none;" in bridge
         assert "prefersReducedMotion()" in js
         assert "burstConfetti" in js
+        assert "whenConfettiSettled" in js

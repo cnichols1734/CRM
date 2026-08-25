@@ -536,7 +536,7 @@ html[data-theme="dark"] .crm-utility-search.t-clear .t-clear-placeholder {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 80;
+  z-index: 350;
 }
 
 .t-confetti-overlay canvas {
