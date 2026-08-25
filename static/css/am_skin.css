@@ -1774,11 +1774,11 @@ html.am-skin .crm-document-upload-hub__footer {
   border-color: var(--hairline) !important;
   color: var(--ink) !important;
 }
-html.am-skin .crm-document-package__header--well {
+html.am-skin .crm-document-package .crm-document-package__header--well {
   background: var(--paper-3) !important;
 }
-html[data-theme="dark"].am-skin .crm-document-package__header--well {
-  background: color-mix(in srgb, var(--canvas) 70%, var(--paper)) !important;
+html.am-skin[data-theme="dark"] .crm-document-package .crm-document-package__header--well {
+  background: var(--canvas) !important;
 }
 html.am-skin .crm-document-package__title {
   color: var(--ink-3) !important;

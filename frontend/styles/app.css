@@ -3121,7 +3121,7 @@
   background: var(--paper-3);
 }
 [data-theme="dark"] .crm-document-package__header--well {
-  background: color-mix(in srgb, var(--canvas) 70%, var(--paper));
+  background: var(--canvas);
 }
 .crm-document-package__title {
   margin: 0;
