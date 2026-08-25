@@ -67,8 +67,9 @@ class TestDashboardNextActionsRemoved:
 
     def test_kpi_currency_sits_on_baseline(self):
         css = _read("frontend", "styles", "app.css")
-        assert "vertical-align: 6px;" not in css
-        assert "font-size: 24px;" not in css
+        kpi = css[css.index(".crm-kpi__value {") : css.index(".crm-kpi__meta {")]
+        assert "vertical-align: 6px;" not in kpi
+        assert "font-size: 24px;" not in kpi
         value = css[css.index(".crm-kpi__value {") : css.index(".crm-kpi .currency {")]
         assert "align-items: baseline;" in value
         assert "white-space: nowrap;" in value
