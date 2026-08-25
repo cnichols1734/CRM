@@ -1,4 +1,28 @@
-{% from "components/ui.html" import badge, section_header %}
+{% from "components/ui.html" import badge, section_header, success_check %}
+
+{% macro checklist_check(item) -%}
+<span class="t-check-wrap mt-0.5 shrink-0">
+    {% if item.auto %}
+    <span class="t-check"
+          role="checkbox"
+          aria-checked="{{ 'true' if item.done else 'false' }}"
+          aria-disabled="true"
+          data-checklist-box>
+        <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+    </span>
+    {% else %}
+    <button type="button"
+            class="t-check"
+            role="checkbox"
+            aria-checked="{{ 'true' if item.done else 'false' }}"
+            data-checklist-toggle
+            aria-label="{{ 'Mark incomplete' if item.done else 'Mark complete' }}: {{ item.title }}">
+        <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+    </button>
+    {% endif %}
+    {{ success_check() }}
+</span>
+{%- endmacro %}
 
 {% set deadline_items = checklist|selectattr('kind', 'equalto', 'requirement')|list %}
 {% set dated_deadline_items = deadline_items|selectattr('due_at')|list %}
@@ -31,21 +55,7 @@
                     data-custom="{{ 'true' if item.custom else 'false' }}"
                     data-done="{{ 'true' if item.done else 'false' }}">
                     <div class="flex items-start gap-3">
-                        {% if item.auto %}
-                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border {% if item.done %}border-emerald-600 bg-emerald-600 text-white{% else %}border-slate-300 bg-white text-transparent{% endif %}"
-                              data-checklist-box
-                              aria-hidden="true">
-                            <i class="fas fa-check text-[10px]"></i>
-                        </span>
-                        {% else %}
-                        <button type="button"
-                                class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border {% if item.done %}border-emerald-600 bg-emerald-600 text-white{% else %}border-slate-300 bg-white text-transparent hover:border-slate-400{% endif %}"
-                                data-checklist-toggle
-                                aria-pressed="{{ 'true' if item.done else 'false' }}"
-                                aria-label="{{ 'Mark incomplete' if item.done else 'Mark complete' }}: {{ item.title }}">
-                            <i class="fas fa-check text-[10px]"></i>
-                        </button>
-                        {% endif %}
+                        {{ checklist_check(item) }}
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="min-w-0 flex items-center gap-2">
