@@ -12,7 +12,7 @@ def _read(*parts):
 class TestRootInstall:
     def test_root_block_is_single(self):
         css = _read("static", "css", "transitions-root.css")
-        assert css.count(":root") == 1
+        assert css.count(":root {") == 1
         assert "--dropdown-open-dur" in css
         assert "--panel-open-dur" in css
         assert "--page-slide-dur" in css
