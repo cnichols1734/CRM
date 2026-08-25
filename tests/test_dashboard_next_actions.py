@@ -68,13 +68,22 @@ class TestDashboardNextActionsRemoved:
     def test_kpi_currency_sits_on_baseline(self):
         css = _read("frontend", "styles", "app.css")
         assert "vertical-align: 6px;" not in css
-        start = css.index(".crm-kpi__value .currency {")
-        block = css[start:css.index("}", start) + 1]
-        assert "vertical-align" not in block
-        assert "font-size: 1em;" in block
-        assert "font-size: 24px;" not in block
-        assert ".crm-kpi .currency {" in css
-        assert "vertical-align: baseline;" in css
+        assert "font-size: 24px;" not in css
+        value = css[css.index(".crm-kpi__value {") : css.index(".crm-kpi .currency {")]
+        assert "align-items: baseline;" in value
+        assert "white-space: nowrap;" in value
+        currency = css[
+            css.index(".crm-kpi .currency {") : css.index(".crm-kpi__value .currency {")
+        ]
+        assert "vertical-align: baseline;" in currency
+        assert "font-size: inherit;" in currency
+        assert "line-height: inherit;" in currency
+        group = css[
+            css.index(".crm-kpi__value .t-digit-group {") : css.index(
+                ".crm-kpi__meta {"
+            )
+        ]
+        assert "display: contents;" in group
         assert "macro with_currency" in _dashboard_source()
 
     def test_rendered_kpi_is_first_main_content(self, owner_a_client, seed):
