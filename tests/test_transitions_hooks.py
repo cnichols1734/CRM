@@ -245,6 +245,8 @@ class TestRestState:
         assert "opacity: 0;" in bridge
         assert ".t-confetti-overlay:not(.is-running)" in bridge
         assert "visibility: hidden;" in bridge
+        assert ".crm-topbar .t-tt" in bridge
+        assert "top: calc(100% + 8px)" in bridge
         assert "--toggle-travel: 15px;" in bridge
         assert "transform: none;" in bridge
         assert "prefersReducedMotion()" in js

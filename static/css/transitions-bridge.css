@@ -587,3 +587,17 @@ html.sidebar-expanded #sidebar-tooltip {
 .t-tt-wrap .crm-btn {
   vertical-align: middle;
 }
+
+/* Topbar icons sit on the viewport edge. Official tooltip opens upward,
+   which paints off-screen. Drop those below the trigger. Motion tokens stay. */
+.crm-topbar .t-tt {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform-origin: 50% 0;
+  z-index: 40;
+}
+
+.crm-topbar .t-tt-wrap:hover .t-tt,
+.crm-topbar .t-tt-trigger:focus-visible + .t-tt {
+  transform: translate(-50%, 0) scale(1);
+}
