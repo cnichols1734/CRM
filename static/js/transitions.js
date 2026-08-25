@@ -124,16 +124,21 @@
     if (!bar || !tab) return;
     var pill = bar.querySelector('.t-tabs-pill');
     if (!pill) return;
+    var place = function () {
+      pill.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
+      pill.style.width = tab.offsetWidth + 'px';
+      pill.style.height = tab.offsetHeight + 'px';
+      pill.style.top = tab.offsetTop + 'px';
+      pill.setAttribute('data-ready', 'true');
+    };
     if (!animate) {
       var prev = pill.style.transition;
       pill.style.transition = 'none';
-      pill.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
-      pill.style.width = tab.offsetWidth + 'px';
+      place();
       void pill.offsetWidth;
       pill.style.transition = prev;
     } else {
-      pill.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
-      pill.style.width = tab.offsetWidth + 'px';
+      place();
     }
   }
 
@@ -262,7 +267,7 @@
       var keepFocus = document.activeElement === input;
       mirror.textContent = input.value.replace(/ /g, '\u00a0');
 
-      var total = cssMs('--clear-dur', 1000);
+      var total = cssMs('--clear-dur', 400);
       var outDur = cssMs('--clear-out-dur', 400);
       var inDur = cssMs('--clear-in-dur', 400);
       var outFly = cssMs('--clear-out-fly', 12);
@@ -311,6 +316,8 @@
           mirror.textContent = '';
           glow.style.opacity = '0';
           glow.style.background = '';
+          glow.style.filter = '';
+          glow.style.visibility = 'hidden';
           clearing = false;
           input.dispatchEvent(new Event('input', { bubbles: true }));
           wrap.dispatchEvent(new CustomEvent('t:cleared', { bubbles: true }));
@@ -328,6 +335,9 @@
       clearWithAnimation();
     });
     input.addEventListener('input', sync);
+    glow.style.opacity = '0';
+    glow.style.background = '';
+    glow.style.visibility = 'hidden';
     sync();
   }
 
