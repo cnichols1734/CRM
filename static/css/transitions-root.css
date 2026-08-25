@@ -127,8 +127,10 @@
   --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --revert-hold: 3000ms;
   --revert-dur: 280ms;
-  /* Input clear with dissolve */
-  --clear-dur: 1000ms;
+  /* Input clear with dissolve.
+     400ms matches the out/in legs. The official 1000ms beat left
+     glow and placeholder layers painted after the text had settled. */
+  --clear-dur: 400ms;
   --clear-out-dur: 400ms;
   --clear-in-dur: 400ms;
   --clear-out-fly: 12px;

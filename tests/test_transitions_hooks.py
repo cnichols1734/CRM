@@ -111,3 +111,59 @@ class TestChromeHooks:
         assert "openModal" in js
         assert "openToast" in js
         assert "path.getTotalLength" in js
+
+
+class TestRestState:
+    def test_clear_layers_stay_hidden_at_rest(self):
+        snippets = _read("static", "css", "transitions-snippets.css")
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert ".t-clear-placeholder { opacity: 0; visibility: hidden; }" in snippets
+        assert ".t-clear.is-clearing .t-clear-placeholder" in snippets
+        assert ".t-clear.is-clearing .t-clear-glow { visibility: visible; }" in snippets
+        assert "isolation: isolate" in bridge
+        assert ".t-clear:not(.is-clearing) .t-clear-glow" in bridge
+
+    def test_search_focus_ring_is_thin(self):
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert "0 0 0 2px rgba(249, 115, 22, 0.28)" in bridge
+        assert "0 0 0 4px rgba(249, 115, 22, 0.35)" not in bridge
+
+    def test_segment_selected_chip_yields_to_sliding_pill(self):
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert ".crm-segment.t-tabs:has(.t-tabs-pill)" in bridge
+        assert "background: transparent !important;" in bridge
+        assert "box-shadow: none !important;" in bridge
+        assert ".crm-activity-tabs.t-tabs:has(.t-tabs-pill[data-ready])" in bridge
+
+    def test_clear_duration_is_not_the_long_beat(self):
+        root = _read("static", "css", "transitions-root.css")
+        js = _read("static", "js", "transitions.js")
+        assert "--clear-dur: 400ms;" in root
+        assert "--clear-dur: 1000ms;" not in root
+        assert "cssMs('--clear-dur', 400)" in js
+
+    def test_contacts_slider_does_not_reserve_fifty_vh(self):
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert "min-height: 50vh" not in bridge
+        assert "position: relative" in bridge
+        assert 'data-page="1"] .t-page[data-page-id="1"]' in bridge
+
+    def test_user_dropdown_does_not_force_paper(self):
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert ".crm-user-dropdown.t-dropdown {\n  background: var(--paper);\n}" not in bridge
+
+    def test_checked_task_uses_accent(self):
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert "background: var(--accent, #f97316);" in bridge
+        assert ".t-check[aria-checked=\"true\"]" in bridge
+
+    def test_like_tokens_stay_unhooked(self):
+        root = _read("static", "css", "transitions-root.css")
+        snippets = _read("static", "css", "transitions-snippets.css")
+        bridge = _read("static", "css", "transitions-bridge.css")
+        js = _read("static", "js", "transitions.js")
+        assert "--like-color: #f40051;" in root
+        for blob in (snippets, bridge, js):
+            assert "--like-color" not in blob
+            assert "confetti" not in blob
+            assert "t-tilt" not in blob

@@ -39,10 +39,6 @@ html[data-theme="dark"] .t-clear-glow {
   pointer-events: auto;
 }
 
-.crm-user-dropdown.t-dropdown {
-  background: var(--paper);
-}
-
 /* Badge: keep the orange pill, let .t-badge own the slot. */
 .crm-utility-icon-btn--bell .t-badge {
   top: 0.1rem;
@@ -116,9 +112,17 @@ html[data-theme="dark"] .t-clear-glow {
   min-height: 16rem;
 }
 
-/* Contacts list <-> detail: give the absolute pages a real height. */
+/* Contacts list <-> detail: the active page stays in flow so the
+   slider sizes to content on first paint. The other page stays
+   absolute for the slide. JS can still pin height during a swap. */
 .crm-contacts-pages.t-page-slide {
-  min-height: 50vh;
+  min-height: 0;
+}
+
+.crm-contacts-pages.t-page-slide[data-page="1"] .t-page[data-page-id="1"],
+.crm-contacts-pages.t-page-slide[data-page="2"] .t-page[data-page-id="2"] {
+  position: relative;
+  inset: auto;
 }
 
 .crm-contacts-page-body {
@@ -147,11 +151,25 @@ html[data-theme="dark"] .t-clear-glow {
   box-shadow: none;
 }
 
+.crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item,
+.crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.t-tab,
+.crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.t-tab[aria-selected="true"],
+.crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.t-tab[aria-pressed="true"],
+.crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.t-tab[aria-current="page"],
+.crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.t-tab.is-active,
+html.am-skin .crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.is-active,
+html.am-skin .crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item[aria-pressed="true"],
+html.am-skin .crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item[aria-selected="true"],
+html.am-skin[data-theme="dark"] .crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item.is-active,
+html.am-skin[data-theme="dark"] .crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item[aria-pressed="true"],
+html.am-skin[data-theme="dark"] .crm-segment.t-tabs:has(.t-tabs-pill) .crm-segment__item[aria-selected="true"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .crm-segment.t-tabs .crm-segment__item.t-tab[aria-selected="true"],
 .crm-segment.t-tabs .crm-segment__item.t-tab.is-active {
   color: var(--ink);
-  background: transparent;
-  box-shadow: none;
 }
 
 .crm-segment.t-tabs .t-tabs-pill {
@@ -160,6 +178,10 @@ html[data-theme="dark"] .t-clear-glow {
   border-radius: 5px;
   background: var(--paper);
   box-shadow: 0 1px 2px oklch(0% 0 0 / 0.04), 0 0 0 1px var(--hairline);
+}
+
+html.am-skin .crm-segment.t-tabs .t-tabs-pill {
+  border-radius: 1000px;
 }
 
 [data-theme="dark"] .crm-segment.t-tabs {
@@ -190,10 +212,17 @@ html[data-theme="dark"] .t-clear-glow {
   border-radius: 999px;
 }
 
+.crm-activity-tabs.t-tabs:has(.t-tabs-pill[data-ready]) .crm-chip.is-active,
+.crm-activity-tabs.t-tabs:has(.t-tabs-pill[data-ready]) .t-tab.is-active,
+.crm-activity-tabs.t-tabs:has(.t-tabs-pill[data-ready]) .t-tab[aria-selected="true"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .crm-activity-tabs .t-tabs-pill {
   top: 0;
   height: auto;
-  min-height: 100%;
   border-radius: 999px;
   background: var(--ink);
 }
@@ -205,6 +234,75 @@ html[data-theme="dark"] .t-clear-glow {
 
 .crm-toast.t-toast.is-open {
   opacity: 1;
+}
+
+/* Clear layers stay off the native placeholder and focus ring
+   unless a clear is running. Isolate so mix-blend cannot tint
+   the settings chip or other header chrome. */
+.crm-utility-search.t-clear,
+.crm-toolbar__search.t-clear {
+  overflow: visible;
+  isolation: isolate;
+}
+
+.crm-utility-search.t-clear .t-clear-mirror,
+.crm-utility-search.t-clear .t-clear-placeholder,
+.crm-utility-search.t-clear .t-clear-glow,
+.crm-toolbar__search.t-clear .t-clear-mirror,
+.crm-toolbar__search.t-clear .t-clear-placeholder,
+.crm-toolbar__search.t-clear .t-clear-glow {
+  opacity: 0;
+  visibility: hidden;
+  filter: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.crm-utility-search.t-clear.has-value .t-clear-mirror,
+.crm-toolbar__search.t-clear.has-value .t-clear-mirror {
+  opacity: 1;
+  visibility: visible;
+}
+
+.crm-utility-search.t-clear.is-clearing .t-clear-mirror,
+.crm-utility-search.t-clear.is-clearing .t-clear-placeholder,
+.crm-utility-search.t-clear.is-clearing .t-clear-glow,
+.crm-toolbar__search.t-clear.is-clearing .t-clear-mirror,
+.crm-toolbar__search.t-clear.is-clearing .t-clear-placeholder,
+.crm-toolbar__search.t-clear.is-clearing .t-clear-glow {
+  visibility: visible;
+}
+
+.crm-utility-search.t-clear.has-value .t-clear-placeholder,
+.crm-toolbar__search.t-clear.has-value .t-clear-placeholder,
+.crm-utility-search.t-clear:not(.is-clearing) .t-clear-glow,
+.crm-toolbar__search.t-clear:not(.is-clearing) .t-clear-glow {
+  opacity: 0;
+  visibility: hidden;
+  background: none;
+  filter: none;
+}
+
+.crm-utility-search.t-clear .t-clear-glow,
+.crm-toolbar__search.t-clear .t-clear-glow {
+  border-radius: 1000px;
+  mix-blend-mode: multiply;
+}
+
+html.am-skin .crm-utility-search.t-clear input:focus,
+html.am-skin .crm-toolbar__search.t-clear .crm-search:focus,
+.crm-utility-search.t-clear input:focus,
+.crm-toolbar__search.t-clear .crm-search:focus {
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.28) !important;
+}
+
+html.am-skin .crm-theme-btn,
+html.am-skin .crm-utility-btn,
+html.am-skin .crm-utility-icon-btn,
+.crm-theme-btn,
+.crm-utility-btn,
+.crm-utility-icon-btn {
+  filter: none;
 }
 
 /* Clear button sits on the existing search fields. */
@@ -276,8 +374,8 @@ html[data-theme="dark"] .crm-utility-search.t-clear .t-clear-placeholder {
 }
 
 .t-check[aria-checked="true"] {
-  background: var(--ink, #0f172a);
-  border-color: var(--ink, #0f172a);
+  background: var(--accent, #f97316);
+  border-color: var(--accent, #f97316);
 }
 
 .t-check svg {

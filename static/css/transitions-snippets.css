@@ -344,16 +344,24 @@
   overflow: hidden;
   z-index: 2;
 }
-.t-clear-mirror { opacity: 0; }
+.t-clear-mirror { opacity: 0; visibility: hidden; }
 .t-clear.has-value .t-clear-mirror,
-.t-clear.is-clearing .t-clear-mirror { opacity: 1; }
+.t-clear.is-clearing .t-clear-mirror {
+  opacity: 1;
+  visibility: visible;
+}
 /* Hide the input's own glyphs while the mirror owns them so
    the cleared text doesn't double-render with the fly-up. */
 .t-clear.has-value > input,
 .t-clear.is-clearing > input {
   -webkit-text-fill-color: transparent;
 }
-.t-clear.has-value .t-clear-placeholder { opacity: 0; }
+/* Official snippet paints this layer at rest. Our chrome already
+   has a native placeholder, so keep this layer hidden until a clear
+   is actually running. */
+.t-clear-placeholder { opacity: 0; visibility: hidden; }
+.t-clear.has-value .t-clear-placeholder { opacity: 0; visibility: hidden; }
+.t-clear.is-clearing .t-clear-placeholder { opacity: 1; visibility: visible; }
 /* The streak overlay: empty by default; JS writes a stack of
    `radial-gradient(...)` layers into background during a clear,
    then animates opacity. mix-blend-mode: multiply darkens the
@@ -364,9 +372,11 @@
   inset: 0;
   pointer-events: none;
   opacity: 0;
+  visibility: hidden;
   z-index: 3;
   mix-blend-mode: multiply;
 }
+.t-clear.is-clearing .t-clear-glow { visibility: visible; }
 
 /* The transitions live in JS (per-frame transform/opacity/
    filter writes), so this stylesheet only owns the resting

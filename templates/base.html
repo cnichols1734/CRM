@@ -3246,10 +3246,13 @@
             function clearHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
             function hide() {
                 clearHide();
-                if (window.TMotion) TMotion.closeDropdown(pop);
-                else pop.classList.remove('is-open');
-                pop.setAttribute('aria-hidden', 'true');
                 btn.setAttribute('aria-expanded', 'false');
+                var finish = function () { pop.setAttribute('aria-hidden', 'true'); };
+                if (window.TMotion) TMotion.closeDropdown(pop, finish);
+                else {
+                    pop.classList.remove('is-open');
+                    finish();
+                }
             }
             function show() {
                 clearHide();
