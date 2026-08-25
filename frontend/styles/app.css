@@ -1314,12 +1314,23 @@
     line-height: 1;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    white-space: nowrap;
+  }
+  .crm-kpi .currency {
+    vertical-align: baseline;
+    font-size: inherit;
+    line-height: inherit;
   }
   .crm-kpi__value .currency {
     color: var(--ink-4);
-    font-size: 24px;
-    vertical-align: 6px;
     margin-right: 2px;
+  }
+  /* Drop the inline-flex box so $ and each digit share this flex baseline. */
+  .crm-kpi__value .t-digit-group {
+    display: contents;
   }
   .crm-kpi__meta {
     color: var(--ink-3);

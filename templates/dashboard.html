@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import page_header, section_header, avatar, badge, empty_state %}
 
+{% macro with_currency(text) -%}
+{%- set parts = (text|string).split('$') -%}
+{%- if parts|length == 1 -%}
+{{ parts[0] }}
+{%- else -%}
+{{ parts[0] }}{% for part in parts[1:] %}<span class="currency">$</span>{{ part }}{% endfor %}
+{%- endif -%}
+{%- endmacro %}
+
 {% macro kpi_breakdown(rows, tone='blue', empty='No data yet') -%}
 {% set fill_class = 'am-bar-accent' if tone == 'orange' else ('am-bar-ink' if tone == 'slate' else 'am-bar-info') %}
 {% if rows %}
@@ -8,8 +17,8 @@
     {% for row in rows %}
     <div>
         <div class="mb-1 flex items-center justify-between gap-3 text-[11px] leading-none">
-            <span class="max-w-[6.5rem] truncate" style="color: var(--ink-3);" title="{{ row.label }}">{{ row.label }}</span>
-            <span class="shrink-0 font-semibold" style="color: var(--ink-2);">{{ row.value }}</span>
+            <span class="max-w-[6.5rem] truncate" style="color: var(--ink-3);" title="{{ row.label }}">{{ with_currency(row.label) }}</span>
+            <span class="shrink-0 font-semibold" style="color: var(--ink-2);">{{ with_currency(row.value) }}</span>
         </div>
         <div class="h-1.5 overflow-hidden rounded-full am-bar-track">
             <div class="h-full rounded-full {{ fill_class }}" style="width: {{ row.percent }}%"></div>
@@ -55,7 +64,7 @@
               style="top: {{ '%.2f' % spark.end_y_pct }}%"></span>
         {% endif %}
     </div>
-    <div class="crm-kpi__rail-meta">{{ spark.meta }}</div>
+    <div class="crm-kpi__rail-meta">{{ with_currency(spark.meta) }}</div>
 </div>
 {%- endmacro %}
 
@@ -594,47 +603,6 @@
             </div>
         </section>
         {% endif %}
-
-        <section class="crm-surface mb-5">
-            <div class="crm-surface-header">
-                <div>
-                    {{ section_header('Today', 'Work the next relationship, then move on.', 'Next actions') }}
-                </div>
-                <a href="{{ url_for('tasks.tasks') }}" class="crm-back">All tasks</a>
-            </div>
-            <div class="crm-surface-body">
-                {% if upcoming_tasks %}
-                <div class="divide-y divide-slate-100">
-                    {% for task in upcoming_tasks[:3] %}
-                    {% set days_until_due = (task.due_date.date() - now.date()).days %}
-                    <div class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <button type="button"
-                                class="t-check shrink-0"
-                                role="checkbox"
-                                aria-checked="false"
-                                data-action="click->dashboard-page#updateTaskStatus"
-                                data-task-id="{{ task.id }}">
-                            <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
-                        </button>
-                        <div class="min-w-0 flex-1">
-                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="crm-table-link block truncate">{{ task.subject }}</a>
-                            <div class="mt-1 text-xs" style="color: var(--ink-3);">
-                                {% if task.contact %}{{ task.contact.first_name }} {{ task.contact.last_name }} · {% endif %}
-                                {% if days_until_due < 0 %}<span class="font-medium" style="color: var(--warn);">Overdue</span>{% elif days_until_due == 0 %}<span class="font-medium" style="color: var(--warn);">Due today</span>{% elif days_until_due == 1 %}Due tomorrow{% else %}Due in {{ days_until_due }} days{% endif %}
-                            </div>
-                        </div>
-                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="crm-btn crm-btn-secondary">Open</a>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p class="text-sm" style="color: var(--ink-3);">Nothing is due yet. Add a follow-up while the conversation is fresh.</p>
-                    <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-primary">Schedule follow-up</a>
-                </div>
-                {% endif %}
-            </div>
-        </section>
 
         <div class="t-skel crm-kpi-skel" data-state="loading" data-reveal-on="load">
             <div class="t-skel-skeleton is-pulsing">
