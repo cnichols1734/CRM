@@ -2306,13 +2306,16 @@
                 <span>Assistant</span>
             </button>
             {% endif %}
-            <button type="button" id="crmThemeToggle" class="crm-theme-btn"
-                    aria-label="Toggle dark mode" title="Toggle theme">
+            <span class="t-tt-wrap">
+            <button type="button" id="crmThemeToggle" class="crm-theme-btn t-tt-trigger"
+                    aria-label="Toggle dark mode">
                 <span class="t-icon-swap" data-t-theme-swap data-state="a">
                     <span class="t-icon" data-icon="a"><i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i></span>
                     <span class="t-icon" data-icon="b"><i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i></span>
                 </span>
             </button>
+            <span class="t-tt" role="tooltip">Toggle theme</span>
+            </span>
             <div class="crm-notifications-wrap" id="crmNotificationsWrap">
                 <button type="button" id="crmNotificationsBtn" class="crm-utility-icon-btn crm-utility-icon-btn--bell"
                         aria-label="Notifications" aria-expanded="false" aria-controls="crmNotificationPopover">
@@ -2377,14 +2380,17 @@
                 </svg>
             </button>
             {% endif %}
-            <button type="button" id="crmThemeToggleMobile" class="crm-theme-btn"
-                    aria-label="Toggle dark mode" title="Toggle theme"
+            <span class="t-tt-wrap">
+            <button type="button" id="crmThemeToggleMobile" class="crm-theme-btn t-tt-trigger"
+                    aria-label="Toggle dark mode"
                     style="height:2rem;width:2rem;">
                 <span class="t-icon-swap" data-t-theme-swap data-state="a">
                     <span class="t-icon" data-icon="a"><i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i></span>
                     <span class="t-icon" data-icon="b"><i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i></span>
                 </span>
             </button>
+            <span class="t-tt" role="tooltip">Toggle theme</span>
+            </span>
             <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
                 class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm font-semibold">
                 {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
@@ -2999,6 +3005,7 @@
                 if (!tip) {
                     tip = document.createElement('div');
                     tip.id = 'sidebar-tooltip';
+                    tip.className = 't-tt';
                     tip.setAttribute('role', 'tooltip');
                     document.body.appendChild(tip);
                 }

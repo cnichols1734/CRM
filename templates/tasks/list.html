@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header, badge, empty_state %}
+{% from "components/ui.html" import page_header, badge, empty_state, list_skel, icon_tooltip %}
 
 {% block title %}Client Tasks - AgentFlow{% endblock %}
 {% block mobile_title %}Client Tasks{% endblock %}
@@ -201,6 +201,7 @@
             </div>
 
             {% if tasks %}
+            {% call list_skel(6) %}
             <ul class="divide-y" style="border-color: var(--hairline);">
                 {% for task in tasks %}
                 {% set task_date = task.due_date.date() %}
@@ -213,7 +214,7 @@
                                class="t-check task-check"
                                role="checkbox"
                                aria-checked="{{ 'true' if task.status == 'completed' else 'false' }}"
-                               onclick="event.stopPropagation(); var on = this.getAttribute('aria-checked') !== 'true'; if (window.TMotion) TMotion.setChecked(this, on); else this.setAttribute('aria-checked', on ? 'true' : 'false'); quickUpdateStatus({{ task.id }}, on);">
+                               onclick="event.stopPropagation(); var on = this.getAttribute('aria-checked') !== 'true'; if (window.TMotion) TMotion.setChecked(this, on); else this.setAttribute('aria-checked', on ? 'true' : 'false'); if (on && window.TMotion && TMotion.burstConfetti) TMotion.burstConfetti(this); quickUpdateStatus({{ task.id }}, on);">
                             <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
                         </button>
 
@@ -294,19 +295,24 @@
 
                         <div class="task-actions flex items-center gap-1 shrink-0 opacity-0 transition-opacity"
                              onclick="event.stopPropagation();">
+                            {% call icon_tooltip('View') %}
                             <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks"
-                               class="crm-btn-icon crm-btn crm-btn-secondary crm-btn-sm" title="View">
+                               class="crm-btn-icon crm-btn crm-btn-secondary crm-btn-sm t-tt-trigger">
                                 <i class="fas fa-arrow-right"></i>
                             </a>
+                            {% endcall %}
+                            {% call icon_tooltip('Delete') %}
                             <button type="button" onclick="deleteTask({{ task.id }})"
-                                    class="crm-btn-icon crm-btn crm-btn-sm crm-btn-danger" title="Delete">
+                                    class="crm-btn-icon crm-btn crm-btn-sm crm-btn-danger t-tt-trigger">
                                 <i class="fas fa-trash"></i>
                             </button>
+                            {% endcall %}
                         </div>
                     </div>
                 </li>
                 {% endfor %}
             </ul>
+            {% endcall %}
             {% else %}
             <div class="crm-surface-body">
                 {% if current_status == 'pending' %}
@@ -343,7 +349,9 @@ function quickUpdateStatus(taskId, completed) {
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
+        var reload = function () { window.location.reload(); };
+        if (window.TMotion && TMotion.whenConfettiSettled) TMotion.whenConfettiSettled(reload);
+        else reload();
     })
     .catch(error => {
         console.error('Error:', error);

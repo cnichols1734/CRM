@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header %}
+{% from "components/ui.html" import page_header, success_check %}
 
 {% block title %}{% if is_admin_edit %}Edit User{% else %}Profile{% endif %} - AgentFlow{% endblock %}
 {% block mobile_title %}{% if is_admin_edit %}Edit User{% else %}Profile{% endif %}{% endblock %}
@@ -195,9 +195,10 @@
                         </div>
 
                         <div class="mt-7 flex justify-end">
-                            <button type="submit" class="crm-btn crm-btn-primary">
+                            <button type="submit" class="crm-btn crm-btn-primary t-save" data-t-save>
                                 <i class="fas fa-check text-xs"></i>
                                 {% if is_admin_edit %}Save changes{% else %}Update profile{% endif %}
+                                {{ success_check() }}
                             </button>
                         </div>
                     </form>
@@ -240,9 +241,13 @@
                                 <i class="fas fa-info-circle mr-1"></i>
                                 Saved signature is added to every outbound email.
                             </p>
-                            <button type="button" id="save-signature-btn" class="crm-btn crm-btn-primary">
-                                <i class="fas fa-check text-xs"></i>
+                            <button type="button" id="save-signature-btn" class="crm-btn crm-btn-primary t-save">
+                                <span class="t-icon-swap" data-state="a">
+                                    <span class="t-icon" data-icon="a"><i class="fas fa-check text-xs"></i></span>
+                                    <span class="t-icon" data-icon="b"><i class="fas fa-spinner fa-spin text-xs"></i></span>
+                                </span>
                                 Save signature
+                                {{ success_check() }}
                             </button>
                         </div>
                     </div>
@@ -295,7 +300,7 @@
                             <form method="POST" action="{{ url_for('gmail.disconnect') }}" class="inline">
                                 <label class="crm-toggle crm-toggle--positive" title="Disconnect Gmail">
                                     <input type="checkbox" checked onchange="this.form.submit()">
-                                    <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                    <span class="crm-toggle__track t-toggle" data-on="true"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                                 </label>
                             </form>
                             {% elif gmail_integration and gmail_integration.needs_reauth %}
@@ -330,7 +335,7 @@
                             <form method="POST" action="{{ url_for('bob_telegram.telegram_disconnect') }}" class="inline">
                                 <label class="crm-toggle crm-toggle--positive" title="Disconnect Telegram">
                                     <input type="checkbox" checked onchange="this.form.submit()">
-                                    <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                    <span class="crm-toggle__track t-toggle" data-on="true"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                                 </label>
                             </form>
                             {% else %}
@@ -392,13 +397,13 @@
                                     <input type="checkbox"
                                            {% if gmail_integration.calendar_sync_enabled %}checked{% endif %}
                                            onchange="this.form.submit()">
-                                    <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                    <span class="crm-toggle__track t-toggle" data-on="{{ 'true' if gmail_integration.calendar_sync_enabled else 'false' }}"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                                 </label>
                             </form>
                             {% else %}
                             <label class="crm-toggle">
                                 <input type="checkbox" disabled>
-                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                <span class="crm-toggle__track t-toggle" data-on="false"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                             </label>
                             {% endif %}
                         </div>
@@ -442,9 +447,10 @@
                             </div>
                         </div>
                         <div class="mt-5 flex justify-end">
-                            <button type="submit" class="crm-btn crm-btn-primary">
+                            <button type="submit" class="crm-btn crm-btn-primary t-save" data-t-save>
                                 <i class="fas fa-check text-xs"></i>
                                 Save brokerage info
+                                {{ success_check() }}
                             </button>
                         </div>
                     </form>
@@ -732,9 +738,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('save-signature-btn').addEventListener('click', async function() {
         const btn = this;
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Saving…';
-        btn.disabled = true;
+        if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(btn, 'busy');
+        else {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Saving…';
+            btn.disabled = true;
+        }
 
         try {
             const htmlToSave = dataUrlToCid(quill.root.innerHTML);
@@ -747,21 +755,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.success) {
-                btn.innerHTML = '<i class="fas fa-check text-xs"></i> Saved';
-                setTimeout(() => {
-                    btn.innerHTML = originalHtml;
+                if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(btn, 'success');
+                else {
+                    btn.innerHTML = '<i class="fas fa-check text-xs"></i> Saved';
                     btn.disabled = false;
-                }, 1800);
+                }
             } else {
                 alert(data.error || 'Failed to save signature');
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
+                if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(btn, 'idle');
+                else btn.disabled = false;
             }
         } catch (error) {
             console.error('Error saving signature:', error);
             alert('Failed to save signature');
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
+            if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(btn, 'idle');
+            else btn.disabled = false;
         }
     });
 

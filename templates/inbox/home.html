@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header, empty_state %}
+{% from "components/ui.html" import page_header, empty_state, list_skel %}
 
 {% block title %}Magic Inbox{% endblock %}
 
@@ -183,6 +183,7 @@
           </a>
         {% endcall %}
       {% else %}
+      {% call list_skel(6) %}
       <ul class="divide-y divide-slate-100">
         {% for item in activity %}
         {% set m = item.message %}
@@ -245,6 +246,7 @@
         </li>
         {% endfor %}
       </ul>
+      {% endcall %}
       {% endif %}
     </section>
 

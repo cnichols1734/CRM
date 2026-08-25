@@ -15,13 +15,13 @@
 
 {% macro page_header(title, description='', eyebrow='') -%}
 <div class="crm-page-header">
-    <div class="crm-page-header__copy">
+    <div class="crm-page-header__copy t-stagger">
         {% if eyebrow %}
         <div class="crm-page-header__eyebrow">{{ eyebrow }}</div>
         {% endif %}
-        <h1 class="crm-page-title">{{ title|safe }}</h1>
+        <h1 class="crm-page-title t-stagger-line t-stagger-line--1">{{ title|safe }}</h1>
         {% if description %}
-        <p class="crm-page-description">{{ description|safe }}</p>
+        <p class="crm-page-description t-stagger-line t-stagger-line--2">{{ description|safe }}</p>
         {% endif %}
     </div>
     {% if caller %}
@@ -81,4 +81,32 @@
     </div>
     {% endif %}
 </div>
+{%- endmacro %}
+
+{% macro list_skel(rows=5, extra_class='') -%}
+<div class="t-skel crm-list-skel {{ extra_class }}" data-state="loading" data-reveal-on="load">
+    <div class="t-skel-skeleton is-pulsing">
+        {% for _ in range(rows) %}
+        <div class="crm-list-skel-row"></div>
+        {% endfor %}
+    </div>
+    <div class="t-skel-content">
+        {{ caller() }}
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro success_check() -%}
+<span class="t-success-check" data-state="out" aria-hidden="true">
+    <svg viewBox="0 0 48 48" fill="none">
+        <path d="M10 24.5L20 34.5L38 14" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</span>
+{%- endmacro %}
+
+{% macro icon_tooltip(text) -%}
+<span class="t-tt-wrap">
+    {{ caller() }}
+    <span class="t-tt" role="tooltip">{{ text }}</span>
+</span>
 {%- endmacro %}

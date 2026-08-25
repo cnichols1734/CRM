@@ -307,45 +307,58 @@ class TodoManager {
     handleCheckboxChange(todoItem, isChecked) {
         const index = this.getItemIndex(todoItem);
         const isInCompleted = this.completedList && this.completedList.contains(todoItem);
+        const check = todoItem.querySelector('.t-check') || todoItem.querySelector('.todo-checkbox');
 
-        // Animate out
-        todoItem.style.opacity = '0';
-        todoItem.style.transform = 'translateX(20px)';
+        const slideOut = () => {
+            todoItem.style.opacity = '0';
+            todoItem.style.transform = 'translateX(20px)';
+        };
 
-        setTimeout(() => {
-            if (isChecked && !isInCompleted) {
-                // Moving to completed
-                if (this.completedList) {
-                    // If we have a completed list, move the item there
+        if (isChecked && !isInCompleted && window.TMotion && TMotion.burstConfetti) {
+            TMotion.burstConfetti(check);
+        } else {
+            slideOut();
+        }
+
+        const startMove = () => {
+            if (isChecked && !isInCompleted && todoItem.style.opacity !== '0') slideOut();
+            setTimeout(() => {
+                if (isChecked && !isInCompleted) {
+                    if (this.completedList) {
+                        todoItem.remove();
+                        this.completedList.appendChild(todoItem);
+                        todoItem.style.opacity = '1';
+                        todoItem.style.transform = 'translateX(0)';
+                        this.syncFromDOM();
+                        this.saveTodos();
+                    } else {
+                        const todoText = todoItem.querySelector('.todo-text').textContent;
+                        const activeIndex = this.todos.indexOf(todoText);
+                        if (activeIndex !== -1) {
+                            this.todos.splice(activeIndex, 1);
+                            this.completedTodos.push(todoText);
+                        }
+                        todoItem.remove();
+                        this.saveTodos();
+                    }
+                } else if (!isChecked && isInCompleted) {
                     todoItem.remove();
-                    this.completedList.appendChild(todoItem);
+                    this.activeList.appendChild(todoItem);
                     todoItem.style.opacity = '1';
                     todoItem.style.transform = 'translateX(0)';
                     this.syncFromDOM();
                     this.saveTodos();
-                } else {
-                    // No completed list (dashboard) - move from active to completed array
-                    const todoText = todoItem.querySelector('.todo-text').textContent;
-                    const activeIndex = this.todos.indexOf(todoText);
-                    if (activeIndex !== -1) {
-                        this.todos.splice(activeIndex, 1);
-                        this.completedTodos.push(todoText);
-                    }
-                    todoItem.remove();
-                    this.saveTodos();
                 }
-            } else if (!isChecked && isInCompleted) {
-                // Moving back to active
-                todoItem.remove();
-                this.activeList.appendChild(todoItem);
-                todoItem.style.opacity = '1';
-                todoItem.style.transform = 'translateX(0)';
-                this.syncFromDOM();
-                this.saveTodos();
-            }
-            this.updateCounts();
-            this.updateEmptyStates();
-        }, 300);
+                this.updateCounts();
+                this.updateEmptyStates();
+            }, 300);
+        };
+
+        if (isChecked && !isInCompleted && window.TMotion && TMotion.whenConfettiSettled) {
+            TMotion.whenConfettiSettled(startMove);
+        } else {
+            startMove();
+        }
     }
 
     /**

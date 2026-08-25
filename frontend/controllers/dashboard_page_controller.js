@@ -68,6 +68,7 @@ export default class extends Controller {
       if (window.TMotion) TMotion.setChecked(target, completed);
       else target.setAttribute("aria-checked", completed ? "true" : "false");
     }
+    if (completed && window.TMotion && TMotion.burstConfetti) TMotion.burstConfetti(target);
 
     try {
       const response = await fetch(`/tasks/${taskId}/quick-update`, {
@@ -79,7 +80,9 @@ export default class extends Controller {
       });
 
       if (!response.ok) throw new Error("Unable to update task");
-      window.location.reload();
+      const reload = () => window.location.reload();
+      if (window.TMotion && TMotion.whenConfettiSettled) TMotion.whenConfettiSettled(reload);
+      else reload();
     } catch (error) {
       console.error(error);
       if (target.matches("input")) target.checked = !completed;

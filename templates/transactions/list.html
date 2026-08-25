@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header, badge, empty_state %}
+{% from "components/ui.html" import page_header, badge, empty_state, list_skel %}
 
 {% block title %}Transactions - AgentFlow{% endblock %}
 
@@ -171,6 +171,7 @@
         </section>
 
         {% if transactions %}
+        {% call list_skel(6, 'crm-table-skel') %}
         <div class="crm-table-wrap">
             <table class="crm-table min-w-[1230px]">
                 <thead>
@@ -299,6 +300,7 @@
                 </tbody>
             </table>
         </div>
+        {% endcall %}
         {% else %}
         {% call empty_state(
             'No transactions yet',

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header %}
+{% from "components/ui.html" import page_header, icon_tooltip %}
 
 {% block title %}Daily Briefing{% endblock %}
 
@@ -14,13 +14,14 @@
             'Daily Briefing',
             eyebrow=plan_date.strftime('%A · %B %d, %Y') if plan_date else 'Today'
         ) %}
+            {% call icon_tooltip("Regenerate today's briefing") %}
             <button type="button"
-                    class="crm-btn crm-btn-sm"
-                    data-action="daily-briefing#refresh"
-                    title="Regenerate today's briefing">
+                    class="crm-btn crm-btn-sm t-tt-trigger"
+                    data-action="daily-briefing#refresh">
                 <i class="fas fa-rotate-right"></i>
                 Refresh
             </button>
+            {% endcall %}
         {% endcall %}
 
         <div class="crm-briefing-layout"
@@ -28,7 +29,8 @@
 
             <div class="crm-briefing-main">
                 {# Generating / failed shell #}
-                <div class="{% if briefing and briefing.status == 'ready' %}hidden{% endif %}"
+                <div class="t-skel crm-briefing-skel {% if briefing and briefing.status == 'ready' %}is-revealed hidden{% endif %}"
+                     data-state="loading"
                      data-daily-briefing-target="skeleton">
                     <section class="crm-surface">
                         <div class="crm-surface-body">
@@ -36,13 +38,13 @@
                                 <span class="t-think" role="status">
                                     <span class="t-think-sizer" aria-hidden="true">Couldn't rebuild today's briefing</span>
                                     {% if briefing and briefing.status == 'failed' %}
-                                    <span class="t-think-text" data-text="Couldn't build today's briefing">Couldn't build today's briefing</span>
+                                    <span class="t-think-text t-shimmer" data-text="Couldn't build today's briefing">Couldn't build today's briefing</span>
                                     {% else %}
-                                    <span class="t-think-text" data-text="Building today's briefing…">Building today's briefing…</span>
+                                    <span class="t-think-text t-shimmer" data-text="Building today's briefing…">Building today's briefing…</span>
                                     {% endif %}
                                 </span>
                             </p>
-                            <div class="crm-rail__skeleton" data-daily-briefing-target="skeletonLines">
+                            <div class="t-skel-skeleton is-pulsing crm-rail__skeleton" data-daily-briefing-target="skeletonLines">
                                 <div class="crm-rail__skeleton-line"></div>
                                 <div class="crm-rail__skeleton-line is-mid"></div>
                                 <div class="crm-rail__skeleton-line is-short"></div>

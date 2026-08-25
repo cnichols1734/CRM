@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header %}
+{% from "components/ui.html" import page_header, success_check %}
 
 {% block title %}Marketing settings - AgentFlow{% endblock %}
 {% block mobile_title %}Settings{% endblock %}
@@ -24,7 +24,7 @@
                 <span class="crm-label">Mailing address</span>
                 <input class="crm-input" name="broker_address" value="{{ org.broker_address or '' }}">
             </label>
-            <button class="crm-btn crm-btn-primary" type="submit">Save</button>
+            <button class="crm-btn crm-btn-primary t-save" type="submit" data-t-save>Save{{ success_check() }}</button>
         </form>
 
         <p class="text-sm crm-muted mb-6">{{ quota.used }} of {{ quota.limit }} sends used this month.</p>

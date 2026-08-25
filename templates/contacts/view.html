@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import avatar, badge, empty_state, section_header %}
+{% from "components/ui.html" import avatar, badge, empty_state, section_header, success_check %}
 
 {% block content %}
 <style>
@@ -686,9 +686,9 @@
                             <p class="crm-panel-empty__hint">Generate 3 task suggestions based on this contact's full history.</p>
                         </div>
 
-                        <div id="smartActionsLoading" class="hidden px-5 py-6">
-                            <div class="flex flex-col items-center gap-3">
-                                <div class="h-6 w-6 animate-spin rounded-full border-2 border-orange-200 border-t-orange-500"></div>
+                        <div id="smartActionsLoading" class="t-skel crm-panel-skel hidden px-5 py-6" data-state="loading">
+                            <div class="t-skel-skeleton is-pulsing flex flex-col items-center gap-3">
+                                <div class="crm-list-skel-row" style="width: 8rem;"></div>
                                 <div class="text-center">
                                     <p class="text-sm font-medium" style="color: var(--ink);">Analyzing contact data...</p>
                                     <p class="mt-0.5 text-xs crm-muted">Tasks, emails, interactions, and more</p>
@@ -965,9 +965,13 @@
                     Cancel
                 </button>
                 <button type="button" onclick="submitLogActivity()" id="logActivitySubmitBtn"
-                        class="crm-btn crm-btn-primary">
-                    <i class="fas fa-check text-xs"></i>
+                        class="crm-btn crm-btn-primary t-save">
+                    <span class="t-icon-swap" data-state="a">
+                        <span class="t-icon" data-icon="a"><i class="fas fa-check text-xs"></i></span>
+                        <span class="t-icon" data-icon="b"><i class="fas fa-spinner fa-spin text-xs"></i></span>
+                    </span>
                     Log activity
+                    {{ success_check() }}
                 </button>
             </div>
         </div>
@@ -1028,9 +1032,13 @@
                     Cancel
                 </button>
                 <button type="button" onclick="saveVoiceMemo()" id="voiceMemoSaveBtn" disabled
-                        class="crm-btn crm-btn-primary disabled:cursor-not-allowed disabled:opacity-50">
-                    <i class="fas fa-save text-xs"></i>
+                        class="crm-btn crm-btn-primary t-save disabled:cursor-not-allowed disabled:opacity-50">
+                    <span class="t-icon-swap" data-state="a">
+                        <span class="t-icon" data-icon="a"><i class="fas fa-save text-xs"></i></span>
+                        <span class="t-icon" data-icon="b"><i class="fas fa-spinner fa-spin text-xs"></i></span>
+                    </span>
                     Save memo
+                    {{ success_check() }}
                 </button>
             </div>
         </div>
@@ -1411,8 +1419,11 @@
         }
 
         const saveBtn = document.getElementById('voiceMemoSaveBtn');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(saveBtn, 'busy');
+        else {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        }
 
         try {
             const formData = new FormData();
@@ -1444,8 +1455,11 @@
             console.error('Error saving voice memo:', err);
             showToast('Failed to save voice memo. Please try again.', 'error');
         } finally {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Memo';
+            if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(saveBtn, 'success');
+            else {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Memo';
+            }
         }
     }
 
@@ -1782,8 +1796,11 @@
 
         // Disable submit button
         const submitBtn = document.getElementById('logActivitySubmitBtn');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(submitBtn, 'busy');
+        else {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        }
 
         fetch('/contact/{{ contact.id }}/log-activity', {
             method: 'POST',
@@ -1813,8 +1830,11 @@
                 showToast('An error occurred. Please try again.', 'error');
             })
             .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Log Activity';
+                if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(submitBtn, 'success');
+                else {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Log Activity';
+                }
             });
     }
 
@@ -2566,6 +2586,7 @@
         listContainer.classList.add('hidden');
         footer.classList.add('hidden');
         loadingState.classList.remove('hidden');
+        if (window.TMotion && TMotion.resetSkeleton) TMotion.resetSkeleton(loadingState);
 
         fetch(`/contact/${CONTACT_ID}/task-suggestions`, {
             method: 'POST',
@@ -2576,6 +2597,7 @@
         })
         .then(response => response.json())
         .then(data => {
+            if (window.TMotion && TMotion.revealSkeleton) TMotion.revealSkeleton(loadingState);
             loadingState.classList.add('hidden');
             btn.disabled = false;
             btnText.textContent = 'Refresh';
@@ -2651,9 +2673,11 @@
                         </div>
                     </div>
                     <button type="button" onclick="addSuggestedTask(${index})"
-                            class="add-task-btn mt-0.5 inline-flex flex-shrink-0 items-center gap-1 rounded-md bg-orange-500 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
-                            title="Create this task">
-                        <i class="fas fa-plus text-[9px]"></i>
+                            class="add-task-btn t-save mt-0.5 inline-flex flex-shrink-0 items-center gap-1 rounded-md bg-orange-500 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orange-600">
+                        <span class="t-icon-swap" data-state="a">
+                            <span class="t-icon" data-icon="a"><i class="fas fa-plus text-[9px]"></i></span>
+                            <span class="t-icon" data-icon="b"><i class="fas fa-spinner fa-spin text-[9px]"></i></span>
+                        </span>
                         <span>Add</span>
                     </button>
                 </div>
@@ -2675,7 +2699,8 @@
         const btn = item.querySelector('.add-task-btn');
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[9px]"></i>';
+        if (window.TMotion && TMotion.setSaveState) TMotion.setSaveState(btn, 'busy');
+        else btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[9px]"></i>';
 
         fetch(`/contact/${CONTACT_ID}/task-suggestions/create`, {
             method: 'POST',
@@ -2696,7 +2721,13 @@
         .then(data => {
             if (data.success) {
                 btn.className = 'flex-shrink-0 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md mt-0.5';
-                btn.innerHTML = '<i class="fas fa-check text-[9px]"></i><span>Added</span>';
+                if (window.TMotion && TMotion.setSaveState) {
+                    TMotion.setSaveState(btn, 'success');
+                    const label = btn.querySelector('span:not(.t-icon):not(.t-success-check):not(.t-icon-swap)');
+                    if (label) label.textContent = 'Added';
+                } else {
+                    btn.innerHTML = '<i class="fas fa-check text-[9px]"></i><span>Added</span>';
+                }
                 btn.disabled = true;
                 item.classList.add('bg-emerald-50/40');
 

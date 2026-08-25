@@ -9,8 +9,8 @@
      data-marketing-template-studio-preview-url-value="{{ url_for('marketing.api_preview') }}"
      data-marketing-template-studio-upload-url-value="{{ url_for('marketing.api_upload') }}"
      data-marketing-template-studio-test-url-value="{{ url_for('marketing.api_send_test') }}">
-    <div class="mkt-busy" hidden data-marketing-template-studio-target="busy">
-        <div class="mkt-busy__card crm-surface">
+    <div class="mkt-busy t-skel crm-panel-skel" hidden data-state="loading" data-marketing-template-studio-target="busy">
+        <div class="mkt-busy__card crm-surface t-skel-skeleton is-pulsing">
             <div class="mkt-spinner" aria-hidden="true"></div>
             <p class="mkt-busy__title">Making the email</p>
             <p class="mkt-busy__copy">Hang on.</p>
@@ -99,7 +99,7 @@
                             <input type="checkbox"
                                    data-marketing-template-studio-target="sampleToggle"
                                    data-action="change->marketing-template-studio#toggleSamples">
-                            <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                            <span class="crm-toggle__track t-toggle" data-on="false"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                         </span>
                     </label>
                 </div>

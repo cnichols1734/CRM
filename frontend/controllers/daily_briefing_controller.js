@@ -139,7 +139,10 @@ export default class extends Controller {
   }
 
   showSkeleton(label, failed = false) {
-    if (this.hasSkeletonTarget) this.skeletonTarget.classList.remove("hidden");
+    if (this.hasSkeletonTarget) {
+      this.skeletonTarget.classList.remove("hidden", "is-revealed");
+      if (window.TMotion && TMotion.resetSkeleton) TMotion.resetSkeleton(this.skeletonTarget);
+    }
     if (this.hasContentTarget) this.contentTarget.classList.add("hidden");
     if (this.hasStatusLabelTarget) {
       const think = this.statusLabelTarget.querySelector(".t-think");
@@ -151,6 +154,7 @@ export default class extends Controller {
     }
     if (this.hasSkeletonLinesTarget) {
       this.skeletonLinesTarget.classList.toggle("opacity-40", failed);
+      this.skeletonLinesTarget.classList.add("is-pulsing");
     }
     this._setChatReady(false);
   }
@@ -159,7 +163,14 @@ export default class extends Controller {
     this.itemStates = data.item_states || {};
     this.statusValue = "ready";
 
-    if (this.hasSkeletonTarget) this.skeletonTarget.classList.add("hidden");
+    if (this.hasSkeletonTarget) {
+      if (window.TMotion && TMotion.revealSkeleton) TMotion.revealSkeleton(this.skeletonTarget);
+      else this.skeletonTarget.classList.add("is-revealed");
+      const hideMs = window.TMotion ? TMotion.cssMs("--reveal-dur", 400) : 400;
+      window.setTimeout(() => {
+        this.skeletonTarget.classList.add("hidden");
+      }, hideMs);
+    }
     if (this.hasContentTarget) this.contentTarget.classList.remove("hidden");
 
     if (this.hasHeadlineTarget) {

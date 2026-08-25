@@ -265,7 +265,7 @@
                                 <input type="checkbox" name="feature_{{ feature.name }}"
                                        {% if feature.enabled %}checked{% endif %}
                                        {% if feature.locked %}disabled{% endif %}>
-                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                <span class="crm-toggle__track t-toggle" data-on="{{ 'true' if feature.enabled else 'false' }}"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                             </label>
                         </div>
                         {% endfor %}

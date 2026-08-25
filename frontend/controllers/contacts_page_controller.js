@@ -215,6 +215,22 @@ export default class extends Controller {
       }
     }
 
+    const skel = this.previewBodyTarget.querySelector(".t-skel");
+    const slot = skel && skel.querySelector(".t-skel-content");
+    if (skel && slot && !warmSwap) {
+      slot.innerHTML = html;
+      const panel = slot.querySelector(".t-panel-slide");
+      if (panel) {
+        panel.setAttribute("data-open", "false");
+        requestAnimationFrame(() => {
+          panel.setAttribute("data-open", "true");
+        });
+      }
+      if (window.TMotion && TMotion.revealSkeleton) TMotion.revealSkeleton(skel);
+      else skel.classList.add("is-revealed");
+      return;
+    }
+
     this.previewBodyTarget.innerHTML = html;
     const panel = this.previewBodyTarget.querySelector(".t-panel-slide");
     if (panel) {

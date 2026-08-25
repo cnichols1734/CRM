@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header %}
+{% from "components/ui.html" import page_header, success_check %}
 
 {% block title %}Notification Settings - AgentFlow{% endblock %}
 {% block mobile_title %}Notifications{% endblock %}
@@ -60,19 +60,19 @@
                         <div class="flex justify-center">
                             <label class="crm-toggle">
                                 <input type="checkbox" name="{{ cat_key }}_in_app" {% if p.in_app %}checked{% endif %}>
-                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                <span class="crm-toggle__track t-toggle" data-on="{{ 'true' if p.in_app else 'false' }}"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                             </label>
                         </div>
                         <div class="flex justify-center">
                             <label class="crm-toggle">
                                 <input type="checkbox" name="{{ cat_key }}_email" {% if p.email %}checked{% endif %}>
-                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                <span class="crm-toggle__track t-toggle" data-on="{{ 'true' if p.email else 'false' }}"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                             </label>
                         </div>
                         <div class="flex justify-center">
                             <label class="crm-toggle">
                                 <input type="checkbox" name="{{ cat_key }}_telegram" {% if p.telegram %}checked{% endif %}>
-                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                <span class="crm-toggle__track t-toggle" data-on="{{ 'true' if p.telegram else 'false' }}"><span class="crm-toggle__thumb t-toggle-thumb"></span></span>
                             </label>
                         </div>
                     </div>
@@ -85,9 +85,10 @@
                         <i class="fas fa-info-circle text-[10px] mr-1"></i>
                         Changes apply immediately to new notifications.
                     </p>
-                    <button type="submit" class="crm-btn crm-btn-primary">
+                    <button type="submit" class="crm-btn crm-btn-primary t-save" data-t-save>
                         <i class="fas fa-check text-xs"></i>
                         Save preferences
+                        {{ success_check() }}
                     </button>
                 </div>
             </section>
