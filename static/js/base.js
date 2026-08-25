@@ -77,7 +77,7 @@
         if (existingToast) existingToast.remove();
         const toast = document.createElement('div');
         toast.id = 'session-expired-toast';
-        toast.className = 'crm-toast crm-toast--warning is-in';
+        toast.className = 'crm-toast crm-toast--warning t-toast is-open';
         toast.textContent = 'Your session has expired. Redirecting to login...';
         document.body.appendChild(toast);
     }
@@ -232,9 +232,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(userDropdown);
     }
 
-    if (sidebar && userDropdown && typeof ResizeObserver !== 'undefined') {
+        if (sidebar && userDropdown && typeof ResizeObserver !== 'undefined') {
         const dropdownRo = new ResizeObserver(() => {
-            if (!userDropdown.classList.contains('hidden')) {
+            if (window.TMotion ? TMotion.isDropdownOpen(userDropdown) : !userDropdown.classList.contains('hidden')) {
                 positionUserDropdown();
             }
         });
@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.addEventListener('resize', () => {
-        if (userDropdown && !userDropdown.classList.contains('hidden')) {
+        if (userDropdown && (window.TMotion ? TMotion.isDropdownOpen(userDropdown) : !userDropdown.classList.contains('hidden'))) {
             positionUserDropdown();
         }
     });
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userIcon && userDropdown) {
         userIcon.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isVisible = !userDropdown.classList.contains('hidden');
+            const isVisible = window.TMotion ? TMotion.isDropdownOpen(userDropdown) : !userDropdown.classList.contains('hidden');
             
             if (isVisible) {
                 closeUserDropdown();
@@ -262,7 +262,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
-            if (!userDropdown.classList.contains('hidden') && 
+            const open = window.TMotion ? TMotion.isDropdownOpen(userDropdown) : !userDropdown.classList.contains('hidden');
+            if (open && 
                 !userDropdown.contains(e.target) && 
                 !userIcon.contains(e.target)) {
                 closeUserDropdown();
@@ -271,7 +272,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Close dropdown on Escape key
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !userDropdown.classList.contains('hidden')) {
+            const open = window.TMotion ? TMotion.isDropdownOpen(userDropdown) : !userDropdown.classList.contains('hidden');
+            if (e.key === 'Escape' && open) {
                 closeUserDropdown();
                 userIcon.focus();
             }
@@ -285,21 +287,27 @@ document.addEventListener('DOMContentLoaded', function() {
         userIcon.setAttribute('aria-expanded', 'true');
         requestAnimationFrame(() => {
             positionUserDropdown();
-            userDropdown.classList.add('opacity-100');
+            if (window.TMotion) TMotion.openDropdown(userDropdown);
+            else userDropdown.classList.add('opacity-100');
         });
     }
 
     function closeUserDropdown() {
         if (!userDropdown || !userIcon) return;
-        userDropdown.classList.remove('opacity-100');
         userIcon.setAttribute('aria-expanded', 'false');
-        setTimeout(() => {
+        const finish = () => {
             userDropdown.classList.add('hidden');
             userDropdown.style.left = '';
             userDropdown.style.bottom = '';
             userDropdown.style.top = '';
             userDropdown.style.right = '';
-        }, 200);
+        };
+        if (window.TMotion) {
+            TMotion.closeDropdown(userDropdown, finish);
+        } else {
+            userDropdown.classList.remove('opacity-100');
+            setTimeout(finish, 200);
+        }
     }
 
     // Tooltip functionality - portal-based tooltips (avoids overflow clipping)

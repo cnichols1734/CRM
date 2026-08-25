@@ -95,6 +95,10 @@ export default class extends Controller {
     if (this.hasPreviewRailTarget) {
       this.previewRailTarget.setAttribute("aria-hidden", "true");
     }
+    const panel = this.hasPreviewBodyTarget
+      ? this.previewBodyTarget.querySelector(".t-panel-slide")
+      : null;
+    if (panel) panel.setAttribute("data-open", "false");
     this.clearActiveRow();
 
     if (this.previewAbortController) {
@@ -102,12 +106,11 @@ export default class extends Controller {
       this.previewAbortController = null;
     }
 
-    // Clear the body after the slide-out finishes so the next cold open
-    // starts from a clean state. Matches --crm-rail-close-ms (~380ms).
+    const closeMs = window.TMotion ? TMotion.cssMs("--panel-close-dur", 350) : 420;
     if (this.previewClearTimer) window.clearTimeout(this.previewClearTimer);
     this.previewClearTimer = window.setTimeout(() => {
       if (this.hasPreviewBodyTarget) this.previewBodyTarget.innerHTML = "";
-    }, 420);
+    }, closeMs + 40);
   }
 
   handleKeydown(event) {
@@ -145,12 +148,15 @@ export default class extends Controller {
   renderSkeleton() {
     if (!this.hasPreviewBodyTarget) return;
     this.previewBodyTarget.innerHTML = `
-      <div class="crm-rail__skeleton">
-        <div class="crm-rail__skeleton-line is-short"></div>
-        <div class="crm-rail__skeleton-line"></div>
-        <div class="crm-rail__skeleton-line is-mid"></div>
-        <div class="crm-rail__skeleton-line"></div>
-        <div class="crm-rail__skeleton-line is-mid"></div>
+      <div class="t-skel crm-rail-skel" data-state="loading">
+        <div class="t-skel-skeleton is-pulsing crm-rail__skeleton">
+          <div class="crm-rail__skeleton-line is-short"></div>
+          <div class="crm-rail__skeleton-line"></div>
+          <div class="crm-rail__skeleton-line is-mid"></div>
+          <div class="crm-rail__skeleton-line"></div>
+          <div class="crm-rail__skeleton-line is-mid"></div>
+        </div>
+        <div class="t-skel-content"></div>
       </div>
     `;
   }
@@ -179,7 +185,7 @@ export default class extends Controller {
       if (this.hasPreviewBodyTarget && this.activeRow === requestedRow) {
         const fallbackHref = requestedRow ? requestedRow.dataset.contactHref : "";
         const fallbackHtml = `
-          <div class="crm-rail__panel">
+          <div class="crm-rail__panel t-panel-slide" data-open="false">
             <header class="crm-rail__header">
               <div class="crm-eyebrow">Preview unavailable</div>
               <button type="button" class="crm-rail__close" aria-label="Close preview"
@@ -210,6 +216,13 @@ export default class extends Controller {
     }
 
     this.previewBodyTarget.innerHTML = html;
+    const panel = this.previewBodyTarget.querySelector(".t-panel-slide");
+    if (panel) {
+      panel.setAttribute("data-open", "false");
+      requestAnimationFrame(() => {
+        panel.setAttribute("data-open", "true");
+      });
+    }
   }
 
   wait(ms) {
@@ -442,8 +455,10 @@ export default class extends Controller {
   }
 
   toggleClearButton() {
-    if (!this.hasClearSearchButtonTarget || !this.hasSearchInputTarget) return;
-    const hasValue = this.searchInputTarget.value.trim().length > 0;
-    this.clearSearchButtonTarget.classList.toggle("hidden", !hasValue);
+    if (!this.hasSearchInputTarget) return;
+    const wrap = this.searchInputTarget.closest(".t-clear");
+    if (wrap) {
+      wrap.classList.toggle("has-value", this.searchInputTarget.value.length > 0);
+    }
   }
 }

@@ -1,6 +1,6 @@
 <!-- Import Contacts Help Modal -->
 <div id="importHelpModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm overflow-y-auto h-full w-full z-50 transition-opacity">
-    <div class="relative top-12 mx-auto w-11/12 max-w-lg shadow-2xl rounded-2xl bg-white mb-12 overflow-hidden">
+    <div id="importHelpModalContent" class="t-modal relative top-12 mx-auto w-11/12 max-w-lg shadow-2xl rounded-2xl bg-white mb-12 overflow-hidden" role="dialog">
         
         <!-- Header with gradient -->
         <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5">
@@ -122,13 +122,22 @@
 
 <script>
 function openImportHelpModal() {
-    document.getElementById('importHelpModal').classList.remove('hidden');
+    const overlay = document.getElementById('importHelpModal');
+    const content = document.getElementById('importHelpModalContent');
+    overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    if (window.TMotion) TMotion.openModal(content);
 }
 
 function closeImportHelpModal() {
-    document.getElementById('importHelpModal').classList.add('hidden');
-    document.body.style.overflow = '';
+    const overlay = document.getElementById('importHelpModal');
+    const content = document.getElementById('importHelpModalContent');
+    const finish = () => {
+        overlay.classList.add('hidden');
+        document.body.style.overflow = '';
+    };
+    if (window.TMotion) TMotion.closeModal(content, finish);
+    else finish();
 }
 
 function proceedWithImport() {

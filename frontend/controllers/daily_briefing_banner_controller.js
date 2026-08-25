@@ -92,7 +92,7 @@ export default class extends Controller {
     this.element.classList.remove("hidden");
     if (this.hasLabelTarget) this.labelTarget.textContent = "Today · Daily Briefing";
     if (this.hasTeaserTarget) {
-      this.teaserTarget.textContent = "Building today's briefing…";
+      this._setTeaser("Building today's briefing…", true);
     }
     this._setActions({ review: false, later: true, retry: false, shimmer: true });
   }
@@ -101,8 +101,7 @@ export default class extends Controller {
     this.element.classList.remove("hidden");
     if (this.hasLabelTarget) this.labelTarget.textContent = "Today · Daily Briefing";
     if (this.hasTeaserTarget) {
-      this.teaserTarget.textContent =
-        data.teaser || data.headline || "Your plan for today is ready.";
+      this._setTeaser(data.teaser || data.headline || "Your plan for today is ready.", false);
     }
     this._setActions({ review: true, later: true, retry: false, shimmer: false });
   }
@@ -111,7 +110,7 @@ export default class extends Controller {
     this.element.classList.remove("hidden");
     if (this.hasLabelTarget) this.labelTarget.textContent = "Today · Daily Briefing";
     if (this.hasTeaserTarget) {
-      this.teaserTarget.textContent = "Couldn't build today's briefing.";
+      this._setTeaser("Couldn't build today's briefing.", false);
     }
     this._setActions({ review: false, later: true, retry: true, shimmer: false });
   }
@@ -176,5 +175,18 @@ export default class extends Controller {
       this.retryTarget.classList.toggle("hidden", !retry);
     }
     this.element.classList.toggle("is-generating", !!shimmer);
+  }
+
+  _setTeaser(text, thinking) {
+    const think = this.teaserTarget.querySelector(".t-think");
+    if (thinking && think && window.TMotion && TMotion.setThink) {
+      TMotion.setThink(think, text);
+      return;
+    }
+    if (!thinking) {
+      this.teaserTarget.textContent = text;
+      return;
+    }
+    this.teaserTarget.textContent = text;
   }
 }

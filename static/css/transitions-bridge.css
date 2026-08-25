@@ -1,0 +1,336 @@
+/* Repo-specific wiring so snippet motion sits on the existing glass chrome.
+   Snippet selectors stay untouched. Combined selectors win on rest look. */
+
+html[data-theme="dark"] {
+  --glow-opacity: 0.85;
+  --tabs-text-muted: rgba(255, 255, 255, 0.72);
+  --tabs-text-active: #fff7ed;
+  --tabs-bar-bg: color-mix(in srgb, var(--paper-2) 88%, transparent);
+  --tabs-pill-bg: color-mix(in srgb, var(--paper) 92%, transparent);
+  --think-base: #a8a29e;
+  --think-highlight: #fed7aa;
+}
+
+html[data-theme="light"] {
+  --tabs-text-muted: var(--ink-3);
+  --tabs-text-active: var(--ink);
+  --tabs-bar-bg: var(--paper-2);
+  --tabs-pill-bg: var(--paper);
+}
+
+html[data-theme="dark"] .t-clear-glow {
+  mix-blend-mode: screen;
+}
+
+/* Dropdowns: old chrome motion is retired so .t-dropdown owns opacity/scale. */
+.crm-search-results.t-dropdown,
+.crm-notification-popover.t-dropdown,
+.crm-user-dropdown.t-dropdown {
+  opacity: 0;
+  transform: scale(var(--dropdown-pre-scale));
+  pointer-events: none;
+}
+
+.crm-search-results.t-dropdown.is-open,
+.crm-notification-popover.t-dropdown.is-open,
+.crm-user-dropdown.t-dropdown.is-open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.crm-user-dropdown.t-dropdown {
+  background: var(--paper);
+}
+
+/* Badge: keep the orange pill, let .t-badge own the slot. */
+.crm-utility-icon-btn--bell .t-badge {
+  top: 0.1rem;
+  right: 0.35rem;
+}
+
+.crm-notif-badge.t-badge-dot {
+  position: static;
+  top: auto;
+  right: auto;
+}
+
+.crm-inbox-count {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.crm-inbox-count .t-badge {
+  position: relative;
+  top: auto;
+  right: auto;
+}
+
+/* Rail: layout column still opens. Panel reveal owns the card contents. */
+.crm-rail__inner {
+  opacity: 1;
+  transform: none;
+}
+
+.crm-contacts-layout.is-open .crm-rail__inner {
+  opacity: 1;
+  transform: none;
+}
+
+.crm-rail__inner > * {
+  animation: none;
+}
+
+.crm-rail .t-panel-slide {
+  --panel-translate-y: 24px;
+}
+
+/* After reveal, let real content size the rail / KPI grid. */
+.t-skel.is-revealed .t-skel-content {
+  position: relative;
+  inset: auto;
+}
+
+.t-skel.is-revealed .t-skel-skeleton {
+  pointer-events: none;
+}
+
+.crm-kpi-skel.t-skel {
+  min-height: 8.5rem;
+}
+
+.crm-kpi-skel .t-skel-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.crm-kpi-skel-bar {
+  height: 5.5rem;
+  border-radius: var(--radius-lg, 10px);
+  background: var(--paper-2);
+}
+
+.crm-rail-skel.t-skel {
+  min-height: 16rem;
+}
+
+/* Contacts list <-> detail: give the absolute pages a real height. */
+.crm-contacts-pages.t-page-slide {
+  min-height: 50vh;
+}
+
+.crm-contacts-page-body {
+  min-height: 100%;
+}
+
+/* Segments keep the existing chip bar. The pill slides underneath. */
+.crm-segment.t-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--paper-2);
+  border: 1px solid var(--hairline);
+  --tabs-bar-bg: transparent;
+  --tabs-pill-bg: var(--paper);
+}
+
+.crm-segment.t-tabs .crm-segment__item.t-tab {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 5px;
+  color: var(--ink-2);
+  background: transparent;
+  box-shadow: none;
+}
+
+.crm-segment.t-tabs .crm-segment__item.t-tab[aria-selected="true"],
+.crm-segment.t-tabs .crm-segment__item.t-tab.is-active {
+  color: var(--ink);
+  background: transparent;
+  box-shadow: none;
+}
+
+.crm-segment.t-tabs .t-tabs-pill {
+  top: 2px;
+  height: 26px;
+  border-radius: 5px;
+  background: var(--paper);
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.04), 0 0 0 1px var(--hairline);
+}
+
+[data-theme="dark"] .crm-segment.t-tabs {
+  background: var(--paper);
+}
+
+[data-theme="dark"] .crm-segment.t-tabs .t-tabs-pill {
+  background: var(--paper-3);
+  box-shadow: 0 0 0 1px var(--hairline-strong);
+}
+
+.crm-activity-tabs.t-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  --tabs-bar-bg: transparent;
+  --tabs-pill-bg: var(--ink);
+  --tabs-text-muted: var(--ink-2);
+  --tabs-text-active: var(--paper);
+}
+
+.crm-activity-tabs .t-tab.crm-chip {
+  height: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.crm-activity-tabs .t-tabs-pill {
+  top: 0;
+  height: auto;
+  min-height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+/* Toasts: snippet owns motion. Layout stays on .crm-toast. */
+.crm-toast.t-toast {
+  opacity: 0;
+}
+
+.crm-toast.t-toast.is-open {
+  opacity: 1;
+}
+
+/* Clear button sits on the existing search fields. */
+.t-clear-btn {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  z-index: 4;
+  display: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-4, #94a3b8);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.t-clear.has-value .t-clear-btn,
+.t-clear.is-clearing .t-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crm-utility-search.t-clear .t-clear-mirror,
+.crm-utility-search.t-clear .t-clear-placeholder {
+  padding: 0 2.75rem 0 2.25rem;
+  font-size: 0.8125rem;
+  color: #0f172a;
+}
+
+html[data-theme="dark"] .crm-utility-search.t-clear .t-clear-mirror,
+html[data-theme="dark"] .crm-utility-search.t-clear .t-clear-placeholder {
+  color: var(--ink);
+}
+
+.crm-toolbar__search.t-clear .t-clear-mirror,
+.crm-toolbar__search.t-clear .t-clear-placeholder {
+  padding: 0 2rem 0 11px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.t-clear-placeholder {
+  color: var(--ink-4, #94a3b8);
+}
+
+/* Checkbox: existing 16px box, orange/ink fill, snippet draws the stroke. */
+.t-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--hairline-strong, #cbd5e1);
+  border-radius: 4px;
+  background: var(--paper, #fff);
+  cursor: pointer;
+  appearance: none;
+}
+
+.t-check:hover {
+  border-color: var(--ink-4, #94a3b8);
+}
+
+.t-check[aria-checked="true"] {
+  background: var(--ink, #0f172a);
+  border-color: var(--ink, #0f172a);
+}
+
+.t-check svg {
+  width: 10px;
+  height: 10px;
+  overflow: visible;
+}
+
+.t-check svg path {
+  fill: none;
+  stroke: var(--paper, #fff);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.t-check-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.t-check-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.t-input.is-error {
+  border-color: var(--danger, #ef4444);
+}
+
+.t-icon-swap {
+  width: 1em;
+  height: 1em;
+  place-items: center;
+}
+
+.crm-theme-btn .t-icon-swap {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.crm-sidebar-toggle .t-icon-swap {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.bob-typing .t-think,
+.crm-section-kicker .t-think,
+.crm-magic-banner__copy .t-think {
+  text-align: left;
+}

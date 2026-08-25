@@ -41,6 +41,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/crm_toast.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/transitions-root.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/transitions-snippets.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/transitions-bridge.css') }}">
     <noscript>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css">
         <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}">
@@ -483,15 +486,6 @@
             box-shadow: 0 14px 40px -12px rgba(15, 23, 42, 0.25), 0 4px 14px -6px rgba(15, 23, 42, 0.12);
             z-index: 100;
             padding: 0.35rem 0;
-            opacity: 0;
-            transform: translateY(-2px);
-            transition: opacity 0.12s ease, transform 0.12s ease;
-            pointer-events: none;
-        }
-        .crm-search-results[data-open="true"] {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
         }
         .crm-search-group {
             padding: 0.2rem 0;
@@ -675,21 +669,9 @@
             box-shadow: 0 12px 36px -8px rgba(15,23,42,.22),
                         0 4px 14px -4px rgba(15,23,42,.08);
             z-index: 100;
-            opacity: 0;
-            transform: translateY(-4px);
-            pointer-events: none;
-            transition: opacity 0.15s ease, transform 0.15s ease;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        }
-        .crm-notification-popover.is-open {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .crm-notification-popover { transition-duration: 0.01ms; }
         }
 
         /* Header */
@@ -1510,10 +1492,8 @@
             color: var(--ink);
             border-color: var(--ink-5);
         }
-        .crm-theme-btn .crm-theme-btn__sun { display: none; }
-        .crm-theme-btn .crm-theme-btn__moon { display: inline; }
-        [data-theme="dark"] .crm-theme-btn .crm-theme-btn__sun { display: inline; }
-        [data-theme="dark"] .crm-theme-btn .crm-theme-btn__moon { display: none; }
+        .crm-theme-btn .t-icon-swap .crm-theme-btn__sun,
+        .crm-theme-btn .t-icon-swap .crm-theme-btn__moon { display: inline; }
 
         /* Smooth transition when toggling */
         html.crm-theme-transition,
@@ -2303,7 +2283,7 @@
         </div>
         {% if current_user.is_authenticated %}
         <div class="flex items-center gap-2 pr-4">
-            <form class="crm-utility-search" onsubmit="event.preventDefault();" role="search" autocomplete="off">
+            <form class="crm-utility-search t-clear" onsubmit="event.preventDefault();" role="search" autocomplete="off">
                 <i class="fas fa-search search-icon"></i>
                 <input id="crmGlobalSearchInput" type="text"
                        placeholder="Search contacts, transactions..."
@@ -2312,7 +2292,11 @@
                        aria-autocomplete="list"
                        aria-controls="crmGlobalSearchResults"
                        aria-expanded="false" />
-                <div id="crmGlobalSearchResults" class="crm-search-results" role="listbox" aria-label="Search results" hidden></div>
+                <div class="t-clear-mirror" aria-hidden="true"></div>
+                <div class="t-clear-placeholder" aria-hidden="true">Search contacts, transactions...</div>
+                <div class="t-clear-glow" aria-hidden="true"></div>
+                <button type="button" class="t-clear-btn" aria-label="Clear"><i class="fas fa-times" aria-hidden="true"></i></button>
+                <div id="crmGlobalSearchResults" class="crm-search-results t-dropdown" data-origin="top-left" role="listbox" aria-label="Search results" hidden></div>
             </form>
             {% if org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
             <button id="bob-toggle-desktop" type="button" class="crm-utility-btn">
@@ -2324,16 +2308,20 @@
             {% endif %}
             <button type="button" id="crmThemeToggle" class="crm-theme-btn"
                     aria-label="Toggle dark mode" title="Toggle theme">
-                <i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i>
-                <i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i>
+                <span class="t-icon-swap" data-t-theme-swap data-state="a">
+                    <span class="t-icon" data-icon="a"><i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i></span>
+                    <span class="t-icon" data-icon="b"><i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i></span>
+                </span>
             </button>
             <div class="crm-notifications-wrap" id="crmNotificationsWrap">
                 <button type="button" id="crmNotificationsBtn" class="crm-utility-icon-btn crm-utility-icon-btn--bell"
                         aria-label="Notifications" aria-expanded="false" aria-controls="crmNotificationPopover">
                     <i class="fas fa-bell" aria-hidden="true"></i>
-                    <span id="crmNotifBadge" class="crm-notif-badge" hidden></span>
+                    <span class="t-badge" id="crmNotifBadgeWrap" data-open="false">
+                        <span id="crmNotifBadge" class="t-badge-dot crm-notif-badge"></span>
+                    </span>
                 </button>
-                <div id="crmNotificationPopover" class="crm-notification-popover" role="status" aria-hidden="true">
+                <div id="crmNotificationPopover" class="crm-notification-popover t-dropdown" data-origin="top-right" role="status" aria-hidden="true">
                     <div class="crm-notif-header">
                         <span class="crm-notif-header__title">Notifications</span>
                         <div class="crm-notif-header__actions">
@@ -2392,8 +2380,10 @@
             <button type="button" id="crmThemeToggleMobile" class="crm-theme-btn"
                     aria-label="Toggle dark mode" title="Toggle theme"
                     style="height:2rem;width:2rem;">
-                <i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i>
-                <i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i>
+                <span class="t-icon-swap" data-t-theme-swap data-state="a">
+                    <span class="t-icon" data-icon="a"><i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i></span>
+                    <span class="t-icon" data-icon="b"><i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i></span>
+                </span>
             </button>
             <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
                 class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm font-semibold">
@@ -2659,7 +2649,10 @@
             <div class="crm-sidebar-toggle-row">
                 <button id="crmSidebarToggle" type="button" class="crm-sidebar-toggle"
                         aria-label="Toggle sidebar" aria-pressed="false">
-                    <i class="fas fa-bars text-sm"></i>
+                    <span class="t-icon-swap" data-t-sidebar-swap data-state="a">
+                        <span class="t-icon" data-icon="a"><i class="fas fa-bars text-sm"></i></span>
+                        <span class="t-icon" data-icon="b"><i class="fas fa-indent text-sm"></i></span>
+                    </span>
                 </button>
             </div>
 
@@ -2848,7 +2841,8 @@
 
                 <!-- Dropdown (moved to document.body on load — base.js) -->
                 <div id="userDropdown"
-                     class="crm-user-dropdown hidden rounded-md border border-slate-200 transition-opacity duration-200 opacity-0 max-h-[70vh] overflow-y-auto">
+                     class="crm-user-dropdown t-dropdown hidden rounded-md border border-slate-200 max-h-[70vh] overflow-y-auto"
+                     data-origin="bottom-left">
                     <!-- User Info Section -->
                     <div class="p-4 border-b border-gray-200">
                         <div class="flex items-center space-x-3">
@@ -2961,9 +2955,9 @@
         {% if messages %}
             {% for category, message in messages %}
                 {% set toast_type = toast_types.get(category, 'success') %}
-        <div class="crm-toast crm-toast--{{ toast_type }} is-in" role="{{ 'alert' if toast_type == 'error' else 'status' }}">
+        <div class="crm-toast crm-toast--{{ toast_type }} t-toast" role="{{ 'alert' if toast_type == 'error' else 'status' }}">
             <span class="crm-toast__icon" aria-hidden="true"><i class="fas {{ toast_icons.get(toast_type, 'fa-check') }}"></i></span>
-            <p class="crm-toast__message">{{ message }}</p>
+            <p class="crm-toast__message toast-message">{{ message }}</p>
             <button type="button" class="crm-toast__close" aria-label="Dismiss">
                 <i class="fas fa-times" aria-hidden="true"></i>
             </button>
@@ -2974,6 +2968,7 @@
     {% endwith %}
 
     <!-- Toasts, then base JS: sidebar, user dropdown, tooltips, mobile menu -->
+    <script src="{{ url_for('static', filename='js/transitions.js') }}"></script>
     <script src="{{ url_for('static', filename='js/crm_toast.js') }}"></script>
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 
@@ -2989,6 +2984,7 @@
                 root.classList.toggle('sidebar-expanded', expanded);
                 try { localStorage.setItem('sidebar-expanded', expanded ? 'true' : 'false'); } catch (e) {}
                 if (toggle) toggle.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+                if (window.TMotion) TMotion.initThemeIcons();
             }
 
             if (toggle) {
@@ -3086,13 +3082,20 @@
                 requestAnimationFrame(function () {
                     positionPanel();
                     panel.setAttribute('data-open', 'true');
+                    if (window.TMotion) TMotion.openDropdown(panel);
                 });
                 input.setAttribute('aria-expanded', 'true');
             }
             function closePanel() {
                 panel.removeAttribute('data-open');
                 input.setAttribute('aria-expanded', 'false');
-                setTimeout(function () { if (!panel.hasAttribute('data-open')) panel.hidden = true; }, 120);
+                if (window.TMotion) {
+                    TMotion.closeDropdown(panel, function () {
+                        if (!TMotion.isDropdownOpen(panel)) panel.hidden = true;
+                    });
+                } else {
+                    setTimeout(function () { if (!panel.hasAttribute('data-open')) panel.hidden = true; }, 120);
+                }
                 activeIndex = -1;
             }
 
@@ -3200,10 +3203,10 @@
             });
 
             window.addEventListener('resize', function () {
-                if (panel.hasAttribute('data-open')) positionPanel();
+                if (panel.classList.contains('is-open') || panel.hasAttribute('data-open')) positionPanel();
             });
             window.addEventListener('scroll', function () {
-                if (panel.hasAttribute('data-open')) positionPanel();
+                if (panel.classList.contains('is-open') || panel.hasAttribute('data-open')) positionPanel();
             }, true);
         })();
     </script>
@@ -3243,7 +3246,8 @@
             function clearHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
             function hide() {
                 clearHide();
-                pop.classList.remove('is-open');
+                if (window.TMotion) TMotion.closeDropdown(pop);
+                else pop.classList.remove('is-open');
                 pop.setAttribute('aria-hidden', 'true');
                 btn.setAttribute('aria-expanded', 'false');
             }
@@ -3255,7 +3259,8 @@
                 requestAnimationFrame(function () {
                     requestAnimationFrame(function () {
                         positionPopover();
-                        pop.classList.add('is-open');
+                        if (window.TMotion) TMotion.openDropdown(pop);
+                        else pop.classList.add('is-open');
                     });
                 });
                 load();
@@ -3296,8 +3301,16 @@
 
             /* ── helpers ── */
             function setBadge(n) {
-                if (n > 0) { badge.textContent = n > 99 ? '99+' : n; badge.hidden = false; }
-                else { badge.hidden = true; }
+                var wrap = document.getElementById('crmNotifBadgeWrap');
+                if (n > 0) {
+                    badge.textContent = n > 99 ? '99+' : n;
+                    badge.hidden = false;
+                    if (wrap) wrap.setAttribute('data-open', 'true');
+                } else {
+                    badge.textContent = '';
+                    if (wrap) wrap.setAttribute('data-open', 'false');
+                    else badge.hidden = true;
+                }
             }
             function ago(iso) {
                 var s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -3535,6 +3548,7 @@
 
             function apply(theme) {
                 html.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+                if (window.TMotion) TMotion.initThemeIcons();
             }
 
             function toggle() {

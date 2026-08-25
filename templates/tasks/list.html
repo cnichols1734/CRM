@@ -209,11 +209,13 @@
                 <li class="task-row priority-{{ task.priority }} {% if task.status == 'completed' %}is-completed{% endif %}"
                     onclick="window.location.href='{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks'">
                     <div class="flex items-center gap-4 px-5 py-3.5 pl-6">
-                        <input type="checkbox"
-                               {% if task.status == 'completed' %}checked{% endif %}
-                               onclick="event.stopPropagation();"
-                               onchange="quickUpdateStatus({{ task.id }}, this.checked)"
-                               class="task-check">
+                        <button type="button"
+                               class="t-check task-check"
+                               role="checkbox"
+                               aria-checked="{{ 'true' if task.status == 'completed' else 'false' }}"
+                               onclick="event.stopPropagation(); var on = this.getAttribute('aria-checked') !== 'true'; if (window.TMotion) TMotion.setChecked(this, on); else this.setAttribute('aria-checked', on ? 'true' : 'false'); quickUpdateStatus({{ task.id }}, on);">
+                            <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+                        </button>
 
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">

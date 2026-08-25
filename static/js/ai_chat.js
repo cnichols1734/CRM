@@ -1158,23 +1158,22 @@ class BOBChatPanel {
     }
     
     showTyping() {
-        this.isTyping = true;
+        this.hideTyping();
         const messagesDiv = document.getElementById('bob-messages');
         const typingEl = document.createElement('div');
         typingEl.className = 'bob-typing';
         typingEl.id = 'bob-typing-indicator';
         typingEl.innerHTML = `
-            <span class="bob-typing-text">Thinking...</span>
-            <div class="bob-typing-dots">
-                <span></span><span></span><span></span>
-            </div>
+            <span class="t-think" role="status">
+                <span class="t-think-sizer" aria-hidden="true">Thinking...</span>
+                <span class="t-think-text" data-text="Thinking...">Thinking...</span>
+            </span>
         `;
         messagesDiv.appendChild(typingEl);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
     
     hideTyping() {
-        this.isTyping = false;
         const typing = document.getElementById('bob-typing-indicator');
         if (typing) typing.remove();
     }
@@ -1241,15 +1240,21 @@ class BOBChatPanel {
         this.autoResizeTextarea();
         this.removeAttachment();
         
-        // Create streaming message element
         const messagesDiv = document.getElementById('bob-messages');
-        const aiMessageEl = document.createElement('div');
-        aiMessageEl.className = 'bob-message assistant streaming';
-        aiMessageEl.innerHTML = '<span class="bob-cursor">▌</span>';
-        messagesDiv.appendChild(aiMessageEl);
-        
         this.isTyping = true;
+        this.showTyping();
         document.getElementById('bob-send-btn').disabled = true;
+
+        let aiMessageEl = null;
+        const ensureStreamEl = () => {
+            if (aiMessageEl) return aiMessageEl;
+            this.hideTyping();
+            aiMessageEl = document.createElement('div');
+            aiMessageEl.className = 'bob-message assistant streaming';
+            aiMessageEl.innerHTML = '<span class="bob-cursor">▌</span>';
+            messagesDiv.appendChild(aiMessageEl);
+            return aiMessageEl;
+        };
         
         // Variables to track file upload result
         let fileUrl = null;
@@ -1328,7 +1333,12 @@ class BOBChatPanel {
             // Action chips show what B.O.B. is doing in the CRM. Tool calls run
             // sequentially, so pairing each result with the oldest open chip is
             // correct.
-            const activityEl = this.createToolActivityStrip(messagesDiv, aiMessageEl);
+            let activityEl = null;
+            const ensureActivity = () => {
+                ensureStreamEl();
+                if (!activityEl) activityEl = this.createToolActivityStrip(messagesDiv, aiMessageEl);
+                return activityEl;
+            };
             const openChips = [];
             const pendingConfirms = [];
 
@@ -1353,7 +1363,12 @@ class BOBChatPanel {
 
                         if (data.startsWith('[BOB_TOOL_START]')) {
                             const payload = this.parseToolEvent(data, '[BOB_TOOL_START]');
-                            if (payload) openChips.push(this.addToolChip(activityEl, payload));
+                            if (payload) {
+                                const label = payload.label || payload.name;
+                                const think = document.querySelector('#bob-typing-indicator .t-think');
+                                if (think && label && window.TMotion) TMotion.setThink(think, label);
+                                openChips.push(this.addToolChip(ensureActivity(), payload));
+                            }
                             messagesDiv.scrollTop = messagesDiv.scrollHeight;
                             continue;
                         }
@@ -1379,6 +1394,7 @@ class BOBChatPanel {
                         const display = fullResponse
                             .replace(/\\n/g, '\n')
                             .replace(/\\r/g, '\r');
+                        ensureStreamEl();
                         aiMessageEl.innerHTML = this.formatMessage(display) + '<span class="bob-cursor">▌</span>';
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                     }
@@ -1389,8 +1405,12 @@ class BOBChatPanel {
             fullResponse = fullResponse
                 .replace(/\\n/g, '\n')
                 .replace(/\\r/g, '\r');
-            aiMessageEl.innerHTML = this.formatMessage(fullResponse);
-            aiMessageEl.classList.remove('streaming');
+            if (fullResponse || pendingConfirms.length) ensureStreamEl();
+            this.hideTyping();
+            if (aiMessageEl) {
+                aiMessageEl.innerHTML = this.formatMessage(fullResponse);
+                aiMessageEl.classList.remove('streaming');
+            }
 
             // Approval cards sit after B.O.B.'s explanation so the agent reads
             // the reasoning before deciding.
@@ -1437,10 +1457,14 @@ class BOBChatPanel {
             
         } catch (error) {
             console.error('Error:', error);
-            aiMessageEl.innerHTML = this.formatMessage('Sorry, I encountered an error. Please try again.');
-            aiMessageEl.classList.remove('streaming');
+            ensureStreamEl();
+            if (aiMessageEl) {
+                aiMessageEl.innerHTML = this.formatMessage('Sorry, I encountered an error. Please try again.');
+                aiMessageEl.classList.remove('streaming');
+            }
         } finally {
             this.isTyping = false;
+            this.hideTyping();
             document.getElementById('bob-send-btn').disabled = false;
             this.mentionedContacts = [];
             document.getElementById('bob-textarea').focus();

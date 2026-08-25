@@ -1,0 +1,601 @@
+/**
+ * transitions-dev orchestration for AgentFlow chrome.
+ * Timing always reads from CSS custom properties.
+ */
+(function (global) {
+  'use strict';
+
+  var root = document.documentElement;
+
+  function cssMs(name, fallback) {
+    var v = parseFloat(getComputedStyle(root).getPropertyValue(name));
+    return Number.isFinite(v) ? v : fallback;
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function openDropdown(el) {
+    if (!el) return;
+    el.hidden = false;
+    el.classList.remove('hidden', 'is-closing');
+    el.classList.add('is-open');
+  }
+
+  function closeDropdown(el, after) {
+    if (!el) return;
+    el.classList.remove('is-open');
+    el.classList.add('is-closing');
+    var ms = prefersReducedMotion() ? 0 : cssMs('--dropdown-close-dur', 150);
+    setTimeout(function () {
+      el.classList.remove('is-closing');
+      if (after) after();
+    }, ms);
+  }
+
+  function isDropdownOpen(el) {
+    return !!(el && el.classList.contains('is-open'));
+  }
+
+  function openModal(el) {
+    if (!el) return;
+    el.classList.remove('hidden', 'is-closing');
+    el.classList.add('is-open');
+  }
+
+  function closeModal(el, after) {
+    if (!el) return;
+    el.classList.remove('is-open');
+    el.classList.add('is-closing');
+    var ms = prefersReducedMotion() ? 0 : cssMs('--modal-close-dur', 150);
+    setTimeout(function () {
+      el.classList.remove('is-closing');
+      if (after) after();
+    }, ms);
+  }
+
+  function openToast(el) {
+    if (!el) return;
+    el.classList.add('t-toast');
+    requestAnimationFrame(function () {
+      el.classList.add('is-open');
+    });
+  }
+
+  function closeToast(el, after) {
+    if (!el) return;
+    el.classList.remove('is-open');
+    var ms = prefersReducedMotion() ? 0 : cssMs('--toast-close', 250);
+    setTimeout(function () {
+      if (after) after();
+    }, ms);
+  }
+
+  function setDigits(group, str) {
+    if (!group) return;
+    group.classList.remove('is-animating');
+    group.replaceChildren();
+    var chars = String(str).split('');
+    chars.forEach(function (ch, i) {
+      var span = document.createElement('span');
+      span.className = 't-digit';
+      span.textContent = ch;
+      if (i === chars.length - 2) span.dataset.stagger = '1';
+      else if (i === chars.length - 1) span.dataset.stagger = '2';
+      group.appendChild(span);
+    });
+    void group.offsetHeight;
+    group.classList.add('is-animating');
+  }
+
+  function fillDigitGroups(scope) {
+    (scope || document).querySelectorAll('.t-digit-group[data-t-digits]').forEach(function (group) {
+      var skel = group.closest('.t-skel');
+      if (skel && !skel.classList.contains('is-revealed')) return;
+      setDigits(group, group.getAttribute('data-t-digits') || '');
+    });
+  }
+
+  function showPage(slider, n) {
+    if (!slider) return;
+    slider.setAttribute('data-page', String(n));
+    syncContactsPageHeight(slider);
+  }
+
+  function syncContactsPageHeight(slider) {
+    if (!slider) return;
+    var n = slider.getAttribute('data-page') || '1';
+    var page = slider.querySelector('.t-page[data-page-id="' + n + '"]');
+    var body = page && page.querySelector('.crm-contacts-page-body');
+    if (!body) return;
+    slider.style.height = body.scrollHeight + 'px';
+  }
+
+  function moveTabsTo(bar, tab, animate) {
+    if (!bar || !tab) return;
+    var pill = bar.querySelector('.t-tabs-pill');
+    if (!pill) return;
+    if (!animate) {
+      var prev = pill.style.transition;
+      pill.style.transition = 'none';
+      pill.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
+      pill.style.width = tab.offsetWidth + 'px';
+      void pill.offsetWidth;
+      pill.style.transition = prev;
+    } else {
+      pill.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
+      pill.style.width = tab.offsetWidth + 'px';
+    }
+  }
+
+  function activeTab(bar) {
+    var tabs = bar.querySelectorAll('.t-tab');
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].getAttribute('aria-selected') === 'true' || tabs[i].classList.contains('is-active')) {
+        return tabs[i];
+      }
+    }
+    return tabs[0] || null;
+  }
+
+  function initTabs(bar) {
+    if (!bar || bar._tTabsBound) return;
+    bar._tTabsBound = true;
+    if (!bar.classList.contains('t-tabs')) bar.classList.add('t-tabs');
+    if (!bar.querySelector('.t-tabs-pill')) {
+      var pill = document.createElement('span');
+      pill.className = 't-tabs-pill';
+      pill.setAttribute('aria-hidden', 'true');
+      bar.insertBefore(pill, bar.firstChild);
+    }
+    var tabs = Array.prototype.slice.call(bar.querySelectorAll('.crm-segment__item, .timeline-filter-btn, .t-tab'));
+    tabs.forEach(function (tab) {
+      tab.classList.add('t-tab');
+      if (!tab.getAttribute('role')) tab.setAttribute('role', 'tab');
+      var selected = tab.classList.contains('is-active') || tab.getAttribute('aria-selected') === 'true' || tab.getAttribute('aria-current') === 'page';
+      tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) {
+          t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+        });
+        moveTabsTo(bar, tab, true);
+      });
+    });
+    requestAnimationFrame(function () {
+      moveTabsTo(bar, activeTab(bar), false);
+    });
+    window.addEventListener('resize', function () {
+      moveTabsTo(bar, activeTab(bar), false);
+    });
+  }
+
+  function syncTabs(bar) {
+    if (!bar) return;
+    var tabs = bar.querySelectorAll('.t-tab');
+    tabs.forEach(function (tab) {
+      var selected = tab.classList.contains('is-active') || tab.getAttribute('aria-current') === 'page';
+      tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+    moveTabsTo(bar, activeTab(bar), true);
+  }
+
+  function bezier(str) {
+    var m = String(str).match(/cubic-bezier\(([-\d.]+),\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)/);
+    if (!m) return function (t) { return t; };
+    var x1 = parseFloat(m[1]), y1 = parseFloat(m[2]), x2 = parseFloat(m[3]), y2 = parseFloat(m[4]);
+    var cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    var cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    return function (t) {
+      if (t <= 0) return 0;
+      if (t >= 1) return 1;
+      var s = t;
+      for (var i = 0; i < 8; i++) {
+        var dx = ((ax * s + bx) * s + cx) * s - t;
+        var d = (3 * ax * s + 2 * bx) * s + cx;
+        if (Math.abs(dx) < 1e-6 || d === 0) break;
+        s -= dx / d;
+      }
+      return ((ay * s + by) * s + cy) * s;
+    };
+  }
+
+  function initClear(wrap) {
+    if (!wrap || wrap._tClearBound) return;
+    wrap._tClearBound = true;
+    var input = wrap.querySelector('input');
+    var mirror = wrap.querySelector('.t-clear-mirror');
+    var phold = wrap.querySelector('.t-clear-placeholder');
+    var glow = wrap.querySelector('.t-clear-glow');
+    var btn = wrap.querySelector('.t-clear-btn');
+    if (!input || !mirror || !phold || !glow || !btn) return;
+
+    var canvas = document.createElement('canvas').getContext('2d');
+    var clearing = false;
+
+    var sync = function () {
+      var has = input.value.length > 0;
+      wrap.classList.toggle('has-value', has);
+      if (has) mirror.textContent = input.value.replace(/ /g, '\u00a0');
+    };
+
+    function buildGlow(text) {
+      canvas.font = getComputedStyle(input).font;
+      var isDark = root.getAttribute('data-theme') === 'dark';
+      var rgb = isDark ? '255,255,255' : '0,0,0';
+      var w = wrap.clientWidth || 280;
+      var padLeft = parseFloat(getComputedStyle(input).paddingLeft) || 12;
+      var spread = cssMs('--glow-spread', 1.5);
+      var layers = [];
+      var x = 0;
+      String(text).split(/(\s+)/).forEach(function (seg) {
+        var segW = canvas.measureText(seg).width;
+        if (seg.trim()) {
+          var cx = padLeft + x + segW / 2;
+          var hw = Math.max(segW * 0.45, 8) * spread;
+          [[0, 0.8, 7, 0.22], [hw * 0.45, 0.55, 8, 0.18],
+           [-hw * 0.4, 0.65, 6, 0.16], [hw * 0.15, 0.9, 5, 0.14]]
+            .forEach(function (row) {
+              var dx = row[0], rwm = row[1], rh = row[2], a = row[3];
+              var lx = (((cx + dx) / w) * 100).toFixed(2);
+              layers.push(
+                'radial-gradient(ellipse ' + Math.max(hw * rwm, 2).toFixed(1) + 'px ' + rh + 'px at ' + lx + '% 100%, rgba(' + rgb + ',' + a + '), transparent)'
+              );
+            });
+        }
+        x += segW;
+      });
+      return layers.join(', ');
+    }
+
+    function clearWithAnimation() {
+      if (clearing || !input.value) return;
+      clearing = true;
+      var keepFocus = document.activeElement === input;
+      mirror.textContent = input.value.replace(/ /g, '\u00a0');
+
+      var total = cssMs('--clear-dur', 1000);
+      var outDur = cssMs('--clear-out-dur', 400);
+      var inDur = cssMs('--clear-in-dur', 400);
+      var outFly = cssMs('--clear-out-fly', 12);
+      var inFly = cssMs('--clear-in-fly', 12);
+      var blur = cssMs('--clear-blur', 2);
+      var delay = cssMs('--glow-delay', 50);
+      var peakAt = cssMs('--glow-peak-at', 0.15);
+      var gOp = cssMs('--glow-opacity', 0.42);
+      var easeOut = bezier(getComputedStyle(root).getPropertyValue('--clear-out-ease'));
+      var easeIn = bezier(getComputedStyle(root).getPropertyValue('--clear-in-ease'));
+
+      input.value = '';
+      wrap.classList.remove('has-value');
+      wrap.classList.add('is-clearing');
+      glow.style.background = buildGlow(mirror.textContent);
+      glow.style.opacity = '0';
+      phold.style.transform = 'translateY(-' + inFly + 'px)';
+      phold.style.opacity = '0.9';
+      phold.style.filter = 'blur(' + blur + 'px)';
+
+      var t0 = performance.now();
+      (function tick(now) {
+        var el = now - t0;
+        var eo = easeOut(Math.min(1, el / outDur));
+        mirror.style.transform = 'translateY(' + (eo * outFly).toFixed(1) + 'px)';
+        mirror.style.opacity = (1 - eo).toFixed(3);
+        mirror.style.filter = 'blur(' + (eo * blur).toFixed(1) + 'px)';
+
+        var ei = easeIn(Math.min(1, el / inDur));
+        phold.style.transform = 'translateY(' + (-inFly + ei * inFly).toFixed(1) + 'px)';
+        phold.style.opacity = (0.9 + ei * 0.1).toFixed(3);
+        phold.style.filter = 'blur(' + (blur - ei * blur).toFixed(1) + 'px)';
+
+        var g = 0;
+        if (el > delay) {
+          var gp = Math.min(1, (el - delay) / Math.max(1, total - delay));
+          g = gp < peakAt ? gp / peakAt : 1 - (gp - peakAt) / (1 - peakAt);
+        }
+        glow.style.opacity = (g * gOp).toFixed(3);
+
+        if (el < total && !prefersReducedMotion()) {
+          requestAnimationFrame(tick);
+        } else {
+          wrap.classList.remove('is-clearing');
+          [mirror, phold].forEach(function (node) { node.style.cssText = ''; });
+          mirror.textContent = '';
+          glow.style.opacity = '0';
+          glow.style.background = '';
+          clearing = false;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          wrap.dispatchEvent(new CustomEvent('t:cleared', { bubbles: true }));
+          if (keepFocus) requestAnimationFrame(function () { input.focus({ preventScroll: true }); });
+        }
+      })(performance.now());
+    }
+
+    var keep = function (e) { if (document.activeElement === input) e.preventDefault(); };
+    btn.addEventListener('pointerdown', keep);
+    btn.addEventListener('mousedown', keep);
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      clearWithAnimation();
+    });
+    input.addEventListener('input', sync);
+    sync();
+  }
+
+  function calibrateCheck(el) {
+    if (!el) return;
+    var path = el.querySelector('svg path');
+    if (!path || typeof path.getTotalLength !== 'function') return;
+    var len = Math.ceil(path.getTotalLength()) + 1;
+    el.style.setProperty('--check-len', String(len));
+  }
+
+  function setChecked(el, on) {
+    if (!el) return;
+    el.setAttribute('aria-checked', on ? 'true' : 'false');
+    var native = el.parentElement && el.parentElement.querySelector('.t-check-native, .todo-checkbox');
+    if (native) native.checked = !!on;
+  }
+
+  function initCheck(el) {
+    if (!el || el._tCheckBound) return;
+    el._tCheckBound = true;
+    calibrateCheck(el);
+    var native = el.parentElement && el.parentElement.querySelector('.t-check-native, input[type="checkbox"]');
+    if (native) {
+      el.setAttribute('aria-checked', native.checked ? 'true' : 'false');
+      native.addEventListener('change', function () {
+        el.setAttribute('aria-checked', native.checked ? 'true' : 'false');
+      });
+      el.addEventListener('click', function (e) {
+        if (e.target === native) return;
+        e.preventDefault();
+        native.checked = !native.checked;
+        native.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+  }
+
+  function revealSkeleton(skel) {
+    if (!skel) return;
+    skel.classList.add('is-revealed');
+  }
+
+  function resetSkeleton(skel) {
+    if (!skel) return;
+    var skeleton = skel.querySelector('.t-skel-skeleton');
+    skel.classList.add('is-resetting');
+    skel.classList.remove('is-revealed');
+    if (skeleton) skeleton.classList.remove('is-pulsing');
+    void (skeleton ? skeleton.offsetWidth : skel.offsetWidth);
+    skel.classList.remove('is-resetting');
+    if (skeleton) skeleton.classList.add('is-pulsing');
+  }
+
+  function swapText(el, next) {
+    if (!el) return;
+    var dur = prefersReducedMotion() ? 0 : cssMs('--text-swap-dur', 150);
+    el.classList.add('is-exit');
+    setTimeout(function () {
+      el.textContent = next;
+      el.classList.remove('is-exit');
+      el.classList.add('is-enter-start');
+      void el.offsetHeight;
+      el.classList.remove('is-enter-start');
+    }, dur);
+  }
+
+  function showError(wrap) {
+    if (!wrap) return;
+    var input = wrap.querySelector('.t-input');
+    if (!input) return;
+    wrap.classList.add('is-error');
+    input.classList.add('is-error');
+    input.classList.remove('is-shaking');
+    void input.offsetWidth;
+    input.classList.add('is-shaking');
+    var shakeMs = cssMs('--shake-dur-a', 80) * 2 + cssMs('--shake-dur-b', 60) * 2;
+    setTimeout(function () { input.classList.remove('is-shaking'); }, shakeMs + 20);
+    if (wrap._revertTimer) clearTimeout(wrap._revertTimer);
+    var hold = cssMs('--revert-hold', 3000);
+    wrap._revertTimer = setTimeout(function () {
+      wrap._revertTimer = null;
+      wrap.classList.remove('is-error');
+      input.classList.remove('is-error');
+    }, shakeMs + hold);
+  }
+
+  function bindErrorInputs(scope) {
+    (scope || document).querySelectorAll('.t-input-wrap').forEach(function (wrap) {
+      if (wrap._tErrorBound) return;
+      wrap._tErrorBound = true;
+      var field = wrap.querySelector('input, textarea');
+      if (!field) return;
+      field.addEventListener('input', function () {
+        if (wrap._revertTimer) {
+          clearTimeout(wrap._revertTimer);
+          wrap._revertTimer = null;
+        }
+        wrap.classList.remove('is-error');
+        var box = wrap.querySelector('.t-input');
+        if (box) box.classList.remove('is-error');
+      });
+      field.addEventListener('invalid', function (e) {
+        e.preventDefault();
+        showError(wrap);
+      });
+    });
+  }
+
+  function extractContactsBody(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.querySelector('.crm-contacts-page-body');
+  }
+
+  function isContactViewUrl(href) {
+    try {
+      var url = new URL(href, window.location.origin);
+      return /^\/contact\/\d+\/?$/.test(url.pathname);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isContactsListUrl(href) {
+    try {
+      var url = new URL(href, window.location.origin);
+      return url.pathname === '/contacts';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function initContactsPageSlide() {
+    var slider = document.getElementById('crmContactsPages');
+    if (!slider) return;
+
+    slider.style.setProperty('--page-exit-enabled', '0');
+    syncContactsPageHeight(slider);
+    requestAnimationFrame(function () {
+      slider.style.setProperty('--page-exit-enabled', '1');
+    });
+
+    window.addEventListener('resize', function () {
+      syncContactsPageHeight(slider);
+    });
+
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest('a');
+      if (!link || link.target === '_blank' || event.metaKey || event.ctrlKey || event.shiftKey) return;
+      var href = link.getAttribute('href');
+      if (!href) return;
+
+      var current = slider.getAttribute('data-page') || '1';
+      var next = null;
+      if (current === '1' && isContactViewUrl(href)) next = 2;
+      if (current === '2' && isContactsListUrl(href) && link.classList.contains('crm-back')) next = 1;
+      if (!next) return;
+
+      event.preventDefault();
+      fetch(href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (res) { return res.ok ? res.text() : Promise.reject(res); })
+        .then(function (html) {
+          var incoming = extractContactsBody(html);
+          var targetPage = slider.querySelector('.t-page[data-page-id="' + next + '"]');
+          var slot = targetPage && targetPage.querySelector('.crm-contacts-page-body');
+          if (!incoming || !slot) {
+            window.location.assign(href);
+            return;
+          }
+          slot.replaceWith(incoming);
+          showPage(slider, next);
+          history.pushState({ contactsPage: next }, '', href);
+          var wait = prefersReducedMotion() ? 0 : cssMs('--page-slide-dur', 250);
+          setTimeout(function () {
+            window.location.assign(href);
+          }, wait + 40);
+        })
+        .catch(function () {
+          window.location.assign(href);
+        });
+    });
+  }
+
+  function setThink(box, next) {
+    if (!box || next == null) return;
+    var live = box.querySelector('.t-think-text:not(.is-exit)');
+    if (!live) {
+      live = document.createElement('span');
+      live.className = 't-think-text';
+      box.appendChild(live);
+    }
+    if (live.textContent === next && live.getAttribute('data-text') === next) return;
+    var swap = prefersReducedMotion() ? 0 : cssMs('--think-swap', 150);
+    var gap = prefersReducedMotion() ? 0 : cssMs('--think-gap', 50);
+    live.classList.add('is-exit');
+    var incoming = document.createElement('span');
+    incoming.className = 't-think-text is-enter-start';
+    incoming.textContent = next;
+    incoming.setAttribute('data-text', next);
+    box.appendChild(incoming);
+    var release = function () {
+      void incoming.offsetWidth;
+      incoming.classList.remove('is-enter-start');
+    };
+    if (gap > 0) setTimeout(release, gap);
+    else release();
+    setTimeout(function () { live.remove(); }, swap + gap);
+  }
+
+  function initThemeIcons() {
+    var theme = root.getAttribute('data-theme') === 'light' ? 'b' : 'a';
+    document.querySelectorAll('[data-t-theme-swap]').forEach(function (el) {
+      el.setAttribute('data-state', theme);
+    });
+    var expanded = root.classList.contains('sidebar-expanded');
+    document.querySelectorAll('[data-t-sidebar-swap]').forEach(function (el) {
+      el.setAttribute('data-state', expanded ? 'b' : 'a');
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll('.t-clear').forEach(initClear);
+    document.querySelectorAll('.t-check').forEach(initCheck);
+    document.querySelectorAll('.crm-segment, .crm-activity-tabs').forEach(initTabs);
+    document.querySelectorAll('.t-toast').forEach(function (toast) {
+      if (!toast.classList.contains('is-open')) openToast(toast);
+    });
+    fillDigitGroups(document);
+    document.querySelectorAll('.t-skel[data-reveal-on="load"]').forEach(function (skel) {
+      var total = cssMs('--pulse-dur', 1000) * cssMs('--pulse-count', 1);
+      setTimeout(function () {
+        revealSkeleton(skel);
+        fillDigitGroups(skel);
+      }, prefersReducedMotion() ? 0 : total);
+    });
+    bindErrorInputs(document);
+    document.querySelectorAll('.t-input-wrap.is-error').forEach(function (wrap) {
+      var input = wrap.querySelector('.t-input');
+      if (input) {
+        input.classList.add('is-error');
+        input.classList.remove('is-shaking');
+        void input.offsetWidth;
+        input.classList.add('is-shaking');
+      }
+    });
+    initThemeIcons();
+    initContactsPageSlide();
+  }
+
+  global.TMotion = {
+    cssMs: cssMs,
+    openDropdown: openDropdown,
+    closeDropdown: closeDropdown,
+    isDropdownOpen: isDropdownOpen,
+    openModal: openModal,
+    closeModal: closeModal,
+    openToast: openToast,
+    closeToast: closeToast,
+    setDigits: setDigits,
+    showPage: showPage,
+    initTabs: initTabs,
+    syncTabs: syncTabs,
+    initClear: initClear,
+    initCheck: initCheck,
+    setChecked: setChecked,
+    revealSkeleton: revealSkeleton,
+    resetSkeleton: resetSkeleton,
+    swapText: swapText,
+    showError: showError,
+    initThemeIcons: initThemeIcons,
+    syncContactsPageHeight: syncContactsPageHeight,
+    setThink: setThink
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})(window);

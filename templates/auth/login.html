@@ -396,18 +396,20 @@
             <input type="hidden" name="next" id="nextUrl" value="{{ request.args.get('next', '') }}">
 
             <!-- Username -->
-            <div>
+            <div class="t-input-wrap{% if form.username.errors %} is-error{% endif %}">
               <label class="label" for="{{ form.username.id }}">Email or username</label>
-              {{ form.username(class="input crm-input", placeholder="you@company.com", autocomplete="username") }}
+              {{ form.username(class="input crm-input t-input", placeholder="you@company.com", autocomplete="username") }}
               {% if form.username.errors %}
                 {% for error in form.username.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+                  <p class="t-error-msg text-red-600 text-xs mt-1">{{ error }}</p>
                 {% endfor %}
+              {% else %}
+              <p class="t-error-msg"></p>
               {% endif %}
             </div>
 
             <!-- Password -->
-            <div>
+            <div class="t-input-wrap{% if form.password.errors %} is-error{% endif %}">
               <div class="flex items-center justify-between">
                 <label class="label" for="{{ form.password.id }}">Password</label>
                 <a href="{{ url_for('auth.reset_request') }}" class="hint-link">Forgot password?</a>
@@ -415,7 +417,7 @@
 
               <div class="flex gap-2">
                 <div class="flex-1">
-                  {{ form.password(class="input crm-input", placeholder="••••••••", autocomplete="current-password") }}
+                  {{ form.password(class="input crm-input t-input", placeholder="••••••••", autocomplete="current-password") }}
                 </div>
                 <button type="button" class="icon-btn" id="togglePassword" aria-label="Show password">
                   <i class="fas fa-eye"></i>
@@ -424,8 +426,10 @@
 
               {% if form.password.errors %}
                 {% for error in form.password.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+                  <p class="t-error-msg text-red-600 text-xs mt-1">{{ error }}</p>
                 {% endfor %}
+              {% else %}
+              <p class="t-error-msg"></p>
               {% endif %}
             </div>
 

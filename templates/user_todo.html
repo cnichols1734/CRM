@@ -291,9 +291,11 @@
             <span class="drag-handle" title="Drag to reorder">
                 <i class="fas fa-grip-vertical text-xs"></i>
             </span>
-            <span class="relative inline-flex items-center justify-center">
-                <input type="checkbox" class="todo-checkbox">
-                <i class="fas fa-check check-icon"></i>
+            <span class="t-check-wrap relative inline-flex items-center justify-center">
+                <input type="checkbox" class="todo-checkbox t-check-native">
+                <button type="button" class="t-check" role="checkbox" aria-checked="false" tabindex="-1">
+                    <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+                </button>
             </span>
             <div class="todo-text-wrap">
                 <p class="todo-text"></p>

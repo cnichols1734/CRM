@@ -15,6 +15,12 @@
 </style>
 
 <div class="crm-page">
+    <div class="t-page-slide crm-contacts-pages" data-page="2" id="crmContactsPages">
+    <section class="t-page" data-page-id="1">
+        <div class="crm-contacts-page-body"></div>
+    </section>
+    <section class="t-page" data-page-id="2">
+    <div class="crm-contacts-page-body">
     <div class="crm-page__inner max-w-[1440px]">
         <div class="mb-4 flex items-center justify-between gap-3">
             <a href="{{ url_for('main.contacts') }}" class="crm-back">
@@ -722,29 +728,30 @@
                     </div>
 
                     <div id="activityTimelineFilters" class="px-4 py-3" style="border-bottom: 0.5px solid var(--hairline);">
-                        <div class="flex flex-wrap gap-1.5">
+                        <div class="crm-activity-tabs t-tabs flex flex-wrap gap-1.5" role="tablist">
+                            <span class="t-tabs-pill" aria-hidden="true"></span>
                             <button type="button" data-filter="all"
-                                    class="crm-chip timeline-filter-btn is-active">
+                                    class="crm-chip timeline-filter-btn t-tab is-active" role="tab" aria-selected="true">
                                 All <span class="filter-count">0</span>
                             </button>
                             <button type="button" data-filter="interaction"
-                                    class="crm-chip timeline-filter-btn">
+                                    class="crm-chip timeline-filter-btn t-tab" role="tab" aria-selected="false">
                                 Calls <span class="filter-count">0</span>
                             </button>
                             <button type="button" data-filter="email"
-                                    class="crm-chip timeline-filter-btn">
+                                    class="crm-chip timeline-filter-btn t-tab" role="tab" aria-selected="false">
                                 Emails <span class="filter-count">0</span>
                             </button>
                             <button type="button" data-filter="task"
-                                    class="crm-chip timeline-filter-btn">
+                                    class="crm-chip timeline-filter-btn t-tab" role="tab" aria-selected="false">
                                 Tasks <span class="filter-count">0</span>
                             </button>
                             <button type="button" data-filter="file"
-                                    class="crm-chip timeline-filter-btn">
+                                    class="crm-chip timeline-filter-btn t-tab" role="tab" aria-selected="false">
                                 Files <span class="filter-count">0</span>
                             </button>
                             <button type="button" data-filter="voice_memo"
-                                    class="crm-chip timeline-filter-btn">
+                                    class="crm-chip timeline-filter-btn t-tab" role="tab" aria-selected="false">
                                 Memos <span class="filter-count">0</span>
                             </button>
                         </div>
@@ -875,6 +882,9 @@
                 </section>
             </div>
         </div>
+    </div>
+    </div>
+    </section>
     </div>
 </div>
 
@@ -2032,6 +2042,9 @@
             pendingTab.classList.remove('is-active');
             completedList.classList.remove('hidden');
             pendingList.classList.add('hidden');
+        }
+        if (window.TMotion && pendingTab.closest('.crm-segment')) {
+            TMotion.syncTabs(pendingTab.closest('.crm-segment'));
         }
     }
 

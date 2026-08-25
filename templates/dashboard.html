@@ -138,7 +138,7 @@
                         data-copy-success-text="Copied"
                         class="crm-btn crm-btn-sm">
                     <i class="fas fa-copy"></i>
-                    <span data-copy-target="label">Copy</span>
+                    <span data-copy-target="label" class="t-text-swap">Copy</span>
                 </button>
                 <a href="{{ url_for('inbound_email.inbox_home') }}" class="crm-btn crm-btn-sm crm-btn-accent">
                     <i class="fas fa-arrow-right"></i>
@@ -174,8 +174,13 @@
                             var defaultText = (btn && btn.dataset.copyDefaultText) || 'Copy';
                             var successText = (btn && btn.dataset.copySuccessText) || 'Copied';
                             if (label) {
-                                label.textContent = successText;
-                                setTimeout(function () { label.textContent = defaultText; }, 1500);
+                                if (window.TMotion && label.classList.contains('t-text-swap')) {
+                                    TMotion.swapText(label, successText);
+                                    setTimeout(function () { TMotion.swapText(label, defaultText); }, 1500);
+                                } else {
+                                    label.textContent = successText;
+                                    setTimeout(function () { label.textContent = defaultText; }, 1500);
+                                }
                             }
                         };
                         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -204,7 +209,12 @@
             </div>
             <div class="crm-magic-banner__copy">
                 <span class="crm-section-kicker" data-daily-briefing-banner-target="label">Today · Daily Briefing</span>
-                <h3 data-daily-briefing-banner-target="teaser">Checking today's plan…</h3>
+                <h3 data-daily-briefing-banner-target="teaser">
+                    <span class="t-think" role="status">
+                        <span class="t-think-sizer" aria-hidden="true">Checking today's plan…</span>
+                        <span class="t-think-text" data-text="Checking today's plan…">Checking today's plan…</span>
+                    </span>
+                </h3>
                 <p>A focused list of who to touch and what to move, from your contacts and tasks.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 shrink-0 mt-3 lg:mt-0"
@@ -598,11 +608,14 @@
                     {% for task in upcoming_tasks[:3] %}
                     {% set days_until_due = (task.due_date.date() - now.date()).days %}
                     <div class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <input type="checkbox"
-                               class="h-5 w-5 shrink-0 rounded"
-                               style="accent-color: var(--accent); border-color: var(--hairline);"
-                               data-action="change->dashboard-page#updateTaskStatus"
-                               data-task-id="{{ task.id }}">
+                        <button type="button"
+                                class="t-check shrink-0"
+                                role="checkbox"
+                                aria-checked="false"
+                                data-action="click->dashboard-page#updateTaskStatus"
+                                data-task-id="{{ task.id }}">
+                            <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+                        </button>
                         <div class="min-w-0 flex-1">
                             <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="crm-table-link block truncate">{{ task.subject }}</a>
                             <div class="mt-1 text-xs" style="color: var(--ink-3);">
@@ -623,13 +636,20 @@
             </div>
         </section>
 
+        <div class="t-skel crm-kpi-skel" data-state="loading" data-reveal-on="load">
+            <div class="t-skel-skeleton is-pulsing">
+                <div class="crm-kpi-skel-bar"></div>
+                <div class="crm-kpi-skel-bar"></div>
+                <div class="crm-kpi-skel-bar"></div>
+            </div>
+            <div class="t-skel-content">
         <div class="crm-kpi-grid mb-5">
             <div class="crm-kpi">
                 <div class="crm-kpi__main">
                     <div class="crm-kpi__label">
                         <span>Potential commission</span>
                     </div>
-                    <div class="crm-kpi__value"><span class="currency">$</span>{{ "{:,.0f}".format(total_commission) }}</div>
+                    <div class="crm-kpi__value"><span class="currency">$</span><span class="t-digit-group" data-t-digits="{{ '{:,.0f}'.format(total_commission) }}">{{ "{:,.0f}".format(total_commission) }}</span></div>
                     {{ kpi_breakdown(kpi_breakdowns.top_opportunities, 'blue', 'No commission values') }}
                     <div class="crm-kpi__meta">Top contacts by estimated value</div>
                 </div>
@@ -640,7 +660,7 @@
                     <div class="crm-kpi__label">
                         <span>Tracked contacts</span>
                     </div>
-                    <div class="crm-kpi__value">{{ total_contacts }}</div>
+                    <div class="crm-kpi__value"><span class="t-digit-group" data-t-digits="{{ total_contacts }}">{{ total_contacts }}</span></div>
                     {{ kpi_breakdown(kpi_breakdowns.contact_mix, 'orange', 'No groups yet') }}
                     <div class="crm-kpi__meta">Largest active contact groups</div>
                 </div>
@@ -651,11 +671,13 @@
                     <div class="crm-kpi__label">
                         <span>Average commission</span>
                     </div>
-                    <div class="crm-kpi__value"><span class="currency">$</span>{{ "{:,.0f}".format(avg_commission) }}</div>
+                    <div class="crm-kpi__value"><span class="currency">$</span><span class="t-digit-group" data-t-digits="{{ '{:,.0f}'.format(avg_commission) }}">{{ "{:,.0f}".format(avg_commission) }}</span></div>
                     {{ kpi_breakdown(kpi_breakdowns.commission_tiers, 'slate', 'No values yet') }}
                     <div class="crm-kpi__meta">Contact count by value range</div>
                 </div>
                 {{ kpi_rail(kpi_sparks.avg_commission) }}
+            </div>
+        </div>
             </div>
         </div>
         {% endif %}
@@ -746,13 +768,14 @@
                         {% set days_until_due = (task_date - current_date).days %}
                         <div class="crm-list-item">
                             <div class="flex items-start gap-3">
-                                <input type="checkbox"
-                                       class="mt-1 h-4 w-4 rounded"
-                                       style="accent-color: var(--accent); border-color: var(--hairline);"
-                                       data-action="change->dashboard-page#updateTaskStatus"
-                                       data-task-id="{{ task.id }}"
-                                       {% if task.status == 'completed' %}checked{% endif %}
-                                >
+                                <button type="button"
+                                        class="t-check mt-1 shrink-0"
+                                        role="checkbox"
+                                        aria-checked="{{ 'true' if task.status == 'completed' else 'false' }}"
+                                        data-action="click->dashboard-page#updateTaskStatus"
+                                        data-task-id="{{ task.id }}">
+                                    <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+                                </button>
                                 <div class="min-w-0">
                                     <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
                                        class="crm-table-link block truncate">
@@ -918,9 +941,11 @@
         <div class="flex items-center justify-between gap-4 px-4 py-3">
             <div class="flex min-w-0 flex-1 items-center gap-3">
                 <div class="relative">
-                    <input type="checkbox" class="todo-checkbox h-5 w-5 rounded cursor-pointer focus:ring-0 focus:outline-none">
-                    <span class="check-icon pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 scale-0 text-white transition-transform duration-200">
-                        <i class="fas fa-check text-[10px]"></i>
+                    <span class="t-check-wrap">
+                        <input type="checkbox" class="todo-checkbox t-check-native">
+                        <button type="button" class="t-check" role="checkbox" aria-checked="false" tabindex="-1">
+                            <svg viewBox="0 0 10.1668 10.1668" aria-hidden="true"><path d="M1 5.52L3.92 9.17L9.17 1"/></svg>
+                        </button>
                     </span>
                 </div>
                 <div class="relative flex-1">

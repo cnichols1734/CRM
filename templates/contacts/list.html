@@ -7,6 +7,9 @@
 {% set has_filters = request.args.get('owners') or request.args.get('groups') or request.args.get('zips') or request.args.get('commission') %}
 
 <div class="crm-page" data-controller="contacts-page">
+    <div class="t-page-slide crm-contacts-pages" data-page="1" id="crmContactsPages">
+    <section class="t-page" data-page-id="1">
+    <div class="crm-contacts-page-body">
     <div class="crm-page__inner">
         {% set _title_html = 'Contacts <em>· ' ~ total_contacts ~ '</em>' %}
         {% call page_header(_title_html, '', 'Database') %}
@@ -54,18 +57,20 @@
                 {% endif %}
             </div>
             <div class="crm-toolbar w-full sm:w-auto sm:justify-end">
-                <div class="crm-toolbar__search">
+                <div class="crm-toolbar__search t-clear">
                     <input type="search"
                            value="{{ request.args.get('q', '') }}"
                            placeholder="Search name, email, phone..."
                            class="crm-search pr-10"
                            data-contacts-page-target="searchInput"
                            data-action="input->contacts-page#queueSearch">
+                    <div class="t-clear-mirror" aria-hidden="true"></div>
+                    <div class="t-clear-placeholder" aria-hidden="true">Search name, email, phone...</div>
+                    <div class="t-clear-glow" aria-hidden="true"></div>
                     <button type="button"
-                            class="absolute right-3 top-1/2 hidden -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                            style="color: var(--ink-4);"
-                            data-contacts-page-target="clearSearchButton"
-                            data-action="contacts-page#clearSearch">
+                            class="t-clear-btn"
+                            aria-label="Clear"
+                            data-contacts-page-target="clearSearchButton">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -453,6 +458,12 @@
                 </select>
             </div>
         </div>
+    </div>
+    </div>
+    </section>
+    <section class="t-page" data-page-id="2">
+        <div class="crm-contacts-page-body"></div>
+    </section>
     </div>
 </div>
 {% endblock %}

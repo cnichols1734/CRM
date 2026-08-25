@@ -31,19 +31,14 @@
     0 12px 32px -16px rgba(0, 0, 0, 0.55),
     0 2px 8px -4px rgba(0, 0, 0, 0.25);
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif);
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .crm-toast.is-in {
   opacity: 1;
-  transform: translateY(0);
 }
 
 .crm-toast.is-out {
   opacity: 0;
-  transform: translateY(-6px);
 }
 
 .crm-toast__icon {
@@ -124,12 +119,6 @@ html[data-theme="light"] .crm-toast {
 
 @media (prefers-reduced-motion: reduce) {
   .crm-toast {
-    transform: none;
-    transition: opacity 120ms ease;
-  }
-
-  .crm-toast.is-in,
-  .crm-toast.is-out {
     transform: none;
   }
 }

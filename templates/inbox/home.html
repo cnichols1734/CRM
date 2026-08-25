@@ -55,7 +55,7 @@
               data-copy-default-text="Copy"
               data-copy-success-text="Copied">
               <i class="fas fa-copy text-xs"></i>
-              <span data-copy-target="label">Copy</span>
+              <span data-copy-target="label" class="t-text-swap">Copy</span>
             </button>
           </div>
 
@@ -164,7 +164,11 @@
           <h2 class="mt-1 crm-section-title">Last 20 messages</h2>
         </div>
         {% if total_inbound %}
-        <span class="crm-badge">{{ total_inbound }} total</span>
+        <span class="crm-inbox-count">
+          <span class="t-badge" data-open="true">
+            <span class="t-badge-dot crm-badge">{{ total_inbound }} total</span>
+          </span>
+        </span>
         {% endif %}
       </div>
 
@@ -267,8 +271,13 @@
           var defaultText = (btn && btn.dataset.copyDefaultText) || 'Copy';
           var successText = (btn && btn.dataset.copySuccessText) || 'Copied';
           if (label) {
-            label.textContent = successText;
-            setTimeout(function () { label.textContent = defaultText; }, 1500);
+            if (window.TMotion && label.classList.contains('t-text-swap')) {
+              TMotion.swapText(label, successText);
+              setTimeout(function () { TMotion.swapText(label, defaultText); }, 1500);
+            } else {
+              label.textContent = successText;
+              setTimeout(function () { label.textContent = defaultText; }, 1500);
+            }
           }
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {

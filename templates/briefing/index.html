@@ -33,11 +33,14 @@
                     <section class="crm-surface">
                         <div class="crm-surface-body">
                             <p class="crm-section-kicker mb-3" data-daily-briefing-target="statusLabel">
-                                {% if briefing and briefing.status == 'failed' %}
-                                    Couldn't build today's briefing
-                                {% else %}
-                                    Building today's briefing…
-                                {% endif %}
+                                <span class="t-think" role="status">
+                                    <span class="t-think-sizer" aria-hidden="true">Couldn't rebuild today's briefing</span>
+                                    {% if briefing and briefing.status == 'failed' %}
+                                    <span class="t-think-text" data-text="Couldn't build today's briefing">Couldn't build today's briefing</span>
+                                    {% else %}
+                                    <span class="t-think-text" data-text="Building today's briefing…">Building today's briefing…</span>
+                                    {% endif %}
+                                </span>
                             </p>
                             <div class="crm-rail__skeleton" data-daily-briefing-target="skeletonLines">
                                 <div class="crm-rail__skeleton-line"></div>

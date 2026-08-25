@@ -142,7 +142,12 @@ export default class extends Controller {
     if (this.hasSkeletonTarget) this.skeletonTarget.classList.remove("hidden");
     if (this.hasContentTarget) this.contentTarget.classList.add("hidden");
     if (this.hasStatusLabelTarget) {
-      this.statusLabelTarget.textContent = label;
+      const think = this.statusLabelTarget.querySelector(".t-think");
+      if (think && window.TMotion && TMotion.setThink) {
+        TMotion.setThink(think, label);
+      } else {
+        this.statusLabelTarget.textContent = label;
+      }
     }
     if (this.hasSkeletonLinesTarget) {
       this.skeletonLinesTarget.classList.toggle("opacity-40", failed);
