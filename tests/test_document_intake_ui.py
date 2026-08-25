@@ -539,8 +539,7 @@ def test_listing_package_header_is_not_a_document_row(app):
     assert needed_upload
     assert 'crm-btn-accent-soft' in needed_upload.group(1)
     assert 'crm-document-package__action' not in needed_upload.group(1)
-    assert 'crm-document-row' in html
-    assert html.count('crm-document-row') == 3
+    assert html.count('data-document-row') == 3
 
 
 def test_seller_listing_tab_upload_remaining_is_filled_package_action(
