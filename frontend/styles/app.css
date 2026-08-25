@@ -3114,6 +3114,15 @@
   gap: 0.5rem;
   padding: 0.4rem 1rem;
 }
+/* Inset well so the package line is a header strip, not another file row.
+   Light uses paper-3 (deeper than the card). Dark mixes toward canvas
+   because paper-2/3 get lighter in that theme. */
+.crm-document-package__header--well {
+  background: var(--paper-3);
+}
+[data-theme="dark"] .crm-document-package__header--well {
+  background: color-mix(in srgb, var(--canvas) 70%, var(--paper));
+}
 .crm-document-package__title {
   margin: 0;
   font-size: 0.75rem;

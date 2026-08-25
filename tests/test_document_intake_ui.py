@@ -476,6 +476,7 @@ def _assert_listing_package_header_contract(section):
     assert header_match
     assert 'crm-document-row' not in header_match.group(1)
     assert 'crm-document-package__header--section' in header_match.group(1)
+    assert 'crm-document-package__header--well' in header_match.group(1)
 
     title_match = re.search(
         r'<h3[^>]*class="([^"]*)"[^>]*>\s*Listing package\s*</h3>',

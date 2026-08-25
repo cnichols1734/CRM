@@ -33,7 +33,7 @@
          aria-labelledby="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}">
     {% set needed_count = rows | selectattr('state', 'equalto', 'missing') | list | length %}
     {% set is_upload_remaining = pkg_key == 'listing_package' and needed_count > 1 %}
-    <div class="crm-document-package__header crm-document-package__header--section{% if is_unfiled %} crm-document-package__header--unfiled{% endif %}">
+    <div class="crm-document-package__header crm-document-package__header--section{% if is_unfiled %} crm-document-package__header--unfiled{% else %} crm-document-package__header--well{% endif %}">
         <div class="min-w-0">
             <h3 id="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}" class="crm-document-package__title">{{ pkg_label }}</h3>
             {% if is_unfiled %}
