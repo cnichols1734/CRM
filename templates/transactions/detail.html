@@ -1928,7 +1928,7 @@
     function celebrateChecklistCheck(item) {
         const box = item && item.querySelector('.t-check');
         if (!box || !window.TMotion) return;
-        if (TMotion.burstConfetti) TMotion.burstConfetti(box);
+        if (TMotion.burstConfetti) TMotion.burstConfetti(box, { localOrigin: true });
         const success = item.querySelector('.t-success-check');
         if (success && TMotion.playSuccessCheck) {
             TMotion.playSuccessCheck(success);

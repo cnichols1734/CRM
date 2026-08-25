@@ -126,6 +126,7 @@ class TestChromeHooks:
         assert "t-check-native" not in checklist
         assert "celebrateChecklistCheck" in detail
         assert "burstConfetti" in detail
+        assert "localOrigin: true" in detail
         assert "playSuccessCheck" in detail
         assert "setChecked" in detail
         assert "applyDone(item, done, done && !wasDone)" in detail
@@ -179,6 +180,9 @@ class TestChromeHooks:
         assert "path.getTotalLength" in js
         assert "burstConfetti" in js
         assert "whenConfettiSettled" in js
+        assert "useLocalOrigin" in js
+        assert "originX + (Math.random() - 0.5) * spreadX" in js
+        assert "p.y > b.bottom + 96" in js
         dash = _read("frontend", "controllers", "dashboard_page_controller.js")
         assert "burstConfetti" in dash
         assert "whenConfettiSettled" in dash
