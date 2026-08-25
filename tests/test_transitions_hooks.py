@@ -127,6 +127,16 @@ class TestRestState:
         bridge = _read("static", "css", "transitions-bridge.css")
         assert "0 0 0 2px rgba(249, 115, 22, 0.28)" in bridge
         assert "0 0 0 4px rgba(249, 115, 22, 0.35)" not in bridge
+        assert "main#mainContent .crm-toolbar__search.t-clear" in bridge
+
+    def test_clear_mirror_stays_off_at_rest(self):
+        snippets = _read("static", "css", "transitions-snippets.css")
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert ".t-clear.has-value .t-clear-mirror" not in snippets
+        assert ".t-clear.has-value > input" not in snippets
+        assert ".t-clear.is-clearing .t-clear-mirror" in snippets
+        assert ".t-clear.is-clearing > input" in snippets
+        assert ".t-clear.has-value .t-clear-mirror" not in bridge
 
     def test_segment_selected_chip_yields_to_sliding_pill(self):
         bridge = _read("static", "css", "transitions-bridge.css")

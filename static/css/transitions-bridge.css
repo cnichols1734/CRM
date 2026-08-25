@@ -258,10 +258,10 @@ html.am-skin .crm-segment.t-tabs .t-tabs-pill {
   pointer-events: none;
 }
 
-.crm-utility-search.t-clear.has-value .t-clear-mirror,
-.crm-toolbar__search.t-clear.has-value .t-clear-mirror {
-  opacity: 1;
-  visibility: visible;
+.crm-utility-search.t-clear:not(.is-clearing) input,
+.crm-toolbar__search.t-clear:not(.is-clearing) input,
+.crm-toolbar__search.t-clear:not(.is-clearing) .crm-search {
+  -webkit-text-fill-color: inherit;
 }
 
 .crm-utility-search.t-clear.is-clearing .t-clear-mirror,
@@ -291,6 +291,10 @@ html.am-skin .crm-segment.t-tabs .t-tabs-pill {
 
 html.am-skin .crm-utility-search.t-clear input:focus,
 html.am-skin .crm-toolbar__search.t-clear .crm-search:focus,
+html.am-skin main#mainContent .crm-toolbar__search.t-clear input:focus,
+html.am-skin main#mainContent .crm-toolbar__search.t-clear .crm-search:focus,
+html.am-skin .content-wrapper .crm-toolbar__search.t-clear input:focus,
+html.am-skin .content-wrapper .crm-toolbar__search.t-clear .crm-search:focus,
 .crm-utility-search.t-clear input:focus,
 .crm-toolbar__search.t-clear .crm-search:focus {
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.28) !important;

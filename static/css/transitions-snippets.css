@@ -345,14 +345,12 @@
   z-index: 2;
 }
 .t-clear-mirror { opacity: 0; visibility: hidden; }
-.t-clear.has-value .t-clear-mirror,
 .t-clear.is-clearing .t-clear-mirror {
   opacity: 1;
   visibility: visible;
 }
-/* Hide the input's own glyphs while the mirror owns them so
-   the cleared text doesn't double-render with the fly-up. */
-.t-clear.has-value > input,
+/* Native glyphs stay visible at rest. Hide them only while the
+   dissolve mirror owns the clear. */
 .t-clear.is-clearing > input {
   -webkit-text-fill-color: transparent;
 }
