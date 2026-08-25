@@ -19,8 +19,12 @@
   function openDropdown(el) {
     if (!el) return;
     el.hidden = false;
-    el.classList.remove('hidden', 'is-closing');
-    el.classList.add('is-open');
+    el.classList.remove('hidden', 'is-closing', 'is-open');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        el.classList.add('is-open');
+      });
+    });
   }
 
   function closeDropdown(el, after) {
@@ -40,8 +44,12 @@
 
   function openModal(el) {
     if (!el) return;
-    el.classList.remove('hidden', 'is-closing');
-    el.classList.add('is-open');
+    el.classList.remove('hidden', 'is-closing', 'is-open');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        el.classList.add('is-open');
+      });
+    });
   }
 
   function closeModal(el, after) {
