@@ -1,8 +1,11 @@
 """Render/route tests for document-first intake + package workspace UI."""
 
+import re
 from datetime import date, datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
+
+from flask import render_template
 
 from models import (
     ContractBootstrapSession,
@@ -440,6 +443,149 @@ def test_seller_detail_has_one_upload_hub(app, seed, owner_a_client):
         assert html.count('id="tx-document-upload-hub-title"') == 1
         assert 'href="#seller-workspace"' in html
         assert 'This list keeps legacy actions' not in html
+    finally:
+        with app.app_context():
+            TransactionRequirement.query.filter_by(transaction_id=tx_id).delete(
+                synchronize_session=False,
+            )
+            TransactionDocument.query.filter_by(transaction_id=tx_id).delete(
+                synchronize_session=False,
+            )
+            Transaction.query.filter_by(id=tx_id).delete(synchronize_session=False)
+            db.session.commit()
+
+
+def _listing_package_section(html):
+    start = html.index('id="listing-documents"')
+    end = html.index('id="seller-panel-offers"', start)
+    listing = html[start:end]
+    match = re.search(
+        r'<section[^>]*data-package-key="listing_package"[^>]*>.*?</section>',
+        listing,
+        re.S,
+    )
+    assert match, listing[:1200]
+    return match.group(0)
+
+
+def _assert_listing_package_header_contract(section):
+    header_match = re.search(
+        r'<div class="([^"]*crm-document-package__header[^"]*)"[^>]*>',
+        section,
+    )
+    assert header_match
+    assert 'crm-document-row' not in header_match.group(1)
+    assert 'crm-document-package__header--section' in header_match.group(1)
+    assert 'crm-document-package__header--well' in header_match.group(1)
+
+    title_match = re.search(
+        r'<h3[^>]*class="([^"]*)"[^>]*>\s*Listing package\s*</h3>',
+        section,
+    )
+    assert title_match
+    assert 'crm-document-package__title' in title_match.group(1)
+    assert 'crm-document-row' not in title_match.group(1)
+
+    title_idx = section.index('Listing package')
+    first_row_idx = section.index('crm-document-row')
+    assert title_idx < first_row_idx
+
+    remaining_idx = section.index('Upload remaining')
+    remaining_btn = section[section.rfind('<button', 0, remaining_idx):remaining_idx]
+    assert 'crm-document-package__action' in remaining_btn
+    assert 'crm-btn-accent' in remaining_btn
+    assert 'crm-btn-secondary' not in remaining_btn
+    assert 'crm-btn-accent-soft' not in remaining_btn
+    assert remaining_idx < first_row_idx
+    assert 'crm-row-menu' not in section[:first_row_idx]
+    assert 'crm-badge' not in section[:first_row_idx]
+
+
+def test_listing_package_header_is_not_a_document_row(app):
+    """Listing package is a section header. Upload remaining is the filled package action."""
+    with app.app_context():
+        html = render_template(
+            'transactions/_document_packages.html',
+            package={
+                'key': 'listing_package',
+                'scope': 'listing',
+                'scope_id': 1,
+                'label': 'Listing package',
+                'documents': [
+                    {
+                        'label': 'Listing Agreement',
+                        'state': 'uploaded',
+                        'document_id': 9,
+                        'doc_url': '/documents/9',
+                    },
+                    {'label': "Seller's Disclosure Notice", 'state': 'missing'},
+                    {'label': 'HOA / POA Information', 'state': 'missing'},
+                ],
+            },
+        )
+
+    _assert_listing_package_header_contract(html)
+
+    view_idx = html.index('View document')
+    view_cls = html[html.rfind('class="', 0, view_idx):view_idx]
+    assert 'crm-btn-secondary' in view_cls
+    assert 'crm-document-package__action' not in view_cls
+    assert 'crm-btn-accent' not in view_cls
+
+    needed_upload = re.search(
+        r'<button[^>]*class="([^"]*)"[^>]*>\s*<i[^>]*></i>\s*Upload\s*</button>',
+        html,
+        re.S,
+    )
+    assert needed_upload
+    assert 'crm-btn-accent-soft' in needed_upload.group(1)
+    assert 'crm-document-package__action' not in needed_upload.group(1)
+    assert html.count('data-document-row') == 3
+
+
+def test_seller_listing_tab_upload_remaining_is_filled_package_action(
+    app, seed, owner_a_client,
+):
+    with app.app_context():
+        tx = Transaction(
+            organization_id=seed['org_a'],
+            created_by_id=seed['owner_a'],
+            transaction_type_id=seed['tx_type_a'],
+            street_address='12 Listing Header Ln',
+            city='Austin',
+            state='TX',
+            status='active',
+            ownership_status='conventional',
+            intake_data={
+                'built_before_1978': False,
+                'has_hoa': True,
+                'flood_hazard': False,
+                'has_survey': 'no',
+            },
+        )
+        db.session.add(tx)
+        db.session.flush()
+        db.session.add(TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=tx.id,
+            template_slug='listing-agreement',
+            template_name='Listing Agreement',
+            status='signed',
+            signed_file_path='org/tx/listing-agreement.pdf',
+            document_source='completed',
+        ))
+        db.session.commit()
+        tx_id = tx.id
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        section = _listing_package_section(html)
+        _assert_listing_package_header_contract(section)
+        assert 'Listing Agreement' in section
+        assert 'View document' in section
+        assert 'crm-btn-accent-soft' in section
     finally:
         with app.app_context():
             TransactionRequirement.query.filter_by(transaction_id=tx_id).delete(

@@ -3110,6 +3110,38 @@
   border-bottom: 1px solid var(--hairline);
   background: transparent;
 }
+.crm-document-package__header--section {
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+}
+/* Inset well so the package line is a header strip, not another file row.
+   Light uses paper-3 (deeper than the card). Dark mixes toward canvas
+   because paper-2/3 get lighter in that theme. */
+.crm-document-package__header--well {
+  background: var(--paper-3);
+}
+[data-theme="dark"] .crm-document-package__header--well {
+  background: var(--canvas);
+}
+.crm-document-package__title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--ink-3);
+}
+.crm-document-package__action {
+  background: var(--accent);
+  color: var(--accent-on);
+  border-color: var(--accent);
+}
+.crm-document-package__action:hover {
+  background: var(--accent-ink);
+  color: var(--accent-on);
+  border-color: var(--accent-ink);
+}
 .crm-document-package__header--unfiled {
   border-bottom-color: color-mix(in srgb, var(--warn) 25%, var(--hairline));
   background: color-mix(in srgb, var(--warn-soft) 70%, transparent);

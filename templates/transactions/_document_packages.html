@@ -31,24 +31,25 @@
 <section class="crm-document-package{% if is_unfiled %} crm-document-package--unfiled{% endif %}"
          data-package-key="{{ pkg_key }}"
          aria-labelledby="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}">
-    <div class="crm-document-package__header{% if is_unfiled %} crm-document-package__header--unfiled{% endif %}">
+    {% set needed_count = rows | selectattr('state', 'equalto', 'missing') | list | length %}
+    {% set is_upload_remaining = pkg_key == 'listing_package' and needed_count > 1 %}
+    <div class="crm-document-package__header crm-document-package__header--section{% if is_unfiled %} crm-document-package__header--unfiled{% else %} crm-document-package__header--well{% endif %}">
         <div class="min-w-0">
-            <h3 id="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}" class="text-sm font-semibold" style="color: var(--ink);">{{ pkg_label }}</h3>
+            <h3 id="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}" class="crm-document-package__title">{{ pkg_label }}</h3>
             {% if is_unfiled %}
             <p class="mt-0.5 text-xs" style="color: var(--warn);">Uploaded PDFs waiting for a package destination.</p>
             {% elif package.status %}
             <p class="mt-0.5 text-xs" style="color: var(--ink-3);">{{ package.status|replace('_', ' ')|title }}</p>
             {% endif %}
         </div>
-        {% set needed_count = rows | selectattr('state', 'equalto', 'missing') | list | length %}
         <button type="button"
-                class="crm-btn crm-btn-secondary crm-btn-sm min-h-11"
+                class="crm-btn crm-btn-sm min-h-11 {% if is_upload_remaining %}crm-btn-accent crm-document-package__action{% else %}crm-btn-secondary{% endif %}"
                 data-action="document-upload-hub#open"
                 data-document-upload-hub-scope-param="{{ 'other' if is_unfiled else (package.scope or 'other') }}"
                 data-document-upload-hub-scope-id-param="{{ package.scope_id or '' }}"
                 data-document-upload-hub-label-param="{{ pkg_label }}">
             <i class="fas fa-upload text-xs" aria-hidden="true"></i>
-            {% if pkg_key == 'listing_package' and needed_count > 1 %}
+            {% if is_upload_remaining %}
             Upload remaining
             {% else %}
             Upload document
