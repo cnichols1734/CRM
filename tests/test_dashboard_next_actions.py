@@ -1,4 +1,3 @@
-"""Pin the dashboard workspace start after the Next actions cut."""
 import re
 from pathlib import Path
 
