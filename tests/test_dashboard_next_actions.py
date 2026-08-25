@@ -71,10 +71,8 @@ class TestDashboardNextActionsRemoved:
         start = css.index(".crm-kpi__value .currency {")
         block = css[start:css.index("}", start) + 1]
         assert "vertical-align" not in block
-        assert "align-items: baseline;" in css[
-            css.index(".crm-kpi__value {") : start
-        ]
-        assert "font-size: 24px;" in block
+        assert "font-size: 1em;" in block
+        assert "font-size: 24px;" not in block
         assert ".crm-kpi .currency {" in css
         assert "vertical-align: baseline;" in css
         assert "macro with_currency" in _dashboard_source()
