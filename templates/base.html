@@ -1480,6 +1480,8 @@
             justify-content: center;
             height: 2.25rem;
             width: 2.25rem;
+            padding: 0;
+            line-height: 0;
             border-radius: 0.5rem;
             border: 1px solid var(--hairline);
             background: var(--paper);
@@ -1492,8 +1494,20 @@
             color: var(--ink);
             border-color: var(--ink-5);
         }
+        .crm-theme-btn .t-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
         .crm-theme-btn .t-icon-swap .crm-theme-btn__sun,
-        .crm-theme-btn .t-icon-swap .crm-theme-btn__moon { display: inline; }
+        .crm-theme-btn .t-icon-swap .crm-theme-btn__moon {
+            display: block;
+            line-height: 1;
+            width: 1em;
+            height: 1em;
+            font-size: 0.9rem;
+        }
 
         /* Smooth transition when toggling */
         html.crm-theme-transition,
