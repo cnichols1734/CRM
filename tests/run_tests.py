@@ -810,6 +810,54 @@ class CRMTestSuite:
                 f"Offenders: {detail}"
             )
 
+    def _set_theme(self, theme):
+        self.page.evaluate(
+            """(theme) => {
+                localStorage.setItem('crm-theme', theme);
+                document.documentElement.dataset.theme = theme;
+            }""",
+            theme,
+        )
+
+    def _nav_panel_luminance(self):
+        return self.page.evaluate(
+            """() => {
+                const panel = document.querySelector('#mobileNavMenu .crm-mobile-nav-panel');
+                if (!panel) return { missing: true };
+                const bg = getComputedStyle(panel).backgroundColor;
+                const m = bg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+                if (!m) return { bg, lum: null };
+                const toLin = (c) => {
+                    const n = Number(c) / 255;
+                    return n <= 0.04045 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
+                };
+                const lum = 0.2126 * toLin(m[1]) + 0.7152 * toLin(m[2]) + 0.0722 * toLin(m[3]);
+                return { bg, lum };
+            }"""
+        )
+
+    def _open_mobile_nav(self):
+        menu = self.page.locator('#mobileNavMenu')
+        if menu.count() == 0:
+            raise AssertionError('mobileNavMenu missing')
+        if menu.evaluate("el => el.classList.contains('-translate-x-full')"):
+            toggle = self.page.locator('#mobileMenuToggle')
+            if toggle.count() == 0:
+                raise AssertionError('mobileMenuToggle missing')
+            toggle.click()
+            self.page.wait_for_timeout(350)
+
+    def _close_mobile_nav(self):
+        self.page.evaluate(
+            """() => {
+                const menu = document.getElementById('mobileNavMenu');
+                if (!menu) return;
+                menu.classList.add('-translate-x-full');
+                menu.classList.remove('translate-x-0');
+                document.body.style.overflow = '';
+            }"""
+        )
+
     def test_mobile_native_app(self):
         """Phone viewports: no document sideways scroll, B.O.B. opens as a sheet."""
         test_name = "Mobile native app chrome"
@@ -898,6 +946,33 @@ class CRMTestSuite:
                     )
                 if not sheet['textareaOnScreen'] or not sheet['sendOnScreen']:
                     raise AssertionError(f"B.O.B. composer clipped: {sheet}")
+                chrome = self.page.evaluate(
+                    """() => {
+                        const ta = getComputedStyle(document.getElementById('bob-textarea'));
+                        const send = document.getElementById('bob-send-btn').getBoundingClientRect();
+                        const welcome = document.getElementById('bob-welcome');
+                        const panelBg = getComputedStyle(document.getElementById('bob-panel')).backgroundColor;
+                        const m = panelBg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?/);
+                        const alpha = m && m[4] !== undefined ? parseFloat(m[4]) : 1;
+                        return {
+                            fontPx: parseFloat(ta.fontSize),
+                            sendW: Math.round(send.width),
+                            sendH: Math.round(send.height),
+                            welcomePad: welcome ? getComputedStyle(welcome).paddingTop : '',
+                            titlePx: parseFloat(getComputedStyle(document.querySelector('.bob-title')).fontSize),
+                            panelBg,
+                            panelAlpha: alpha,
+                        };
+                    }"""
+                )
+                if chrome['fontPx'] < 16:
+                    raise AssertionError(f"Composer font zooms iOS: {chrome}")
+                if chrome['sendW'] < 44 or chrome['sendH'] < 44:
+                    raise AssertionError(f"Send tap target too small: {chrome}")
+                if chrome['titlePx'] > 22:
+                    raise AssertionError(f"Welcome title still desktop-sized: {chrome}")
+                if chrome['panelAlpha'] < 0.95:
+                    raise AssertionError(f"Phone sheet is still glass: {chrome}")
                 self.page.evaluate(
                     """() => {
                         const panel = document.getElementById('bob-panel');
@@ -923,6 +998,60 @@ class CRMTestSuite:
                 self._assert_no_page_overflow(f"B.O.B. open @ {width}x{height}")
                 self.dismiss_ai_chat_panel()
                 self.log("", "ok")
+
+                self.log("Checking hamburger drawer theme...", "step")
+                self._set_theme('dark')
+                self._open_mobile_nav()
+                dark_nav = self._nav_panel_luminance()
+                if dark_nav.get('missing') or dark_nav.get('lum') is None:
+                    raise AssertionError(f"Dark nav panel missing: {dark_nav}")
+                if dark_nav['lum'] > 0.35:
+                    raise AssertionError(
+                        f"Dark-mode hamburger nav is too light: {dark_nav}"
+                    )
+                self._close_mobile_nav()
+                self._set_theme('light')
+                self._open_mobile_nav()
+                light_nav = self._nav_panel_luminance()
+                if light_nav.get('missing') or light_nav.get('lum') is None:
+                    raise AssertionError(f"Light nav panel missing: {light_nav}")
+                if light_nav['lum'] < 0.7:
+                    raise AssertionError(
+                        f"Light-mode hamburger nav is not light: {light_nav}"
+                    )
+                self._close_mobile_nav()
+                self._set_theme('dark')
+                self.log("", "ok")
+
+            self.log("Checking desktop B.O.B. stays a drawer...", "step")
+            self.page.set_viewport_size({'width': 1280, 'height': 800})
+            self.page.goto(f"{self.base_url}/contacts")
+            self.page.wait_for_load_state('domcontentloaded')
+            desktop_toggle = self.page.locator('#bob-toggle-desktop')
+            if desktop_toggle.count() == 0:
+                raise AssertionError('Desktop B.O.B. toggle missing')
+            desktop_toggle.click()
+            self.page.wait_for_selector('#bob-panel.open', timeout=5000)
+            self.page.wait_for_timeout(350)
+            desktop = self.page.evaluate(
+                """() => {
+                    const panel = document.getElementById('bob-panel');
+                    const pr = panel.getBoundingClientRect();
+                    return {
+                        sheet: panel.classList.contains('sheet'),
+                        modal: panel.classList.contains('modal'),
+                        panelW: Math.round(pr.width),
+                        panelLeft: Math.round(pr.left),
+                        vw: window.innerWidth,
+                    };
+                }"""
+            )
+            if desktop['sheet'] or desktop['modal']:
+                raise AssertionError(f"Desktop B.O.B. opened as sheet/modal: {desktop}")
+            if desktop['panelW'] > 560 or desktop['panelLeft'] < 600:
+                raise AssertionError(f"Desktop B.O.B. is not the side drawer: {desktop}")
+            self.dismiss_ai_chat_panel()
+            self.log("", "ok")
 
             self.log("", "pass")
             self.results.add_pass()

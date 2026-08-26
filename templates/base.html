@@ -291,11 +291,9 @@
             background: var(--accent-soft, #ffedd5);
             color: var(--accent-ink, #c2410c);
         }
-        /* Mobile slide-in menu sits on the dark slate shell, where the light
-           accent-soft chip would glare. Use a translucent ember treatment. */
         #mobileNavMenu .crm-nav-badge {
-            background: rgba(249, 115, 22, 0.18);
-            color: #fdba74;
+            background: var(--accent-soft, #ffedd5);
+            color: var(--accent-ink, #c2410c);
         }
 
         /* Collapsed sidebar clips labels (and the NEW tag with them), so a
@@ -1189,6 +1187,35 @@
         header.text-white .text-white { color: var(--ink) !important; }
         #mobileMenuToggle { color: var(--ink) !important; }
         #mobileMenuToggle:hover { background: var(--paper-2) !important; }
+
+        /* Hamburger drawer. The panel still carries bg-slate-950, and the
+           Atelier remap sends that utility to --ink. --ink is near-white in
+           dark, so the open menu went white. Paint it with canvas/paper
+           instead. Desktop aside#sidebar is a different node. */
+        #mobileNavMenu .crm-mobile-nav-panel {
+            background: var(--canvas) !important;
+            color: var(--ink) !important;
+            border-right: 1px solid var(--hairline);
+        }
+        #mobileNavMenu .crm-mobile-nav-panel .text-white,
+        #mobileNavMenu .crm-mobile-nav-panel a,
+        #mobileNavMenu .crm-mobile-nav-panel button {
+            color: var(--ink) !important;
+        }
+        #mobileNavMenu .crm-mobile-nav-panel .border-slate-800,
+        #mobileNavMenu .crm-mobile-nav-panel .border-t,
+        #mobileNavMenu .crm-mobile-nav-panel .border-b {
+            border-color: var(--hairline) !important;
+        }
+        #mobileNavMenu .crm-mobile-nav-panel a:hover,
+        #mobileNavMenu .crm-mobile-nav-panel button:hover,
+        #mobileNavMenu .crm-mobile-nav-panel .hover\:bg-slate-800:hover {
+            background: var(--paper-2) !important;
+        }
+        #mobileNavMenu .crm-mobile-nav-panel a.bg-slate-800,
+        #mobileNavMenu .crm-mobile-nav-panel [class~="bg-slate-800"] {
+            background: var(--paper) !important;
+        }
 
         /* User dropdown menu */
         .crm-user-dropdown {
@@ -2560,18 +2587,18 @@
         <div class="absolute inset-0 bg-black bg-opacity-50" onclick="toggleMobileNavMenu()"></div>
 
         <!-- Menu Panel -->
-        <div class="absolute left-0 top-0 bottom-0 w-72 bg-slate-950 shadow-xl">
+        <div class="crm-mobile-nav-panel absolute left-0 top-0 bottom-0 w-72 bg-slate-950 shadow-xl flex flex-col overflow-hidden">
             <!-- Header -->
-            <div class="h-14 flex items-center justify-between px-4 border-b border-slate-800">
+            <div class="h-14 flex items-center justify-between px-4 border-b border-slate-800 flex-shrink-0">
                 <span class="text-white font-semibold">Menu</span>
                 <button onclick="toggleMobileNavMenu()"
-                    class="w-8 h-8 flex items-center justify-center text-white hover:bg-slate-800 rounded-lg">
+                    class="w-11 h-11 flex items-center justify-center text-white hover:bg-slate-800 rounded-lg">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
             <!-- Navigation Links -->
-            <nav class="py-4">
+            <nav class="py-4 flex-1 overflow-y-auto">
                 <a href="{{ url_for('main.dashboard') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.dashboard' %}bg-slate-800 border-l-4 border-orange-500{% endif %}"
                     {% if activation_state is defined and activation_state.mode == 'start' %}data-analytics-nav="dashboard"{% endif %}>
