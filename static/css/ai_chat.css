@@ -1947,7 +1947,10 @@ body.bob-sheet-open {
 @media (max-width: 768px) {
     .bob-panel,
     .bob-panel.sheet,
-    .bob-panel.modal {
+    .bob-panel.modal,
+    html.am-skin .bob-panel,
+    html.am-skin .bob-panel.sheet,
+    html.am-skin .bob-panel.modal {
         top: var(--bob-sheet-top, 0px) !important;
         right: 0 !important;
         left: 0 !important;
@@ -1965,8 +1968,13 @@ body.bob-sheet-open {
         display: flex !important;
         padding: 0 !important;
         transform: translateY(100%);
-        background: var(--paper, var(--bob-panel-bg)) !important;
-        --bob-panel-bg: var(--paper);
+        /* Beat am-skin glass. A 42% drawer is fine on desktop; a
+           full-phone sheet that shows Contacts through it is not. */
+        background: var(--canvas) !important;
+        background-color: var(--canvas) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        --bob-panel-bg: var(--canvas);
         --bob-border: var(--hairline);
         --bob-text: var(--ink);
         --bob-muted: var(--ink-3);

@@ -55,6 +55,8 @@ class TestBobMobileSheet:
         assert '100svh' in mobile
         assert 'var(--paper' in mobile
         assert 'var(--canvas' in mobile
+        assert 'html.am-skin .bob-panel' in mobile
+        assert 'backdrop-filter: none' in mobile
         assert 'font-size: 16px' in mobile
         assert 'width: 44px' in mobile
         assert 'height: 44px' in mobile

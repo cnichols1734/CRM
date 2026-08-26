@@ -951,12 +951,17 @@ class CRMTestSuite:
                         const ta = getComputedStyle(document.getElementById('bob-textarea'));
                         const send = document.getElementById('bob-send-btn').getBoundingClientRect();
                         const welcome = document.getElementById('bob-welcome');
+                        const panelBg = getComputedStyle(document.getElementById('bob-panel')).backgroundColor;
+                        const m = panelBg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?/);
+                        const alpha = m && m[4] !== undefined ? parseFloat(m[4]) : 1;
                         return {
                             fontPx: parseFloat(ta.fontSize),
                             sendW: Math.round(send.width),
                             sendH: Math.round(send.height),
                             welcomePad: welcome ? getComputedStyle(welcome).paddingTop : '',
                             titlePx: parseFloat(getComputedStyle(document.querySelector('.bob-title')).fontSize),
+                            panelBg,
+                            panelAlpha: alpha,
                         };
                     }"""
                 )
@@ -966,6 +971,8 @@ class CRMTestSuite:
                     raise AssertionError(f"Send tap target too small: {chrome}")
                 if chrome['titlePx'] > 22:
                     raise AssertionError(f"Welcome title still desktop-sized: {chrome}")
+                if chrome['panelAlpha'] < 0.95:
+                    raise AssertionError(f"Phone sheet is still glass: {chrome}")
                 self.page.evaluate(
                     """() => {
                         const panel = document.getElementById('bob-panel');
