@@ -1,4 +1,5 @@
 """Public /wise-agent-alternative page: route, SEO, sitemap, and copy guards."""
+import json
 import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -170,6 +171,14 @@ def _app_base_url(app):
     return (app.config.get("APP_BASE_URL") or "https://agentflow.origentechnolog.com").rstrip("/")
 
 
+def _json_ld_graph(html):
+    match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, flags=re.S)
+    assert match is not None
+    data = json.loads(match.group(1))
+    assert data.get("@context") == "https://schema.org"
+    return data["@graph"]
+
+
 def _visible_copy(html):
     html = re.sub(r"<script\b[^>]*>.*?</script>", " ", html, flags=re.I | re.S)
     html = re.sub(r"<style\b[^>]*>.*?</style>", " ", html, flags=re.I | re.S)
@@ -249,15 +258,41 @@ class TestWiseAgentAlternativeSeo:
     def test_json_ld_types_and_price(self, app, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         base = _app_base_url(app)
-        assert '"@type": "Organization"' in html
-        assert '"@type": "SoftwareApplication"' in html
-        assert '"@type": "FAQPage"' in html
+        graph = _json_ld_graph(html)
+        types = [node.get("@type") for node in graph]
+        assert types == [
+            "Organization",
+            "SoftwareApplication",
+            "FAQPage",
+            "BreadcrumbList",
+        ]
         assert "SearchAction" not in html
         assert "aggregateRating" not in html
+        assert html.count('<script type="application/ld+json">') == 1
         assert '"price": "0"' in html
         assert '"priceCurrency": "USD"' in html
         assert '"isAccessibleForFree": true' in html
         assert f'"url": "{base}{PAGE_PATH}"' in html
+
+        crumb = next(node for node in graph if node["@type"] == "BreadcrumbList")
+        assert crumb["@id"] == f"{base}{PAGE_PATH}#breadcrumb"
+        assert crumb["itemListElement"] == [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": f"{base}/",
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Wise Agent alternative",
+                "item": f"{base}{PAGE_PATH}",
+            },
+        ]
+        visible = _visible_copy(html)
+        assert "Home" not in visible
+        assert "breadcrumb" not in visible.lower()
 
     def test_no_robots_noindex(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
@@ -375,7 +410,13 @@ class TestWiseAgentAlternativeCopy:
         body = _body_copy(PAGE)
         matches = re.findall(r"wise agent alternative", body, flags=re.I)
         assert len(matches) <= 1
-        assert PAGE.lower().count("wise agent alternative") <= 3
+        page_without_json_ld = re.sub(
+            r'<script type="application/ld\+json">.*?</script>',
+            "",
+            PAGE,
+            flags=re.S,
+        )
+        assert page_without_json_ld.lower().count("wise agent alternative") <= 3
 
     def test_footer_disclaimer_is_the_only_added_legal_line(self):
         visible = _visible_copy(PAGE)
@@ -403,6 +444,8 @@ class TestWiseAgentAlternativeCopy:
 
     def test_faq_matches_json_ld_and_repo_limits(self):
         assert '"@type": "FAQPage"' in PAGE
+        assert '"@type": "BreadcrumbList"' in PAGE
+        assert '"@id": "{{ app_base_url }}/wise-agent-alternative#breadcrumb"' in PAGE
         assert PAGE.count("<summary>") == 5
         assert PAGE.count('"@type": "Question"') == 5
         for question, answer in FAQ_ITEMS:
