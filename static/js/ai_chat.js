@@ -111,7 +111,9 @@ const BOB_ACTIVE_TX_KEY = 'bob.activeTransactionId';
 
 class BOBChatPanel {
     constructor() {
-        this.state = 'closed'; // 'closed' | 'side' | 'modal'
+        this.state = 'closed'; // 'closed' | 'side' | 'modal' | 'sheet'
+        this._onViewport = null;
+        this._mq = null;
         this.isTyping = false;
         this.messages = [];
         this.mentionedContacts = [];
@@ -129,11 +131,93 @@ class BOBChatPanel {
         
         this.init();
     }
+
+    isNarrow() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    openForViewport({ skipEnsure = false } = {}) {
+        if (this.isNarrow()) {
+            this.openSheet({ skipEnsure });
+        } else {
+            this.openSide({ skipEnsure });
+        }
+    }
+
+    clearSheetLayout() {
+        const panel = document.getElementById('bob-panel');
+        if (panel) {
+            panel.style.top = '';
+            panel.style.height = '';
+            panel.style.left = '';
+            panel.style.right = '';
+            panel.style.width = '';
+            panel.style.maxWidth = '';
+        }
+        this.unbindSheetViewport();
+        document.body.classList.remove('bob-sheet-open');
+        if (this.state !== 'sheet' && this.state !== 'modal') {
+            document.body.style.overflow = '';
+        }
+    }
+
+    bindSheetViewport() {
+        this.unbindSheetViewport();
+        this._onViewport = () => this.syncSheetViewport();
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', this._onViewport);
+            window.visualViewport.addEventListener('scroll', this._onViewport);
+        }
+        window.addEventListener('resize', this._onViewport);
+        this.syncSheetViewport();
+    }
+
+    unbindSheetViewport() {
+        if (!this._onViewport) return;
+        if (window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', this._onViewport);
+            window.visualViewport.removeEventListener('scroll', this._onViewport);
+        }
+        window.removeEventListener('resize', this._onViewport);
+        this._onViewport = null;
+    }
+
+    syncSheetViewport() {
+        const panel = document.getElementById('bob-panel');
+        if (!panel || this.state !== 'sheet') return;
+        if (!this.isNarrow()) {
+            this.openSide({ skipEnsure: true });
+            return;
+        }
+        const vv = window.visualViewport;
+        const height = vv ? vv.height : window.innerHeight;
+        const top = vv ? vv.offsetTop : 0;
+        panel.style.top = `${Math.round(top)}px`;
+        panel.style.height = `${Math.round(height)}px`;
+        panel.style.left = '0';
+        panel.style.right = '0';
+        panel.style.width = '100%';
+        panel.style.maxWidth = '100%';
+    }
     
     init() {
         this.createPanel();
         this.renderStarters();
         this.bindEvents();
+        this._mq = window.matchMedia('(max-width: 768px)');
+        this._onMq = () => {
+            if (this.state === 'closed') return;
+            if (this._mq.matches && this.state !== 'sheet') {
+                this.openSheet({ skipEnsure: true });
+            } else if (!this._mq.matches && this.state === 'sheet') {
+                this.openSide({ skipEnsure: true });
+            }
+        };
+        if (this._mq.addEventListener) {
+            this._mq.addEventListener('change', this._onMq);
+        } else if (this._mq.addListener) {
+            this._mq.addListener(this._onMq);
+        }
         // Restore sticky thread after refresh without auto-opening the panel.
         this.restoreStickyConversation({ openPanel: false });
     }
@@ -173,7 +257,7 @@ class BOBChatPanel {
         try {
             await this.loadConversation(id);
             if (openPanel && this.state === 'closed') {
-                this.openSide({ skipEnsure: true });
+                this.openForViewport({ skipEnsure: true });
             }
         } catch (e) {
             try {
@@ -463,20 +547,25 @@ class BOBChatPanel {
     toggle() {
         if (this.state === 'closed') {
             this.refreshStartersIfIdle();
-            this.openSide();
+            this.openForViewport();
         } else {
             this.close();
         }
     }
     
     openSide({ skipEnsure = false } = {}) {
+        if (this.isNarrow()) {
+            this.openSheet({ skipEnsure });
+            return;
+        }
         this.state = 'side';
         const panel = document.getElementById('bob-panel');
         const overlay = document.getElementById('bob-overlay');
         
         // Ensure clean state
         overlay.classList.remove('visible');
-        panel.classList.remove('modal');
+        panel.classList.remove('modal', 'sheet');
+        this.clearSheetLayout();
         
         // Open panel
         panel.classList.add('open');
@@ -490,6 +579,31 @@ class BOBChatPanel {
 
         if (!skipEnsure) {
             // Seed briefing once when a deal has setup signal and none was sent yet.
+            this.ensurePageConversation({ seedBriefing: true });
+        }
+
+        const textarea = document.getElementById('bob-textarea');
+        if (textarea) textarea.focus();
+    }
+
+    openSheet({ skipEnsure = false } = {}) {
+        this.state = 'sheet';
+        const panel = document.getElementById('bob-panel');
+        const overlay = document.getElementById('bob-overlay');
+
+        overlay.classList.remove('visible');
+        panel.classList.remove('modal');
+        panel.classList.add('open', 'sheet');
+        document.body.classList.add('bob-sheet-open');
+        document.body.style.overflow = 'hidden';
+        this.bindSheetViewport();
+        this.updateExpandButton();
+
+        if (!this.conversationsLoaded) {
+            this.loadConversations();
+        }
+
+        if (!skipEnsure) {
             this.ensurePageConversation({ seedBriefing: true });
         }
 
@@ -549,7 +663,7 @@ class BOBChatPanel {
         if (pageEntity.entityType !== 'transaction' || !pageEntity.entityId) {
             return null;
         }
-        this.openSide({ skipEnsure: true });
+        this.openForViewport({ skipEnsure: true });
         try {
             const response = await fetch(
                 `/api/ai-chat/transactions/${pageEntity.entityId}/setup-briefing`,
@@ -632,10 +746,16 @@ class BOBChatPanel {
     }
     
     openModal() {
+        if (this.isNarrow()) {
+            this.openSheet({ skipEnsure: true });
+            return;
+        }
         this.state = 'modal';
         const panel = document.getElementById('bob-panel');
         
         // Add modal class and open
+        panel.classList.remove('sheet');
+        this.clearSheetLayout();
         panel.classList.add('modal');
         panel.classList.add('open');
         
@@ -649,6 +769,7 @@ class BOBChatPanel {
     
     updateExpandButton() {
         const btn = document.getElementById('bob-expand-btn');
+        if (!btn) return;
         if (this.state === 'modal') {
             btn.innerHTML = '<i class="fas fa-compress-alt"></i>';
             btn.title = 'Collapse to sidebar';
@@ -659,6 +780,9 @@ class BOBChatPanel {
     }
     
     toggleExpand() {
+        if (this.isNarrow() || this.state === 'sheet') {
+            return;
+        }
         const panel = document.getElementById('bob-panel');
         
         if (this.state === 'side') {
@@ -688,14 +812,15 @@ class BOBChatPanel {
         // Animate out
         panel.classList.remove('open');
         overlay.classList.remove('visible');
+        this.clearSheetLayout();
         
         // Remove body lock
-        document.body.classList.remove('bob-fullscreen-open');
+        document.body.classList.remove('bob-fullscreen-open', 'bob-sheet-open');
         document.body.style.overflow = '';
         
         // Wait for animation to complete
         setTimeout(() => {
-            panel.classList.remove('modal');
+            panel.classList.remove('modal', 'sheet');
             this.state = 'closed';
             this.updateExpandButton();
         }, 300);

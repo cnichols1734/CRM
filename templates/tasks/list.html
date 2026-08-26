@@ -126,14 +126,19 @@
 
     /* Tabs */
     .crm-task-tabs {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         gap: 0;
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
         border-bottom: 1px solid var(--hairline);
         padding: 0 4px;
     }
     .crm-task-tab {
         position: relative;
+        flex-shrink: 0;
         padding: 10px 14px;
         font-size: 12.5px;
         font-weight: 500;
