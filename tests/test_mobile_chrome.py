@@ -50,8 +50,17 @@ class TestBobMobileSheet:
         # Desktop modal used calc(50% - 410px); the phone block must
         # override message padding to a real inset.
         mobile = css.split('Phone sheet', 1)[1]
-        assert 'padding: 16px' in mobile
+        assert 'padding: 12px' in mobile
         assert 'flex-direction: column !important' in mobile
+        assert '100svh' in mobile
+        assert 'var(--paper' in mobile
+        assert 'var(--canvas' in mobile
+        assert 'font-size: 16px' in mobile
+        assert 'width: 44px' in mobile
+        assert 'height: 44px' in mobile
+        # Keyboard tracking must snap, not ease height/top.
+        assert 'transition: transform' in mobile
+        assert 'top 0.3s' not in mobile
 
     def test_js_opens_sheet_on_narrow(self):
         js = _read('static/js/ai_chat.js')
@@ -61,6 +70,25 @@ class TestBobMobileSheet:
         assert '--bob-sheet-height' in js
         assert "this.state = 'sheet'" in js
         assert 'max-width: 768px' in js
+        sheet_fn = js.split(
+            'openSheet({ skipEnsure = false } = {}) {', 1
+        )[1].split('async ensurePageConversation', 1)[0]
+        assert 'textarea.focus()' not in sheet_fn
+        assert 'textarea.focus()' in js
+        assert 'isNarrow() ? 96 : 120' in js
+        assert 'enterkeyhint="send"' in js
+
+
+class TestMobileNavTheme:
+    def test_hamburger_drawer_uses_canvas_tokens(self):
+        html = _read('templates/base.html')
+        assert 'crm-mobile-nav-panel' in html
+        block = html.split('#mobileNavMenu .crm-mobile-nav-panel', 1)[1]
+        assert 'background: var(--canvas) !important' in block
+        assert 'color: var(--ink) !important' in block
+        assert 'var(--paper-2)' in block
+        # Desktop sidebar keeps its own rules; this selector is menu-only.
+        assert 'aside#sidebar' not in block.split('User dropdown menu', 1)[0]
 
 
 @pytest.mark.usefixtures('seed')
@@ -72,3 +100,4 @@ class TestBobAssetsOnDashboard:
         assert b'css/ai_chat.css' in resp.data
         assert b'bob-toggle-mobile' in resp.data
         assert b'viewport-fit=cover' in resp.data
+        assert b'crm-mobile-nav-panel' in resp.data

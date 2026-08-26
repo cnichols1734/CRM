@@ -1305,7 +1305,7 @@
 /* ===== Mobile Responsive ===== */
 @media (max-width: 768px) {
     .bob-title {
-        font-size: 28px;
+        font-size: 20px;
     }
 }
 
@@ -1936,11 +1936,12 @@ body.bob-fullscreen-open {
    On a 390px phone that modal math goes negative, the sidebar eats
    half the screen, and 100vw blows the page sideways.
 
-   Open state on a phone is a full-viewport sheet: column layout,
-   composer pinned to the visual viewport (JS sets top/height), no
-   sideways overflow. */
+   Open state on a phone is a full-viewport column sheet. Composer sits
+   on the visual viewport (JS writes --bob-sheet-top / --bob-sheet-height).
+   Surfaces use canvas/paper so dark mode is not a white blast. */
 body.bob-sheet-open {
     overflow: hidden !important;
+    overscroll-behavior: none;
 }
 
 @media (max-width: 768px) {
@@ -1954,15 +1955,24 @@ body.bob-sheet-open {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        height: var(--bob-sheet-height, 100dvh) !important;
+        height: var(--bob-sheet-height, 100svh) !important;
         max-height: var(--bob-sheet-height, 100%) !important;
         min-height: 0 !important;
         border: none !important;
         border-radius: 0 !important;
         box-shadow: none !important;
         flex-direction: column !important;
+        display: flex !important;
         padding: 0 !important;
         transform: translateY(100%);
+        background: var(--paper, var(--bob-panel-bg)) !important;
+        --bob-panel-bg: var(--paper);
+        --bob-border: var(--hairline);
+        --bob-text: var(--ink);
+        --bob-muted: var(--ink-3);
+        /* Open/close slides. Height/top must snap with the keyboard. */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .bob-panel.open,
@@ -1974,6 +1984,10 @@ body.bob-sheet-open {
     .bob-panel.modal .bob-history-sidebar,
     .bob-panel.sheet .bob-history-sidebar {
         display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
     }
 
     .bob-panel .bob-main-area,
@@ -1988,14 +2002,22 @@ body.bob-sheet-open {
         overflow: hidden;
     }
 
-    .bob-header {
-        padding: 10px 12px;
-        padding-top: max(10px, env(safe-area-inset-top, 0px));
+    .bob-header,
+    .bob-panel.modal .bob-header {
+        padding: 8px 10px;
+        padding-top: max(8px, env(safe-area-inset-top, 0px));
+        background: var(--paper, var(--bob-panel-bg)) !important;
+        min-height: 52px;
     }
 
-    .bob-panel.modal .bob-header {
-        padding: 10px 12px;
-        padding-top: max(10px, env(safe-area-inset-top, 0px));
+    .bob-header-btn {
+        width: 44px;
+        height: 44px;
+        touch-action: manipulation;
+    }
+
+    .bob-header-btn:hover {
+        background: var(--paper-2, #f1f5f9);
     }
 
     #bob-expand-btn {
@@ -2010,62 +2032,108 @@ body.bob-sheet-open {
         min-height: 0;
         flex: 1;
         overflow: hidden;
+        background: var(--canvas, #fafafa) !important;
     }
 
     .bob-welcome,
     .bob-panel.modal .bob-welcome {
-        padding: 28px 16px;
+        padding: 16px 16px 12px;
         max-width: 100%;
+        background: var(--canvas, #fafafa) !important;
+        justify-content: flex-start;
     }
 
+    .bob-welcome > :first-child,
+    .bob-welcome > :last-child {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    .bob-logo,
     .bob-panel.modal .bob-logo {
-        width: 72px;
-        height: 72px;
-        margin-bottom: 16px;
+        width: 44px;
+        height: 44px;
+        margin-bottom: 8px;
     }
 
+    .bob-logo svg,
     .bob-panel.modal .bob-logo svg {
-        width: 60px;
-        height: 60px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .bob-logo-glow {
+        width: 48px;
+        height: 48px;
+        filter: blur(12px);
     }
 
     .bob-panel.modal .bob-title,
     .bob-title {
-        font-size: 28px;
+        font-size: 20px;
+        margin-bottom: 2px;
     }
 
+    .bob-subtitle,
     .bob-panel.modal .bob-subtitle {
-        font-size: 15px;
+        font-size: 13px;
     }
 
     .bob-panel.modal .bob-tagline,
     .bob-tagline {
         max-width: 100%;
-        padding: 12px 16px;
+        margin-top: 12px;
+        padding: 8px 12px;
+        background: var(--paper-2, #f8fafc);
     }
 
     .bob-messages,
     .bob-panel.modal .bob-messages {
-        padding: 16px;
+        padding: 12px;
         max-width: 100%;
+        background: var(--canvas, #f8fafc) !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
 
     .bob-panel.modal .bob-message,
     .bob-message {
         max-width: 88%;
+        padding: 10px 14px;
+    }
+
+    .bob-message.assistant {
+        background: var(--paper, #ffffff);
+        color: var(--ink, var(--bob-text));
+        border-color: var(--hairline, var(--bob-border));
+    }
+
+    .bob-message.assistant strong,
+    .bob-message.assistant h1,
+    .bob-message.assistant h2,
+    .bob-message.assistant h3 {
+        color: var(--ink, var(--bob-navy));
     }
 
     .bob-starters,
     .bob-panel.modal .bob-starters {
         display: block;
         max-width: 100%;
-        margin-top: 24px;
+        margin-top: 16px;
         grid-template-columns: none;
         column-gap: 0;
     }
 
-    .bob-panel.modal .bob-starters-group + .bob-starters-group {
-        margin-top: 18px;
+    .bob-panel.modal .bob-starters-group + .bob-starters-group,
+    .bob-starters-group + .bob-starters-group {
+        margin-top: 12px;
+    }
+
+    .bob-starter {
+        min-height: 44px;
+        padding: 12px 14px;
+        background: var(--paper, #f8fafc);
+        touch-action: manipulation;
     }
 
     .bob-input-area,
@@ -2073,7 +2141,8 @@ body.bob-sheet-open {
         width: 100%;
         max-width: 100%;
         align-items: stretch;
-        padding: 12px 12px max(12px, env(safe-area-inset-bottom, 0px));
+        padding: 8px 10px max(8px, env(safe-area-inset-bottom, 0px));
+        background: var(--paper, var(--bob-panel-bg)) !important;
     }
 
     .bob-panel.modal .bob-image-preview,
@@ -2086,16 +2155,63 @@ body.bob-sheet-open {
 
     .bob-panel.modal .bob-input-container,
     .bob-input-container {
-        padding: 12px 12px;
-        border-radius: 16px;
+        padding: 8px 10px;
+        border-radius: 14px;
+        background: var(--paper-2, #f8fafc) !important;
+    }
+
+    .bob-input-container:focus-within {
+        background: var(--paper, #ffffff) !important;
     }
 
     .bob-input-row {
         min-width: 0;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .bob-textarea {
+        font-size: 16px;
+        line-height: 1.4;
+        min-height: 28px;
+        max-height: 96px;
+        padding: 8px 0;
+    }
+
+    .bob-tool-btn {
+        width: 44px;
+        height: 44px;
+        background: var(--paper, #ffffff);
+        touch-action: manipulation;
+    }
+
+    .bob-send-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        touch-action: manipulation;
+    }
+
+    .bob-history-dropdown {
+        width: min(280px, calc(100vw - 16px));
+        max-width: calc(100vw - 16px);
+        right: 0;
+        background: var(--paper, #ffffff);
+    }
+
+    .bob-history-dropdown-header {
+        background: var(--paper-2, #f8fafc);
+    }
+
+    .bob-history-dropdown-delete {
+        opacity: 1;
+        width: 44px;
+        height: 44px;
     }
 
     .bob-file-preview {
         max-width: 100%;
+        background: var(--paper-2, #f8fafc);
     }
 
     .bob-file-card {

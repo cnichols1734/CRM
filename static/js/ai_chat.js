@@ -418,7 +418,8 @@ class BOBChatPanel {
                             </button>
                         </div>
                         <textarea class="bob-textarea" id="bob-textarea" 
-                            placeholder="Ask anything... Type @ to mention a contact" rows="1"></textarea>
+                            placeholder="Ask anything... Type @ to mention a contact"
+                            rows="1" enterkeyhint="send" autocomplete="off"></textarea>
                         <button class="bob-send-btn" id="bob-send-btn" title="Send">
                             <i class="fas fa-paper-plane"></i>
                         </button>
@@ -609,8 +610,8 @@ class BOBChatPanel {
             this.ensurePageConversation({ seedBriefing: true });
         }
 
-        const textarea = document.getElementById('bob-textarea');
-        if (textarea) textarea.focus();
+        // Do not focus the composer. iOS would open the keyboard on a
+        // 14px field and zoom the sheet. The user taps when they want it.
     }
 
     async ensurePageConversation({ seedBriefing = false, forceBriefing = false } = {}) {
@@ -855,8 +856,9 @@ class BOBChatPanel {
     
     autoResizeTextarea() {
         const textarea = document.getElementById('bob-textarea');
+        const max = this.isNarrow() ? 96 : 120;
         textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        textarea.style.height = Math.min(textarea.scrollHeight, max) + 'px';
     }
     
     // ===== File Attachment =====
