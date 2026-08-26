@@ -125,8 +125,8 @@ class TestChromeHooks:
         assert "success_check()" in checklist
         assert "t-check-native" not in checklist
         assert "celebrateChecklistCheck" in detail
-        assert "burstConfetti" in detail
-        assert "localOrigin: true" in detail
+        assert "TMotion.burstConfetti(box)" in detail
+        assert "localOrigin" not in detail
         assert "playSuccessCheck" in detail
         assert "setChecked" in detail
         assert "applyDone(item, done, done && !wasDone)" in detail
@@ -169,6 +169,19 @@ class TestChromeHooks:
         assert 'className = \'t-tt\'' in base or 'tip.className = \'t-tt\'' in base
         assert "t-morph" not in settings
         assert "t-acc" not in settings
+
+    def test_theme_toggle_glyphs_are_centered(self):
+        base = _read("templates", "base.html")
+        bridge = _read("static", "css", "transitions-bridge.css")
+        theme_btn = base.split(".crm-theme-btn {", 1)[1].split("/* Smooth transition", 1)[0]
+        assert "padding: 0;" in theme_btn
+        assert "line-height: 0;" in theme_btn
+        assert ".crm-theme-btn .t-icon {" in theme_btn
+        assert "display: block;" in theme_btn
+        assert "font-size: 0.9rem;" in theme_btn
+        assert "display: inline;" not in theme_btn
+        assert "place-content: center;" in bridge
+        assert "width: 0.9rem;" in bridge.split(".crm-theme-btn .t-icon-swap {", 1)[1]
 
     def test_orchestration_reads_css_ms(self):
         js = _read("static", "js", "transitions.js")

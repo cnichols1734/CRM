@@ -456,8 +456,12 @@ button.t-check[aria-checked="true"] {
 }
 
 .crm-theme-btn .t-icon-swap {
+  display: grid;
+  place-items: center;
+  place-content: center;
   width: 0.9rem;
   height: 0.9rem;
+  line-height: 0;
 }
 
 .crm-sidebar-toggle .t-icon-swap {
