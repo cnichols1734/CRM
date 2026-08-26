@@ -162,9 +162,11 @@ class CRMTestSuite:
             if (overlay) overlay.classList.remove('visible');
             const panel = document.getElementById('bob-panel');
             if (panel) {
-                panel.classList.remove('open', 'modal');
+                panel.classList.remove('open', 'modal', 'sheet');
+                panel.style.top = '';
+                panel.style.height = '';
             }
-            document.body.classList.remove('bob-fullscreen-open');
+            document.body.classList.remove('bob-fullscreen-open', 'bob-sheet-open');
             document.body.style.overflow = '';
         }""")
     
@@ -761,6 +763,179 @@ class CRMTestSuite:
             self.log("", "fail")
             self.results.add_fail(test_name, str(e))
     
+    def _document_overflow(self):
+        """Return document overflow vs viewport, plus the widest offenders."""
+        return self.page.evaluate(
+            """() => {
+                const doc = document.documentElement;
+                const body = document.body;
+                const clientW = doc.clientWidth;
+                const scrollW = Math.max(doc.scrollWidth, body.scrollWidth);
+                const overflow = scrollW - clientW;
+                const offenders = [];
+                if (overflow > 1) {
+                    document.querySelectorAll('body *').forEach((el) => {
+                        const r = el.getBoundingClientRect();
+                        if (r.right > clientW + 1 && r.width > 1) {
+                            offenders.push({
+                                tag: el.tagName.toLowerCase(),
+                                id: el.id || '',
+                                cls: String(el.className || '').slice(0, 90),
+                                w: Math.round(r.width),
+                                right: Math.round(r.right),
+                            });
+                        }
+                    });
+                    offenders.sort((a, b) => b.right - a.right);
+                }
+                return {
+                    scrollW,
+                    clientW,
+                    overflow,
+                    offenders: offenders.slice(0, 8),
+                };
+            }"""
+        )
+
+    def _assert_no_page_overflow(self, label):
+        info = self._document_overflow()
+        if info['overflow'] > 1:
+            detail = ', '.join(
+                f"{o['tag']}#{o['id']}.{o['cls']} right={o['right']}"
+                for o in info['offenders']
+            ) or 'unknown'
+            raise AssertionError(
+                f"{label} scrolls sideways by {info['overflow']}px "
+                f"(scrollWidth={info['scrollW']}, clientWidth={info['clientW']}). "
+                f"Offenders: {detail}"
+            )
+
+    def test_mobile_native_app(self):
+        """Phone viewports: no document sideways scroll, B.O.B. opens as a sheet."""
+        test_name = "Mobile native app chrome"
+        self.log(test_name, "test")
+        previous = self.page.viewport_size
+
+        try:
+            pages = [
+                ('/dashboard', 'Dashboard'),
+                ('/contacts', 'Contacts'),
+                ('/tasks', 'Tasks'),
+                ('/user_todo', 'To-Do'),
+                ('/inbox', 'Inbox'),
+                ('/briefing', 'Briefing'),
+                ('/transactions/', 'Transactions'),
+                ('/reports/', 'Reports'),
+                ('/org/settings', 'Settings'),
+                ('/marketing/overview', 'Marketing'),
+                ('/profile', 'Profile'),
+            ]
+            if getattr(self, 'test_contact_id', None):
+                pages.append((f'/contact/{self.test_contact_id}', 'Contact detail'))
+
+            for width, height in ((390, 844), (430, 932)):
+                self.log(f"Viewport {width}x{height}...", "step")
+                self.page.set_viewport_size({'width': width, 'height': height})
+                for path, label in pages:
+                    self.page.goto(f"{self.base_url}{path}")
+                    self.page.wait_for_load_state('domcontentloaded')
+                    if '/login' in self.page.url:
+                        continue
+                    self._assert_no_page_overflow(f"{label} @ {width}x{height}")
+                    if path == '/transactions/':
+                        href = self.page.evaluate(
+                            """() => {
+                                const links = [...document.querySelectorAll('a[href*="/transactions/"]')];
+                                const hit = links.find((a) => /\\/transactions\\/\\d+/.test(a.getAttribute('href') || ''));
+                                return hit ? hit.getAttribute('href') : null;
+                            }"""
+                        )
+                        if href:
+                            self.page.goto(f"{self.base_url}{href}")
+                            self.page.wait_for_load_state('domcontentloaded')
+                            self._assert_no_page_overflow(f"Deal file @ {width}x{height}")
+                self.log("", "ok")
+
+                self.log("Opening B.O.B. sheet...", "step")
+                self.page.goto(f"{self.base_url}/contacts")
+                self.page.wait_for_load_state('domcontentloaded')
+                toggle = self.page.locator('#bob-toggle-mobile')
+                if toggle.count() == 0:
+                    raise AssertionError('Mobile B.O.B. toggle missing on contacts')
+                toggle.click()
+                self.page.wait_for_selector('#bob-panel.open', timeout=5000)
+                self.page.wait_for_timeout(350)
+                sheet = self.page.evaluate(
+                    """() => {
+                        const panel = document.getElementById('bob-panel');
+                        const textarea = document.getElementById('bob-textarea');
+                        const send = document.getElementById('bob-send-btn');
+                        const pr = panel.getBoundingClientRect();
+                        const tr = textarea.getBoundingClientRect();
+                        const sr = send.getBoundingClientRect();
+                        const vw = window.innerWidth;
+                        const vh = window.innerHeight;
+                        return {
+                            sheet: panel.classList.contains('sheet'),
+                            modal: panel.classList.contains('modal'),
+                            panelW: Math.round(pr.width),
+                            vw,
+                            textareaOnScreen: tr.height > 0 && tr.bottom <= vh + 2,
+                            sendOnScreen: sr.height > 0
+                                && sr.right <= vw + 2
+                                && sr.bottom <= vh + 2,
+                            sendW: Math.round(sr.width),
+                        };
+                    }"""
+                )
+                if not sheet['sheet']:
+                    raise AssertionError(f"B.O.B. did not open as a sheet: {sheet}")
+                if sheet['modal']:
+                    raise AssertionError('B.O.B. opened the desktop modal on a phone')
+                if abs(sheet['panelW'] - sheet['vw']) > 2:
+                    raise AssertionError(
+                        f"B.O.B. sheet width {sheet['panelW']} != viewport {sheet['vw']}"
+                    )
+                if not sheet['textareaOnScreen'] or not sheet['sendOnScreen']:
+                    raise AssertionError(f"B.O.B. composer clipped: {sheet}")
+                self.page.evaluate(
+                    """() => {
+                        const panel = document.getElementById('bob-panel');
+                        panel.style.setProperty('--bob-sheet-height', '500px');
+                        panel.style.setProperty('--bob-sheet-top', '0px');
+                    }"""
+                )
+                kb = self.page.evaluate(
+                    """() => {
+                        const ta = document.getElementById('bob-textarea').getBoundingClientRect();
+                        const send = document.getElementById('bob-send-btn').getBoundingClientRect();
+                        const panel = document.getElementById('bob-panel').getBoundingClientRect();
+                        return {
+                            panelH: Math.round(panel.height),
+                            taBottom: Math.round(ta.bottom),
+                            sendBottom: Math.round(send.bottom),
+                            sendRight: Math.round(send.right),
+                        };
+                    }"""
+                )
+                if kb['panelH'] > 502 or kb['taBottom'] > 502 or kb['sendBottom'] > 502:
+                    raise AssertionError(f"B.O.B. composer lost under a short viewport: {kb}")
+                self._assert_no_page_overflow(f"B.O.B. open @ {width}x{height}")
+                self.dismiss_ai_chat_panel()
+                self.log("", "ok")
+
+            self.log("", "pass")
+            self.results.add_pass()
+
+        except Exception as e:
+            self.log(str(e), "error")
+            self.log("", "fail")
+            self.results.add_fail(test_name, str(e))
+        finally:
+            self.dismiss_ai_chat_panel()
+            if previous:
+                self.page.set_viewport_size(previous)
+
     # ==================== CLEANUP ====================
     
     def cleanup(self):
@@ -828,6 +1003,7 @@ class CRMTestSuite:
             # Contact tests
             self.test_create_contact()
             self.test_view_contact()
+            self.test_mobile_native_app()
             self.test_edit_contact()
             
             # Task tests

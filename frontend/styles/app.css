@@ -219,6 +219,34 @@
 
   .crm-page-actions { @apply flex flex-wrap items-center gap-2; }
 
+  /* Phone width: content fits the viewport. Wide tables and chip rows
+     scroll inside themselves instead of pushing the document sideways. */
+  @media (max-width: 767px) {
+    .crm-page,
+    .crm-page__inner {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .crm-segment,
+    .crm-pill-tabs {
+      display: flex;
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .crm-segment__item,
+    .crm-pill-tab {
+      flex-shrink: 0;
+    }
+    .crm-toolbar {
+      flex-wrap: wrap;
+    }
+    .crm-table-wrap {
+      max-width: 100%;
+    }
+  }
+
   /* Section heading */
   .crm-section-title {
     font-family: var(--font-serif);

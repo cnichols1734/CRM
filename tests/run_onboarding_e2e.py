@@ -280,8 +280,12 @@ class OnboardingJourney:
                     const overlay = document.getElementById('bob-overlay');
                     if (overlay) overlay.classList.remove('visible');
                     const panel = document.getElementById('bob-panel');
-                    if (panel) panel.classList.remove('open', 'modal');
-                    document.body.classList.remove('bob-fullscreen-open');
+                    if (panel) {
+                        panel.classList.remove('open', 'modal', 'sheet');
+                        panel.style.top = '';
+                        panel.style.height = '';
+                    }
+                    document.body.classList.remove('bob-fullscreen-open', 'bob-sheet-open');
                     document.body.style.overflow = '';
                 }"""
             )

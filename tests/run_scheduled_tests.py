@@ -171,9 +171,11 @@ class CRMScheduledTestSuite:
             if (overlay) overlay.classList.remove('visible');
             const panel = document.getElementById('bob-panel');
             if (panel) {
-                panel.classList.remove('open', 'modal');
+                panel.classList.remove('open', 'modal', 'sheet');
+                panel.style.top = '';
+                panel.style.height = '';
             }
-            document.body.classList.remove('bob-fullscreen-open');
+            document.body.classList.remove('bob-fullscreen-open', 'bob-sheet-open');
             document.body.style.overflow = '';
         }""")
     

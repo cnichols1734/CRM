@@ -5,7 +5,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}AgentFlow{% endblock %}</title>
     {% block seo_head %}{% endblock %}
     <!-- Theme guard: applies stored theme before any paint to avoid FOUC.
@@ -58,6 +58,8 @@
            Uses class selectors so ai_chat.css (same specificity, later in DOM) overrides cleanly. */
         .bob-panel { position: fixed; transform: translateX(100%); visibility: hidden; pointer-events: none; overflow: hidden; }
         .bob-panel.open { visibility: visible; transform: translateX(0); pointer-events: auto; overflow: visible; }
+        .bob-panel.sheet { transform: translateY(100%); }
+        .bob-panel.sheet.open { transform: none; overflow: hidden; }
         .bob-overlay { position: fixed; inset: 0; opacity: 0; pointer-events: none; visibility: hidden; }
         /* NProgress customization - YouTube-style */
         #nprogress .bar { 
@@ -912,11 +914,32 @@
         @media (max-width: 768px) {
             .content-wrapper {
                 min-height: calc(100vh - 3.5rem);
+                min-height: calc(100dvh - 3.5rem);
                 transition: opacity 0.15s ease;
             }
 
             .content-wrapper.loading {
                 opacity: 0.5;
+            }
+
+            /* Flex items default to min-width:auto, so a wide table (deal
+               file, contacts) inflates the document and the page scrolls
+               sideways. Let the shell shrink; tables scroll inside
+               .crm-table-wrap instead. */
+            html,
+            body.crm-shell {
+                max-width: 100%;
+            }
+            body.crm-shell,
+            body.crm-shell > .flex,
+            main#mainContent,
+            main#mainContent > .content-wrapper {
+                min-width: 0;
+                max-width: 100%;
+            }
+            main#mainContent {
+                overflow-x: clip;
+                overflow-y: auto;
             }
         }
 

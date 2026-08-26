@@ -94,8 +94,8 @@
     bottom: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    min-width: 100vw !important;
-    min-height: 100vh !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
     max-width: none !important;
     max-height: none !important;
     border-radius: 0 !important;
@@ -1304,11 +1304,6 @@
 
 /* ===== Mobile Responsive ===== */
 @media (max-width: 768px) {
-    .bob-panel {
-        width: 100vw;
-        border-radius: 0;
-    }
-    
     .bob-title {
         font-size: 28px;
     }
@@ -1737,16 +1732,18 @@ body.bob-fullscreen-open {
 
 /* ===== Mobile: hide sidebar, show dropdown ===== */
 @media (max-width: 768px) {
-    .bob-panel.modal .bob-history-sidebar {
+    .bob-panel.modal .bob-history-sidebar,
+    .bob-panel.sheet .bob-history-sidebar {
         display: none;
     }
     
-    .bob-panel.modal #bob-history-dropdown-container {
+    .bob-panel.modal #bob-history-dropdown-container,
+    .bob-panel.sheet #bob-history-dropdown-container {
         display: block;
     }
     
     .bob-history-dropdown {
-        width: calc(100vw - 40px);
+        width: min(320px, calc(100% - 24px));
         max-width: 320px;
     }
 }
@@ -1874,10 +1871,9 @@ body.bob-fullscreen-open {
 /* ===== Image Modal ===== */
 .bob-image-modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 10001;
     display: none;
     align-items: center;
@@ -1932,4 +1928,177 @@ body.bob-fullscreen-open {
 
 .bob-image-modal-close:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* ===== Phone sheet =====
+   Desktop B.O.B. is a 520px side drawer, or a fullscreen modal with a
+   history sidebar and `padding: 32px calc(50% - 410px)` on messages.
+   On a 390px phone that modal math goes negative, the sidebar eats
+   half the screen, and 100vw blows the page sideways.
+
+   Open state on a phone is a full-viewport sheet: column layout,
+   composer pinned to the visual viewport (JS sets top/height), no
+   sideways overflow. */
+body.bob-sheet-open {
+    overflow: hidden !important;
+}
+
+@media (max-width: 768px) {
+    .bob-panel,
+    .bob-panel.sheet,
+    .bob-panel.modal {
+        top: var(--bob-sheet-top, 0px) !important;
+        right: 0 !important;
+        left: 0 !important;
+        bottom: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: var(--bob-sheet-height, 100dvh) !important;
+        max-height: var(--bob-sheet-height, 100%) !important;
+        min-height: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        flex-direction: column !important;
+        padding: 0 !important;
+        transform: translateY(100%);
+    }
+
+    .bob-panel.open,
+    .bob-panel.sheet.open,
+    .bob-panel.modal.open {
+        transform: none !important;
+    }
+
+    .bob-panel.modal .bob-history-sidebar,
+    .bob-panel.sheet .bob-history-sidebar {
+        display: none !important;
+    }
+
+    .bob-panel .bob-main-area,
+    .bob-panel.modal .bob-main-area,
+    .bob-panel.sheet .bob-main-area {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        overflow: hidden;
+    }
+
+    .bob-header {
+        padding: 10px 12px;
+        padding-top: max(10px, env(safe-area-inset-top, 0px));
+    }
+
+    .bob-panel.modal .bob-header {
+        padding: 10px 12px;
+        padding-top: max(10px, env(safe-area-inset-top, 0px));
+    }
+
+    #bob-expand-btn {
+        display: none;
+    }
+
+    .bob-content,
+    .bob-panel.modal .bob-content {
+        max-width: 100%;
+        width: 100%;
+        min-width: 0;
+        min-height: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .bob-welcome,
+    .bob-panel.modal .bob-welcome {
+        padding: 28px 16px;
+        max-width: 100%;
+    }
+
+    .bob-panel.modal .bob-logo {
+        width: 72px;
+        height: 72px;
+        margin-bottom: 16px;
+    }
+
+    .bob-panel.modal .bob-logo svg {
+        width: 60px;
+        height: 60px;
+    }
+
+    .bob-panel.modal .bob-title,
+    .bob-title {
+        font-size: 28px;
+    }
+
+    .bob-panel.modal .bob-subtitle {
+        font-size: 15px;
+    }
+
+    .bob-panel.modal .bob-tagline,
+    .bob-tagline {
+        max-width: 100%;
+        padding: 12px 16px;
+    }
+
+    .bob-messages,
+    .bob-panel.modal .bob-messages {
+        padding: 16px;
+        max-width: 100%;
+    }
+
+    .bob-panel.modal .bob-message,
+    .bob-message {
+        max-width: 88%;
+    }
+
+    .bob-starters,
+    .bob-panel.modal .bob-starters {
+        display: block;
+        max-width: 100%;
+        margin-top: 24px;
+        grid-template-columns: none;
+        column-gap: 0;
+    }
+
+    .bob-panel.modal .bob-starters-group + .bob-starters-group {
+        margin-top: 18px;
+    }
+
+    .bob-input-area,
+    .bob-panel.modal .bob-input-area {
+        width: 100%;
+        max-width: 100%;
+        align-items: stretch;
+        padding: 12px 12px max(12px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .bob-panel.modal .bob-image-preview,
+    .bob-panel.modal .bob-mentions-dropdown,
+    .bob-panel.modal .bob-input-container,
+    .bob-input-container {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .bob-panel.modal .bob-input-container,
+    .bob-input-container {
+        padding: 12px 12px;
+        border-radius: 16px;
+    }
+
+    .bob-input-row {
+        min-width: 0;
+    }
+
+    .bob-file-preview {
+        max-width: 100%;
+    }
+
+    .bob-file-card {
+        max-width: 100%;
+    }
 }
