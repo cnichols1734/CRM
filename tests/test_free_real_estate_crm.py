@@ -186,6 +186,10 @@ class TestFreeRealEstateCrmSeo:
         assert 'property="og:title" content="Free real estate CRM | AgentFlow"' in page
         assert f'property="og:url" content="{page_url}"' in page
         assert 'property="og:description" content="Built for agents, by agents. The free tier stays free. No card. About two minutes."' in page
+        assert f'property="og:image" content="{base}/static/images/og-share.png"' in page
+        assert f'name="twitter:image" content="{base}/static/images/og-share.png"' in page
+        assert f'property="og:image" content="{base}/static/images/og-share.png"' in home
+        assert f'name="twitter:image" content="{base}/static/images/og-share.png"' in home
 
         assert "<title>Free Real Estate CRM | AgentFlow</title>" in home
         assert f'rel="canonical" href="{home_url}"' in home
