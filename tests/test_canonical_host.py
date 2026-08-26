@@ -20,10 +20,19 @@ PUBLIC_PATHS = (
     "/wise-agent-alternative",
     "/kvcore-alternative",
 )
+SHARE_IMAGE = "https://agentflow.origentechnolog.com/static/images/og-share.png"
 
 
 def test_default_app_base_url_is_agentflow():
     assert DEFAULT_APP_BASE_URL == "https://agentflow.origentechnolog.com"
+
+
+def test_public_seo_share_images_use_absolute_agentflow_url(client):
+    for path in PUBLIC_PATHS:
+        html = client.get(path).get_data(as_text=True)
+        assert f'property="og:image" content="{SHARE_IMAGE}"' in html, path
+        assert f'name="twitter:image" content="{SHARE_IMAGE}"' in html, path
+        assert 'content="/static/images/og-share.png"' not in html, path
 
 
 def test_sitemap_locs_use_agentflow_host():

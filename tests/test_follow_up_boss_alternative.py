@@ -227,6 +227,10 @@ class TestFollowUpBossAlternativeSeo:
         assert f'property="og:title" content="{TITLE}"' in page
         assert f'property="og:url" content="{page_url}"' in page
         assert f'property="og:description" content="{META}"' in page
+        assert f'property="og:image" content="{base}/static/images/og-share.png"' in page
+        assert f'name="twitter:image" content="{base}/static/images/og-share.png"' in page
+        assert f'property="og:image" content="{base}/static/images/og-share.png"' in home
+        assert f'name="twitter:image" content="{base}/static/images/og-share.png"' in home
 
         assert f"<title>{HOME_TITLE}</title>" in home
         assert f'rel="canonical" href="{home_url}"' in home
