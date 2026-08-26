@@ -58,7 +58,8 @@
            Uses class selectors so ai_chat.css (same specificity, later in DOM) overrides cleanly. */
         .bob-panel { position: fixed; transform: translateX(100%); visibility: hidden; pointer-events: none; overflow: hidden; }
         .bob-panel.open { visibility: visible; transform: translateX(0); pointer-events: auto; overflow: visible; }
-        .bob-panel.sheet.open { overflow: hidden; }
+        .bob-panel.sheet { transform: translateY(100%); }
+        .bob-panel.sheet.open { transform: none; overflow: hidden; }
         .bob-overlay { position: fixed; inset: 0; opacity: 0; pointer-events: none; visibility: hidden; }
         /* NProgress customization - YouTube-style */
         #nprogress .bar { 

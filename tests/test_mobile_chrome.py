@@ -44,7 +44,7 @@ class TestBobMobileSheet:
         css = _read('static/css/ai_chat.css')
         assert '.bob-panel.sheet' in css
         assert 'body.bob-sheet-open' in css
-        assert '100dvh' in css
+        assert '--bob-sheet-height' in css
         assert 'env(safe-area-inset-bottom' in css
         assert '#bob-expand-btn' in css
         # Desktop modal used calc(50% - 410px); the phone block must
@@ -58,6 +58,7 @@ class TestBobMobileSheet:
         assert 'openSheet' in js
         assert 'openForViewport' in js
         assert 'visualViewport' in js
+        assert '--bob-sheet-height' in js
         assert "this.state = 'sheet'" in js
         assert 'max-width: 768px' in js
 

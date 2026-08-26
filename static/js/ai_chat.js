@@ -153,6 +153,8 @@ class BOBChatPanel {
             panel.style.right = '';
             panel.style.width = '';
             panel.style.maxWidth = '';
+            panel.style.removeProperty('--bob-sheet-top');
+            panel.style.removeProperty('--bob-sheet-height');
         }
         this.unbindSheetViewport();
         document.body.classList.remove('bob-sheet-open');
@@ -192,8 +194,8 @@ class BOBChatPanel {
         const vv = window.visualViewport;
         const height = vv ? vv.height : window.innerHeight;
         const top = vv ? vv.offsetTop : 0;
-        panel.style.top = `${Math.round(top)}px`;
-        panel.style.height = `${Math.round(height)}px`;
+        panel.style.setProperty('--bob-sheet-top', `${Math.round(top)}px`);
+        panel.style.setProperty('--bob-sheet-height', `${Math.round(height)}px`);
         panel.style.left = '0';
         panel.style.right = '0';
         panel.style.width = '100%';

@@ -864,6 +864,7 @@ class CRMTestSuite:
                     raise AssertionError('Mobile B.O.B. toggle missing on contacts')
                 toggle.click()
                 self.page.wait_for_selector('#bob-panel.open', timeout=5000)
+                self.page.wait_for_timeout(350)
                 sheet = self.page.evaluate(
                     """() => {
                         const panel = document.getElementById('bob-panel');
@@ -897,6 +898,28 @@ class CRMTestSuite:
                     )
                 if not sheet['textareaOnScreen'] or not sheet['sendOnScreen']:
                     raise AssertionError(f"B.O.B. composer clipped: {sheet}")
+                self.page.evaluate(
+                    """() => {
+                        const panel = document.getElementById('bob-panel');
+                        panel.style.setProperty('--bob-sheet-height', '500px');
+                        panel.style.setProperty('--bob-sheet-top', '0px');
+                    }"""
+                )
+                kb = self.page.evaluate(
+                    """() => {
+                        const ta = document.getElementById('bob-textarea').getBoundingClientRect();
+                        const send = document.getElementById('bob-send-btn').getBoundingClientRect();
+                        const panel = document.getElementById('bob-panel').getBoundingClientRect();
+                        return {
+                            panelH: Math.round(panel.height),
+                            taBottom: Math.round(ta.bottom),
+                            sendBottom: Math.round(send.bottom),
+                            sendRight: Math.round(send.right),
+                        };
+                    }"""
+                )
+                if kb['panelH'] > 502 or kb['taBottom'] > 502 or kb['sendBottom'] > 502:
+                    raise AssertionError(f"B.O.B. composer lost under a short viewport: {kb}")
                 self._assert_no_page_overflow(f"B.O.B. open @ {width}x{height}")
                 self.dismiss_ai_chat_panel()
                 self.log("", "ok")
