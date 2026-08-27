@@ -58,6 +58,9 @@
     background: var(--brand-orange);
   }
   .left-muted{ color: hsla(0, 0%, 100%, 0.56); }
+  .left p.text-brand-600{ color: hsla(0, 0%, 100%, 0.56); }
+  .left a.text-brand-800{ color: #fb923c; }
+  .left a.text-brand-800:hover{ color: #f97316; }
   .left-title{
     color: hsla(0, 0%, 100%, 0.92);
     font-weight: 800;
@@ -207,6 +210,9 @@
               </p>
               <p class="mt-3 text-sm lg:text-[15px] left-muted leading-relaxed">
                 No credit card. The free tier stays free. Up to 10,000 contacts, in a CRM built for agents.
+              </p>
+              <p class="mt-8 text-brand-600">
+                More on what's included is on <a href="{{ url_for('main.free_real_estate_crm') }}" class="text-brand-800 underline underline-offset-2 hover:text-accent-600">the free real estate CRM page</a>.
               </p>
             </div>
 

@@ -215,6 +215,9 @@ class TestAuthPagesRender:
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
         assert "Keep your contacts, tasks, and follow-ups in one place." in html
+        assert "More on what's included is on" in html
+        assert "the free real estate CRM page" in html
+        assert 'href="/free-real-estate-crm"' in html
         assert "Contacts and tasks." not in html
         assert "Talk to B.O.B." in html
         assert (

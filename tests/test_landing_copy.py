@@ -327,6 +327,11 @@ class TestRegisterLeftoverCopy:
     def test_keeps_register_h1(self):
         assert "Create your account." in REGISTER
 
+    def test_one_human_link_to_free_real_estate_crm(self):
+        assert REGISTER.count("url_for('main.free_real_estate_crm')") == 1
+        assert REGISTER.count("the free real estate CRM page") == 1
+        assert "More on what's included is on" in REGISTER
+
     def test_register_red_leftover_is_gone(self):
         assert "#fa243c" not in REGISTER
         assert "250, 36, 60" not in REGISTER
