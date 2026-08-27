@@ -114,7 +114,7 @@
 
     {% if duplicate_warnings %}
     <div class="am-warn">
-      <p>Possible duplicate — review before creating</p>
+      <p>Possible duplicate. Review these companies before creating another.</p>
       <div class="am-warn-grid">
         {% for dup in duplicate_warnings %}
         <a href="{{ url_for('partner_directory.detail', partner_id=dup.id) }}">
