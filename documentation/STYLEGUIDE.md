@@ -2,7 +2,7 @@
 
 Visual law is `.cursor/skills/agentflow-ui/SKILL.md`. This file is tokens and class names.
 If this catalog and the shipped UI disagree, the skill and the live product win.
-Older dashboard notes from `documentation/UI_revamp.md` are gone. Do not revive navy gradients or `rounded-xl` cards from that file.
+Older dashboard notes from `documentation/UI_revamp.md` are gone. Do not revive navy gradients or that old dashboard styling.
 
 ## Stack
 

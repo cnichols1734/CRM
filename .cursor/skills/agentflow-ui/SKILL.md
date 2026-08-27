@@ -67,7 +67,7 @@ If the catalog and a live page disagree, this skill and the shipped UI win. Do n
 - Centered app layouts, oversized empty-state art, fake dashboard drama
 - Bounce, elastic, or looping attention motion. Do not invent a second motion language. Match https://transitions.dev
 - A new type system. Keep the fonts the product already uses unless someone asked for a rebrand
-- Navy gradients and `rounded-xl` cards from the old dashboard notes. Those are dead.
+- Navy gradients and the old UI_revamp dashboard styling. Those are dead. Shipped cards such as `rounded-xl bg-white` stay.
 
 ## QA bar
 
