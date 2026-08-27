@@ -30,7 +30,7 @@
                             </button>
                         </div>
 
-                        <div id="seller-panel-listing" class="seller-tab-panel space-y-4{% if default_seller_tab != 'listing' %} hidden{% endif %}">
+                        <div id="seller-panel-listing" class="seller-tab-panel t-panel-slide space-y-4{% if default_seller_tab != 'listing' %} hidden{% endif %}" data-open="{{ 'true' if default_seller_tab == 'listing' else 'false' }}">
                             <div {% if document_packages %}id="listing-documents" class="scroll-mt-28 space-y-4"{% else %}class="space-y-4"{% endif %}>
                                 {% if has_intake_schema %}
                                 <div class="flex flex-wrap items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3.5">
@@ -74,7 +74,7 @@
 
                         {% include 'transactions/_offers_panel.html' %}
 
-                        <div id="seller-panel-contract" class="seller-tab-panel{% if default_seller_tab != 'contract' %} hidden{% endif %} space-y-4">
+                        <div id="seller-panel-contract" class="seller-tab-panel t-panel-slide{% if default_seller_tab != 'contract' %} hidden{% endif %} space-y-4" data-open="{{ 'true' if default_seller_tab == 'contract' else 'false' }}">
                             {% if document_packages %}
                             {% set package_mode = 'contract' %}
                             {% set show_unfiled = false %}

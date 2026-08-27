@@ -16,9 +16,9 @@
   </a>
 
   <div class="am-top">
-    <div class="min-w-0">
+    <div class="min-w-0 t-stagger">
       <p class="am-eyebrow">Partner · {{ partner.type_label }}</p>
-      <h1 class="am-title">{{ partner.name }}</h1>
+      <h1 class="am-title t-stagger-line t-stagger-line--1">{{ partner.name }}</h1>
       <div class="am-badges">
         <span class="am-badge">{{ partner.type_label }}</span>
         {% if partner.is_active %}
@@ -199,7 +199,7 @@
 {# ── Add Person Modal ─────────────────────────────────────────────────────── #}
 <div id="addPersonModal" class="am-modal{% if duplicate_warnings or pending_contact %} is-open{% endif %}" aria-hidden="{% if duplicate_warnings or pending_contact %}false{% else %}true{% endif %}">
   <div class="am-modal__scrim" onclick="closeAddPersonModal()"></div>
-  <div class="am-modal__panel am-modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="amAddPersonTitle">
+  <div class="am-modal__panel am-modal__panel--sm t-modal{% if duplicate_warnings or pending_contact %} is-open{% endif %}" role="dialog" aria-modal="true" aria-labelledby="amAddPersonTitle">
     <div class="am-modal__head">
       <div>
         <h3 id="amAddPersonTitle">Add person</h3>
@@ -258,7 +258,7 @@
 {# ── Edit Person Modal ────────────────────────────────────────────────────── #}
 <div id="editPersonModal" class="am-modal" aria-hidden="true">
   <div class="am-modal__scrim" onclick="closeEditPersonModal()"></div>
-  <div class="am-modal__panel am-modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="amEditPersonTitle">
+  <div class="am-modal__panel am-modal__panel--sm t-modal" role="dialog" aria-modal="true" aria-labelledby="amEditPersonTitle">
     <div class="am-modal__head">
       <div>
         <h3 id="amEditPersonTitle">Edit person</h3>
@@ -320,7 +320,7 @@
 {# ── Edit Company Modal ───────────────────────────────────────────────────── #}
 <div id="editCompanyModal" class="am-modal" aria-hidden="true">
   <div class="am-modal__scrim" onclick="closeEditCompanyModal()"></div>
-  <div class="am-modal__panel" role="dialog" aria-modal="true" aria-labelledby="amEditCompanyTitle">
+  <div class="am-modal__panel t-modal" role="dialog" aria-modal="true" aria-labelledby="amEditCompanyTitle">
     <div class="am-modal__head">
       <div>
         <h3 id="amEditCompanyTitle">Edit company</h3>
@@ -402,14 +402,22 @@
 function openModal(id) {
   var el = document.getElementById(id);
   if (!el) return;
-  el.classList.add('is-open');
-  el.setAttribute('aria-hidden', 'false');
+  var panel = el.querySelector('.t-modal');
+  if (window.TMotion) TMotion.openShell(el, panel);
+  else {
+    el.classList.add('is-open');
+    el.setAttribute('aria-hidden', 'false');
+  }
 }
 function closeModal(id) {
   var el = document.getElementById(id);
   if (!el) return;
-  el.classList.remove('is-open');
-  el.setAttribute('aria-hidden', 'true');
+  var panel = el.querySelector('.t-modal');
+  if (window.TMotion) TMotion.closeShell(el, panel);
+  else {
+    el.classList.remove('is-open');
+    el.setAttribute('aria-hidden', 'true');
+  }
 }
 function openAddPersonModal() {
   openModal('addPersonModal');

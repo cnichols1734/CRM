@@ -3,6 +3,23 @@
  * Handles: scanned doc upload, e-sign upload, completed upload, static upload, signature upload
  */
 
+function openTxModal(id) {
+    const shell = document.getElementById(id);
+    if (!shell) return;
+    if (window.TMotion) TMotion.openShell(shell, shell.querySelector('.t-modal'));
+    else shell.classList.remove('hidden');
+}
+
+function closeTxModal(id, after) {
+    const shell = document.getElementById(id);
+    if (!shell) return;
+    if (window.TMotion) TMotion.closeShell(shell, shell.querySelector('.t-modal'), after);
+    else {
+        shell.classList.add('hidden');
+        if (after) after();
+    }
+}
+
 // =============================================================================
 // SCROLL POSITION PERSISTENCE
 // =============================================================================
@@ -256,11 +273,11 @@ function showUploadScanModal(docId, docName) {
     document.getElementById('uploadError').classList.add('hidden');
     document.getElementById('uploadScanBtn').disabled = true;
 
-    document.getElementById('uploadScanModal').classList.remove('hidden');
+    openTxModal('uploadScanModal');
 }
 
 function closeUploadScanModal() {
-    document.getElementById('uploadScanModal').classList.add('hidden');
+    closeTxModal('uploadScanModal');
     currentUploadDocId = null;
 }
 
@@ -857,11 +874,11 @@ function showUploadStaticModal(docId, docName) {
     document.getElementById('staticError').classList.add('hidden');
     document.getElementById('uploadStaticBtn').disabled = true;
 
-    document.getElementById('uploadStaticModal').classList.remove('hidden');
+    openTxModal('uploadStaticModal');
 }
 
 function closeUploadStaticModal() {
-    document.getElementById('uploadStaticModal').classList.add('hidden');
+    closeTxModal('uploadStaticModal');
     currentStaticDocId = null;
 }
 
@@ -1009,11 +1026,11 @@ function showUploadForSignatureModal(docId, docName) {
     document.getElementById('signatureError').classList.add('hidden');
     document.getElementById('uploadForSignatureBtn').disabled = true;
 
-    document.getElementById('uploadForSignatureModal').classList.remove('hidden');
+    openTxModal('uploadForSignatureModal');
 }
 
 function closeUploadForSignatureModal() {
-    document.getElementById('uploadForSignatureModal').classList.add('hidden');
+    closeTxModal('uploadForSignatureModal');
     currentSignatureDocId = null;
 }
 
@@ -1180,11 +1197,11 @@ function showFulfillPlaceholderModal(docId, docName, isReplace) {
         uploadBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
     }
 
-    document.getElementById('fulfillPlaceholderModal').classList.remove('hidden');
+    openTxModal('fulfillPlaceholderModal');
 }
 
 function closeFulfillPlaceholderModal() {
-    document.getElementById('fulfillPlaceholderModal').classList.add('hidden');
+    closeTxModal('fulfillPlaceholderModal');
     currentFulfillDocId = null;
 }
 
@@ -1323,11 +1340,11 @@ if (fulfillForm) {
 
 function showAddPlaceholderModal() {
     document.getElementById('placeholderDocName').value = '';
-    document.getElementById('addPlaceholderModal').classList.remove('hidden');
+    openTxModal('addPlaceholderModal');
 }
 
 function closeAddPlaceholderModal() {
-    document.getElementById('addPlaceholderModal').classList.add('hidden');
+    closeTxModal('addPlaceholderModal');
 }
 
 const addPlaceholderForm = document.getElementById('addPlaceholderForm');

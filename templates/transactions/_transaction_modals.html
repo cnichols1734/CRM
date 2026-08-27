@@ -5,7 +5,7 @@
 {# ----- Delete confirmation modal ----- #}
 <div id="deleteModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeDeleteModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <h3 class="text-base font-semibold text-slate-900">Delete transaction?</h3>
             <button type="button" onclick="closeDeleteModal()"
@@ -41,7 +41,7 @@
 {# ----- Add participant modal ----- #}
 <div id="addParticipantModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeParticipantModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <h3 class="text-base font-semibold text-slate-900">Add participant</h3>
             <button type="button" onclick="closeParticipantModal()"
@@ -139,7 +139,7 @@
 {# ----- Unified add document modal ----- #}
 <div id="addDocumentModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddDocumentModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
 
         {# Picker view #}
         <div id="pickerView" class="flex flex-1 flex-col overflow-hidden">
@@ -421,7 +421,7 @@
 {# ----- Upload scanned document modal ----- #}
 <div id="uploadScanModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeUploadScanModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <div>
                 <h3 class="text-base font-semibold text-slate-900">Upload signed scan</h3>
@@ -487,7 +487,7 @@
 {# ----- Upload static document modal ----- #}
 <div id="uploadStaticModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeUploadStaticModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <div>
                 <h3 class="text-base font-semibold text-slate-900">Upload document</h3>
@@ -560,7 +560,7 @@
 {# ----- Upload for signature modal ----- #}
 <div id="uploadForSignatureModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeUploadForSignatureModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <div>
                 <h3 class="text-base font-semibold text-slate-900">Upload &amp; prep for signature</h3>
@@ -634,7 +634,7 @@
 {# ----- Fulfill placeholder modal ----- #}
 <div id="fulfillPlaceholderModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeFulfillPlaceholderModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <div>
                 <h3 class="text-base font-semibold text-slate-900">Upload completed document</h3>
@@ -717,7 +717,7 @@
 {# ----- Add custom placeholder modal ----- #}
 <div id="addPlaceholderModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddPlaceholderModal()"></div>
-    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+    <div class="t-modal absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <h3 class="text-base font-semibold text-slate-900">Add document placeholder</h3>
             <button onclick="closeAddPlaceholderModal()" type="button"

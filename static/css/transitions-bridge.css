@@ -631,3 +631,80 @@ html.sidebar-expanded #sidebar-tooltip {
 .crm-topbar .t-tt-trigger:focus-visible + .t-tt {
   transform: translate(-50%, 0) scale(1);
 }
+
+/* Row menus: keep glass look, let .t-dropdown own opacity/scale. */
+.crm-row-menu__panel.t-dropdown {
+  display: flex;
+  opacity: 0;
+  transform: scale(var(--dropdown-pre-scale));
+  pointer-events: none;
+}
+
+.crm-row-menu__panel.t-dropdown.is-open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+/* Groups customize already has .crm-modal. Retire the homemade keyframe. */
+.crm-modal__panel.t-modal {
+  animation: none;
+}
+
+/* In-page tab panels: official reveal, short travel. */
+.seller-tab-panel.t-panel-slide,
+.tab-content.t-panel-slide {
+  --panel-translate-y: 16px;
+}
+
+.tab-content.t-panel-slide.active {
+  display: block;
+}
+
+/* Offer workspace + client email are sheets. */
+.offer-command__panel.t-panel-slide,
+#offerClientEmailModal .t-panel-slide {
+  --panel-translate-y: 24px;
+}
+
+@media (min-width: 768px) {
+  .offer-command__panel.t-panel-slide {
+    transform: translateX(-50%) translateY(var(--panel-translate-y));
+  }
+  .offer-command__panel.t-panel-slide[data-open="true"] {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Centered shells keep their existing translate and add official scale. */
+@media (min-width: 768px) {
+  [id$="Modal"] > .t-modal,
+  .modal-shell .panel.t-modal,
+  .am-modal__panel.t-modal {
+    transform: translate(-50%, -50%) scale(var(--modal-scale));
+  }
+  [id$="Modal"] > .t-modal.is-open,
+  .modal-shell .panel.t-modal.is-open,
+  .am-modal__panel.t-modal.is-open {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  [id$="Modal"] > .t-modal.is-closing,
+  .modal-shell .panel.t-modal.is-closing,
+  .am-modal__panel.t-modal.is-closing {
+    transform: translate(-50%, -50%) scale(var(--modal-scale-close));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-row-menu__panel.t-dropdown,
+  .crm-modal__panel.t-modal,
+  .seller-tab-panel.t-panel-slide,
+  .tab-content.t-panel-slide,
+  .offer-command__panel.t-panel-slide,
+  #offerClientEmailModal .t-panel-slide,
+  .am-modal__panel.t-modal,
+  .modal-shell .panel.t-modal {
+    transition: none !important;
+    animation: none !important;
+  }
+}
