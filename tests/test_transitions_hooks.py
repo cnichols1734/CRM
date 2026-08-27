@@ -203,6 +203,79 @@ class TestChromeHooks:
         assert "setSaveState" in js
         assert "initToggle" in js
         assert "showText" in js
+        assert "openShell:" in js
+        assert "closeShell:" in js
+        assert "showPanel:" in js
+        assert "hidePanel:" in js
+        assert "openSheet:" in js
+        assert "closeSheet:" in js
+        assert "openHiddenDropdown:" in js
+        assert "closeHiddenDropdown:" in js
+
+    def test_leftover_screens_use_official_motion(self):
+        tasks = _read("templates", "tasks", "list.html")
+        assert "priority-menu t-dropdown" in tasks
+        assert "TMotion.openHiddenDropdown" in tasks
+        assert "TMotion.closeHiddenDropdown" in tasks
+
+        detail = _read("templates", "transactions", "detail.html")
+        assert "data-tx-more-trigger" in detail
+        assert "data-tx-more-menu" in detail
+        assert 'id="statusDropdownMenu"' in detail
+        assert "t-dropdown" in detail
+        assert "tab-content t-panel-slide" in detail
+
+        seller = _read("templates", "transactions", "_seller_workspace.html")
+        assert "seller-tab-panel t-panel-slide" in seller
+
+        offers = _read("templates", "transactions", "_offers_panel.html")
+        assert "seller-new-offer-panel t-modal" in offers
+        assert "offer-command__panel t-panel-slide" in offers
+        assert "t-panel-slide absolute inset-2" in offers
+        assert 'md:-translate-y-1/2">\n                                     style=' not in offers
+        assert (
+            'style="background: var(--paper); border: 1px solid var(--hairline); '
+            'color: var(--ink);"'
+        ) in offers
+
+        packages = _read("templates", "transactions", "_document_packages.html")
+        assert "crm-row-menu__panel t-dropdown" in packages
+
+        modals = _read("templates", "transactions", "_transaction_modals.html")
+        assert "t-modal" in modals
+
+        partners = _read("templates", "partner_directory", "index.html")
+        partner_detail = _read("templates", "partner_directory", "detail.html")
+        assert "am-modal__panel t-modal" in partners
+        assert "TMotion.openShell" in partners
+        assert "t-stagger" in partners
+        assert "am-modal__panel" in partner_detail and "t-modal" in partner_detail
+        assert "t-stagger" in partner_detail
+
+        groups = _read("templates", "groups", "customize.html")
+        admin_groups = _read("templates", "admin", "groups.html")
+        assert "crm-modal__panel t-modal" in groups
+        assert "panel t-modal" in admin_groups
+
+        groups_js = _read("frontend", "controllers", "groups_page_controller.js")
+        manage_groups = _read("static", "js", "manage_groups.js")
+        tx_js = _read("static", "js", "transaction_detail.js")
+        uploads_js = _read("static", "js", "transaction_uploads.js")
+        assert "TMotion.openShell" in groups_js
+        assert "TMotion.closeShell" in groups_js
+        assert "TMotion.openShell" in manage_groups
+        assert "TMotion.openHiddenDropdown" in tx_js
+        assert "TMotion.showPanel" in tx_js
+        assert "TMotion.openSheet" in tx_js
+        assert "TMotion.openShell" in uploads_js
+
+        bridge = _read("static", "css", "transitions-bridge.css")
+        assert ".crm-row-menu__panel.t-dropdown" in bridge
+        assert ".crm-modal__panel.t-modal" in bridge
+        assert "animation: none" in bridge
+        assert "--panel-translate-y: 16px;" in bridge
+        assert ".seller-tab-panel.t-panel-slide" in bridge
+        assert ".tab-content.t-panel-slide.active" in bridge
 
 
 class TestRestState:
