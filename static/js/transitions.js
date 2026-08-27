@@ -63,6 +63,87 @@
     }, ms);
   }
 
+  function openShell(shell, panel) {
+    if (!shell) return;
+    shell.hidden = false;
+    shell.classList.remove('hidden');
+    shell.classList.add('is-open');
+    shell.setAttribute('aria-hidden', 'false');
+    openModal(panel || shell.querySelector('.t-modal'));
+  }
+
+  function closeShell(shell, panel, after) {
+    if (!shell) return;
+    closeModal(panel || shell.querySelector('.t-modal'), function () {
+      shell.classList.remove('is-open');
+      if (!shell.classList.contains('am-modal')) {
+        shell.classList.add('hidden');
+      }
+      shell.setAttribute('aria-hidden', 'true');
+      if (after) after();
+    });
+  }
+
+  function showPanel(el, instant) {
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.classList.add('active');
+    if (instant || prefersReducedMotion()) {
+      el.setAttribute('data-open', 'true');
+      return;
+    }
+    el.setAttribute('data-open', 'false');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        el.setAttribute('data-open', 'true');
+      });
+    });
+  }
+
+  function hidePanel(el) {
+    if (!el) return;
+    el.setAttribute('data-open', 'false');
+    el.classList.add('hidden');
+    el.classList.remove('active');
+  }
+
+  function openSheet(shell, panel) {
+    if (!shell) return;
+    shell.classList.remove('hidden');
+    shell.setAttribute('aria-hidden', 'false');
+    showPanel(panel || shell.querySelector('.t-panel-slide'));
+  }
+
+  function closeSheet(shell, panel, after) {
+    if (!shell) return;
+    var slide = panel || shell.querySelector('.t-panel-slide');
+    if (slide) slide.setAttribute('data-open', 'false');
+    var ms = prefersReducedMotion() ? 0 : cssMs('--panel-close-dur', 350);
+    setTimeout(function () {
+      shell.classList.add('hidden');
+      shell.setAttribute('aria-hidden', 'true');
+      if (after) after();
+    }, ms);
+  }
+
+  function openHiddenDropdown(el) {
+    if (!el) return;
+    el.classList.remove('hidden');
+    openDropdown(el);
+  }
+
+  function closeHiddenDropdown(el, after) {
+    if (!el) return;
+    if (!isDropdownOpen(el) && el.classList.contains('hidden')) {
+      if (after) after();
+      return;
+    }
+    closeDropdown(el, function () {
+      el.classList.add('hidden');
+      if (after) after();
+    });
+  }
+
   function openToast(el) {
     if (!el) return;
     el.classList.add('t-toast');
@@ -939,6 +1020,14 @@
     isDropdownOpen: isDropdownOpen,
     openModal: openModal,
     closeModal: closeModal,
+    openShell: openShell,
+    closeShell: closeShell,
+    showPanel: showPanel,
+    hidePanel: hidePanel,
+    openSheet: openSheet,
+    closeSheet: closeSheet,
+    openHiddenDropdown: openHiddenDropdown,
+    closeHiddenDropdown: closeHiddenDropdown,
     openToast: openToast,
     closeToast: closeToast,
     setDigits: setDigits,

@@ -1,5 +1,5 @@
                         {% set offers_panel_hidden = offer_side == 'seller' and (default_seller_tab is not defined or default_seller_tab != 'offers') %}
-                        <div id="seller-panel-offers" class="{% if offer_side == 'seller' %}seller-tab-panel{% if offers_panel_hidden %} hidden{% endif %} space-y-4{% else %}space-y-4{% endif %}">
+                        <div id="seller-panel-offers" class="{% if offer_side == 'seller' %}seller-tab-panel t-panel-slide{% if offers_panel_hidden %} hidden{% endif %} space-y-4{% else %}space-y-4{% endif %}"{% if offer_side == 'seller' %} data-open="{{ 'false' if offers_panel_hidden else 'true' }}"{% endif %}>
                             <div class="rounded-[14px] border" style="border-color: var(--hairline); background: var(--paper);">
                                 <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3" style="border-bottom: 1px solid var(--hairline);">
                                     <div>
@@ -133,7 +133,7 @@
 
                             <div id="sellerNewOfferModal" class="fixed inset-0 z-50 hidden">
                                 <button type="button" class="absolute inset-0 bg-slate-900/60" onclick="closeSellerNewOfferModal()" aria-label="Close"></button>
-                                <div class="seller-new-offer-panel absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-[16px] md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:-translate-x-1/2 md:-translate-y-1/2"
+                                <div class="seller-new-offer-panel t-modal absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-[16px] md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:-translate-x-1/2 md:-translate-y-1/2">
                                      style="background: var(--paper); border: 1px solid var(--hairline); color: var(--ink);">
                                     <div class="flex items-start justify-between gap-4 px-5 py-4" style="border-bottom: 1px solid var(--hairline);">
                                         <div class="min-w-0">
@@ -233,7 +233,7 @@
                             {% set review_url = url_for('transactions.offer_package_review', id=transaction.id, offer_id=offer.id) %}
                             <div id="sellerOfferModal-{{ offer.id }}" data-seller-offer-modal class="offer-command hidden" role="dialog" aria-modal="true" aria-labelledby="offer-command-title-{{ offer.id }}">
                                 <button type="button" class="offer-command__backdrop" onclick="closeSellerOfferModal({{ offer.id }})" aria-label="Close offer"></button>
-                                <div class="offer-command__panel">
+                                <div class="offer-command__panel t-panel-slide" data-open="false">
                                     <header class="offer-command__header">
                                         <div class="min-w-0">
                                             <p class="crm-eyebrow">Offer</p>
@@ -562,7 +562,8 @@
                                does not stay trapped in #mainContent's stacking context. #}
                             <div id="offerClientEmailModal" class="fixed inset-0 hidden" style="z-index: 80;" role="dialog" aria-modal="true" aria-labelledby="offerClientEmailTitle">
                                 <button type="button" class="absolute inset-0 bg-slate-900/60" onclick="closeOfferClientEmail()" aria-label="Close"></button>
-                                <div class="absolute inset-2 flex min-h-0 flex-col overflow-hidden rounded-[16px] sm:inset-4 xl:inset-x-12"
+                                <div class="t-panel-slide absolute inset-2 flex min-h-0 flex-col overflow-hidden rounded-[16px] sm:inset-4 xl:inset-x-12"
+                                     data-open="false"
                                      style="background: var(--paper); border: 1px solid var(--hairline); color: var(--ink);">
                                     <div class="flex items-start justify-between gap-4 px-5 py-4" style="border-bottom: 1px solid var(--hairline);">
                                         <div class="min-w-0">

@@ -6,6 +6,40 @@
 const transactionId = TX_CONFIG.transactionId;
 const SELLER_WORKSPACE_TAB_KEY = `sellerWorkspaceTab:${transactionId}`;
 
+function openTxModal(id) {
+    const shell = document.getElementById(id);
+    if (!shell) return;
+    if (window.TMotion) TMotion.openShell(shell, shell.querySelector('.t-modal'));
+    else shell.classList.remove('hidden');
+}
+
+function closeTxModal(id, after) {
+    const shell = document.getElementById(id);
+    if (!shell) return;
+    if (window.TMotion) TMotion.closeShell(shell, shell.querySelector('.t-modal'), after);
+    else {
+        shell.classList.add('hidden');
+        if (after) after();
+    }
+}
+
+function openTxSheet(id) {
+    const shell = document.getElementById(id);
+    if (!shell) return;
+    if (window.TMotion) TMotion.openSheet(shell, shell.querySelector('.t-panel-slide'));
+    else shell.classList.remove('hidden');
+}
+
+function closeTxSheet(id, after) {
+    const shell = document.getElementById(id);
+    if (!shell) return;
+    if (window.TMotion) TMotion.closeSheet(shell, shell.querySelector('.t-panel-slide'), after);
+    else {
+        shell.classList.add('hidden');
+        if (after) after();
+    }
+}
+
 function setSellerWorkspaceReloadTab(tabName) {
     if (!tabName) return;
     sessionStorage.setItem(SELLER_WORKSPACE_TAB_KEY, tabName);
@@ -34,15 +68,23 @@ function restoreSellerWorkspaceTab() {
 // =============================================================================
 
 function switchTab(tabName) {
-    // Update tab buttons (crm-segment items use is-active modifier)
     document.querySelectorAll('.crm-segment__item').forEach(btn => btn.classList.remove('is-active'));
     const tabBtn = document.getElementById('tab-' + tabName);
     if (tabBtn) tabBtn.classList.add('is-active');
 
-    // Update tab content panels (still use .tab-content / .active toggled by inline CSS)
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => {
+        if (window.TMotion && content.classList.contains('t-panel-slide')) TMotion.hidePanel(content);
+        else content.classList.remove('active');
+    });
     const content = document.getElementById('content-' + tabName);
-    if (content) content.classList.add('active');
+    if (content) {
+        if (window.TMotion && content.classList.contains('t-panel-slide')) TMotion.showPanel(content);
+        else content.classList.add('active');
+    }
+    if (tabBtn && window.TMotion) {
+        const bar = tabBtn.closest('.crm-segment');
+        if (bar) TMotion.syncTabs(bar);
+    }
 }
 
 // =============================================================================
@@ -74,16 +116,54 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleStatusDropdown(event) {
     event.stopPropagation();
     const menu = document.getElementById('statusDropdownMenu');
-    if (menu) menu.classList.toggle('hidden');
+    if (!menu) return;
+    const open = window.TMotion ? TMotion.isDropdownOpen(menu) : !menu.classList.contains('hidden');
+    if (open) {
+        if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+        else menu.classList.add('hidden');
+        return;
+    }
+    if (window.TMotion) TMotion.openHiddenDropdown(menu);
+    else menu.classList.remove('hidden');
 }
 
-// Close dropdown when clicking outside
 document.addEventListener('click', function(event) {
     const dropdown = document.getElementById('statusDropdown');
     const menu = document.getElementById('statusDropdownMenu');
     if (dropdown && menu && !dropdown.contains(event.target)) {
-        menu.classList.add('hidden');
+        if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+        else menu.classList.add('hidden');
     }
+});
+
+function closeTxMoreMenu() {
+    const wrap = document.querySelector('[data-detail-actions]');
+    if (!wrap) return;
+    const menu = wrap.querySelector('[data-tx-more-menu]');
+    const trigger = wrap.querySelector('[data-tx-more-trigger]');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (!menu) return;
+    if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+    else menu.classList.add('hidden');
+}
+
+document.addEventListener('click', function(event) {
+    const wrap = event.target.closest('[data-detail-actions]');
+    const trigger = event.target.closest('[data-tx-more-trigger]');
+    if (trigger && wrap) {
+        event.stopPropagation();
+        const menu = wrap.querySelector('[data-tx-more-menu]');
+        if (!menu) return;
+        const open = window.TMotion ? TMotion.isDropdownOpen(menu) : !menu.classList.contains('hidden');
+        if (open) closeTxMoreMenu();
+        else {
+            trigger.setAttribute('aria-expanded', 'true');
+            if (window.TMotion) TMotion.openHiddenDropdown(menu);
+            else menu.classList.remove('hidden');
+        }
+        return;
+    }
+    if (!event.target.closest('[data-tx-more-menu]')) closeTxMoreMenu();
 });
 
 // =============================================================================
@@ -111,11 +191,12 @@ function updateStatus(newStatus) {
 // =============================================================================
 
 function confirmDelete() {
-    document.getElementById('deleteModal').classList.remove('hidden');
+    closeTxMoreMenu();
+    openTxModal('deleteModal');
 }
 
 function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.add('hidden');
+    closeTxModal('deleteModal');
 }
 
 function showAddParticipantModal() {
@@ -130,12 +211,11 @@ function showAddParticipantModal() {
     document.getElementById('participantCreateHint').classList.add('hidden');
     document.getElementById('addParticipantBtn').disabled = true;
     _participantSource = 'partners';
-    document.getElementById('addParticipantModal').classList.remove('hidden');
+    openTxModal('addParticipantModal');
 }
 
 function closeParticipantModal() {
-    document.getElementById('addParticipantModal').classList.add('hidden');
-    clearSelectedContact();
+    closeTxModal('addParticipantModal', clearSelectedContact);
 }
 
 // =============================================================================
@@ -147,14 +227,12 @@ function showAddDocumentPicker() {
     resetAddDocumentModal();
     // Show picker view
     showPickerView('picker');
-    // Show modal
-    document.getElementById('addDocumentModal').classList.remove('hidden');
+    openTxModal('addDocumentModal');
 }
 
 function closeAddDocumentModal() {
     if (window.__txUploadBusy) return;
-    document.getElementById('addDocumentModal').classList.add('hidden');
-    resetAddDocumentModal();
+    closeTxModal('addDocumentModal', resetAddDocumentModal);
 }
 
 function resetAddDocumentModal() {
@@ -561,22 +639,29 @@ function removeDocument(docId, docName) {
 // =============================================================================
 
 function toggleDocActionsMenu(docId) {
-    // Close all other menus first
     document.querySelectorAll('[id^="docActionsMenu-"]').forEach(menu => {
-        if (menu.id !== `docActionsMenu-${docId}`) {
-            menu.classList.add('hidden');
-        }
+        if (menu.id === `docActionsMenu-${docId}`) return;
+        if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+        else menu.classList.add('hidden');
     });
 
     const menu = document.getElementById(`docActionsMenu-${docId}`);
-    menu.classList.toggle('hidden');
+    if (!menu) return;
+    const open = window.TMotion ? TMotion.isDropdownOpen(menu) : !menu.classList.contains('hidden');
+    if (open) {
+        if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+        else menu.classList.add('hidden');
+        return;
+    }
+    if (window.TMotion) TMotion.openHiddenDropdown(menu);
+    else menu.classList.remove('hidden');
 }
 
-// Close dropdown when clicking outside
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.doc-actions-dropdown')) {
         document.querySelectorAll('[id^="docActionsMenu-"]').forEach(menu => {
-            menu.classList.add('hidden');
+            if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+            else menu.classList.add('hidden');
         });
     }
 });
@@ -591,7 +676,9 @@ document.addEventListener('click', function(event) {
     function closeAll(except) {
         document.querySelectorAll('[data-row-menu]').forEach(menu => {
             if (menu === except) return;
-            menu.querySelector('[data-row-menu-panel]').classList.remove('is-open');
+            const panel = menu.querySelector('[data-row-menu-panel]');
+            if (window.TMotion) TMotion.closeHiddenDropdown(panel);
+            else panel.classList.remove('is-open');
             menu.querySelector('[data-row-menu-trigger]').setAttribute('aria-expanded', 'false');
         });
     }
@@ -630,11 +717,22 @@ document.addEventListener('click', function(event) {
         }
 
         const panel = menu.querySelector('[data-row-menu-panel]');
-        const opening = !panel.classList.contains('is-open');
+        const opening = window.TMotion ? !TMotion.isDropdownOpen(panel) : !panel.classList.contains('is-open');
         closeAll(menu);
-        panel.classList.toggle('is-open', opening);
         trigger.setAttribute('aria-expanded', String(opening));
-        if (opening) place(trigger, panel);
+        if (opening) {
+            if (window.TMotion) {
+                TMotion.openHiddenDropdown(panel);
+                requestAnimationFrame(() => place(trigger, panel));
+            } else {
+                panel.classList.add('is-open');
+                place(trigger, panel);
+            }
+        } else if (window.TMotion) {
+            TMotion.closeHiddenDropdown(panel);
+        } else {
+            panel.classList.remove('is-open');
+        }
     });
 
     document.addEventListener('keydown', function (event) {
@@ -661,11 +759,15 @@ function showToast(message, type = 'info') {
 
 function sellerWorkspaceTab(tabName, options = {}) {
     if (tabName === 'overview') tabName = 'listing';
+    const instant = options.persist === false || options.instant === true;
     document.querySelectorAll('[id^="seller-tab-"]').forEach(btn => {
         btn.classList.remove('is-active');
         btn.setAttribute('aria-selected', 'false');
     });
-    document.querySelectorAll('.seller-tab-panel').forEach(panel => panel.classList.add('hidden'));
+    document.querySelectorAll('.seller-tab-panel').forEach(panel => {
+        if (window.TMotion && panel.classList.contains('t-panel-slide')) TMotion.hidePanel(panel);
+        else panel.classList.add('hidden');
+    });
     document.querySelectorAll('[data-seller-listing-tab-content]').forEach(element => {
         element.classList.toggle('hidden', tabName !== 'listing');
     });
@@ -676,7 +778,14 @@ function sellerWorkspaceTab(tabName, options = {}) {
         tab.classList.add('is-active');
         tab.setAttribute('aria-selected', 'true');
     }
-    if (panel) panel.classList.remove('hidden');
+    if (panel) {
+        if (window.TMotion && panel.classList.contains('t-panel-slide')) TMotion.showPanel(panel, instant);
+        else panel.classList.remove('hidden');
+    }
+    if (tab && window.TMotion) {
+        const bar = tab.closest('.crm-segment');
+        if (bar) TMotion.syncTabs(bar);
+    }
     if (tab && panel && options.persist !== false) {
         setSellerWorkspaceReloadTab(tabName);
     }
@@ -752,25 +861,25 @@ function showSellerNewOfferModal() {
     const modal = document.getElementById('sellerNewOfferModal');
     if (!modal) return;
     setSellerNewOfferMode('upload');
-    modal.classList.remove('hidden');
+    openTxModal('sellerNewOfferModal');
     document.body.classList.add('overflow-hidden');
 }
 
 function closeSellerNewOfferModal() {
     const modal = document.getElementById('sellerNewOfferModal');
-    if (modal) {
-        modal.classList.add('hidden');
+    if (!modal) return;
+    closeTxModal('sellerNewOfferModal', function () {
         setSellerNewOfferMode('upload');
-    }
-    if (!document.querySelector('[data-seller-offer-modal]:not(.hidden)')) {
-        document.body.classList.remove('overflow-hidden');
-    }
+        if (!document.querySelector('[data-seller-offer-modal]:not(.hidden)')) {
+            document.body.classList.remove('overflow-hidden');
+        }
+    });
 }
 
 function openSellerOfferModal(offerId) {
     const modal = document.getElementById(`sellerOfferModal-${offerId}`);
     if (!modal) return;
-    modal.classList.remove('hidden');
+    openTxSheet(`sellerOfferModal-${offerId}`);
     document.body.classList.add('overflow-hidden');
 }
 
@@ -837,7 +946,7 @@ function openOfferClientEmail(offerId) {
     const status = oceEl('status');
     if (status) status.textContent = '';
 
-    root.classList.remove('hidden');
+    openTxSheet('offerClientEmailModal');
     document.body.classList.add('overflow-hidden');
     oceBindEvents();
     oceRefresh({ initial: true });
@@ -846,12 +955,13 @@ function openOfferClientEmail(offerId) {
 function closeOfferClientEmail() {
     const root = oceRoot();
     if (!root) return;
-    root.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-    if (offerClientEmail.timer) {
-        clearTimeout(offerClientEmail.timer);
-        offerClientEmail.timer = null;
-    }
+    closeTxSheet('offerClientEmailModal', function () {
+        document.body.classList.remove('overflow-hidden');
+        if (offerClientEmail.timer) {
+            clearTimeout(offerClientEmail.timer);
+            offerClientEmail.timer = null;
+        }
+    });
 }
 
 function oceBindEvents() {
@@ -1145,16 +1255,21 @@ function oceEscape(value) {
 }
 
 function closeSellerOfferModal(offerId) {
+    const finish = function () {
+        const newOfferModal = document.getElementById('sellerNewOfferModal');
+        if (!newOfferModal || newOfferModal.classList.contains('hidden')) {
+            document.body.classList.remove('overflow-hidden');
+        }
+    };
     if (offerId) {
-        const modal = document.getElementById(`sellerOfferModal-${offerId}`);
-        if (modal) modal.classList.add('hidden');
-    } else {
-        document.querySelectorAll('[data-seller-offer-modal]').forEach(modal => modal.classList.add('hidden'));
+        closeTxSheet(`sellerOfferModal-${offerId}`, finish);
+        return;
     }
-    const newOfferModal = document.getElementById('sellerNewOfferModal');
-    if (!newOfferModal || newOfferModal.classList.contains('hidden')) {
-        document.body.classList.remove('overflow-hidden');
-    }
+    document.querySelectorAll('[data-seller-offer-modal]').forEach(modal => {
+        if (window.TMotion) TMotion.closeSheet(modal, modal.querySelector('.t-panel-slide'));
+        else modal.classList.add('hidden');
+    });
+    finish();
 }
 
 const sellerOfferForm = document.getElementById('sellerOfferForm');
@@ -1726,15 +1841,20 @@ function expireSellerOffer(offerId) {
 function openContractActionModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-    modal.classList.remove('hidden');
+    if (modal.querySelector('.t-modal')) openTxModal(modalId);
+    else modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 }
 
 function closeContractActionModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-    modal.classList.add('hidden');
-    document.body.style.overflow = '';
+    const finish = function () { document.body.style.overflow = ''; };
+    if (modal.querySelector('.t-modal')) closeTxModal(modalId, finish);
+    else {
+        modal.classList.add('hidden');
+        finish();
+    }
 }
 
 function showTerminateContractForm() {

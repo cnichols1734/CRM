@@ -9,10 +9,10 @@
 {% block content %}
 <div class="am-partners">
   <div class="am-top">
-    <div>
+    <div class="t-stagger">
       <p class="am-eyebrow">Transactions</p>
-      <h1 class="am-title">Partners</h1>
-      <p class="am-desc">Companies and people your team works with at closing.</p>
+      <h1 class="am-title t-stagger-line t-stagger-line--1">Partners</h1>
+      <p class="am-desc t-stagger-line t-stagger-line--2">Companies and people your team works with at closing.</p>
     </div>
     <button type="button" class="am-btn-primary" onclick="openAddPartnerModal()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -99,7 +99,7 @@
 
 <div id="addPartnerModal" class="am-modal{% if duplicate_warnings or pending_company %} is-open{% endif %}" aria-hidden="{% if duplicate_warnings or pending_company %}false{% else %}true{% endif %}">
   <div class="am-modal__scrim" onclick="closeAddPartnerModal()"></div>
-  <div class="am-modal__panel" role="dialog" aria-modal="true" aria-labelledby="amAddPartnerTitle">
+  <div class="am-modal__panel t-modal{% if duplicate_warnings or pending_company %} is-open{% endif %}" role="dialog" aria-modal="true" aria-labelledby="amAddPartnerTitle">
     <div class="am-modal__head">
       <div>
         <h3 id="amAddPartnerTitle">Add company</h3>
@@ -197,15 +197,23 @@
 <script>
 function openAddPartnerModal() {
   var modal = document.getElementById('addPartnerModal');
-  modal.classList.add('is-open');
-  modal.setAttribute('aria-hidden', 'false');
+  var panel = modal && modal.querySelector('.t-modal');
+  if (window.TMotion) TMotion.openShell(modal, panel);
+  else {
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
   var input = document.querySelector('#addPartnerModal input[name="name"]');
   if (input) input.focus();
 }
 function closeAddPartnerModal() {
   var modal = document.getElementById('addPartnerModal');
-  modal.classList.remove('is-open');
-  modal.setAttribute('aria-hidden', 'true');
+  var panel = modal && modal.querySelector('.t-modal');
+  if (window.TMotion) TMotion.closeShell(modal, panel);
+  else {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
 }
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') closeAddPartnerModal();

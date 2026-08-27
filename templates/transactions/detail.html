@@ -168,13 +168,21 @@
                     Upload document
                 </button>
                 {% endif %}
-                <details class="relative" data-detail-actions>
-                    <summary class="crm-btn crm-btn-secondary cursor-pointer list-none px-3 [&::-webkit-details-marker]:hidden" aria-label="More transaction actions">
+                <div class="relative" data-detail-actions>
+                    <button type="button"
+                            class="crm-btn crm-btn-secondary px-3"
+                            aria-label="More transaction actions"
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                            data-tx-more-trigger>
                         <span class="hidden sm:inline">More</span>
                         <i class="fas fa-ellipsis-h text-xs" aria-hidden="true"></i>
-                    </summary>
-                    <div class="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-[10px] border py-1"
-                         style="border-color: var(--hairline); background: var(--paper);">
+                    </button>
+                    <div class="t-dropdown absolute right-0 top-full z-50 mt-2 hidden w-48 overflow-hidden rounded-[10px] border py-1"
+                         style="border-color: var(--hairline); background: var(--paper);"
+                         data-origin="top-right"
+                         data-tx-more-menu
+                         role="menu">
                         <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
                            class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--paper-2)]"
                            style="color: var(--ink-2);">
@@ -191,7 +199,7 @@
                             <i class="fas fa-trash-alt w-4 text-xs"></i> Delete transaction
                         </button>
                     </div>
-                </details>
+                </div>
             </div>
         </div>
 
@@ -219,7 +227,8 @@
                                     <i class="fas fa-chevron-down text-[9px] text-slate-400"></i>
                                 </button>
                                 <div id="statusDropdownMenu"
-                                     class="absolute right-0 top-full z-40 mt-1 hidden w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg lg:left-0 lg:right-auto">
+                                     class="t-dropdown absolute right-0 top-full z-40 mt-1 hidden w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg lg:left-0 lg:right-auto"
+                                     data-origin="top-left">
                                     {% for status_key in status_options %}
                                     <button onclick="updateStatus('{{ status_key }}')" type="button"
                                             class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50 {% if transaction.status == status_key %}font-semibold text-slate-950{% else %}text-slate-700{% endif %}">
@@ -401,7 +410,7 @@
                     </button>
                 </div>
 
-                <div id="content-details" class="tab-content active space-y-5">
+                <div id="content-details" class="tab-content t-panel-slide active space-y-5" data-open="true">
                 {% endif %}
 
                 {# ----- Property details card (non-seller types) ----- #}
@@ -751,7 +760,8 @@
                                             <i class="fas fa-ellipsis-v text-sm"></i>
                                         </button>
                                         <div id="docActionsMenu-{{ doc.id }}"
-                                             class="absolute right-0 top-full z-40 mt-1 hidden w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+                                             class="t-dropdown absolute right-0 top-full z-40 mt-1 hidden w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                             data-origin="top-right">
 
                                             {% if document_workflow_mode == 'placeholder_upload_only' %}
                                             {# placeholder_upload_only workflow #}
@@ -989,7 +999,7 @@
                 </div>{# /content-details #}
 
                 {# ----- Property intelligence tab content (buyer only) ----- #}
-                <div id="content-intelligence" class="tab-content space-y-5">
+                <div id="content-intelligence" class="tab-content t-panel-slide space-y-5" data-open="false">
                     <section class="crm-surface">
                         <div class="crm-surface-header">
                             <div>

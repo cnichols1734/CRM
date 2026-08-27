@@ -80,15 +80,24 @@ export default class extends Controller {
 
   showModal() {
     this.previousFocus = document.activeElement;
-    this.modalTarget.classList.remove("hidden");
+    const panel = this.modalTarget.querySelector(".t-modal");
+    if (window.TMotion) TMotion.openShell(this.modalTarget, panel);
+    else this.modalTarget.classList.remove("hidden");
     requestAnimationFrame(() => this.nameInputTarget.focus());
   }
 
   closeModal() {
-    this.modalTarget.classList.add("hidden");
-    this.clearFormError();
-    if (this.previousFocus && typeof this.previousFocus.focus === "function") {
-      this.previousFocus.focus();
+    const finish = () => {
+      this.clearFormError();
+      if (this.previousFocus && typeof this.previousFocus.focus === "function") {
+        this.previousFocus.focus();
+      }
+    };
+    const panel = this.modalTarget.querySelector(".t-modal");
+    if (window.TMotion) TMotion.closeShell(this.modalTarget, panel, finish);
+    else {
+      this.modalTarget.classList.add("hidden");
+      finish();
     }
   }
 

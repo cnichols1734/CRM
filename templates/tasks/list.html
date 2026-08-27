@@ -285,7 +285,7 @@
                                 <span class="dot"></span>
                                 {{ task.priority|capitalize }}
                             </button>
-                            <div id="priority-menu-{{ task.id }}" class="priority-menu hidden">
+                            <div id="priority-menu-{{ task.id }}" class="priority-menu t-dropdown hidden" data-origin="top-left">
                                 <button type="button" onclick="quickUpdatePriority({{ task.id }}, 'high')">
                                     <span class="dot" style="background: var(--danger);"></span> High
                                 </button>
@@ -380,31 +380,48 @@ function quickUpdatePriority(taskId, priority) {
     });
 }
 
+function closePriorityMenus(exceptId) {
+    document.querySelectorAll('.priority-menu').forEach(menu => {
+        if (exceptId && menu.id === exceptId) return;
+        if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+        else {
+            menu.classList.add('hidden');
+            menu.classList.remove('is-open');
+        }
+    });
+}
+
 function togglePriorityMenu(event, taskId) {
     event.stopPropagation();
     const button = event.currentTarget;
     const menu = document.getElementById(`priority-menu-${taskId}`);
-    document.querySelectorAll('.priority-menu').forEach(m => {
-        if (m.id !== `priority-menu-${taskId}`) m.classList.add('hidden');
-    });
-    menu.classList.toggle('hidden');
-    if (!menu.classList.contains('hidden')) {
-        const rect = button.getBoundingClientRect();
-        menu.style.left = `${rect.left}px`;
-        menu.style.top = `${rect.bottom + 4}px`;
-        const menuRect = menu.getBoundingClientRect();
-        if (menuRect.right > window.innerWidth) {
-            menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
-        }
-        if (menuRect.bottom > window.innerHeight) {
-            menu.style.top = `${rect.top - menuRect.height - 4}px`;
-        }
+    const wasOpen = window.TMotion ? TMotion.isDropdownOpen(menu) : !menu.classList.contains('hidden');
+    closePriorityMenus(menu.id);
+    if (wasOpen) {
+        if (window.TMotion) TMotion.closeHiddenDropdown(menu);
+        else menu.classList.add('hidden');
+        return;
+    }
+    const rect = button.getBoundingClientRect();
+    menu.style.left = `${rect.left}px`;
+    menu.style.top = `${rect.bottom + 4}px`;
+    if (window.TMotion) TMotion.openHiddenDropdown(menu);
+    else menu.classList.remove('hidden');
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.right > window.innerWidth) {
+        menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+    }
+    if (menuRect.bottom > window.innerHeight) {
+        menu.style.top = `${rect.top - menuRect.height - 4}px`;
+        menu.setAttribute('data-origin', 'bottom-left');
+    } else {
+        menu.setAttribute('data-origin', 'top-left');
     }
 }
 
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.priority-menu') && !event.target.closest('.priority-pill')) {
-        document.querySelectorAll('.priority-menu').forEach(menu => menu.classList.add('hidden'));
+        closePriorityMenus();
     }
 });
 

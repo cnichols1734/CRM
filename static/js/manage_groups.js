@@ -1,25 +1,47 @@
 // Modal and action functions
 window.showAddGroupModal = function() {
-    document.getElementById('addGroupModal').classList.remove('hidden');
+    const shell = document.getElementById('addGroupModal');
+    const panel = shell && shell.querySelector('.t-modal');
+    if (window.TMotion) TMotion.openShell(shell, panel);
+    else shell.classList.remove('hidden');
     document.getElementById('groupName').focus();
 }
 
 window.hideAddGroupModal = function() {
-    document.getElementById('addGroupModal').classList.add('hidden');
-    document.getElementById('addGroupForm').reset();
+    const shell = document.getElementById('addGroupModal');
+    const panel = shell && shell.querySelector('.t-modal');
+    const finish = function () {
+        document.getElementById('addGroupForm').reset();
+    };
+    if (window.TMotion) TMotion.closeShell(shell, panel, finish);
+    else {
+        shell.classList.add('hidden');
+        finish();
+    }
 }
 
 window.editGroup = function(id, name, category) {
     document.getElementById('editGroupId').value = id;
     document.getElementById('editGroupName').value = name;
     document.getElementById('editGroupCategory').value = category;
-    document.getElementById('editGroupModal').classList.remove('hidden');
+    const shell = document.getElementById('editGroupModal');
+    const panel = shell && shell.querySelector('.t-modal');
+    if (window.TMotion) TMotion.openShell(shell, panel);
+    else shell.classList.remove('hidden');
     document.getElementById('editGroupName').focus();
 }
 
 window.hideEditGroupModal = function() {
-    document.getElementById('editGroupModal').classList.add('hidden');
-    document.getElementById('editGroupForm').reset();
+    const shell = document.getElementById('editGroupModal');
+    const panel = shell && shell.querySelector('.t-modal');
+    const finish = function () {
+        document.getElementById('editGroupForm').reset();
+    };
+    if (window.TMotion) TMotion.closeShell(shell, panel, finish);
+    else {
+        shell.classList.add('hidden');
+        finish();
+    }
 }
 
 window.deleteGroup = function(id) {
