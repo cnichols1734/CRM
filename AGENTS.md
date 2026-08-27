@@ -14,11 +14,7 @@ Read this file first for runtime, architecture, data-safety, and repo convention
 
 ### For UI and design work
 
-Read `.impeccable.md` for design context and anti-slop guardrails, then `documentation/STYLEGUIDE.md` for concrete tokens, components, and implementation patterns.
-
-If the agent supports installed skills and the global `impeccable` skill set is available, use it as the general design method. Treat `.impeccable.md` and `documentation/STYLEGUIDE.md` as the repo-specific source of truth.
-
-If `.impeccable.md`, `documentation/STYLEGUIDE.md`, and the current page disagree, preserve the shipped CRM design language unless the user explicitly asks for a redesign.
+Read `.cursor/skills/agentflow-ui/SKILL.md`. That skill is the visual law. `documentation/STYLEGUIDE.md` is the class and token catalog only.
 
 ### For copy, docs, prompts, and user-facing text
 
@@ -68,25 +64,6 @@ Before starting code changes, check the current branch and sync against GitHub `
 2. Run `git fetch origin main` to update the remote `main` ref.
 3. If the working tree is clean and the task should start from `main`, switch to `main`, pull the latest `origin/main`, then create a feature/fix branch from that updated `main`.
 4. If the working tree is dirty, do not pull, rebase, reset, checkout, or stash without the user's approval. Report the dirty files and ask whether to preserve, stash, commit, or move the work.
-
-## Frontend Design Rules
-
-This repo already has an established product UI. Do not import generic SaaS aesthetics or marketing-page habits into the app.
-
-- Treat the product as a daily operational tool for agents and coordinators, not a startup landing page.
-- Preserve the existing visual system: dark slate shell, light working surfaces, restrained borders, orange accent, flat cards, and clear hierarchy.
-- Reuse shared primitives before inventing new ones: `crm-*` classes in `frontend/styles/app.css`, macros in `templates/components/ui.html`, and tokens in `tailwind.config.js`.
-- Keep layouts practical and information-dense enough for real work. Favor left-aligned structure, clear sections, and predictable actions over decorative symmetry.
-- On legacy pages, move toward the shared CRM patterns when practical. Do not bolt on a second unrelated design language.
-
-### Anti-Slop Guardrails
-
-- No purple-blue gradient hero language, glow-heavy dark mode, glassmorphism, or generic "AI startup" styling.
-- No nested-card-on-card grids, side-tab accent borders, giant rounded pills everywhere, or gratuitous drop shadows.
-- No centered-everything app layouts, oversized empty-state illustrations, or fake dashboard drama.
-- No decorative typography swaps that fight the existing product. For product UI, keep the current body-font approach unless the user explicitly asks for a rebrand.
-- No bounce or elastic motion. Motion should be brief, purposeful, and easy to remove for reduced-motion users.
-- No vague, overexplained UX copy. Labels, empty states, and helper text should be direct and useful.
 
 ## Running The Dev Server
 
