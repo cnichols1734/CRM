@@ -40,7 +40,7 @@ Nested `backdrop-filter` inside already-glass chrome samples empty glass. Portal
 
 ## Motion
 
-The transitions.dev motion already in the app is law. Keep it. Files: `static/css/transitions-root.css`, `static/css/transitions-snippets.css`, `static/css/transitions-bridge.css`, `static/js/transitions.js`.
+The motion already in the app comes from https://transitions.dev. That site is the reference. Match it. Do not invent a second motion language. Keep what we already wired up. Files: `static/css/transitions-root.css`, `static/css/transitions-snippets.css`, `static/css/transitions-bridge.css`, `static/js/transitions.js`.
 
 Reuse the existing classes. `.t-page-slide`, `.t-panel-slide`, `.t-skel`, `.t-dropdown`, `.t-tabs`, `.t-confetti-overlay`. Brief and purposeful. No bounce, no elastic, no stagger-in circus. `transitions-root.css` lists bounce easings from the library. Do not use them.
 
@@ -65,7 +65,7 @@ If the catalog and a live page disagree, this skill and the shipped UI win. Do n
 - Extra glass on solid work surfaces
 - Cards nested in cards, side-tab accent borders, giant pills, drop-shadow soup
 - Centered app layouts, oversized empty-state art, fake dashboard drama
-- Bounce, elastic, or looping attention motion
+- Bounce, elastic, or looping attention motion. Do not invent a second motion language. Match https://transitions.dev
 - A new type system. Keep the fonts the product already uses unless someone asked for a rebrand
 - Navy gradients and `rounded-xl` cards from the old dashboard notes. Those are dead.
 
