@@ -495,7 +495,7 @@ def _assert_listing_package_header_contract(section):
     assert 'crm-document-package__action' in remaining_btn
     assert 'crm-btn-sm' in remaining_btn
     assert 'crm-btn-accent' in remaining_btn
-    assert 'min-h-11' not in remaining_btn
+    assert 'min-h-11' in remaining_btn
     assert 'crm-btn-secondary' not in remaining_btn
     assert 'crm-btn-accent-soft' not in remaining_btn
     assert remaining_idx < first_row_idx

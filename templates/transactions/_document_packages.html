@@ -43,7 +43,7 @@
             {% endif %}
         </div>
         <button type="button"
-                class="crm-btn crm-btn-sm {% if is_upload_remaining %}crm-btn-accent crm-document-package__action{% else %}crm-btn-secondary min-h-11{% endif %}"
+                class="crm-btn crm-btn-sm min-h-11 {% if is_upload_remaining %}crm-btn-accent crm-document-package__action{% else %}crm-btn-secondary{% endif %}"
                 data-action="document-upload-hub#open"
                 data-document-upload-hub-scope-param="{{ 'other' if is_unfiled else (package.scope or 'other') }}"
                 data-document-upload-hub-scope-id-param="{{ package.scope_id or '' }}"

@@ -1788,11 +1788,6 @@ html.am-skin .crm-document-package__action {
   color: #fff !important;
   border-color: var(--am-key-bg) !important;
   box-shadow: none !important;
-  height: 26px !important;
-  min-height: 26px !important;
-  padding: 0 9px !important;
-  font-size: 11.5px !important;
-  font-weight: 500 !important;
 }
 html.am-skin .crm-document-package__action:hover {
   background: var(--am-key-pressed) !important;
