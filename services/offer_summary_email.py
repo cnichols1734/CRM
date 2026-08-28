@@ -880,32 +880,11 @@ def _signature(agent, organization) -> dict[str, Optional[str]]:
 def _brand(organization) -> dict[str, Optional[str]]:
     """Marks for the masthead and footer bands.
 
-    An organization that uploaded its own logo gets that in the masthead, and
-    the footer falls back to the brokerage name in type: we know our own
-    wordmark reads on the slate band, and we know nothing about theirs.
+    Shared with marketing mail so both use the same slate-band assets.
     """
-    from config import Config
+    from services.email_chrome import brand_assets
 
-    own_logo = _text(getattr(organization, 'logo_url', None))
-    return {
-        'name': _brokerage_name(organization),
-        'mark_url': _asset_url(own_logo or Config.CLIENT_EMAIL_BRAND_MARK),
-        'wordmark_url': None if own_logo else _asset_url(
-            Config.CLIENT_EMAIL_BRAND_WORDMARK
-        ),
-        'license': _text(getattr(organization, 'broker_license_number', None)),
-        'address': _text(getattr(organization, 'broker_address', None)),
-    }
-
-
-def _asset_url(path: Optional[str]) -> Optional[str]:
-    """Absolute, because a relative src is a broken image in an inbox."""
-    from services.marketing.links import base_url
-
-    cleaned = _text(path)
-    if not cleaned or cleaned.startswith(('http://', 'https://')):
-        return cleaned
-    return f"{base_url()}/{cleaned.lstrip('/')}"
+    return brand_assets(organization)
 
 
 def _agent_name(agent) -> Optional[str]:

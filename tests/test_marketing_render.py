@@ -18,6 +18,7 @@ from services.marketing.blocks import (
     validate_blocks,
 )
 from services.marketing.render import personalize, preview, render
+from services.email_chrome import CANVAS, SLATE, SLATE_DARK, TEAL
 from services.marketing.shell import ShellContext
 
 
@@ -349,7 +350,7 @@ class TestMergeFields:
 class TestRender:
     def test_produces_a_full_document_and_plain_text(self):
         out = render(SIMPLE, ctx())
-        assert out.html.startswith('<!DOCTYPE html>')
+        assert out.html.startswith('<!DOCTYPE html')
         assert 'color-scheme' in out.html
         assert 'Checking in' in out.text
 
@@ -492,7 +493,7 @@ class TestHero:
         # white gutter and read as a mistake.
         out = render([HERO, SIMPLE[1]], ctx())
         hero_at = out.html.index('Inventory finally moved.')
-        content_at = out.html.index('class="content-padding"')
+        content_at = out.html.index('content-padding')
         assert hero_at < content_at
 
     def test_carries_eyebrow_headline_accent_and_subcopy(self):
@@ -503,14 +504,15 @@ class TestHero:
         ):
             assert part in out.html
 
-    def test_accent_is_the_italic_second_line(self):
+    def test_accent_is_the_orange_second_line(self):
         out = render([HERO, SIMPLE[1]], ctx())
-        assert '<em style="font-style:italic' in out.html
+        assert 'Buyers have room again.' in out.html
+        assert '#f97316' in out.html.split('Buyers have room again.')[0][-180:]
 
     def test_works_without_the_optional_parts(self):
         out = render([{'type': 'hero', 'title': 'Just this'}, SIMPLE[1]], ctx())
         assert 'Just this' in out.html
-        assert '<em' not in out.html
+        assert 'Buyers have room again.' not in out.html
 
     def test_hero_only_email_still_renders(self):
         # No body blocks means no content cell at all, rather than an empty one
@@ -576,49 +578,76 @@ class TestCallout:
 
 
 class TestBrandFidelity:
-    """The email system this renders into: soft canvas, rounded white card,
-    Fraunces display face, orange accent, DM Sans body."""
+    """The email system this renders into: the shipped offer-summary chrome."""
 
-    def test_loads_both_brand_faces(self):
+    def test_loads_the_offer_email_face(self):
         out = render(SIMPLE, ctx())
-        assert 'DM+Sans' in out.html
-        assert 'Fraunces' in out.html
+        assert 'Poppins' in out.html
+        assert 'DM+Sans' not in out.html
+        assert 'Fraunces' not in out.html
 
-    def test_display_face_has_a_serif_fallback(self):
+    def test_display_face_has_a_gothic_fallback(self):
         # Most clients never load a web font, so the fallback carries the design.
         out = render([HERO, SIMPLE[1]], ctx())
-        assert 'Georgia' in out.html
+        assert 'Century Gothic' in out.html
 
-    def test_section_headings_use_the_display_face(self):
+    def test_section_headings_use_the_offer_face(self):
         out = render([{'type': 'heading', 'text': 'What changed'}], ctx())
-        assert 'Fraunces' in out.html.split('What changed')[0].rsplit('<h2', 1)[-1]
+        heading = out.html.split('What changed')[0].rsplit('<h2', 1)[-1]
+        assert 'Poppins' in heading
+        assert 'Fraunces' not in heading
 
-    def test_h3_is_a_small_caps_label_not_a_small_serif(self):
+    def test_h3_is_a_small_caps_label(self):
         out = render([{'type': 'heading', 'level': 'h3', 'text': 'Next steps'}], ctx())
         block = out.html.split('Next steps')[0].rsplit('<h3', 1)[-1]
         assert 'text-transform:uppercase' in block
 
-    def test_keeps_the_canvas_and_rounded_card(self):
+    def test_keeps_the_offer_canvas_and_square_column(self):
         out = render(SIMPLE, ctx())
-        assert '#f0f4f8' in out.html
-        assert 'border-radius:18px' in out.html
+        assert '#E8EBEE' in out.html
+        assert '#f0f4f8' not in out.html
+        assert 'border-radius:18px' not in out.html
+
+    def test_masthead_is_slate_not_navy(self):
+        out = render(SIMPLE, ctx())
+        assert '#6C7F93' in out.html
+        assert '#102a43' not in out.html
+        assert '#0b1b2b' not in out.html
 
     def test_header_shows_the_brokerage_and_a_purpose_label(self):
         out = render(SIMPLE, ctx(eyebrow='Market update'))
         assert 'Origen Realty' in out.html
         assert 'Market update' in out.html
 
-    def test_hero_has_a_solid_fallback_behind_the_gradient(self):
-        # Outlook drops the gradient; without bgcolor the white text vanishes.
+    def test_hero_is_the_offer_title_band(self):
         out = render([HERO, SIMPLE[1]], ctx())
-        hero_cell = out.html.split('class="hero-pad"')[1][:400]
-        assert 'bgcolor="#102a43"' in hero_cell
-        assert 'background-color:#102a43' in hero_cell
+        at = out.html.index('hero-pad')
+        hero_cell = out.html[at - 80:at + 400]
+        assert 'bgcolor="#ffffff"' in hero_cell
+        assert 'background-color:#ffffff' in hero_cell
+        assert '#4EC8CD' in out.html
+        assert '#102a43' not in hero_cell
 
     def test_adapts_on_a_phone(self):
         out = render([HERO, SIMPLE[1]], ctx())
-        assert '@media only screen and (max-width:600px)' in out.html
+        assert '@media screen and (max-width:600px)' in out.html
         assert '.hero-title' in out.html
+
+    def test_button_is_brand_orange(self):
+        out = render([
+            {'type': 'button', 'label': 'Go', 'url': 'https://example.com'},
+        ], ctx())
+        assert 'background-color:#f97316' in out.html
+        assert 'linear-gradient' not in out.html
+
+    def test_chrome_tokens_match_the_offer_template(self):
+        from pathlib import Path
+        offer = Path('templates/email/offer_summary.html').read_text()
+        for token in (CANVAS, SLATE, SLATE_DARK, TEAL):
+            assert token in offer
+        out = render(SIMPLE, ctx())
+        for token in (CANVAS, SLATE, SLATE_DARK, TEAL):
+            assert token in out.html
 
 
 class TestPersonalize:

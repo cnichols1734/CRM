@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from services.email_chrome import brand_assets
 from services.marketing.links import unsubscribe_url
 from services.marketing.shell import ShellContext
 
@@ -49,9 +50,12 @@ def shell_for(
                 'You are receiving this because you are a client or contact of ours.'
             )
 
+    brand = brand_assets(org)
     return ShellContext(
         header_title=header,
         eyebrow=eyebrow,
+        mark_url=brand['mark_url'],
+        wordmark_url=brand['wordmark_url'],
         agent_name=agent_name,
         agent_title=agent_title,
         agent_email=getattr(agent, 'email', None),
