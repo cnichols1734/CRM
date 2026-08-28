@@ -396,7 +396,7 @@ class TestFreeRealEstateCrmOtherCrmLinks:
     def test_no_kvcore_or_alternative_added_to_sentence(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         section = _other_crms_section(html)
-        visible = _visible_copy(section)
+        visible = _visible_copy(section).strip()
         assert "kvCORE" not in html
         assert "kvcore" not in visible.lower()
         assert "alternative" not in visible.lower()
