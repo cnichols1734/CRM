@@ -23,6 +23,13 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from playwright.sync_api import sync_playwright, expect
+from tests.auth_family_contrast import (
+    AUTH_FAMILY_THEMES,
+    COLLECT_AUTH_FAMILY_REPORT,
+    assert_auth_family_report,
+    auth_family_page_specs,
+    seed_auth_family_urls,
+)
 from tests.browser_test_support import configure_browser_test_environment, ensure_local_base_url
 
 configure_browser_test_environment(project_root)
@@ -171,6 +178,95 @@ class CRMTestSuite:
         }""")
     
     # ==================== AUTHENTICATION TESTS ====================
+
+    def test_public_auth_family_contrast(self):
+        """Every public auth page, both document themes: readable fields, no orange smear."""
+        test_name = "Public auth family contrast"
+        self.log(test_name, "test")
+
+        try:
+            urls = seed_auth_family_urls(self.test_username)
+            specs = auth_family_page_specs(urls["reset"], urls["invite"])
+            for spec in specs:
+                for theme in AUTH_FAMILY_THEMES:
+                    self.log(f"{spec['name']} data-theme={theme}...", "step")
+                    self._assert_auth_family_page(spec, theme)
+                    self.log("", "ok")
+
+            self.log("", "pass")
+            self.results.add_pass()
+        except Exception as e:
+            self.log(str(e), "error")
+            self.log("", "fail")
+            self.results.add_fail(test_name, str(e))
+
+    def _assert_auth_family_page(self, spec, theme):
+        self.page.evaluate(
+            """(nextTheme) => {
+                try { localStorage.setItem('crm-theme', nextTheme); } catch (e) {}
+            }""",
+            theme,
+        )
+        self.page.goto(f"{self.base_url}{spec['path']}")
+        self.page.wait_for_load_state("domcontentloaded")
+        if spec["name"] == "reset-password" and "/reset_password/" not in self.page.url:
+            raise AssertionError(
+                "reset-password token bounced off /reset_password/<token>. "
+                "SECRET_KEY mismatch between the test process and the app."
+            )
+        if spec["name"] == "accept-invite" and "/invite/" not in self.page.url:
+            raise AssertionError(
+                "accept-invite redirected away from /invite/<token>. "
+                "The seeded invite is missing or expired."
+            )
+
+        self.page.wait_for_function(
+            """() => document.body && document.body.classList.contains('crm-auth-page')""",
+            timeout=8000,
+        )
+        self.page.wait_for_function(
+            """() => [...document.styleSheets].some((sheet) => (sheet.href || '').includes('auth-family'))""",
+            timeout=8000,
+        )
+        self._set_theme(theme)
+        self.page.wait_for_function(
+            """(theme) => document.documentElement.dataset.theme === theme""",
+            theme,
+            timeout=5000,
+        )
+        try:
+            self.page.wait_for_function(
+                """() => [...document.styleSheets].some((sheet) => (sheet.href || '').includes('daisyui'))""",
+                timeout=4000,
+            )
+        except Exception:
+            pass
+
+        body = self.page.locator("body").inner_text()
+        for snippet in spec["expect_text"]:
+            if snippet not in body:
+                raise AssertionError(f"{spec['name']} missing {snippet!r}")
+
+        scope = self.page.locator(spec["scope"]).first
+        if scope.count() == 0:
+            raise AssertionError(f"{spec['name']} missing {spec['scope']}")
+
+        for selector, value in spec["fill"]:
+            field = scope.locator(selector).first
+            field.wait_for(state="visible", timeout=5000)
+            field.fill(value)
+
+        self.page.evaluate(
+            """() => {
+                if (document.activeElement && document.activeElement.blur) {
+                    document.activeElement.blur();
+                }
+            }"""
+        )
+        self.page.wait_for_timeout(80)
+
+        report = self.page.evaluate(COLLECT_AUTH_FAMILY_REPORT, spec)
+        assert_auth_family_report(report, spec["name"], theme)
     
     def test_login(self):
         """Test login with valid credentials."""
@@ -1122,6 +1218,7 @@ class CRMTestSuite:
             self.setup()
             
             # Authentication tests
+            self.test_public_auth_family_contrast()
             self.test_login()
             self.test_dashboard_access()
             
