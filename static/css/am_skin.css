@@ -1553,6 +1553,8 @@ html.am-skin body.crm-auth-page .auth-family {
 html.am-skin body.crm-auth-page .login-page .card,
 html.am-skin body.crm-auth-page .register-page .card {
   background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
   border: 1px solid rgba(0, 0, 0, 0.10) !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08) !important;
   border-radius: 18px !important;
@@ -1592,17 +1594,56 @@ html.am-skin body.crm-auth-page .register-page .left-icon {
   border-color: rgba(255, 255, 255, 0.10) !important;
   color: #f97316 !important;
 }
+html.am-skin[data-theme="dark"] body.crm-auth-page {
+  color-scheme: light;
+}
 html.am-skin body.crm-auth-page .login-page .input,
-html.am-skin body.crm-auth-page .login-page .icon-btn,
-html.am-skin body.crm-auth-page .register-page .input {
+html.am-skin body.crm-auth-page .login-page .input.crm-input,
+html.am-skin body.crm-auth-page .login-page .input.t-input,
+html.am-skin body.crm-auth-page .login-page input.crm-input,
+html.am-skin body.crm-auth-page .register-page .input,
+html.am-skin body.crm-auth-page .register-page .input.crm-input,
+html.am-skin body.crm-auth-page .register-page input.crm-input {
   background: #ffffff !important;
-  border-color: rgba(0, 0, 0, 0.10) !important;
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  border-radius: 12px !important;
   color: rgba(0, 0, 0, 0.88) !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.88) !important;
+  caret-color: rgba(0, 0, 0, 0.88) !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+  height: 46px !important;
+  padding: 0 14px !important;
+  color-scheme: light;
+}
+html.am-skin body.crm-auth-page .login-page .icon-btn {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  color: rgba(0, 0, 0, 0.56) !important;
+  box-shadow: none !important;
+}
+html.am-skin body.crm-auth-page .login-page .input::placeholder,
+html.am-skin body.crm-auth-page .login-page input.crm-input::placeholder,
+html.am-skin body.crm-auth-page .register-page .input::placeholder,
+html.am-skin body.crm-auth-page .register-page input.crm-input::placeholder,
+html.am-skin[data-theme="dark"] body.crm-auth-page .login-page input::placeholder,
+html.am-skin[data-theme="dark"] body.crm-auth-page .register-page input::placeholder {
+  color: rgba(0, 0, 0, 0.35) !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.35) !important;
 }
 html.am-skin body.crm-auth-page .login-page .input:focus,
-html.am-skin body.crm-auth-page .register-page .input:focus {
+html.am-skin body.crm-auth-page .login-page input.crm-input:focus,
+html.am-skin body.crm-auth-page .register-page .input:focus,
+html.am-skin body.crm-auth-page .register-page input.crm-input:focus {
   border-color: #f97316 !important;
   box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18) !important;
+}
+html.am-skin body.crm-auth-page .t-input:not(:focus),
+html.am-skin body.crm-auth-page .t-input-wrap {
+  box-shadow: none !important;
+  filter: none !important;
 }
 html.am-skin body.crm-auth-page .login-page .btn,
 html.am-skin body.crm-auth-page .register-page .btn,
@@ -1621,18 +1662,36 @@ html.am-skin body.crm-auth-page .login-page .label,
 html.am-skin body.crm-auth-page .register-page .title,
 html.am-skin body.crm-auth-page .register-page .label {
   color: rgba(0, 0, 0, 0.88) !important;
+  background: transparent !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.88) !important;
 }
 html.am-skin body.crm-auth-page .login-page .subtitle,
 html.am-skin body.crm-auth-page .login-page .kicker,
+html.am-skin body.crm-auth-page .login-page .hint-link,
+html.am-skin body.crm-auth-page .login-page .text-slate-600,
 html.am-skin body.crm-auth-page .register-page .subtitle,
 html.am-skin body.crm-auth-page .register-page .kicker,
-html.am-skin body.crm-auth-page .register-page .legal {
+html.am-skin body.crm-auth-page .register-page .legal,
+html.am-skin body.crm-auth-page .register-page .text-slate-600 {
   color: rgba(0, 0, 0, 0.56) !important;
+  background: transparent !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.56) !important;
 }
 html.am-skin body.crm-auth-page .login-page .footer-link,
 html.am-skin body.crm-auth-page .register-page .footer-link,
 html.am-skin body.crm-auth-page .login-page .support-action {
   color: #ea580c !important;
+  background: transparent !important;
+  -webkit-text-fill-color: #ea580c !important;
+}
+html.am-skin body.crm-auth-page ::selection {
+  background: rgba(0, 0, 0, 0.14);
+  color: rgba(0, 0, 0, 0.88);
+}
+html.am-skin body.crm-auth-page .left ::selection,
+html.am-skin body.crm-auth-page .auth-card ::selection {
+  background: rgba(255, 255, 255, 0.22);
+  color: hsla(0, 0%, 100%, 0.92);
 }
 html.am-skin body.crm-auth-page .auth-card {
   background: #2c2c2e !important;
@@ -1640,10 +1699,31 @@ html.am-skin body.crm-auth-page .auth-card {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12) !important;
   color: hsla(0, 0%, 100%, 0.92) !important;
 }
-html.am-skin body.crm-auth-page .auth-input {
+html.am-skin body.crm-auth-page .auth-input,
+html.am-skin body.crm-auth-page input.auth-input,
+html.am-skin body.crm-auth-page .auth-card input.crm-input {
   background: #3a3a3c !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  background-color: #3a3a3c !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
   color: hsla(0, 0%, 100%, 0.92) !important;
+  -webkit-text-fill-color: hsla(0, 0%, 100%, 0.92) !important;
+  caret-color: hsla(0, 0%, 100%, 0.92) !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+  height: 46px !important;
+  padding: 0 14px !important;
+  color-scheme: dark;
+}
+html.am-skin body.crm-auth-page .auth-input::placeholder,
+html.am-skin body.crm-auth-page .auth-card input.crm-input::placeholder {
+  color: hsla(0, 0%, 100%, 0.36) !important;
+  -webkit-text-fill-color: hsla(0, 0%, 100%, 0.36) !important;
+}
+html.am-skin body.crm-auth-page .auth-input:focus,
+html.am-skin body.crm-auth-page .auth-card input.crm-input:focus {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18) !important;
 }
 html.am-skin body.crm-auth-page .auth-title,
 html.am-skin body.crm-auth-page .auth-label {

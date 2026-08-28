@@ -203,6 +203,16 @@ class TestAuthPagesRender:
             "transactions, and team workspace."
         ) not in html
 
+    def test_login_fields_are_not_crm_input(self, client, seed):
+        resp = client.get('/login')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'crm-auth-page' in html
+        assert 'css/auth-family.css' in html
+        assert 'class="input crm-input' not in html
+        assert 'class="input t-input' not in html
+        assert 'class="t-input-wrap' not in html
+
     def test_register_uses_dark_mark_on_dark_rail(self, client, seed):
         resp = client.get('/register')
         assert resp.status_code == 200
@@ -229,6 +239,16 @@ class TestAuthPagesRender:
         assert "Pipeline and activity without a second tool." not in html
         assert "Ask it to add a contact or count clients in a ZIP." not in html
         assert "Telegram after a QR from your profile" not in html
+
+    def test_register_fields_are_not_crm_input(self, client, seed):
+        resp = client.get('/register')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'crm-auth-page' in html
+        assert 'css/auth-family.css' in html
+        assert 'class="input crm-input' not in html
+        assert "More on what's included is on" in html
+        assert "the free real estate CRM page" in html
 
     def test_reset_request_uses_dark_mark_on_card(self, client, seed):
         resp = client.get('/reset_password')
