@@ -493,7 +493,9 @@ def _assert_listing_package_header_contract(section):
     remaining_idx = section.index('Upload remaining')
     remaining_btn = section[section.rfind('<button', 0, remaining_idx):remaining_idx]
     assert 'crm-document-package__action' in remaining_btn
+    assert 'crm-btn-sm' in remaining_btn
     assert 'crm-btn-accent' in remaining_btn
+    assert 'min-h-11' not in remaining_btn
     assert 'crm-btn-secondary' not in remaining_btn
     assert 'crm-btn-accent-soft' not in remaining_btn
     assert remaining_idx < first_row_idx
@@ -529,6 +531,8 @@ def test_listing_package_header_is_not_a_document_row(app):
     view_idx = html.index('View document')
     view_cls = html[html.rfind('class="', 0, view_idx):view_idx]
     assert 'crm-btn-secondary' in view_cls
+    assert 'crm-btn-sm' in view_cls
+    assert 'min-h-11' in view_cls
     assert 'crm-document-package__action' not in view_cls
     assert 'crm-btn-accent' not in view_cls
 

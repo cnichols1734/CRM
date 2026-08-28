@@ -3139,6 +3139,8 @@
   background: transparent;
 }
 .crm-document-package__header--section {
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 1rem;
 }
@@ -3164,6 +3166,11 @@
   background: var(--accent);
   color: var(--accent-on);
   border-color: var(--accent);
+  height: 26px;
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 500;
 }
 .crm-document-package__action:hover {
   background: var(--accent-ink);
