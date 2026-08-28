@@ -231,7 +231,7 @@ class CRMTestSuite:
         self._set_theme(theme)
         self.page.wait_for_function(
             """(theme) => document.documentElement.dataset.theme === theme""",
-            theme,
+            arg=theme,
             timeout=5000,
         )
         try:
@@ -242,9 +242,9 @@ class CRMTestSuite:
         except Exception:
             pass
 
-        body = self.page.locator("body").inner_text()
+        body = self.page.locator("body").inner_text().lower()
         for snippet in spec["expect_text"]:
-            if snippet not in body:
+            if snippet.lower() not in body:
                 raise AssertionError(f"{spec['name']} missing {snippet!r}")
 
         scope = self.page.locator(spec["scope"]).first

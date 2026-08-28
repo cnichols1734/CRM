@@ -23,13 +23,28 @@ def _html(resp):
     return resp.get_data(as_text=True)
 
 
+def _without_contact_modal(html):
+    """The global contact-us modal still uses t-input. That is not an auth field."""
+    start = html.find("<!-- Contact Us Modal -->")
+    if start < 0:
+        marker = html.find('id="contactUsModal"')
+        if marker < 0:
+            return html
+        start = html.rfind("<div", 0, marker + 1)
+    end = html.find("</script>", start)
+    if start < 0 or end < 0:
+        return html
+    return html[:start] + html[end + len("</script>"):]
+
+
 def _assert_public_auth_lock(html, *must_have):
     assert "crm-auth-page" in html
     assert "css/auth-family.css" in html
-    assert 'class="input crm-input' not in html
-    assert 'class="input t-input' not in html
-    assert 'class="t-input-wrap' not in html
-    leaky = _LEAKY_INPUT.findall(html)
+    scoped = _without_contact_modal(html)
+    assert 'class="input crm-input' not in scoped
+    assert 'class="input t-input' not in scoped
+    assert 'class="t-input-wrap' not in scoped
+    leaky = _LEAKY_INPUT.findall(scoped)
     assert leaky == [], leaky
     for snippet in must_have:
         assert snippet in html, snippet

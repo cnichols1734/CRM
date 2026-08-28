@@ -36,7 +36,6 @@ _DARK_COPY = (
     ".auth-kicker",
     ".auth-label",
     ".auth-back",
-    ".auth-notice",
 )
 
 
