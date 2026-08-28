@@ -1,0 +1,213 @@
+/* Public auth family lock.
+   Login/register are a light form on a split card. Reset/invite use a
+   dark glass card. Both sit on body.crm-auth-page.
+
+   These screens inherit html[data-theme=dark], html.am-skin input.crm-input
+   (dark paper + near-white ink, pill radius), DaisyUI .input/.card keyed
+   off the same data-theme, color-scheme: dark, ::selection accent-soft,
+   and leftover .t-input rest shadows from the transitions pass.
+
+   This file loads after app.css, am_skin.css, and the base inline sheet
+   so the shipped auth chrome wins in both document themes. Do not restyle
+   the orange submit buttons or the dark left rail. */
+
+html[data-theme="dark"] body.crm-auth-page,
+html.am-skin[data-theme="dark"] body.crm-auth-page,
+html.am-skin[data-theme="light"] body.crm-auth-page,
+body.crm-auth-page {
+  color-scheme: light;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page, .legal-page, .auth-family),
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page, .legal-page, .auth-family),
+html[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page, .legal-page, .auth-family),
+body.crm-auth-page :is(.login-page, .register-page, .legal-page, .auth-family) {
+  color-scheme: light;
+}
+
+/* DaisyUI .card and base.html .card { color: var(--ink) } were painting
+   near-white inherited type onto the white form panel. */
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) .card,
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) .card,
+html[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) .card,
+body.crm-auth-page :is(.login-page, .register-page) .card {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) :is(.title, .label),
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) :is(.title, .label),
+body.crm-auth-page :is(.login-page, .register-page) :is(.title, .label) {
+  color: rgba(0, 0, 0, 0.88) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.88) !important;
+  box-shadow: none !important;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) :is(.subtitle, .kicker, .hint-link, .support-row, .legal, .text-slate-600),
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) :is(.subtitle, .kicker, .hint-link, .support-row, .legal, .text-slate-600),
+body.crm-auth-page :is(.login-page, .register-page) :is(.subtitle, .kicker, .hint-link, .support-row, .legal, .text-slate-600) {
+  color: rgba(0, 0, 0, 0.56) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.56) !important;
+  box-shadow: none !important;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) :is(.footer-link, .support-action),
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) :is(.footer-link, .support-action),
+body.crm-auth-page :is(.login-page, .register-page) :is(.footer-link, .support-action) {
+  color: #ea580c !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  -webkit-text-fill-color: #ea580c !important;
+  box-shadow: none !important;
+}
+
+/* Beat .crm-input, html.am-skin input.crm-input, DaisyUI .input, and .t-input. */
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input.input,
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input.crm-input,
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input.t-input,
+html[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input.crm-input,
+html[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input.input,
+body.crm-auth-page :is(.login-page, .register-page) input.input,
+body.crm-auth-page :is(.login-page, .register-page) input.crm-input,
+body.crm-auth-page :is(.login-page, .register-page) input.t-input {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.88) !important;
+  caret-color: rgba(0, 0, 0, 0.88) !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+  height: 46px !important;
+  padding: 0 14px !important;
+  color-scheme: light;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input:not([type="hidden"])::placeholder,
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) input:not([type="hidden"])::placeholder,
+html.am-skin body.crm-auth-page :is(.login-page, .register-page) input.input::placeholder,
+html.am-skin body.crm-auth-page :is(.login-page, .register-page) input.crm-input::placeholder,
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input.crm-input::placeholder,
+body.crm-auth-page :is(.login-page, .register-page) input::placeholder {
+  color: rgba(0, 0, 0, 0.35) !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.35) !important;
+  opacity: 1 !important;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) input:focus,
+html.am-skin[data-theme="light"] body.crm-auth-page :is(.login-page, .register-page) input:focus,
+body.crm-auth-page :is(.login-page, .register-page) input.input:focus,
+body.crm-auth-page :is(.login-page, .register-page) input.crm-input:focus,
+body.crm-auth-page :is(.login-page, .register-page) input.t-input:focus {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18) !important;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.login-page, .register-page) .icon-btn,
+body.crm-auth-page :is(.login-page, .register-page) .icon-btn {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.56) !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  box-shadow: none !important;
+}
+
+/* t-input leftover: no rest-state glow, halo, or orange slab. */
+html.am-skin body.crm-auth-page .t-input,
+html.am-skin body.crm-auth-page .t-input-wrap,
+html.am-skin body.crm-auth-page .t-input-wrap::before,
+html.am-skin body.crm-auth-page .t-input-wrap::after,
+html.am-skin body.crm-auth-page .t-clear-glow,
+html.am-skin body.crm-auth-page .t-clear-mirror,
+html.am-skin body.crm-auth-page .t-clear-placeholder,
+body.crm-auth-page .t-input-wrap,
+body.crm-auth-page .t-input-wrap::before,
+body.crm-auth-page .t-input-wrap::after,
+body.crm-auth-page .t-input:not(:focus),
+body.crm-auth-page .t-clear-glow,
+body.crm-auth-page .t-clear-mirror,
+body.crm-auth-page .t-clear-placeholder {
+  background-image: none !important;
+  filter: none !important;
+}
+
+body.crm-auth-page .t-input:not(:focus),
+body.crm-auth-page .t-input-wrap {
+  box-shadow: none !important;
+}
+
+/* Dark reset / invite card. Beat the same crm-input leak the other way. */
+html.am-skin[data-theme="dark"] body.crm-auth-page .auth-card,
+html.am-skin[data-theme="light"] body.crm-auth-page .auth-card,
+body.crm-auth-page .auth-card {
+  background: #2c2c2e !important;
+  background-color: #2c2c2e !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+  color-scheme: dark;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page .auth-card input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.am-skin[data-theme="light"] body.crm-auth-page .auth-card input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.am-skin[data-theme="dark"] body.crm-auth-page .auth-card input.auth-input,
+html.am-skin[data-theme="dark"] body.crm-auth-page .auth-card input.crm-input,
+html[data-theme="dark"] body.crm-auth-page .auth-card input.crm-input,
+html[data-theme="light"] body.crm-auth-page .auth-card input.crm-input,
+body.crm-auth-page .auth-card input.auth-input,
+body.crm-auth-page .auth-card input.crm-input {
+  background: #3a3a3c !important;
+  background-color: #3a3a3c !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+  -webkit-text-fill-color: hsla(0, 0%, 100%, 0.92) !important;
+  caret-color: hsla(0, 0%, 100%, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+  height: 46px !important;
+  padding: 0 14px !important;
+  color-scheme: dark;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page .auth-card input::placeholder,
+html.am-skin[data-theme="light"] body.crm-auth-page .auth-card input::placeholder,
+html.am-skin body.crm-auth-page .auth-card input.crm-input::placeholder,
+body.crm-auth-page .auth-card input::placeholder {
+  color: hsla(0, 0%, 100%, 0.36) !important;
+  -webkit-text-fill-color: hsla(0, 0%, 100%, 0.36) !important;
+  opacity: 1 !important;
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page .auth-card input:focus,
+html.am-skin[data-theme="light"] body.crm-auth-page .auth-card input:focus,
+body.crm-auth-page .auth-card input.auth-input:focus,
+body.crm-auth-page .auth-card input.crm-input:focus {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18) !important;
+}
+
+/* Accent-soft selection was painting orange slabs across the form. */
+html.am-skin[data-theme="dark"] body.crm-auth-page ::selection,
+html.am-skin[data-theme="light"] body.crm-auth-page ::selection,
+html.am-skin body.crm-auth-page ::selection,
+html[data-theme="dark"] body.crm-auth-page ::selection,
+body.crm-auth-page ::selection {
+  background: rgba(0, 0, 0, 0.14);
+  color: rgba(0, 0, 0, 0.88);
+}
+
+html.am-skin[data-theme="dark"] body.crm-auth-page :is(.left, .auth-card) ::selection,
+html.am-skin body.crm-auth-page :is(.left, .auth-card) ::selection,
+body.crm-auth-page :is(.left, .auth-card) ::selection {
+  background: rgba(255, 255, 255, 0.22);
+  color: hsla(0, 0%, 100%, 0.92);
+}

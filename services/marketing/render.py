@@ -52,27 +52,26 @@ def _paragraph(text: str) -> str:
     for chunk in chunks:
         body = esc(chunk).replace('\n', '<br>')
         out.append(
-            f'<p style="margin:0 0 18px 0;font-family:{FONT};font-size:15.5px;'
-            f'color:{INK_BODY};line-height:1.7;">{body}</p>'
+            f'<p style="margin:0 0 18px 0;font-family:{FONT};font-size:15px;'
+            f'font-weight:300;color:{INK_BODY};line-height:26px;">{body}</p>'
         )
     return wrap_html('\n'.join(out), 'text')
 
 
 def _heading(block: dict) -> str:
-    """h2 is a Fraunces section title; h3 is a smaller DM Sans label.
+    """h2 is a Poppins section title; h3 is a smaller uppercase label.
 
-    Two different jobs rather than two sizes of the same thing: the serif reads
-    as a new chapter, the sans as a subhead inside one.
+    Two different jobs rather than two sizes of the same thing.
     """
     if block.get('level', 'h2') == 'h3':
         return (
             f'<h3 style="margin:0 0 12px 0;font-family:{FONT};font-size:11px;'
-            f'font-weight:700;color:{INK_MUTED};letter-spacing:1.6px;'
+            f'font-weight:600;color:{INK_MUTED};letter-spacing:1.6px;'
             f'text-transform:uppercase;">{mark(esc(block["text"]), "text")}</h3>'
         )
     return (
         f'<h2 style="margin:0 0 16px 0;font-family:{DISPLAY};font-size:28px;'
-        f'font-weight:500;color:{INK};line-height:1.15;letter-spacing:-0.3px;">'
+        f'font-weight:700;color:{INK};line-height:34px;letter-spacing:-0.6px;">'
         f'{mark(esc(block["text"]), "text")}</h2>'
     )
 
@@ -84,20 +83,20 @@ def _bullets(block: dict) -> str:
     )
     return (
         f'<ul style="margin:0 0 20px 0;padding-left:22px;font-family:{FONT};'
-        f'font-size:15.5px;color:{INK_BODY};line-height:1.6;">{items}</ul>'
+        f'font-size:15px;font-weight:300;color:{INK_BODY};line-height:26px;">{items}</ul>'
     )
 
 
 def _button(block: dict) -> str:
     return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr><td align="center" style="padding:6px 0 30px 0;">
-        <a href="{esc(block["url"])}" style="display:inline-block;font-family:{FONT};background-color:{ACCENT};background:linear-gradient(135deg, {ACCENT} 0%, {ACCENT_DARK} 100%);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:15px 38px;border-radius:10px;box-shadow:0 8px 22px rgba(249,115,22,0.32);">{mark(esc(block["label"]), "label")}</a>
+        <a href="{esc(block["url"])}" style="display:inline-block;font-family:{FONT};background-color:{ACCENT};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;">{mark(esc(block["label"]), "label")}</a>
     </td></tr>
 </table>'''
 
 
 def _steps(block: dict) -> str:
-    """Numbered items with serif numerals in their own column."""
+    """Numbered items with numerals in their own column."""
     rows = []
     entries = block.get('steps') or []
     for position, entry in enumerate(entries, start=1):
@@ -112,7 +111,7 @@ def _steps(block: dict) -> str:
         <td valign="top" style="padding:0 0 {'0' if last else '22px'} 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
-                    <td valign="top" width="44" style="font-family:{DISPLAY};font-size:28px;font-weight:500;color:{ACCENT};line-height:1;padding-top:2px;">{position:02d}</td>
+                    <td valign="top" width="44" style="font-family:{DISPLAY};font-size:22px;font-weight:700;color:{ACCENT};line-height:1;padding-top:2px;">{position:02d}</td>
                     <td valign="top">
                         <p style="margin:0 0 4px 0;font-family:{FONT};font-size:16px;font-weight:600;color:{INK};line-height:1.4;">{mark(esc(entry["title"]), "steps", item=position - 1, key="title")}</p>
                         {body}
@@ -136,7 +135,7 @@ def _callout(block: dict) -> str:
             f'font-weight:700;color:{ACCENT};letter-spacing:1.3px;'
             f'text-transform:uppercase;">{mark(esc(block["label"]), "label")}</p>'
         )
-    return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:{INSET_BG};border:1px solid {INSET_BORDER};border-radius:12px;margin:0 0 24px 0;">
+    return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:{INSET_BG};border:1px solid {INSET_BORDER};margin:0 0 24px 0;">
     <tr><td style="padding:16px 18px;">
         {label}
         <p style="margin:0;font-family:{FONT};font-size:15px;font-weight:600;color:{INK};line-height:1.55;">{mark(esc(block["text"]), "text")}</p>
@@ -148,7 +147,7 @@ def _image(block: dict) -> str:
     img = (
         f'<img src="{esc(block["image_url"])}" alt="{esc(block["alt"])}" '
         f'width="504" style="display:block;width:100%;max-width:504px;height:auto;'
-        f'border-radius:10px;border:0;">'
+        f'border:0;">'
     )
     if block.get('link_url'):
         img = f'<a href="{esc(block["link_url"])}">{img}</a>'
@@ -188,7 +187,7 @@ def _listing_card(block: dict) -> str:
     if block.get('price'):
         rows.append(
             f'<p style="margin:0 0 6px 0;font-family:{FONT};font-size:20px;'
-            f'font-weight:700;color:{ACCENT_DARK};">{mark(esc(block["price"]), "price")}</p>'
+            f'font-weight:700;color:{ACCENT};">{mark(esc(block["price"]), "price")}</p>'
         )
     if spec_line:
         rows.append(
@@ -208,7 +207,7 @@ def _listing_card(block: dict) -> str:
         )
 
     detail = '\n'.join(rows)
-    return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid {HAIRLINE};border-radius:12px;overflow:hidden;margin:0 0 24px 0;">
+    return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid {HAIRLINE};margin:0 0 24px 0;">
     {f'<tr><td>{photo}</td></tr>' if photo else ''}
     <tr><td style="padding:18px 20px;">{detail}</td></tr>
 </table>'''
@@ -225,13 +224,13 @@ def _stat_row(block: dict) -> str:
             f'<td class="stat-cell" width="{width}" align="center" '
             f'style="padding:4px 8px;vertical-align:top;">'
             f'<p style="margin:0 0 2px 0;font-family:{FONT};font-size:22px;'
-            f'font-weight:700;color:{INK};">{mark(esc(stat.get("value")), "stats", item=index, key="value")}</p>'
+            f'font-weight:700;color:{ACCENT};">{mark(esc(stat.get("value")), "stats", item=index, key="value")}</p>'
             f'<p style="margin:0;font-family:{FONT};font-size:11px;'
             f'font-weight:600;color:{INK_FAINT};text-transform:uppercase;'
             f'letter-spacing:0.5px;">{mark(esc(stat.get("label")), "stats", item=index, key="label")}</p></td>'
         )
     joined = '\n'.join(cells)
-    return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:{INSET_BG};border-radius:10px;margin:0 0 24px 0;">
+    return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:{INSET_BG};margin:0 0 24px 0;">
     <tr><td style="padding:20px 12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>{joined}</tr></table></td></tr>
 </table>'''
 
@@ -244,7 +243,7 @@ def _quote(block: dict) -> str:
             f'font-weight:600;color:{INK_MUTED};">{mark(esc(block["attribution"]), "attribution")}</p>'
         )
     return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;">
-    <tr><td style="background-color:{INSET_BG};border-left:4px solid {ACCENT};border-radius:10px;padding:18px 22px;">
+    <tr><td style="background-color:{INSET_BG};border-left:4px solid {ACCENT};padding:18px 22px;">
         <p style="margin:0;font-family:{FONT};font-size:16px;color:{INK};line-height:1.65;font-style:italic;">{mark(esc(block["text"]), "text")}</p>
         {attribution}
     </td></tr>
@@ -262,8 +261,8 @@ def _signature(ctx: ShellContext) -> str:
     if not ctx.agent_name:
         return ''
     lines = [
-        f'<p style="margin:0 0 2px 0;font-family:{FONT};font-size:15px;'
-        f'font-weight:700;color:{INK};">{esc(ctx.agent_name)}</p>'
+        f'<p style="margin:0 0 5px 0;font-family:{FONT};font-size:14px;'
+        f'letter-spacing:1.6px;text-transform:uppercase;color:{INK};">{esc(ctx.agent_name)}</p>'
     ]
     if ctx.agent_title:
         lines.append(

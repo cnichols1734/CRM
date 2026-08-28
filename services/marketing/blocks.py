@@ -43,10 +43,10 @@ BLOCK_SPECS: tuple[BlockSpec, ...] = (
         type='hero',
         label='Hero',
         description=(
-            'The dark banner at the top of the email: a small label, a large '
-            'headline, an italic second line, and a sentence underneath. Sets '
-            'the tone for the whole email. Must be the first block, and there '
-            'can only be one.'
+            'The title band at the top of the email: a small label, a teal '
+            'hairline, a large headline, an optional second line, and a '
+            'sentence underneath. Sets the tone for the whole email. Must be '
+            'the first block, and there can only be one.'
         ),
         required=('title',),
         optional=('eyebrow', 'accent', 'text'),

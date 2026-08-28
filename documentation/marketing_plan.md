@@ -71,14 +71,14 @@ Default is `unknown` and `unknown` is sendable. CAN-SPAM is an opt-out regime an
 
 ## The block schema
 
-The design reference is the AgentFlow welcome email: soft blue canvas (`#f0f4f8`), rounded white card with a soft shadow, a light header bar carrying the brand and a small uppercase purpose label, a dark gradient hero with a Fraunces headline and an italic orange accent line, DM Sans body copy in slate, orange gradient calls to action, serif numerals on numbered steps, and a quiet compliance footer. `services/marketing/shell.py` and `render.py` encode it.
+The design reference is the shipped offer-summary email: 600px white column on `#E8EBEE`, slate masthead and footer (`#6C7F93` / `#5A6B7D`), teal hairline (`#4EC8CD`), Poppins with Century Gothic behind it, and brand-orange (`#f97316`) calls to action. Tokens live in `services/email_chrome.py`. `services/marketing/shell.py` and `render.py` wrap marketing blocks in that chrome.
 
 The AI is never handed that HTML and never writes HTML. It produces an ordered list of typed blocks, via `generate_structured_response` with a strict JSON schema, and the renderer supplies the design. That inversion is the point: the reference cannot be degraded by a model having an off day, and it can be improved for every existing template at once by editing one file.
 
 | Block | Fields |
 |---|---|
-| `hero` | eyebrow, title, accent, text — the dark banner; first block only, one per email |
-| `heading` | text, level (`h2` display serif, `h3` small caps label) |
+| `hero` | eyebrow, title, accent, text — the title band; first block only, one per email |
+| `heading` | text, level (`h2` section title, `h3` small caps label) |
 | `paragraph` | text |
 | `bullets` | items[] |
 | `button` | label, url |
@@ -91,9 +91,9 @@ The AI is never handed that HTML and never writes HTML. It produces an ordered l
 | `divider` | — |
 | `signature` | — (renders from the agent's profile) |
 
-`hero`, `steps`, and `callout` are what carry the reference's character; `listing_card` and `stat_row` are the real-estate-specific payoff. Together they're what make a "just listed" or "market update" email look professionally built instead of like a wall of text.
+`hero`, `steps`, and `callout` carry the offer-email look into marketing; `listing_card` and `stat_row` are the real-estate-specific payoff. Together they keep a "just listed" or "market update" from reading as a wall of text.
 
-The hero is full-bleed, so the shell renders it as its own table row outside the padded content cell, and validation rejects one anywhere but the top rather than quietly relocating it.
+The hero is its own table row outside the padded content cell, the same way the offer email's title band sits under the masthead. Validation rejects one anywhere but the top rather than quietly relocating it.
 
 `services/marketing/render.py` is a pure function from blocks to `(html, text)`. Table-based, fully inline CSS, no JavaScript, no external stylesheets, and a real `text/plain` alternative part. The renderer is the only thing that emits HTML, so email-client compatibility is a property of one file we can test.
 
