@@ -50,6 +50,14 @@ class TestPublicAuthDropsCrmInputLeak:
         assert "crm-input" not in reset_password
         assert "crm-input" not in invite
 
+    def test_login_keeps_free_crm_sentence(self):
+        login = _read("templates", "auth", "login.html")
+        assert "More on what's included is on" in login
+        assert "the free real estate CRM page" in login
+        assert "url_for('main.free_real_estate_crm')" in login
+        assert login.count("url_for('main.free_real_estate_crm')") == 1
+        assert login.count("the free real estate CRM page") == 1
+
     def test_register_keeps_free_crm_sentence(self):
         register = _read("templates", "auth", "register.html")
         assert "More on what's included is on" in register
