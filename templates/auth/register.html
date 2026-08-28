@@ -274,20 +274,20 @@
             <div>
               <label class="label" for="company_name">Brokerage or team</label>
               <input type="text" name="company_name" id="company_name" required
-                     class="input crm-input" placeholder="Acme Realty" autocomplete="organization">
+                     class="input" placeholder="Acme Realty" autocomplete="organization">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="label" for="{{ form.first_name.id }}">First name</label>
-                {{ form.first_name(class="input crm-input", placeholder="First", autocomplete="given-name") }}
+                {{ form.first_name(class="input", placeholder="First", autocomplete="given-name") }}
                 {% for error in form.first_name.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ error }}</p>
                 {% endfor %}
               </div>
               <div>
                 <label class="label" for="{{ form.last_name.id }}">Last name</label>
-                {{ form.last_name(class="input crm-input", placeholder="Last", autocomplete="family-name") }}
+                {{ form.last_name(class="input", placeholder="Last", autocomplete="family-name") }}
                 {% for error in form.last_name.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ error }}</p>
                 {% endfor %}
@@ -296,7 +296,7 @@
 
             <div>
               <label class="label" for="{{ form.email.id }}">Email</label>
-              {{ form.email(class="input crm-input", placeholder="you@brokerage.com", autocomplete="email") }}
+              {{ form.email(class="input", placeholder="you@brokerage.com", autocomplete="email") }}
               {% for error in form.email.errors %}
                 <p class="text-red-600 text-xs mt-1">{{ error }}</p>
               {% endfor %}
@@ -304,7 +304,7 @@
 
             <div>
               <label class="label" for="{{ form.password.id }}">Password</label>
-              {{ form.password(class="input crm-input", placeholder="••••••••", autocomplete="new-password") }}
+              {{ form.password(class="input", placeholder="••••••••", autocomplete="new-password") }}
               {% for error in form.password.errors %}
                 <p class="text-red-600 text-xs mt-1">{{ error }}</p>
               {% endfor %}
@@ -312,7 +312,7 @@
 
             <div>
               <label class="label" for="{{ form.confirm_password.id }}">Confirm password</label>
-              {{ form.confirm_password(class="input crm-input", placeholder="Repeat password", autocomplete="new-password") }}
+              {{ form.confirm_password(class="input", placeholder="Repeat password", autocomplete="new-password") }}
               {% for error in form.confirm_password.errors %}
                 <p class="text-red-600 text-xs mt-1">{{ error }}</p>
               {% endfor %}
