@@ -42,19 +42,21 @@
             <p class="mt-0.5 text-xs" style="color: var(--ink-3);">{{ package.status|replace('_', ' ')|title }}</p>
             {% endif %}
         </div>
-        <button type="button"
-                class="crm-btn crm-btn-sm min-h-11 {% if is_upload_remaining %}crm-btn-accent crm-document-package__action{% else %}crm-btn-secondary{% endif %}"
-                data-action="document-upload-hub#open"
-                data-document-upload-hub-scope-param="{{ 'other' if is_unfiled else (package.scope or 'other') }}"
-                data-document-upload-hub-scope-id-param="{{ package.scope_id or '' }}"
-                data-document-upload-hub-label-param="{{ pkg_label }}">
-            <i class="fas fa-upload text-xs" aria-hidden="true"></i>
-            {% if is_upload_remaining %}
-            Upload remaining
-            {% else %}
-            Upload document
-            {% endif %}
-        </button>
+        <div class="crm-document-package__header-actions">
+            <button type="button"
+                    class="crm-btn crm-btn-sm min-h-11 {% if is_upload_remaining %}crm-btn-accent crm-document-package__action{% else %}crm-btn-secondary{% endif %}"
+                    data-action="document-upload-hub#open"
+                    data-document-upload-hub-scope-param="{{ 'other' if is_unfiled else (package.scope or 'other') }}"
+                    data-document-upload-hub-scope-id-param="{{ package.scope_id or '' }}"
+                    data-document-upload-hub-label-param="{{ pkg_label }}">
+                <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+                {% if is_upload_remaining %}
+                Upload remaining
+                {% else %}
+                Upload document
+                {% endif %}
+            </button>
+        </div>
     </div>
 {% endif %}
 

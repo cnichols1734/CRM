@@ -3162,6 +3162,21 @@
   text-transform: none;
   color: var(--ink-3);
 }
+.crm-document-package__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+/* Same width as the row action column, plus the reserved kebab gutter. */
+.crm-document-package__header-actions .crm-btn {
+  min-width: 9rem;
+}
+.crm-document-package__header-actions::after {
+  content: "";
+  flex: none;
+  width: 2.5rem;
+}
 .crm-document-package__action {
   background: var(--accent);
   color: var(--accent-on);

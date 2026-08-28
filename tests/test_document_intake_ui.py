@@ -492,6 +492,7 @@ def _assert_listing_package_header_contract(section):
 
     remaining_idx = section.index('Upload remaining')
     remaining_btn = section[section.rfind('<button', 0, remaining_idx):remaining_idx]
+    assert 'crm-document-package__header-actions' in section[:remaining_idx]
     assert 'crm-document-package__action' in remaining_btn
     assert 'crm-btn-sm' in remaining_btn
     assert 'crm-btn-accent' in remaining_btn
