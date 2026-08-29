@@ -114,6 +114,9 @@ class TestDashboardMobileRender:
                 contact.potential_commission,
                 contact.last_contact_date,
             )
+            # Other tests edit this session-scoped seed (e.g. JaneEdited).
+            # Use the live name instead of assuming the original seed label.
+            full_name = f"{contact.first_name} {contact.last_name}".strip()
             contact.email = long_email
             contact.potential_commission = 18500
             contact.last_contact_date = date(2026, 1, 24)
@@ -124,9 +127,11 @@ class TestDashboardMobileRender:
             assert "crm-dash-contacts-cards" in html
             assert html.count(long_email) >= 2
             assert "ogtechnolo..." not in html
-            assert "Jane Doe" in html
+            assert full_name
+            assert full_name in html
             cards = html.split("crm-dash-contacts-cards", 1)[1]
             assert long_email in cards
+            assert full_name in cards
             assert "Jan 24, 2026" in cards
             assert "$18,500" in cards
         finally:
