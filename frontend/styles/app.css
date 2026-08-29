@@ -1552,6 +1552,154 @@
   }
   .crm-list-item:hover { border-color: var(--ink-5); }
 
+  /* ── Dashboard phone stack ─────────────────────────────────
+     Desktop keeps the shipped chart + table. Phone (≤767) hides
+     those and shows the compact list / stacked contact rows. */
+  .crm-dash-contacts-cards { display: none; }
+  .crm-dash-groups-legend {
+    border-top: 0.5px solid var(--hairline);
+  }
+  .crm-dash-todo-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .crm-dash-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--hairline);
+    text-decoration: none;
+    color: inherit;
+  }
+  .crm-dash-contact:first-child { padding-top: 0; }
+  .crm-dash-contact:last-child { border-bottom: none; }
+  .crm-dash-contact:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    border-radius: var(--radius);
+  }
+  .crm-dash-contact__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+  }
+  .crm-dash-contact__body { min-width: 0; flex: 1; }
+  .crm-dash-contact__name {
+    font-weight: 500;
+    color: var(--ink);
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  .crm-dash-contact__groups {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .crm-dash-contact__facts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-left: 52px;
+    min-width: 0;
+  }
+  .crm-dash-contact__fact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .crm-dash-contact__fact dt {
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    font-weight: 500;
+  }
+  .crm-dash-contact__fact dd {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .crm-dash-contact__value {
+    color: var(--ink);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 768px) {
+    .crm-dash-todo-form {
+      flex-direction: row;
+      align-items: center;
+    }
+    .crm-dash-todo-form .crm-btn { flex-shrink: 0; }
+  }
+
+  /* Dashboard phone */
+  @media (max-width: 767px) {
+    .crm-dash-groups-chart { display: none; }
+    .crm-dash-groups-legend {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+    .crm-dash-groups-row {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    .crm-dash-contacts-table { display: none; }
+    .crm-dash-contacts-cards {
+      display: flex;
+      flex-direction: column;
+    }
+    .crm-dash-task-main {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .crm-dash-task-title {
+      overflow: visible;
+      white-space: normal;
+    }
+    .crm-dash-tasks .t-check {
+      position: relative;
+    }
+    .crm-dash-tasks .t-check::before {
+      content: "";
+      position: absolute;
+      inset: -14px;
+    }
+    .crm-dash-tasks-toolbar {
+      align-items: flex-start;
+      width: 100%;
+      min-width: 0;
+    }
+    .crm-dash-todo-form .crm-input {
+      min-height: 44px;
+      height: 44px;
+      font-size: 16px;
+    }
+    .crm-dash-todo-form .crm-btn {
+      width: 100%;
+      height: 44px;
+    }
+    #dashboardActiveTodoList .empty-state {
+      border-style: none !important;
+      border-width: 0 !important;
+      background: transparent !important;
+      font-style: normal;
+      padding: 1.75rem 0.25rem;
+    }
+    .crm-page .crm-board .crm-panel-empty {
+      border: none !important;
+    }
+  }
+
   /* ── Magic Inbox banner ──────────────────────────────────── */
   .crm-magic-banner {
     background: var(--paper);
@@ -4534,5 +4682,14 @@ html[data-theme="dark"] .mkt-page {
   .mkt-chip span,
   .mkt-catalog__row {
     transition: none;
+  }
+}
+
+/* Dashboard phone: unlayered so these beat Tailwind utilities. */
+@media (min-width: 768px) {
+  .crm-dash-task-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
