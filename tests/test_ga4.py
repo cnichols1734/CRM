@@ -29,11 +29,12 @@ def _html(resp):
 
 
 def _assert_test_safe_once(html):
+    assert '</head>' in html
     head = html.split('</head>', 1)[0]
     assert head.count(MARKER) == 1
     assert f'content="{DEFAULT_ID}"' in head
+    assert html.count(MARKER) == 1
     assert 'googletagmanager.com/gtag/js' not in html
-    assert html.lower().count('<head') == 1
 
 
 class TestGa4Config:

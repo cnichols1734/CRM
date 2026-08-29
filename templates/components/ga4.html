@@ -1,5 +1,5 @@
-{% if ga4_measurement_id %}
-{% if ga4_load_gtag %}
+{%- if ga4_measurement_id -%}
+{%- if ga4_load_gtag %}
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id={{ ga4_measurement_id }}"></script>
 <script>
@@ -9,7 +9,7 @@
 
   gtag('config', '{{ ga4_measurement_id }}');
 </script>
-{% else %}
+{%- else -%}
 <meta name="ga4-measurement-id" content="{{ ga4_measurement_id }}">
-{% endif %}
-{% endif %}
+{%- endif -%}
+{%- endif %}
