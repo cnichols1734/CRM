@@ -707,12 +707,12 @@
         {% endif %}
 
         <div class="mb-5 grid gap-4 xl:grid-cols-2">
-            <section class="crm-surface">
+            <section class="crm-surface crm-dash-tasks">
                 <div class="crm-surface-header">
                     <div>
                         {{ section_header('Upcoming Client Tasks', '', 'Tasks') }}
                     </div>
-                    <div class="flex flex-col items-end gap-3">
+                    <div class="crm-dash-tasks-toolbar flex flex-col items-end gap-3">
                         <div class="crm-segment">
                             {% for days in [7, 30, 60, 90] %}
                             <button type="button"
@@ -735,7 +735,7 @@
                         {% set current_date = now.date() %}
                         {% set days_until_due = (task_date - current_date).days %}
                         <div class="crm-list-item">
-                            <div class="flex items-start gap-3">
+                            <div class="crm-dash-task-main flex items-start gap-3">
                                 <button type="button"
                                         class="t-check mt-1 shrink-0"
                                         role="checkbox"
@@ -746,7 +746,7 @@
                                 </button>
                                 <div class="min-w-0">
                                     <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                                       class="crm-table-link block truncate">
+                                       class="crm-dash-task-title crm-table-link block">
                                         {{ task.subject }}
                                     </a>
                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs crm-muted">
@@ -784,7 +784,7 @@
                 </div>
             </section>
 
-            <section class="crm-surface">
+            <section class="crm-surface crm-dash-todo">
                 <div class="crm-surface-header">
                     <div>
                         {{ section_header("Personal To-Do List", "", "To Do") }}
@@ -792,7 +792,7 @@
                     <a href="{{ url_for('user_todo.user_todo') }}" class="crm-back">Open full list</a>
                 </div>
                 <div class="crm-surface-body">
-                    <div class="mb-4 flex flex-col gap-3 sm:flex-row">
+                    <div class="crm-dash-todo-form mb-4">
                         <input type="text"
                                id="dashboardNewTodoInput"
                                class="crm-input flex-1"
@@ -817,12 +817,12 @@
                     </div>
                     {{ badge(group_stats|length ~ ' active', 'info') }}
                 </div>
-                <div class="crm-surface-body">
+                <div class="crm-surface-body crm-dash-groups">
                     {% if group_stats %}
-                    <div id="groupChart" class="mx-auto min-h-[220px]" data-dashboard-page-target="groupChart"></div>
-                    <div class="mt-4 space-y-1 pt-4" style="border-top: 0.5px solid var(--hairline);">
+                    <div id="groupChart" class="crm-dash-groups-chart mx-auto min-h-[220px]" data-dashboard-page-target="groupChart"></div>
+                    <div class="crm-dash-groups-legend mt-4 space-y-1 pt-4">
                         {% for group in group_stats %}
-                        <div class="flex items-center justify-between gap-3 py-2">
+                        <div class="crm-dash-groups-row flex items-center justify-between gap-3">
                             <span class="flex items-center gap-2 text-sm" style="color: var(--ink-2);">
                                 <span aria-hidden="true" style="width:9px;height:9px;border-radius:2px;flex-shrink:0;background:{% if loop.index0 == 0 %}var(--accent){% elif loop.index0 == 1 %}var(--ink){% elif loop.index0 == 2 %}var(--ink-3){% elif loop.index0 == 3 %}var(--ink-4){% else %}var(--ink-5){% endif %};"></span>
                                 {{ group.name }}
@@ -846,7 +846,7 @@
                 </div>
                 <div class="crm-surface-body">
                     {% if top_contacts %}
-                    <div class="crm-table-wrap border-0 shadow-none">
+                    <div class="crm-dash-contacts-table crm-table-wrap border-0 shadow-none">
                         <table class="crm-table">
                             <thead>
                                 <tr>
@@ -893,6 +893,37 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    <div class="crm-dash-contacts-cards">
+                        {% for contact in top_contacts %}
+                        <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="crm-dash-contact">
+                            <div class="crm-dash-contact__top">
+                                {{ avatar(contact.first_name[0] ~ contact.last_name[0]) }}
+                                <div class="crm-dash-contact__body">
+                                    <div class="crm-dash-contact__name">{{ contact.first_name }} {{ contact.last_name }}</div>
+                                    <div class="crm-dash-contact__groups">
+                                        {% for group in contact.groups[:2] %}
+                                        {{ badge(group.name) }}
+                                        {% endfor %}
+                                        {% if contact.groups|length > 2 %}
+                                        {{ badge('+' ~ (contact.groups|length - 2)) }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="crm-dash-contact__facts">
+                                {% if current_user.role == 'admin' and show_all %}
+                                <div class="crm-dash-contact__line">{{ contact.owner.first_name }} {{ contact.owner.last_name }}</div>
+                                {% endif %}
+                                <div class="crm-dash-contact__line">
+                                    {{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never' }}
+                                    <span class="crm-dash-contact__dot" aria-hidden="true">·</span>
+                                    <span class="crm-dash-contact__value">${{ "{:,.0f}".format(contact.potential_commission or 0) }}</span>
+                                </div>
+                                <div class="crm-dash-contact__email">{{ contact.email or '--' }}</div>
+                            </div>
+                        </a>
+                        {% endfor %}
                     </div>
                     {% else %}
                     {% call empty_state('No high-value contacts yet', 'Add commission values to contacts.', 'fa-user-tie') %}{% endcall %}
