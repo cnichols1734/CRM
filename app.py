@@ -237,6 +237,15 @@ def create_app():
             app_base_url=(app.config.get('APP_BASE_URL') or DEFAULT_APP_BASE_URL).rstrip('/'),
         )
 
+    @app.context_processor
+    def inject_ga4():
+        from services.ga4 import measurement_id, should_load_gtag
+
+        return dict(
+            ga4_measurement_id=measurement_id(),
+            ga4_load_gtag=should_load_gtag(),
+        )
+
     # Initialize Flask-Mail
     mail = Mail()
     mail.init_app(app)
