@@ -822,7 +822,7 @@
                     <div id="groupChart" class="crm-dash-groups-chart mx-auto min-h-[220px]" data-dashboard-page-target="groupChart"></div>
                     <div class="crm-dash-groups-legend mt-4 space-y-1 pt-4">
                         {% for group in group_stats %}
-                        <div class="crm-dash-groups-row flex items-center justify-between gap-3 py-2">
+                        <div class="crm-dash-groups-row flex items-center justify-between gap-3">
                             <span class="flex items-center gap-2 text-sm" style="color: var(--ink-2);">
                                 <span aria-hidden="true" style="width:9px;height:9px;border-radius:2px;flex-shrink:0;background:{% if loop.index0 == 0 %}var(--accent){% elif loop.index0 == 1 %}var(--ink){% elif loop.index0 == 2 %}var(--ink-3){% elif loop.index0 == 3 %}var(--ink-4){% else %}var(--ink-5){% endif %};"></span>
                                 {{ group.name }}
@@ -911,26 +911,17 @@
                                     </div>
                                 </div>
                             </div>
-                            <dl class="crm-dash-contact__facts">
+                            <div class="crm-dash-contact__facts">
                                 {% if current_user.role == 'admin' and show_all %}
-                                <div class="crm-dash-contact__fact">
-                                    <dt>Owner</dt>
-                                    <dd>{{ contact.owner.first_name }} {{ contact.owner.last_name }}</dd>
-                                </div>
+                                <div class="crm-dash-contact__line">{{ contact.owner.first_name }} {{ contact.owner.last_name }}</div>
                                 {% endif %}
-                                <div class="crm-dash-contact__fact">
-                                    <dt>Last contact</dt>
-                                    <dd>{{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never' }}</dd>
+                                <div class="crm-dash-contact__line">
+                                    {{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never' }}
+                                    <span class="crm-dash-contact__dot" aria-hidden="true">·</span>
+                                    <span class="crm-dash-contact__value">${{ "{:,.0f}".format(contact.potential_commission or 0) }}</span>
                                 </div>
-                                <div class="crm-dash-contact__fact">
-                                    <dt>Email</dt>
-                                    <dd>{{ contact.email or '--' }}</dd>
-                                </div>
-                                <div class="crm-dash-contact__fact">
-                                    <dt>Commission</dt>
-                                    <dd class="crm-dash-contact__value">${{ "{:,.0f}".format(contact.potential_commission or 0) }}</dd>
-                                </div>
-                            </dl>
+                                <div class="crm-dash-contact__email">{{ contact.email or '--' }}</div>
+                            </div>
                         </a>
                         {% endfor %}
                     </div>

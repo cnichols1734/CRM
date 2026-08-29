@@ -1559,6 +1559,10 @@
   .crm-dash-groups-legend {
     border-top: 0.5px solid var(--hairline);
   }
+  .crm-dash-groups-row {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
   .crm-dash-todo-form {
     display: flex;
     flex-direction: column;
@@ -1603,25 +1607,20 @@
   .crm-dash-contact__facts {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     padding-left: 52px;
     min-width: 0;
   }
-  .crm-dash-contact__fact {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+  .crm-dash-contact__line {
+    font-size: 13px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
   }
-  .crm-dash-contact__fact dt {
-    font-size: 10.5px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--ink-4);
-    font-weight: 500;
+  .crm-dash-contact__dot {
+    margin: 0 0.35em;
+    color: var(--ink-5);
   }
-  .crm-dash-contact__fact dd {
-    margin: 0;
+  .crm-dash-contact__email {
     font-size: 13px;
     color: var(--ink-2);
     overflow-wrap: anywhere;
@@ -1650,8 +1649,8 @@
       border-top: none;
     }
     .crm-dash-groups-row {
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
+      padding-top: 0.375rem;
+      padding-bottom: 0.375rem;
     }
     .crm-dash-contacts-table { display: none; }
     .crm-dash-contacts-cards {
@@ -4692,4 +4691,7 @@ html[data-theme="dark"] .mkt-page {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+@media (max-width: 767px) {
+  .crm-dash-groups-legend > * + * { margin-top: 0; }
 }

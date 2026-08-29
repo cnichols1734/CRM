@@ -45,7 +45,8 @@ class TestDashboardMobileContracts:
         assert "<th>Last Contact</th>" in html[table_at:cards_at]
         assert "<th>Email</th>" in html[table_at:cards_at]
         assert "crm-dash-contact__name" in html[cards_at:]
-        assert "crm-dash-contact__fact" in html[cards_at:]
+        assert "crm-dash-contact__email" in html[cards_at:]
+        assert "crm-dash-contact__line" in html[cards_at:]
         assert "ogtechnolo" not in html
 
     def test_groups_chart_is_marked_for_phone_hide(self):
