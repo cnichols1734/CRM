@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import render_template_string
 
 from config import Config
+from services.ga4 import hostname_from_host_header, should_load_gtag
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,8 +78,30 @@ class TestGa4RenderedPages:
             assert MARKER in html
 
 
+class TestGa4HostParsing:
+    def test_ipv6_loopback_forms_are_local(self):
+        assert hostname_from_host_header('::1') == '::1'
+        assert hostname_from_host_header('[::1]') == '::1'
+        assert hostname_from_host_header('[::1]:5011') == '::1'
+        assert hostname_from_host_header('127.0.0.1:5011') == '127.0.0.1'
+        assert hostname_from_host_header('localhost:5011') == 'localhost'
+
+    def test_ipv6_loopback_does_not_load_gtag(self, app):
+        previous = app.config['TESTING']
+        app.config['TESTING'] = False
+        try:
+            for host in ('::1', '[::1]', '[::1]:5011'):
+                with app.test_request_context('/', headers={'Host': host}):
+                    assert should_load_gtag() is False, host
+            with app.test_request_context('/', base_url='http://[::1]:5011'):
+                assert should_load_gtag() is False
+        finally:
+            app.config['TESTING'] = previous
+
+
 class TestGa4SnippetSwitch:
     def test_production_host_emits_standard_snippet_once(self, app):
+        previous = app.config['TESTING']
         app.config['TESTING'] = False
         try:
             with app.test_request_context(
@@ -87,7 +110,7 @@ class TestGa4SnippetSwitch:
             ):
                 html = render_template_string('{% include "components/ga4.html" %}')
         finally:
-            app.config['TESTING'] = True
+            app.config['TESTING'] = previous
 
         assert html.count(GTAG_SRC) == 1
         assert html.count(GTAG_CONFIG) == 1
