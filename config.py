@@ -114,6 +114,11 @@ class Config:
         os.getenv('MARKETING_BOUNCE_PAUSE_MIN', '50')
     )
 
+    # GA4 web stream for AgentFlow (property 551941222, G-H05PW4JXBN).
+    # Set GA4_MEASUREMENT_ID="" on Railway to disable. Tests and localhost
+    # still receive the ID in HTML but do not load gtag.js.
+    GA4_MEASUREMENT_ID = os.getenv('GA4_MEASUREMENT_ID', 'G-H05PW4JXBN')
+
     # Product analytics. The project token is intentionally public-safe; never
     # expose a PostHog personal API key to the application or browser.
     POSTHOG_PROJECT_TOKEN = os.getenv('POSTHOG_PROJECT_TOKEN')
