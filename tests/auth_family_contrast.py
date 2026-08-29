@@ -47,7 +47,12 @@ def auth_family_page_specs(reset_path: str, invite_path: str) -> list[dict]:
             "path": "/login",
             "form_kind": "light",
             "scope": ".login-page",
-            "expect_text": ("Sign in", "Forgot password?"),
+            "expect_text": (
+                "Sign in",
+                "Forgot password?",
+                "More on what's included is on",
+                "the free real estate CRM page",
+            ),
             "copy": list(_LIGHT_COPY),
             "fill": (
                 ("input[name='username']", "agent@example.com"),
