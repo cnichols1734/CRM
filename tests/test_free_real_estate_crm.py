@@ -333,3 +333,71 @@ class TestFreeRealEstateCrmCopy:
         assert "until you say yes" not in answer
         assert "in the CRM or on Telegram" not in answer
         assert "same 25" not in PAGE.lower()
+
+
+OTHER_CRMS_HEADING = "What other CRMs publish"
+OTHER_CRMS_PARAGRAPH = (
+    "Follow Up Boss is $69 per user after a trial. "
+    "Wise Agent is $49 after a trial. "
+    "Sierra is $299.95 and up. "
+    "BoldTrail and Lofty are quote-only. "
+    "Here it's $0 to start, and you don't need a card."
+)
+OTHER_CRM_LINKS = (
+    ("Follow Up Boss", "/follow-up-boss-alternative", "main.follow_up_boss_alternative"),
+    ("Wise Agent", "/wise-agent-alternative", "main.wise_agent_alternative"),
+    ("BoldTrail", "/kvcore-alternative", "main.kvcore_alternative"),
+)
+
+
+def _other_crms_section(html):
+    match = re.search(
+        r"<h2[^>]*>What other CRMs publish</h2>\s*<p\b[^>]*>.*?</p>",
+        html,
+        flags=re.S,
+    )
+    assert match is not None
+    return match.group(0)
+
+
+class TestFreeRealEstateCrmOtherCrmLinks:
+    def test_paragraph_words_unchanged(self, client):
+        html = client.get(PAGE_PATH).get_data(as_text=True)
+        section = _other_crms_section(html)
+        visible = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", section)).strip()
+        assert visible == f"{OTHER_CRMS_HEADING} {OTHER_CRMS_PARAGRAPH}"
+        assert OTHER_CRMS_PARAGRAPH in _visible_copy(html)
+
+    def test_three_names_link_once_to_existing_paths(self, client):
+        html = client.get(PAGE_PATH).get_data(as_text=True)
+        section = _other_crms_section(html)
+        paragraph = re.search(r"<p\b[^>]*>(.*?)</p>", section, flags=re.S).group(1)
+        assert paragraph.count("<a ") == 3
+        for name, path, endpoint in OTHER_CRM_LINKS:
+            assert paragraph.count(f'href="{path}"') == 1
+            assert re.search(
+                rf'<a href="{re.escape(path)}"[^>]*>{re.escape(name)}</a>',
+                paragraph,
+            )
+            assert f"url_for('{endpoint}')" in PAGE
+        assert PAGE.count("url_for('main.follow_up_boss_alternative')") == 1
+        assert PAGE.count("url_for('main.wise_agent_alternative')") == 1
+        assert PAGE.count("url_for('main.kvcore_alternative')") == 1
+
+    def test_sierra_and_lofty_are_not_wrapped(self, client):
+        html = client.get(PAGE_PATH).get_data(as_text=True)
+        section = _other_crms_section(html)
+        paragraph = re.search(r"<p\b[^>]*>(.*?)</p>", section, flags=re.S).group(1)
+        assert re.search(r"<a\b[^>]*>Sierra</a>", paragraph) is None
+        assert re.search(r"<a\b[^>]*>Lofty</a>", paragraph) is None
+        assert "Sierra is $299.95 and up." in _visible_copy(section)
+        assert "BoldTrail and Lofty are quote-only." in _visible_copy(section)
+
+    def test_no_kvcore_or_alternative_added_to_sentence(self, client):
+        html = client.get(PAGE_PATH).get_data(as_text=True)
+        section = _other_crms_section(html)
+        visible = _visible_copy(section).strip()
+        assert "kvCORE" not in html
+        assert "kvcore" not in visible.lower()
+        assert "alternative" not in visible.lower()
+        assert visible == f"{OTHER_CRMS_HEADING} {OTHER_CRMS_PARAGRAPH}"
