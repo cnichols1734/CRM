@@ -2,7 +2,7 @@
 
 Browser contrast lives in tests/run_tests.py. This file is the Flask-client
 half: all five public screens stay off crm-input / t-input, keep
-auth-family.css, and register still has the #368 free-CRM sentence.
+auth-family.css, and login/register have the free-CRM sentence.
 
 Do not point these checks at marketing or listing-package chrome.
 Do not weaken tests/test_landing_copy.py TestRegisterLeftoverCopy.
@@ -53,7 +53,16 @@ def _assert_public_auth_lock(html, *must_have):
 class TestPublicAuthPagesStayLocked:
     def test_login_page(self, client, seed):
         html = _html(client.get("/login"))
-        _assert_public_auth_lock(html, "Sign in", "Forgot password?")
+        _assert_public_auth_lock(
+            html,
+            "Sign in",
+            "Forgot password?",
+            "More on what's included is on",
+            "the free real estate CRM page",
+            'href="/free-real-estate-crm"',
+        )
+        assert html.count("the free real estate CRM page") == 1
+        assert html.count('href="/free-real-estate-crm"') == 1
 
     def test_register_page_keeps_368_sentence(self, client, seed):
         html = _html(client.get("/register"))
@@ -109,3 +118,13 @@ def test_register_368_source_contract_is_untouched():
     assert 'assert REGISTER.count("url_for(\'main.free_real_estate_crm\')") == 1' in source
     assert 'assert REGISTER.count("the free real estate CRM page") == 1' in source
     assert '"More on what\'s included is on" in REGISTER' in source
+
+
+def test_login_source_contract_pins_free_crm_sentence():
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parent.joinpath("test_landing_copy.py").read_text()
+    assert "class TestLoginLeftoverCopy" in source
+    assert 'assert LOGIN.count("url_for(\'main.free_real_estate_crm\')") == 1' in source
+    assert 'assert LOGIN.count("the free real estate CRM page") == 1' in source
+    assert '"More on what\'s included is on" in LOGIN' in source
