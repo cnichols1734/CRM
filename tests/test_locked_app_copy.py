@@ -213,8 +213,8 @@ class TestLockedCopyPairs831Rendered:
 
         with app.app_context():
             org = db.session.get(Organization, seed["org_a"])
-            previous = dict(org.feature_flags or {})
-            flags = dict(previous)
+            previous = org.feature_flags
+            flags = dict(previous or {})
             flags["BOB_VTC_PILOT"] = True
             org.feature_flags = flags
             db.session.commit()
