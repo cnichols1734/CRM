@@ -125,3 +125,48 @@ class TestLockedOpenHouseDescription:
 
     def test_python_definition_has_locked_description(self):
         assert st.definition("open_house")["description"] == self.LOCKED
+
+
+class TestLockedCopyPairs831:
+    def test_action_plan_stranger_comfort_helper(self):
+        text = _read("templates", "action_plan.html")
+        assert (
+            "Pick the option that matches how comfortable you are "
+            "starting conversations with strangers."
+        ) in text
+        assert "Be honest — there's no wrong answer here." not in text
+        assert "Be honest &mdash; there's no wrong answer here." not in text
+
+    def test_action_plan_self_description_helper(self):
+        text = _read("templates", "action_plan.html")
+        assert "Select every phrase that sounds like you." in text
+        assert "Select all that resonate with you." not in text
+
+    def test_upgrade_pro_contact_heading(self):
+        text = _read("templates", "organization", "upgrade.html")
+        assert (
+            "We&rsquo;re still setting Pro pricing. Use Contact us to ask "
+            "about early-access pricing or to get a note when Pro launches."
+        ) in text
+        assert "We&rsquo;re finalizing pricing — and we&rsquo;d love to hear from you." not in text
+        assert "We're finalizing pricing — and we'd love to hear from you." not in text
+
+    def test_seller_workspace_helper(self):
+        text = _read("templates", "transactions", "_seller_workspace.html")
+        assert (
+            "All documents for this file live here: listing paperwork, "
+            "offers, and the contract."
+        ) in text
+        assert (
+            "All documents for this file live here — listing paperwork, "
+            "offers, and the contract."
+        ) not in text
+
+    def test_bootstrap_inbox_step_03(self):
+        text = _read("templates", "transactions", "bootstrap_inbox.html")
+        assert (
+            "Listing, offers, or contract coordination, based on what you filed."
+        ) in text
+        assert (
+            "Listing, offers, or contract coordination — based on what you filed."
+        ) not in text

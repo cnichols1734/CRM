@@ -8,7 +8,7 @@
                     <div class="crm-surface-header">
                         <div>
                             {{ section_header('Seller workspace') }}
-                            <p class="mt-1 text-xs text-slate-500">All documents for this file live here — listing paperwork, offers, and the contract.</p>
+                            <p class="mt-1 text-xs text-slate-500">All documents for this file live here: listing paperwork, offers, and the contract.</p>
                             {% if urgent_seller_offer and urgent_seller_offer.response_deadline_at %}
                             {% set urgent_state = offer_urgency(urgent_seller_offer) %}
                             <p class="mt-1 text-xs font-medium {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% else %}text-orange-700{% endif %}">
