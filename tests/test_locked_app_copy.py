@@ -125,3 +125,111 @@ class TestLockedOpenHouseDescription:
 
     def test_python_definition_has_locked_description(self):
         assert st.definition("open_house")["description"] == self.LOCKED
+
+
+class TestLockedCopyPairs831:
+    def test_action_plan_stranger_comfort_helper(self):
+        text = _read("templates", "action_plan.html")
+        assert (
+            "Pick the option that matches how comfortable you are "
+            "starting conversations with strangers."
+        ) in text
+        assert "Be honest — there's no wrong answer here." not in text
+        assert "Be honest &mdash; there's no wrong answer here." not in text
+
+    def test_action_plan_self_description_helper(self):
+        text = _read("templates", "action_plan.html")
+        assert "Select every phrase that sounds like you." in text
+        assert "Select all that resonate with you." not in text
+
+    def test_upgrade_pro_contact_heading(self):
+        text = _read("templates", "organization", "upgrade.html")
+        assert (
+            "We&rsquo;re still setting Pro pricing. Use Contact us to ask "
+            "about early-access pricing or to get a note when Pro launches."
+        ) in text
+        assert "We&rsquo;re finalizing pricing — and we&rsquo;d love to hear from you." not in text
+        assert "We're finalizing pricing — and we'd love to hear from you." not in text
+
+    def test_seller_workspace_helper(self):
+        text = _read("templates", "transactions", "_seller_workspace.html")
+        assert (
+            "All documents for this file live here: listing paperwork, "
+            "offers, and the contract."
+        ) in text
+        assert (
+            "All documents for this file live here — listing paperwork, "
+            "offers, and the contract."
+        ) not in text
+
+    def test_bootstrap_inbox_step_03(self):
+        text = _read("templates", "transactions", "bootstrap_inbox.html")
+        assert (
+            "Listing, offers, or contract coordination, based on what you filed."
+        ) in text
+        assert (
+            "Listing, offers, or contract coordination — based on what you filed."
+        ) not in text
+
+
+class TestLockedCopyPairs831Rendered:
+    def test_action_plan_page_renders_helpers(self, owner_a_client):
+        resp = owner_a_client.get("/action-plan")
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert (
+            "Pick the option that matches how comfortable you are "
+            "starting conversations with strangers."
+        ) in html
+        assert "Select every phrase that sounds like you." in html
+        assert "Be honest — there's no wrong answer here." not in html
+        assert "Select all that resonate with you." not in html
+
+    def test_upgrade_page_renders_heading(self, owner_b_client):
+        resp = owner_b_client.get("/org/upgrade")
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert (
+            "We&rsquo;re still setting Pro pricing. Use Contact us to ask "
+            "about early-access pricing or to get a note when Pro launches."
+        ) in html
+        assert "finalizing pricing" not in html
+
+    def test_seller_workspace_page_renders_helper(self, owner_a_client, seed):
+        resp = owner_a_client.get(f"/transactions/{seed['tx_a']}")
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert (
+            "All documents for this file live here: listing paperwork, "
+            "offers, and the contract."
+        ) in html
+        assert (
+            "All documents for this file live here — listing paperwork, "
+            "offers, and the contract."
+        ) not in html
+
+    def test_bootstrap_inbox_page_renders_step_03(self, app, owner_a_client, seed):
+        from models import Organization, db
+
+        with app.app_context():
+            org = db.session.get(Organization, seed["org_a"])
+            previous = org.feature_flags
+            flags = dict(previous or {})
+            flags["BOB_VTC_PILOT"] = True
+            org.feature_flags = flags
+            db.session.commit()
+        try:
+            resp = owner_a_client.get("/transactions/bootstrap/inbox")
+            assert resp.status_code == 200
+            html = resp.get_data(as_text=True)
+            assert (
+                "Listing, offers, or contract coordination, based on what you filed."
+            ) in html
+            assert (
+                "Listing, offers, or contract coordination — based on what you filed."
+            ) not in html
+        finally:
+            with app.app_context():
+                org = db.session.get(Organization, seed["org_a"])
+                org.feature_flags = previous
+                db.session.commit()
