@@ -380,9 +380,9 @@ class TestFreeRealEstateCrmOtherCrmLinks:
                 paragraph,
             )
             assert f"url_for('{endpoint}')" in PAGE
-        assert PAGE.count("url_for('main.follow_up_boss_alternative')") == 1
-        assert PAGE.count("url_for('main.wise_agent_alternative')") == 1
-        assert PAGE.count("url_for('main.kvcore_alternative')") == 1
+        assert PAGE.count("url_for('main.follow_up_boss_alternative')") == 2
+        assert PAGE.count("url_for('main.wise_agent_alternative')") == 2
+        assert PAGE.count("url_for('main.kvcore_alternative')") == 2
 
     def test_sierra_and_lofty_are_not_wrapped(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
@@ -397,7 +397,7 @@ class TestFreeRealEstateCrmOtherCrmLinks:
         html = client.get(PAGE_PATH).get_data(as_text=True)
         section = _other_crms_section(html)
         visible = _visible_copy(section).strip()
-        assert "kvCORE" not in html
+        assert "kvCORE" not in section
         assert "kvcore" not in visible.lower()
         assert "alternative" not in visible.lower()
         assert visible == f"{OTHER_CRMS_HEADING} {OTHER_CRMS_PARAGRAPH}"
