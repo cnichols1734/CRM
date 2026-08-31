@@ -15,14 +15,14 @@ pytz==2026.3.post1
 email-validator==2.2.0
 
 # External APIs / HTTP
-openai==3.3.1
+openai==3.5.0
 sendgrid==6.12.5
 requests==2.34.2
-posthog==7.39.2
+posthog==7.44.2
 
 # Google Gmail Integration
-google-auth==2.56.3
-google-auth-oauthlib==1.4.0
+google-auth==2.57.0
+google-auth-oauthlib==1.4.1
 google-api-python-client==2.199.0
 
 # Database driver
@@ -36,7 +36,7 @@ Authlib==1.7.2
 itsdangerous==2.2.0
 PyYAML==6.0.3
 jsonschema==4.26.0
-cryptography==50.0.0
+cryptography==50.0.1
 bleach==6.4.0
 
 # Image processing (for signature image resizing)
@@ -56,7 +56,7 @@ redis==8.1.0
 rq==2.11.0
 
 # Server
-gunicorn==26.1.0
+gunicorn==26.2.0
 flask-compress==1.24
 
 # System monitoring (for health checks)
