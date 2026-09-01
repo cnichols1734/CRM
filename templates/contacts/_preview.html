@@ -1,4 +1,4 @@
-{% from "components/ui.html" import avatar, badge %}
+{% from "components/ui.html" import avatar, badge, copy_value %}
 {#
     Slide-over preview rail for the contacts list.
     Loaded via fetch() and injected into .crm-rail__inner. No layout chrome.
@@ -65,9 +65,10 @@
         <dl class="crm-rail__details">
             <div class="crm-rail__detail">
                 <dt>Email</dt>
-                <dd>
+                <dd class="crm-copy-row">
                     {% if contact.email %}
                         <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                        {{ copy_value(contact.email, 'email') }}
                     {% else %}
                         <span class="crm-rail__muted">&mdash;</span>
                     {% endif %}
@@ -75,9 +76,10 @@
             </div>
             <div class="crm-rail__detail">
                 <dt>Phone</dt>
-                <dd>
+                <dd class="crm-copy-row">
                     {% if contact.phone %}
                         <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>
+                        {{ copy_value(contact.phone, 'phone') }}
                     {% else %}
                         <span class="crm-rail__muted">&mdash;</span>
                     {% endif %}
@@ -85,9 +87,10 @@
             </div>
             <div class="crm-rail__detail">
                 <dt>Location</dt>
-                <dd>
+                <dd class="crm-copy-row">
                     {% if location_parts %}
-                        {{ location_parts|join(', ') }}
+                        <span>{{ location_parts|join(', ') }}</span>
+                        {{ copy_value(location_parts|join(', '), 'location') }}
                     {% else %}
                         <span class="crm-rail__muted">&mdash;</span>
                     {% endif %}

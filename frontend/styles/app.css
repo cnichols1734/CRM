@@ -1969,6 +1969,7 @@
     min-width: 0;
   }
   .crm-copy-row > a,
+  .crm-copy-row > span,
   .crm-copy-row > .crm-section-kicker {
     min-width: 0;
   }
