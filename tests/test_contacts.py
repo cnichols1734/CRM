@@ -59,9 +59,24 @@ class TestContactView:
         resp = owner_a_client.get('/contact/99999')
         assert resp.status_code == 404
 
-    def test_copy_icons_for_filled_email_and_phone_only(self, owner_a_client, seed):
-        html = owner_a_client.get(f'/contact/{seed["contact_a"]}').get_data(as_text=True)
-        assert 'data-copy-field-text-value="jane@test.com"' in html
+    def test_copy_icons_for_filled_email_and_phone_only(self, owner_a_client, seed, app):
+        # Own row. Seed Jane's phone gets reformatted by earlier suite tests.
+        with app.app_context():
+            contact = Contact(
+                organization_id=seed['org_a'],
+                user_id=seed['owner_a'],
+                created_by_id=seed['owner_a'],
+                first_name='Copy',
+                last_name='Fields',
+                email='copy.fields@test.com',
+                phone='5551110000',
+            )
+            db.session.add(contact)
+            db.session.commit()
+            contact_id = contact.id
+
+        html = owner_a_client.get(f'/contact/{contact_id}').get_data(as_text=True)
+        assert 'data-copy-field-text-value="copy.fields@test.com"' in html
         assert 'data-copy-field-text-value="5551110000"' in html
         assert 'aria-label="Copy email"' in html
         assert 'aria-label="Copy phone"' in html
