@@ -110,3 +110,18 @@
     <span class="t-tt" role="tooltip">{{ text }}</span>
 </span>
 {%- endmacro %}
+
+{% macro copy_value(text, label) -%}
+{% set value = (text or '')|trim %}
+{% if value %}
+<button type="button"
+        class="crm-copy"
+        data-controller="copy-field"
+        data-action="copy-field#copy"
+        data-copy-field-text-value="{{ value }}"
+        aria-label="Copy {{ label }}"
+        title="Copy">
+    <i class="far fa-copy" data-copy-field-target="icon" aria-hidden="true"></i>
+</button>
+{% endif %}
+{%- endmacro %}

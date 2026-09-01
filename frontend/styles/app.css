@@ -1962,6 +1962,49 @@
     color: var(--ink-3);
   }
 
+  .crm-copy-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .crm-copy-row > a,
+  .crm-copy-row > .crm-section-kicker {
+    min-width: 0;
+  }
+  .crm-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: -4px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--ink-4);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .crm-copy:hover {
+    color: var(--ink-2);
+    background: var(--paper-3);
+  }
+  .crm-copy:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .crm-copy i { font-size: 11px; }
+  .crm-copy.is-copied {
+    color: var(--positive);
+    background: transparent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .crm-copy { transition: none; }
+  }
+
   .crm-back {
     display: inline-flex;
     align-items: center;

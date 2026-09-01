@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import avatar, badge, empty_state, section_header, success_check %}
+{% from "components/ui.html" import avatar, badge, copy_value, empty_state, section_header, success_check %}
 
 {% block content %}
 <style>
@@ -301,11 +301,11 @@
                             <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
                                 <div>
                                     <dt class="crm-field-label mb-0">Email</dt>
-                                    <dd class="mt-0.5 text-sm" style="color: var(--ink);">{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% else %}<span class="crm-faint">&mdash;</span>{% endif %}</dd>
+                                    <dd class="crm-copy-row mt-0.5 text-sm" style="color: var(--ink);">{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{{ copy_value(contact.email, 'email') }}{% else %}<span class="crm-faint">&mdash;</span>{% endif %}</dd>
                                 </div>
                                 <div>
                                     <dt class="crm-field-label mb-0">Phone</dt>
-                                    <dd class="mt-0.5 text-sm" style="color: var(--ink);">{% if contact.phone %}<a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>{% else %}<span class="crm-faint">&mdash;</span>{% endif %}</dd>
+                                    <dd class="crm-copy-row mt-0.5 text-sm" style="color: var(--ink);">{% if contact.phone %}<a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>{{ copy_value(contact.phone, 'phone') }}{% else %}<span class="crm-faint">&mdash;</span>{% endif %}</dd>
                                 </div>
                                 <div>
                                     <dt class="crm-field-label mb-0">Commission</dt>
@@ -341,7 +341,10 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Address</div>
+                            <div class="crm-copy-row mb-3">
+                                <div class="crm-section-kicker">Address</div>
+                                {{ copy_value(contact.full_address, 'address') }}
+                            </div>
                             <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
                                 <div>
                                     <dt class="crm-field-label mb-0">Street</dt>
