@@ -125,6 +125,8 @@ html[data-theme="dark"] .t-clear-glow {
    absolute for the slide. JS can still pin height during a swap. */
 .crm-contacts-pages.t-page-slide {
   min-height: 0;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 .crm-contacts-pages.t-page-slide[data-page="1"] .t-page[data-page-id="1"],
