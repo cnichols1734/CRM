@@ -18,12 +18,14 @@ import MarketingCampaignWizardController from "./controllers/marketing_campaign_
 import MarketingCoverController from "./controllers/marketing_cover_controller";
 import MarketingTemplateLibraryController from "./controllers/marketing_template_library_controller";
 import MarketingTemplateStudioController from "./controllers/marketing_template_studio_controller";
+import CopyFieldController from "./controllers/copy_field_controller";
 import "./analytics";
 import "./styles/app.css";
 
 const application = Application.start();
 
 application.register("dashboard-page", DashboardPageController);
+application.register("copy-field", CopyFieldController);
 application.register("contacts-page", ContactsPageController);
 application.register("market-insights", MarketInsightsController);
 application.register("groups-page", GroupsPageController);

@@ -6,6 +6,7 @@ group assignment, file operations, and cross-org isolation.
 """
 import pytest
 from conftest import login
+from models import Contact, db
 
 
 class TestContactList:
@@ -57,6 +58,56 @@ class TestContactView:
     def test_view_nonexistent_contact(self, owner_a_client, seed):
         resp = owner_a_client.get('/contact/99999')
         assert resp.status_code == 404
+
+    def test_copy_icons_for_filled_email_and_phone_only(self, owner_a_client, seed):
+        html = owner_a_client.get(f'/contact/{seed["contact_a"]}').get_data(as_text=True)
+        assert 'data-copy-field-text-value="jane@test.com"' in html
+        assert 'data-copy-field-text-value="5551110000"' in html
+        assert 'aria-label="Copy email"' in html
+        assert 'aria-label="Copy phone"' in html
+        assert 'aria-label="Copy address"' not in html
+        assert html.count('class="crm-copy"') == 2
+
+    def test_copy_icon_for_address_when_present(self, owner_a_client, seed, app):
+        with app.app_context():
+            contact = Contact(
+                organization_id=seed['org_a'],
+                user_id=seed['owner_a'],
+                created_by_id=seed['owner_a'],
+                first_name='Pat',
+                last_name='AddressOnly',
+                street_address='9 Oak Ave',
+                city='Dallas',
+                state='TX',
+                zip_code='75201',
+            )
+            db.session.add(contact)
+            db.session.commit()
+            contact_id = contact.id
+
+        html = owner_a_client.get(f'/contact/{contact_id}').get_data(as_text=True)
+        assert 'data-copy-field-text-value="9 Oak Ave, Dallas, TX 75201"' in html
+        assert 'aria-label="Copy address"' in html
+        assert 'aria-label="Copy email"' not in html
+        assert 'aria-label="Copy phone"' not in html
+        assert html.count('class="crm-copy"') == 1
+
+
+class TestContactAddress:
+    def test_full_address_joins_parts(self):
+        contact = Contact(
+            first_name='A', last_name='B', user_id=1,
+            street_address='123 Main St', city='Austin', state='TX', zip_code='78701',
+        )
+        assert contact.full_address == '123 Main St, Austin, TX 78701'
+
+    def test_full_address_skips_blank_parts(self):
+        contact = Contact(first_name='A', last_name='B', user_id=1, city='Austin')
+        assert contact.full_address == 'Austin'
+
+    def test_full_address_empty_when_missing(self):
+        contact = Contact(first_name='A', last_name='B', user_id=1)
+        assert contact.full_address == ''
 
 
 class TestContactCreate:

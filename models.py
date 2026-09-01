@@ -384,6 +384,17 @@ class Contact(db.Model):
                            back_populates='contacts',
                            lazy='joined')
 
+    @property
+    def full_address(self):
+        """One-line mailing address for display and clipboard copy."""
+        street = (self.street_address or '').strip()
+        city = (self.city or '').strip()
+        state = (self.state or '').strip()
+        zip_code = (self.zip_code or '').strip()
+        region = ' '.join(part for part in (state, zip_code) if part)
+        locality = ', '.join(part for part in (city, region) if part)
+        return ', '.join(part for part in (street, locality) if part)
+
     def update_last_contact_date(self):
         """Update the last_contact_date based on the most recent contact date.
         
