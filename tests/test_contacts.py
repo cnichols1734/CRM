@@ -125,6 +125,56 @@ class TestContactAddress:
         assert contact.full_address == ''
 
 
+class TestContactPreview:
+    def test_preview_copy_icons_for_email_phone_location(self, owner_a_client, seed, app):
+        with app.app_context():
+            contact = Contact(
+                organization_id=seed['org_a'],
+                user_id=seed['owner_a'],
+                created_by_id=seed['owner_a'],
+                first_name='Rail',
+                last_name='Copy',
+                email='rail.copy@test.com',
+                phone='5554443333',
+                city='Baytown',
+                state='TX',
+                zip_code='77523',
+            )
+            db.session.add(contact)
+            db.session.commit()
+            contact_id = contact.id
+
+        html = owner_a_client.get(f'/contact/{contact_id}/preview').get_data(as_text=True)
+        assert 'data-copy-field-text-value="rail.copy@test.com"' in html
+        assert 'data-copy-field-text-value="5554443333"' in html
+        assert 'data-copy-field-text-value="Baytown, TX, 77523"' in html
+        assert 'aria-label="Copy email"' in html
+        assert 'aria-label="Copy phone"' in html
+        assert 'aria-label="Copy location"' in html
+        assert html.count('class="crm-copy"') == 3
+
+    def test_preview_copy_icons_omit_empty_fields(self, owner_a_client, seed, app):
+        with app.app_context():
+            contact = Contact(
+                organization_id=seed['org_a'],
+                user_id=seed['owner_a'],
+                created_by_id=seed['owner_a'],
+                first_name='Rail',
+                last_name='EmailOnly',
+                email='rail.emailonly@test.com',
+            )
+            db.session.add(contact)
+            db.session.commit()
+            contact_id = contact.id
+
+        html = owner_a_client.get(f'/contact/{contact_id}/preview').get_data(as_text=True)
+        assert 'data-copy-field-text-value="rail.emailonly@test.com"' in html
+        assert 'aria-label="Copy email"' in html
+        assert 'aria-label="Copy phone"' not in html
+        assert 'aria-label="Copy location"' not in html
+        assert html.count('class="crm-copy"') == 1
+
+
 class TestContactCreate:
     """Contact creation."""
 
