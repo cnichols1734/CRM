@@ -2,7 +2,7 @@
 
 Free real estate CRM for agents. No credit card. Set up in about 2 minutes.
 
-AgentFlow is a free CRM for real estate agents. Use it to organize contacts, manage tasks, and keep follow-ups from slipping. There is no paid plan for sale.
+AgentFlow is a free CRM for real estate agents. Use it to organize contacts, manage tasks, and keep follow-ups from slipping. Paid features come later. Nothing paid is for sale today. Pro is coming soon.
 
 ## Facts
 
