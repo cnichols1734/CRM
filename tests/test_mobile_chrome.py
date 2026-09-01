@@ -33,6 +33,20 @@ class TestMobileShell:
         assert 'overflow-x: auto' in mobile
         assert '.crm-table-wrap' in mobile
 
+    def test_contacts_layout_does_not_inflate_the_page(self):
+        css = _read('frontend/styles/app.css')
+        layout = css.split('.crm-contacts-layout {', 1)[1].split('.crm-contacts-layout.is-open', 1)[0]
+        assert 'overflow-x: clip' in layout
+        assert 'min-width: 0' in layout
+        details = css.split('.crm-rail__details {', 1)[1].split('}', 1)[0]
+        assert 'minmax(0, 1fr)' in details
+        listing = _read('templates/contacts/list.html')
+        assert 'min-w-[220px]' not in listing
+        assert 'min-w-[180px]' not in listing
+        bridge = _read('static/css/transitions-bridge.css')
+        pages = bridge.split('.crm-contacts-pages.t-page-slide {', 1)[1].split('}', 1)[0]
+        assert 'overflow-x: clip' in pages
+
 
 class TestBobMobileSheet:
     def test_css_drops_100vw_panel_width(self):

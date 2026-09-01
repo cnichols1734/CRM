@@ -875,6 +875,10 @@
     grid-template-columns: minmax(0, 1fr) 0fr;
     gap: 0;
     align-items: start;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
     transition: grid-template-columns var(--crm-rail-close-ms) var(--crm-rail-ease-in);
   }
   .crm-contacts-layout.is-open {
@@ -888,6 +892,7 @@
   .crm-rail {
     --crm-rail-sticky-top: 1.5rem;
     overflow: hidden;
+    min-width: 0;
     padding-left: 16px; /* gap between table and floating card */
     pointer-events: none;
     position: sticky;
@@ -1032,7 +1037,7 @@
   }
   .crm-rail__details {
     display: grid;
-    grid-template-columns: 96px 1fr;
+    grid-template-columns: 96px minmax(0, 1fr);
     gap: 6px 12px;
     margin: 0;
     font-size: 13px;
@@ -1967,11 +1972,13 @@
     align-items: center;
     gap: 4px;
     min-width: 0;
+    max-width: 100%;
   }
   .crm-copy-row > a,
   .crm-copy-row > span,
   .crm-copy-row > .crm-section-kicker {
     min-width: 0;
+    overflow-wrap: anywhere;
   }
   .crm-copy {
     display: inline-flex;
