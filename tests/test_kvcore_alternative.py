@@ -317,7 +317,7 @@ class TestKvcoreAlternativeCopy:
         assert "Start Free" in PAGE
         assert "Try AgentFlow Free" in PAGE
         assert "url_for('auth.register')" in PAGE
-        assert PAGE.count("url_for('main.free_real_estate_crm')") == 1
+        assert PAGE.count("url_for('main.free_real_estate_crm')") == 2
         assert PAGE.count("the free real estate CRM page") == 1
         assert "More on what's included is on" in PAGE
         assert "url_for('main.landing')" in PAGE
