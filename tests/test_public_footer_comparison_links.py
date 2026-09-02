@@ -1,4 +1,8 @@
-"""Pin comparison links in the five public footers."""
+"""Pin the public footer product-link set and order on the five public pages.
+
+Free CRM is first among the product links. Follow Up Boss, Wise Agent, and
+kvCORE stay after it. Footer labels do not include the word alternative.
+"""
 import re
 from pathlib import Path
 
