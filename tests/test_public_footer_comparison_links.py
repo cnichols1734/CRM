@@ -13,11 +13,14 @@ PUBLIC_PAGES = (
     ("/kvcore-alternative", "templates/kvcore_alternative.html"),
 )
 
-FOOTER_COMPARISON_LINKS = (
+FOOTER_PRODUCT_LINKS = (
+    ("Free CRM", "/free-real-estate-crm", "main.free_real_estate_crm"),
     ("Follow Up Boss", "/follow-up-boss-alternative", "main.follow_up_boss_alternative"),
     ("Wise Agent", "/wise-agent-alternative", "main.wise_agent_alternative"),
     ("kvCORE", "/kvcore-alternative", "main.kvcore_alternative"),
 )
+
+FOOTER_COMPARISON_LINKS = FOOTER_PRODUCT_LINKS[1:]
 
 KEPT_FOOTER_LABELS = ("Login", "Register", "Terms & Privacy", "Contact")
 
@@ -41,6 +44,11 @@ def _footer_labels(footer):
     return labels
 
 
+def _product_labels_in_order(labels):
+    wanted = [label for label, _href, _endpoint in FOOTER_PRODUCT_LINKS]
+    return [label for label in labels if label in wanted]
+
+
 def _template_link(endpoint, label):
     return (
         f'<a href="{{{{ url_for(\'{endpoint}\') }}}}" '
@@ -56,8 +64,13 @@ class TestPublicFooterComparisonLinks:
             labels = _footer_labels(footer)
             for kept in KEPT_FOOTER_LABELS:
                 assert kept in labels
-            for label, _href, endpoint in FOOTER_COMPARISON_LINKS:
+            for label, _href, endpoint in FOOTER_PRODUCT_LINKS:
                 assert _template_link(endpoint, label) in footer
+                assert label in labels
+            assert _product_labels_in_order(labels) == [
+                label for label, _href, _endpoint in FOOTER_PRODUCT_LINKS
+            ]
+            for label, _href, _endpoint in FOOTER_COMPARISON_LINKS:
                 assert label in labels
             for label in labels:
                 assert "alternative" not in label.lower()
@@ -69,11 +82,16 @@ class TestPublicFooterComparisonLinks:
             labels = _footer_labels(footer)
             for kept in KEPT_FOOTER_LABELS:
                 assert kept in labels
-            for label, href, _endpoint in FOOTER_COMPARISON_LINKS:
+            for label, href, _endpoint in FOOTER_PRODUCT_LINKS:
                 assert label in labels
                 assert (
                     f'<a href="{href}" class="hover:text-white transition-colors">'
                     f"{label}</a>"
                 ) in footer
+            assert _product_labels_in_order(labels) == [
+                label for label, _href, _endpoint in FOOTER_PRODUCT_LINKS
+            ]
+            for label, _href, _endpoint in FOOTER_COMPARISON_LINKS:
+                assert label in labels
             for label in labels:
                 assert "alternative" not in label.lower()
