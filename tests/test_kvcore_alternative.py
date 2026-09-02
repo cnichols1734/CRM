@@ -133,7 +133,7 @@ SECTION_HEADINGS = (
     "Common questions",
 )
 HERO_LINES = (
-    "kvCORE is now BoldTrail, from Inside Real Estate. It is a large real estate platform for agents, teams and brokerages. Pricing is quote-only. There is no published free plan. That is a real product, and it is built for a lot more than a solo agent's daily CRM work.",
+    "kvCORE is now BoldTrail, from Inside Real Estate. It is a large real estate platform for agents, teams and brokerages. Pricing is quote-only. There is no published free plan. It is built for a lot more than a solo agent's daily CRM work.",
     "AgentFlow gives individual agents a simpler place to manage contacts, tasks, follow-ups, with a free plan you can keep using.",
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
