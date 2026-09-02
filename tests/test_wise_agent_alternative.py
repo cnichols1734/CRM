@@ -129,7 +129,7 @@ SECTION_HEADINGS = (
     "Common questions",
 )
 HERO_LINES = (
-    "Wise Agent is a real estate CRM with published pricing and a 14-day trial. It starts at $49 a month on their pricing page. That is a real product, and a lot of agents use it. Not every agent wants another monthly bill to manage contacts, tasks and follow-ups.",
+    "Wise Agent is a real estate CRM with published pricing and a 14-day trial. It starts at $49 a month on their pricing page. A lot of agents use it. Not every agent wants another monthly bill to manage contacts, tasks and follow-ups.",
     "AgentFlow gives individual real estate agents a simpler place to do that work, with a free plan you can keep using.",
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
