@@ -119,6 +119,7 @@ class TestLandingLeftoverCopy:
         assert "—" not in LANDING
         assert "—" not in LOGIN
         assert "—" not in REGISTER
+        assert "—" not in TERMS
 
     def test_keeps_homepage_h1(self):
         assert "Keep up with every client" in LANDING
@@ -398,10 +399,25 @@ class TestRegisterLeftoverCopy:
 
 
 class TestTermsPrivacyLayout:
+    def test_keeps_legal_title_meta_and_h1(self):
+        assert "{% block title %}Terms and Privacy | AgentFlow{% endblock %}" in TERMS
+        assert 'title="Terms and Privacy | AgentFlow"' in TERMS
+        assert 'description="Terms of use and privacy policy for AgentFlow."' in TERMS
+        assert '<h1 class="legal-title mt-1">Terms of Service &amp; Privacy Policy</h1>' in TERMS
+
     def test_does_not_use_invertible_tailwind_surfaces(self):
-        assert "bg-slate-900" not in TERMS
-        assert "text-white" not in TERMS
-        assert "toc-link" not in TERMS
-        assert "Quick Navigation" not in TERMS
-        assert "legal-page" in TERMS
-        assert "On this page" in TERMS
+        legal = TERMS.split("<footer", 1)[0]
+        assert "bg-slate-900" not in legal
+        assert "text-white" not in legal
+        assert "toc-link" not in legal
+        assert "Quick Navigation" not in legal
+        assert "legal-page" in legal
+        assert "On this page" in legal
+
+    def test_rendered_page_keeps_title_h1_and_has_contact_modal(self, client):
+        html = client.get("/terms-privacy").get_data(as_text=True)
+        assert "<title>Terms and Privacy | AgentFlow</title>" in html
+        assert "Terms of Service &amp; Privacy Policy" in html
+        assert html.count("<h1") == 1
+        assert 'id="contactUsModal"' in html
+        assert "function openContactUsModal" in html

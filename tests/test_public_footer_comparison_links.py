@@ -1,7 +1,8 @@
-"""Pin the public footer product-link set and order on the five public pages.
+"""Pin the public footer product-link set and order on the public pages.
 
 Free CRM is first among the product links. Follow Up Boss, Wise Agent, and
 kvCORE stay after it. Footer labels do not include the word alternative.
+/terms-privacy now has the same footer. Login and register do not.
 """
 import re
 from pathlib import Path
@@ -15,6 +16,12 @@ PUBLIC_PAGES = (
     ("/follow-up-boss-alternative", "templates/follow_up_boss_alternative.html"),
     ("/wise-agent-alternative", "templates/wise_agent_alternative.html"),
     ("/kvcore-alternative", "templates/kvcore_alternative.html"),
+    ("/terms-privacy", "templates/auth/terms_privacy.html"),
+)
+
+AUTH_WITHOUT_MARKETING_FOOTER = (
+    ("/login", "templates/auth/login.html"),
+    ("/register", "templates/auth/register.html"),
 )
 
 FOOTER_PRODUCT_LINKS = (
@@ -27,6 +34,15 @@ FOOTER_PRODUCT_LINKS = (
 FOOTER_COMPARISON_LINKS = FOOTER_PRODUCT_LINKS[1:]
 
 KEPT_FOOTER_LABELS = ("Login", "Register", "Terms & Privacy", "Contact")
+
+FOOTER_LABELS_IN_ORDER = KEPT_FOOTER_LABELS + tuple(
+    label for label, _href, _endpoint in FOOTER_PRODUCT_LINKS
+)
+
+CONTACT_FOOTER_LINK = (
+    '<a href="#" onclick="openContactUsModal(\'landing\'); return false;" '
+    'class="hover:text-white transition-colors">Contact</a>'
+)
 
 _FOOTER = re.compile(r"<footer\b[^>]*>.*?</footer>", re.S)
 _LINK_LABEL = re.compile(r"<a\b[^>]*>(.*?)</a>", re.S)
@@ -78,6 +94,11 @@ class TestPublicFooterComparisonLinks:
                 assert label in labels
             for label in labels:
                 assert "alternative" not in label.lower()
+            assert labels == list(FOOTER_LABELS_IN_ORDER)
+            assert CONTACT_FOOTER_LINK in footer
+            assert _template_link("auth.login", "Login") in footer
+            assert _template_link("auth.register", "Register") in footer
+            assert _template_link("auth.terms_privacy", "Terms & Privacy") in footer
 
     def test_each_rendered_footer_has_exact_hrefs_and_labels(self, client):
         for path, _relpath in PUBLIC_PAGES:
@@ -99,3 +120,49 @@ class TestPublicFooterComparisonLinks:
                 assert label in labels
             for label in labels:
                 assert "alternative" not in label.lower()
+            assert labels == list(FOOTER_LABELS_IN_ORDER)
+            assert (
+                '<a href="#" onclick="openContactUsModal(\'landing\'); return false;" '
+                'class="hover:text-white transition-colors">Contact</a>'
+            ) in footer
+            assert (
+                '<a href="/login" class="hover:text-white transition-colors">Login</a>'
+            ) in footer
+            assert (
+                '<a href="/register" class="hover:text-white transition-colors">'
+                "Register</a>"
+            ) in footer
+            assert (
+                '<a href="/terms-privacy" class="hover:text-white transition-colors">'
+                "Terms & Privacy</a>"
+            ) in footer
+
+
+class TestAuthPagesStayWithoutMarketingFooter:
+    def test_login_and_register_templates_do_not_have_marketing_footer(self):
+        for _path, relpath in AUTH_WITHOUT_MARKETING_FOOTER:
+            source = (ROOT / relpath).read_text()
+            assert _FOOTER.search(source) is None
+            assert CONTACT_FOOTER_LINK not in source
+            for label, _href, endpoint in FOOTER_PRODUCT_LINKS[1:]:
+                assert _template_link(endpoint, label) not in source
+            assert "url_for('main.follow_up_boss_alternative')" not in source
+            assert "url_for('main.wise_agent_alternative')" not in source
+            assert "url_for('main.kvcore_alternative')" not in source
+
+    def test_login_and_register_rendered_pages_do_not_have_marketing_footer(self, client):
+        for path, _relpath in AUTH_WITHOUT_MARKETING_FOOTER:
+            html = client.get(path).get_data(as_text=True)
+            assert _FOOTER.search(html) is None
+            assert (
+                '<a href="/follow-up-boss-alternative" '
+                'class="hover:text-white transition-colors">Follow Up Boss</a>'
+            ) not in html
+            assert (
+                '<a href="/wise-agent-alternative" '
+                'class="hover:text-white transition-colors">Wise Agent</a>'
+            ) not in html
+            assert (
+                '<a href="/kvcore-alternative" '
+                'class="hover:text-white transition-colors">kvCORE</a>'
+            ) not in html

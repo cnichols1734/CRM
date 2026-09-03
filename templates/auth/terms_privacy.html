@@ -566,4 +566,30 @@
     </a>
   </div>
 </div>
+
+<footer class="bg-brand-900 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center">
+                {# Footer sits on a dark band. Use the light-on-dark mark. #}
+                <img src="{{ url_for('static', filename='images/logo_agentflow_dark.png') }}" alt="AgentFlow" class="h-8 md:h-10 w-auto object-contain" width="213" height="40" />
+            </div>
+
+            <div class="flex items-center gap-6 text-brand-400 text-sm">
+                <a href="{{ url_for('auth.login') }}" class="hover:text-white transition-colors">Login</a>
+                <a href="{{ url_for('auth.register') }}" class="hover:text-white transition-colors">Register</a>
+                <a href="{{ url_for('auth.terms_privacy') }}" class="hover:text-white transition-colors">Terms & Privacy</a>
+                <a href="#" onclick="openContactUsModal('landing'); return false;" class="hover:text-white transition-colors">Contact</a>
+                <a href="{{ url_for('main.free_real_estate_crm') }}" class="hover:text-white transition-colors">Free CRM</a>
+                <a href="{{ url_for('main.follow_up_boss_alternative') }}" class="hover:text-white transition-colors">Follow Up Boss</a>
+                <a href="{{ url_for('main.wise_agent_alternative') }}" class="hover:text-white transition-colors">Wise Agent</a>
+                <a href="{{ url_for('main.kvcore_alternative') }}" class="hover:text-white transition-colors">kvCORE</a>
+            </div>
+
+            <div class="text-brand-500 text-sm">
+                &copy; {{ current_year }} AgentFlow. All rights reserved.
+            </div>
+        </div>
+    </div>
+</footer>
 {% endblock %}

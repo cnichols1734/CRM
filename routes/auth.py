@@ -48,7 +48,10 @@ def admin_required(f):
 @auth_bp.route('/terms-privacy')
 def terms_privacy():
     """Display Terms of Service and Privacy Policy."""
-    return render_template('auth/terms_privacy.html')
+    return render_template(
+        'auth/terms_privacy.html',
+        current_year=datetime.now().year,
+    )
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
