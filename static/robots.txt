@@ -1,6 +1,10 @@
 User-agent: *
 Allow: /
 Disallow: /dashboard
+Disallow: /reset_password
+Disallow: /registration-status
+Disallow: /health
+Disallow: /health/ui
 
 User-agent: GPTBot
 Allow: /
