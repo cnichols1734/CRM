@@ -155,6 +155,8 @@ class TestRegistration:
         assert resp.status_code == 200
         assert b'logo_agentflow_light.png' in resp.data
         assert b'crm-brand-logo-wrap--on-light' in resp.data
+        assert b'Terms and Privacy | AgentFlow' in resp.data
+        assert b'Terms of Service &amp; Privacy Policy' in resp.data
 
 
 class TestCheckRegistrationDeprecated:
