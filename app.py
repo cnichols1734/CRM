@@ -64,6 +64,16 @@ from routes.mcp_oauth import mcp_oauth_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
+# Utility URLs that stay out of the index. robots.txt already Disallows these;
+# GSC still followed /reset_password without a robots meta or X-Robots-Tag.
+NOINDEX_UTILITY_PATHS = frozenset((
+    '/reset_password',
+    '/health',
+    '/health/ui',
+    '/registration-status',
+))
+X_ROBOTS_TAG_NOINDEX = 'noindex, nofollow'
+
 
 class _MaxLevelFilter(logging.Filter):
     def __init__(self, exclusive_upper_bound):
@@ -107,6 +117,14 @@ def _current_rss_mb():
         return round(process.memory_info().rss / 1024 / 1024, 1)
     except Exception:
         return None
+
+
+def apply_noindex_utility_headers(response, path=None):
+    """Attach X-Robots-Tag on utility URLs only. Leaves marketing pages alone."""
+    check_path = request.path if path is None else path
+    if check_path in NOINDEX_UTILITY_PATHS:
+        response.headers['X-Robots-Tag'] = X_ROBOTS_TAG_NOINDEX
+    return response
 
 def create_app():
     app = Flask(__name__)
@@ -420,6 +438,10 @@ def create_app():
                 record_daily_session(current_user, surface=surface)
         except Exception:
             pass
+
+    @app.after_request
+    def noindex_utility_pages(response):
+        return apply_noindex_utility_headers(response)
 
     @app.after_request
     def record_session_creation(response):
