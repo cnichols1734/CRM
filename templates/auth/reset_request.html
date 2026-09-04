@@ -2,6 +2,9 @@
 {% from "components/ui.html" import brand_logo %}
 
 {% block title %}Forgot password | AgentFlow{% endblock %}
+{% block seo_head %}
+<meta name="robots" content="noindex, nofollow">
+{% endblock %}
 
 {% block content %}
 {% include "auth/_styles.html" %}
