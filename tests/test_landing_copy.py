@@ -26,6 +26,29 @@ def _visible_public_copy(html: str) -> str:
     html = _STYLE.sub("", html)
     return html
 
+
+PRICING_INTRO = (
+    "No credit card required. The free plan includes the core AgentFlow CRM "
+    "plus B.O.B., Gmail, and Google Calendar for one user."
+)
+FREE_PLAN_WRAP = (
+    '<a href="{{ url_for(\'main.free_real_estate_crm\') }}" '
+    'class="text-brand-800 underline underline-offset-2 hover:text-accent-600">free plan</a>'
+)
+FREE_PLAN_HREF = re.compile(r'<a href="/free-real-estate-crm"[^>]*>free plan</a>')
+
+
+def _visible_words(html: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", html)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _pricing_section(html: str) -> str:
+    match = re.search(r'<section id="pricing"[^>]*>.*?</section>', html, flags=re.S)
+    assert match is not None
+    return match.group(0)
+
+
 BANNED_LEFTOVERS = (
     "Trusted by real estate professionals",
     "Great businesses don't just happen",
@@ -135,7 +158,7 @@ class TestLandingLeftoverCopy:
         assert "COMING SOON" not in LANDING
 
     def test_body_and_footer_links_to_free_real_estate_crm(self):
-        assert LANDING.count("url_for('main.free_real_estate_crm')") == 2
+        assert LANDING.count("url_for('main.free_real_estate_crm')") == 3
         assert "the free real estate CRM page" in LANDING
         assert "follow-up-boss-alternative" not in LANDING
         assert "Follow Up Boss alternative" not in LANDING
@@ -143,6 +166,28 @@ class TestLandingLeftoverCopy:
         assert "Wise Agent alternative" not in LANDING
         assert "kvcore-alternative" not in LANDING
         assert "kvCORE alternative" not in LANDING
+
+    def test_pricing_free_plan_links_once_to_free_crm(self, client):
+        assert FREE_PLAN_WRAP in LANDING
+        assert (
+            "No credit card required. The "
+            f"{FREE_PLAN_WRAP} "
+            "includes the core AgentFlow CRM plus B.O.B., Gmail, and Google Calendar for one user."
+        ) in LANDING
+        html = client.get("/").get_data(as_text=True)
+        pricing = _pricing_section(html)
+        links = FREE_PLAN_HREF.findall(pricing)
+        assert len(links) == 1
+        assert len(FREE_PLAN_HREF.findall(html)) == 1
+        intro = re.search(
+            r'<p class="text-lg text-brand-600 max-w-2xl mx-auto">(.*?)</p>',
+            pricing,
+            flags=re.S,
+        )
+        assert intro is not None
+        assert _visible_words(intro.group(1)) == PRICING_INTRO
+        assert "more than the free plan." in pricing
+        assert re.search(r"<a\b[^>]*>Free plan</a>", pricing) is None
 
     def test_keeps_visible_faq_and_matching_json_ld(self):
         assert '"@type": "FAQPage"' in LANDING
