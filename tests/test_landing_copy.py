@@ -135,7 +135,7 @@ class TestLandingLeftoverCopy:
         assert "COMING SOON" not in LANDING
 
     def test_body_and_footer_links_to_free_real_estate_crm(self):
-        assert LANDING.count("url_for('main.free_real_estate_crm')") == 2
+        assert LANDING.count("url_for('main.free_real_estate_crm')") == 3
         assert "the free real estate CRM page" in LANDING
         assert "follow-up-boss-alternative" not in LANDING
         assert "Follow Up Boss alternative" not in LANDING
@@ -143,6 +143,49 @@ class TestLandingLeftoverCopy:
         assert "Wise Agent alternative" not in LANDING
         assert "kvcore-alternative" not in LANDING
         assert "kvCORE alternative" not in LANDING
+
+    def test_early_free_plan_links_once_to_free_crm(self, client):
+        wrap = (
+            '<a href="{{ url_for(\'main.free_real_estate_crm\') }}" '
+            'class="text-brand-800 underline underline-offset-2 hover:text-accent-600">'
+            "free plan</a>"
+        )
+        assert LANDING.count(wrap) == 1
+        assert f"25 messages a day on the {wrap}" in LANDING
+        assert "Up to 10,000 contacts on the free plan" in LANDING
+        assert f"Up to 10,000 contacts on the {wrap}" not in LANDING
+
+        html = client.get("/").get_data(as_text=True)
+        footer_match = re.search(r"<footer\b[^>]*>.*?</footer>", html, flags=re.S)
+        assert footer_match is not None
+        early = html[: footer_match.start()]
+        footer = footer_match.group(0)
+
+        links = re.findall(
+            r'<a href="/free-real-estate-crm"[^>]*>free plan</a>',
+            early,
+        )
+        assert len(links) == 1
+        assert (
+            '<a href="/free-real-estate-crm" '
+            'class="text-brand-800 underline underline-offset-2 hover:text-accent-600">'
+            "free plan</a>"
+        ) in early
+        assert re.search(
+            r'<a href="/free-real-estate-crm"[^>]*>free plan</a>',
+            footer,
+        ) is None
+        assert (
+            '<a href="/free-real-estate-crm" '
+            'class="hover:text-white transition-colors">Free CRM</a>'
+        ) in footer
+
+        visible_early = re.sub(r"<script\b[^>]*>.*?</script>", " ", early, flags=re.I | re.S)
+        visible_early = re.sub(r"<style\b[^>]*>.*?</style>", " ", visible_early, flags=re.I | re.S)
+        visible_early = re.sub(r"<[^>]+>", " ", visible_early)
+        visible_early = re.sub(r"\s+", " ", visible_early)
+        assert "25 messages a day on the free plan" in visible_early
+        assert "Up to 10,000 contacts on the free plan" in visible_early
 
     def test_keeps_visible_faq_and_matching_json_ld(self):
         assert '"@type": "FAQPage"' in LANDING
