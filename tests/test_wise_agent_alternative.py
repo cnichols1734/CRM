@@ -192,6 +192,12 @@ def _body_copy(html):
     return _visible_copy(body)
 
 
+def _hero_section(html):
+    match = re.search(r'<section class="hero-bg[^"]*">.*?</section>', html, flags=re.S)
+    assert match is not None
+    return match.group(0)
+
+
 class TestWiseAgentAlternativeRoute:
     def test_page_returns_200(self, client):
         resp = client.get(PAGE_PATH)
@@ -307,7 +313,7 @@ class TestWiseAgentAlternativeCopy:
         assert "Start Free" in PAGE
         assert "Try AgentFlow Free" in PAGE
         assert "url_for('auth.register')" in PAGE
-        assert PAGE.count("url_for('main.free_real_estate_crm')") == 2
+        assert PAGE.count("url_for('main.free_real_estate_crm')") == 3
         assert PAGE.count("the free real estate CRM page") == 1
         assert "More on what's included is on" in PAGE
         assert "url_for('main.landing')" in PAGE
@@ -323,8 +329,29 @@ class TestWiseAgentAlternativeCopy:
         assert h1 == H1
 
     def test_hero_uses_specified_lines(self):
+        visible = _visible_copy(PAGE)
         for line in HERO_LINES:
-            assert line in PAGE
+            assert line in visible
+
+    def test_hero_free_plan_links_once_to_free_crm(self, client):
+        html = client.get(PAGE_PATH).get_data(as_text=True)
+        hero = _hero_section(html)
+        links = re.findall(
+            r'<a href="/free-real-estate-crm"[^>]*>free plan</a>',
+            hero,
+        )
+        assert len(links) == 1
+        assert len(re.findall(
+            r'<a href="/free-real-estate-crm"[^>]*>free plan</a>',
+            html,
+        )) == 1
+        assert HERO_LINES[1] in _visible_copy(hero)
+        assert (
+            '<a href="{{ url_for(\'main.free_real_estate_crm\') }}" '
+            'class="text-brand-800 underline underline-offset-2 hover:text-accent-600">free plan</a>'
+        ) in PAGE
+        assert HERO_LINES[3] in hero
+        assert re.search(r"<a\b[^>]*>Free plan</a>", hero) is None
 
     def test_section_headings_are_present(self):
         for heading in SECTION_HEADINGS:
