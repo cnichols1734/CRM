@@ -60,14 +60,14 @@ Sitemap: https://agentflow.origentechnolog.com/sitemap.xml
 """
 
 PINNED_SITEMAP_LASTMODS = {
-    "https://agentflow.origentechnolog.com/": "2026-09-02",
+    "https://agentflow.origentechnolog.com/": "2026-09-07",
     "https://agentflow.origentechnolog.com/register": "2026-08-31",
     "https://agentflow.origentechnolog.com/login": "2026-08-31",
     "https://agentflow.origentechnolog.com/terms-privacy": "2026-09-03",
     "https://agentflow.origentechnolog.com/free-real-estate-crm": "2026-09-02",
-    "https://agentflow.origentechnolog.com/follow-up-boss-alternative": "2026-09-02",
-    "https://agentflow.origentechnolog.com/wise-agent-alternative": "2026-09-02",
-    "https://agentflow.origentechnolog.com/kvcore-alternative": "2026-09-02",
+    "https://agentflow.origentechnolog.com/follow-up-boss-alternative": "2026-09-07",
+    "https://agentflow.origentechnolog.com/wise-agent-alternative": "2026-09-07",
+    "https://agentflow.origentechnolog.com/kvcore-alternative": "2026-09-07",
 }
 
 
