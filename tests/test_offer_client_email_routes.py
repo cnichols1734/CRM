@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from models import (
     SellerOffer,
     SellerOfferActivity,
@@ -149,14 +151,17 @@ def test_preview_builds_a_single_offer_email(app, seed, owner_a_client):
             _teardown(tx_id)
 
 
-def test_preview_covers_every_active_offer_when_none_is_named(app, seed, owner_a_client):
+@pytest.mark.parametrize('payload', ({}, {'offer_ids': None}))
+def test_preview_covers_every_active_offer_when_none_is_named(
+    app, seed, owner_a_client, payload,
+):
     second = dict(ONE_OFFER)
     second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
     with app.app_context():
         tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
     try:
         response = owner_a_client.post(
-            f'/transactions/{tx_id}/offers/client-email/preview', json={},
+            f'/transactions/{tx_id}/offers/client-email/preview', json=payload,
         )
         assert response.status_code == 200
         body = response.get_json()
@@ -369,16 +374,115 @@ def test_send_rejects_an_empty_offer_list(app, seed, owner_a_client):
             _teardown(tx_id)
 
 
-def test_send_covers_every_active_offer_when_none_is_named(app, seed, owner_a_client):
-    """Header Email all omits offer_ids. That still means every live offer."""
+@pytest.mark.parametrize('offer_ids', ([None], ['bad']))
+def test_send_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids):
+    """A present list with no valid IDs is none selected, not Email all."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, created_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/send',
+            json={'offer_ids': offer_ids, 'to': 'cassie@example.com'},
+        )
+        assert response.status_code == 400
+        assert 'at least one offer' in response.get_json()['error']
+
+        with app.app_context():
+            assert SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(created_ids),
+                SellerOfferActivity.event_type == 'client_email_sent',
+            ).count() == 0
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
+@pytest.mark.parametrize('offer_ids', ([None], ['bad']))
+def test_preview_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids):
+    """Same hole on preview: do not expand junk IDs to every live offer."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, _ = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/preview',
+            json={'offer_ids': offer_ids},
+        )
+        assert response.status_code == 400
+        assert 'at least one offer' in response.get_json()['error']
+        assert response.get_json().get('draft') is None
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
+def test_send_covers_only_the_named_offers(app, seed, owner_a_client):
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        chosen_id = offer_ids[0]
+        skipped_id = offer_ids[1]
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/send',
+            json={
+                'offer_ids': [chosen_id],
+                'to': 'cassie@example.com',
+            },
+        )
+        assert response.status_code == 200
+        assert response.get_json()['success'] is True
+
+        with app.app_context():
+            logged = SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(offer_ids),
+                SellerOfferActivity.event_type == 'client_email_sent',
+            ).all()
+            assert [row.offer_id for row in logged] == [chosen_id]
+            assert skipped_id not in {row.offer_id for row in logged}
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
+def test_preview_covers_only_the_named_offers(app, seed, owner_a_client):
     second = dict(ONE_OFFER)
     second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
     with app.app_context():
         tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
     try:
         response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/preview',
+            json={'offer_ids': [offer_ids[0]]},
+        )
+        assert response.status_code == 200
+        body = response.get_json()
+        assert body['draft']['mode'] == 'single'
+        assert body['draft']['offer_ids'] == [offer_ids[0]]
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
+@pytest.mark.parametrize('extra', ({}, {'offer_ids': None}))
+def test_send_covers_every_active_offer_when_none_is_named(
+    app, seed, owner_a_client, extra,
+):
+    """Header Email all omits offer_ids. That still means every live offer."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        payload = {'to': 'cassie@example.com'}
+        payload.update(extra)
+        response = owner_a_client.post(
             f'/transactions/{tx_id}/offers/client-email/send',
-            json={'to': 'cassie@example.com'},
+            json=payload,
         )
         assert response.status_code == 200
         assert response.get_json()['success'] is True

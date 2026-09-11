@@ -566,25 +566,44 @@ def _client_email_transaction(id, capability):
     return transaction, None
 
 
+def _parse_requested_offer_ids(requested_ids):
+    """Parse offer_ids. None means omitted (email all). A list is a pick."""
+    if not isinstance(requested_ids, list):
+        return None
+    wanted = []
+    for raw in requested_ids:
+        try:
+            wanted.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return wanted
+
+
+def _none_selected_offer_ids(requested_ids, *, empty_list_ok=False):
+    """True when a present list has no valid IDs and must not expand to all."""
+    wanted = _parse_requested_offer_ids(requested_ids)
+    if wanted != []:
+        return False
+    if empty_list_ok and requested_ids == []:
+        return False
+    return True
+
+
 def _client_email_selection(transaction, requested_ids):
     """Offers the email may cover, plus everything the agent could have picked."""
     available = selectable_offers(
         transaction.seller_offers.order_by(SellerOffer.received_at.desc()).all()
     )
-    wanted = []
-    for raw in requested_ids or []:
-        try:
-            wanted.append(int(raw))
-        except (TypeError, ValueError):
-            continue
+    wanted = _parse_requested_offer_ids(requested_ids)
     if wanted:
         chosen = [offer for offer in available if offer.id in wanted]
-    else:
-        # Header Email all omits IDs or previews with an empty list. That
-        # means every live offer, not whichever one happened to sort first.
-        # send_offer_client_email rejects [] so an empty picker cannot
-        # expand to all.
+    elif wanted is None or requested_ids == []:
+        # Header Email all omits IDs. Preview still treats [] as all because
+        # the composer posts that on first open. Send rejects [] itself.
         chosen = list(available)
+    else:
+        # Present list, nothing parseable. Do not expand to all.
+        chosen = []
     return chosen, available
 
 
@@ -637,7 +656,13 @@ def preview_offer_client_email(id):
         return error
 
     data = request.get_json(silent=True) or {}
-    chosen, available = _client_email_selection(transaction, data.get('offer_ids'))
+    requested_ids = data.get('offer_ids')
+    if _none_selected_offer_ids(requested_ids, empty_list_ok=True):
+        return jsonify({
+            'success': False,
+            'error': 'Select at least one offer to email.',
+        }), 400
+    chosen, available = _client_email_selection(transaction, requested_ids)
     if not chosen:
         return jsonify({
             'success': False,
@@ -669,8 +694,9 @@ def send_offer_client_email(id):
 
     data = request.get_json(silent=True) or {}
     requested_ids = data.get('offer_ids')
-    if requested_ids == []:
-        # The picker posts offer_ids. [] is "none selected", not Email all.
+    if _none_selected_offer_ids(requested_ids):
+        # The picker posts offer_ids. [] or unparseable entries are
+        # "none selected", not Email all.
         return jsonify({
             'success': False,
             'error': 'Select at least one offer to email.',
