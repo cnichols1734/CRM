@@ -204,10 +204,26 @@ class TestFreeRealEstateCrmSeo:
         types = [node.get("@type") for node in graph]
         assert types == [
             "Organization",
+            "WebSite",
             "SoftwareApplication",
             "FAQPage",
             "BreadcrumbList",
         ]
+        website = next(node for node in graph if node["@type"] == "WebSite")
+        assert website == {
+            "@type": "WebSite",
+            "@id": f"{base}/#website",
+            "name": "AgentFlow",
+            "url": f"{base}/",
+            "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
+            "publisher": {"@id": f"{base}/#organization"},
+        }
+        home_website = next(
+            node for node in _json_ld_graph(client.get("/").get_data(as_text=True))
+            if node["@type"] == "WebSite"
+        )
+        assert website == home_website
+        assert "potentialAction" not in website
         assert "SearchAction" not in html
         assert html.count('<script type="application/ld+json">') == 1
         assert '"@type": "SoftwareApplication"' in html
@@ -285,6 +301,11 @@ class TestFreeRealEstateCrmCopy:
         assert '"@type": "FAQPage"' in PAGE
         assert '"@type": "BreadcrumbList"' in PAGE
         assert '"@id": "{{ app_base_url }}/free-real-estate-crm#breadcrumb"' in PAGE
+        assert '"@type": "WebSite"' in PAGE
+        assert '"@id": "{{ app_base_url }}/#website"' in PAGE
+        assert '"description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes."' in PAGE
+        assert '"potentialAction"' not in PAGE
+        assert "SearchAction" not in PAGE
         assert PAGE.count("<summary>") == 4
         assert PAGE.count('"@type": "Question"') == 4
         for question, answer in FAQ_ITEMS:
