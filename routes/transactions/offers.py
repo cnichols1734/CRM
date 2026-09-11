@@ -566,6 +566,25 @@ def _client_email_transaction(id, capability):
     return transaction, None
 
 
+def _coerce_offer_id(raw):
+    """Accept int IDs and digit strings. Skip bools and non-integral floats."""
+    if isinstance(raw, bool):
+        # bool is a subclass of int. int(True) == 1, int(False) == 0.
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        if not raw.is_integer():
+            return None
+        return int(raw)
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text.isdigit():
+            return None
+        return int(text)
+    return None
+
+
 def _parse_requested_offer_ids(requested_ids):
     """Parse offer_ids. None means omitted or JSON null (email all)."""
     if requested_ids is None:
@@ -575,10 +594,9 @@ def _parse_requested_offer_ids(requested_ids):
         return []
     wanted = []
     for raw in requested_ids:
-        try:
-            wanted.append(int(raw))
-        except (TypeError, ValueError):
-            continue
+        offer_id = _coerce_offer_id(raw)
+        if offer_id is not None:
+            wanted.append(offer_id)
     return wanted
 
 

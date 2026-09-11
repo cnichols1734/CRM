@@ -374,7 +374,7 @@ def test_send_rejects_an_empty_offer_list(app, seed, owner_a_client):
             _teardown(tx_id)
 
 
-@pytest.mark.parametrize('offer_ids', ([None], ['bad']))
+@pytest.mark.parametrize('offer_ids', ([None], ['bad'], [True], [False], [1.9]))
 def test_send_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids):
     """A present list with no valid IDs is none selected, not Email all."""
     second = dict(ONE_OFFER)
@@ -399,7 +399,7 @@ def test_send_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids
             _teardown(tx_id)
 
 
-@pytest.mark.parametrize('offer_ids', ([None], ['bad']))
+@pytest.mark.parametrize('offer_ids', ([None], ['bad'], [True], [False], [1.9]))
 def test_preview_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids):
     """Same hole on preview: do not expand junk IDs to every live offer."""
     second = dict(ONE_OFFER)
@@ -462,6 +462,26 @@ def test_preview_rejects_non_list_offer_ids(app, seed, owner_a_client, offer_ids
     finally:
         with app.app_context():
             _teardown(tx_id)
+
+
+def test_parse_requested_offer_ids_skips_bools_and_fractional_floats():
+    """int(True)==1 and int(1.9)==1. Those must not look like a selected offer."""
+    from routes.transactions.offers import (
+        _none_selected_offer_ids,
+        _parse_requested_offer_ids,
+    )
+
+    assert _parse_requested_offer_ids([True]) == []
+    assert _parse_requested_offer_ids([False]) == []
+    assert _parse_requested_offer_ids([1.9]) == []
+    assert _parse_requested_offer_ids([1]) == [1]
+    assert _parse_requested_offer_ids(['12']) == [12]
+    assert _parse_requested_offer_ids(None) is None
+    assert _none_selected_offer_ids([True]) is True
+    assert _none_selected_offer_ids([False]) is True
+    assert _none_selected_offer_ids([1.9]) is True
+    assert _none_selected_offer_ids([1]) is False
+    assert _none_selected_offer_ids(None) is False
 
 
 def test_send_covers_only_the_named_offers(app, seed, owner_a_client):
