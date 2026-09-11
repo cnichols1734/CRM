@@ -204,9 +204,12 @@ def test_recipients_hydrate_on_first_session_paint():
         'const firstPaint = offerClientEmail.paintedFor == null'
     )
     assign_idx = refresh.index('offerClientEmail.paintedFor = key')
-    fill_idx = refresh.index('if (firstPaint) oceFillRecipients(data.draft)')
+    fill_idx = refresh.index(
+        'if (oceShouldFillRecipients(firstPaint, offerClientEmail.dirty))'
+    )
     assert first_idx < assign_idx < fill_idx
     assert 'if (initial) oceFillRecipients' not in refresh
+    assert 'if (firstPaint) oceFillRecipients' not in refresh
 
 
 def test_first_paint_hydrates_when_initial_preview_was_invalidated():
@@ -224,3 +227,56 @@ def test_first_paint_hydrates_when_initial_preview_was_invalidated():
     first_paint = painted_for is None
     assert not first_paint
     assert not (initial or first_paint)
+
+
+def test_copy_fill_skips_dirty_fields_even_on_initial():
+    fill = OCE_JS[
+        OCE_JS.index('function oceFillCopy('):
+        OCE_JS.index('function oceFillRecipients(')
+    ]
+    assert 'if (!oceShouldFillCopy(offerClientEmail.dirty, name)) return;' in fill
+    assert 'if (!initial && offerClientEmail.dirty[name]) return;' not in fill
+    bind = OCE_JS[
+        OCE_JS.index('function oceBindEvents('):
+        OCE_JS.index('function oceCanSend(')
+    ]
+    assert 'oceMarkFieldDirty(offerClientEmail.dirty, copyField)' in bind
+    assert "target.value.trim() !== ''" not in bind
+    assert "oceMarkFieldDirty(offerClientEmail.dirty, 'to')" in bind
+    recipients = OCE_JS[
+        OCE_JS.index('function oceFillRecipients('):
+        OCE_JS.index('function oceSetTitle(')
+    ]
+    assert "if (!oceShouldFillCopy(offerClientEmail.dirty, 'to')) return;" in recipients
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='node is not installed')
+def test_js_first_paint_keeps_typed_copy_and_recipients():
+    """Typing before the first preview returns must mark dirty immediately.
+    Initial fill then leaves those fields alone."""
+    helpers = _oce_refresh_helpers()
+    assert 'function oceShouldFillCopy(' in helpers
+    assert 'function oceShouldFillRecipients(' in helpers
+    assert 'function oceMarkFieldDirty(' in helpers
+    result = subprocess.run(
+        [
+            shutil.which('node'),
+            '-e',
+            helpers + (
+                'const dirty = {};'
+                'oceMarkFieldDirty(dirty, "subject");'
+                'oceMarkFieldDirty(dirty, "to");'
+                'if (oceShouldFillCopy(dirty, "subject")) process.exit(1);'
+                'if (!oceShouldFillCopy(dirty, "greeting")) process.exit(1);'
+                'if (oceShouldFillRecipients(true, dirty)) process.exit(1);'
+                'if (!oceShouldFillRecipients(true, {})) process.exit(1);'
+                'if (oceShouldFillRecipients(false, {})) process.exit(1);'
+                "process.stdout.write('ok');"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert result.stdout == 'ok'

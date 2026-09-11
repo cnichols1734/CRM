@@ -51,6 +51,19 @@ function oceSessionIsCurrent(gen, current) {
     return gen === current;
 }
 
+function oceShouldFillCopy(dirty, name) {
+    return !(dirty && dirty[name]);
+}
+
+function oceShouldFillRecipients(firstPaint, dirty) {
+    return Boolean(firstPaint) && !(dirty && dirty.to);
+}
+
+function oceMarkFieldDirty(dirty, name) {
+    if (dirty) dirty[name] = true;
+    return dirty;
+}
+
 function oceTransactionId() {
     return window.TX_CONFIG && window.TX_CONFIG.transactionId;
 }
@@ -163,8 +176,12 @@ function oceBindEvents() {
 
         const copyField = OCE_COPY_FIELDS.find((name) => target.hasAttribute(`data-oce-${name}`));
         if (copyField) {
-            offerClientEmail.dirty[copyField] = target.value.trim() !== '';
+            oceMarkFieldDirty(offerClientEmail.dirty, copyField);
             oceScheduleRefresh();
+            return;
+        }
+        if (target.hasAttribute('data-oce-to')) {
+            oceMarkFieldDirty(offerClientEmail.dirty, 'to');
             return;
         }
         if (target.hasAttribute('data-oce-figure')) {
@@ -259,7 +276,9 @@ function oceRefresh({ initial }) {
                 ocePaintPicker(data.candidates);
                 ocePaintFigures(data.draft);
             }
-            if (firstPaint) oceFillRecipients(data.draft);
+            if (oceShouldFillRecipients(firstPaint, offerClientEmail.dirty)) {
+                oceFillRecipients(data.draft);
+            }
             oceSetTitle(data.draft);
             ocePaintSender(data.sender);
             ocePaintPreview(data.html);
@@ -279,18 +298,15 @@ function oceRefresh({ initial }) {
 
 function oceFillCopy(draft, initial) {
     OCE_COPY_FIELDS.forEach((name) => {
-        if (name === 'note') return;
-        if (!initial && offerClientEmail.dirty[name]) return;
+        if (name === 'note' && !initial) return;
+        if (!oceShouldFillCopy(offerClientEmail.dirty, name)) return;
         const field = oceEl(name);
         if (field) field.value = draft[name] || '';
     });
-    if (initial) {
-        const note = oceEl('note');
-        if (note) note.value = draft.note || '';
-    }
 }
 
 function oceFillRecipients(draft) {
+    if (!oceShouldFillCopy(offerClientEmail.dirty, 'to')) return;
     const field = oceEl('to');
     const hint = oceEl('to-hint');
     const recipients = draft.recipients || [];
