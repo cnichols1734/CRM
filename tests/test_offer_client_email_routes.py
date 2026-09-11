@@ -345,6 +345,55 @@ def test_send_records_the_email_against_every_offer(app, seed, owner_a_client):
             _teardown(tx_id)
 
 
+def test_send_rejects_an_empty_offer_list(app, seed, owner_a_client):
+    """An empty picker is none selected, not Email all."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/send',
+            json={'offer_ids': [], 'to': 'cassie@example.com'},
+        )
+        assert response.status_code == 400
+        assert 'at least one offer' in response.get_json()['error']
+
+        with app.app_context():
+            assert SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(offer_ids),
+                SellerOfferActivity.event_type == 'client_email_sent',
+            ).count() == 0
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
+def test_send_covers_every_active_offer_when_none_is_named(app, seed, owner_a_client):
+    """Header Email all omits offer_ids. That still means every live offer."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/send',
+            json={'to': 'cassie@example.com'},
+        )
+        assert response.status_code == 200
+        assert response.get_json()['success'] is True
+
+        with app.app_context():
+            logged = SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(offer_ids),
+                SellerOfferActivity.event_type == 'client_email_sent',
+            ).all()
+            assert len(logged) == 2
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
 def test_send_requires_a_recipient(app, seed, owner_a_client):
     with app.app_context():
         tx_id, offer_ids = _seller_listing(seed, offers=[ONE_OFFER])

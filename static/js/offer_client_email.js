@@ -112,6 +112,7 @@ function openOfferClientEmail(offerId) {
     oceOpenSheet('offerClientEmailModal');
     document.body.classList.add('overflow-hidden');
     oceBindEvents();
+    oceSyncSend();
     oceRefresh({ initial: true });
 }
 
@@ -151,9 +152,18 @@ function oceBindEvents() {
             return;
         }
         if (target.hasAttribute('data-oce-pick')) {
-            offerClientEmail.offerIds = Array.from(
-                root.querySelectorAll('[data-oce-pick]:checked')
-            ).map((box) => Number(box.value));
+            const picked = Array.from(root.querySelectorAll('[data-oce-pick]:checked'))
+                .map((box) => Number(box.value))
+                .filter((id) => Number.isFinite(id));
+            if (!picked.length) {
+                // Last box stays on. An empty list is not Email all.
+                target.checked = true;
+                oceToast('Keep at least one offer selected.', 'info');
+                oceSyncSend();
+                return;
+            }
+            offerClientEmail.offerIds = picked;
+            oceSyncSend();
             oceRefresh({});
         }
     };
@@ -161,6 +171,16 @@ function oceBindEvents() {
     root.addEventListener('input', onChange);
     root.addEventListener('change', onChange);
     offerClientEmail.bound = true;
+}
+
+function oceCanSend() {
+    return offerClientEmail.offerIds.length > 0;
+}
+
+function oceSyncSend() {
+    const button = oceEl('send');
+    if (!button) return;
+    button.disabled = offerClientEmail.sending || !oceCanSend();
 }
 
 function oceScheduleRefresh() {
@@ -214,10 +234,12 @@ function oceRefresh({ initial }) {
             oceSetTitle(data.draft);
             ocePaintSender(data.sender);
             ocePaintPreview(data.html);
+            oceSyncSend();
             return data;
         })
         .catch((err) => {
             oceToast(err.message || 'Could not build the email', 'error');
+            oceSyncSend();
         })
         .finally(() => {
             if (loading) loading.classList.replace('flex', 'hidden');
@@ -356,7 +378,11 @@ function ocePaintPreview(html) {
 
 function sendOfferClientEmail() {
     if (offerClientEmail.sending) return;
-    const button = oceEl('send');
+    if (!oceCanSend()) {
+        oceToast('Select at least one offer to email.', 'error');
+        oceSyncSend();
+        return;
+    }
     const status = oceEl('status');
     const to = (oceEl('to') || {}).value || '';
     if (!to.trim()) {
@@ -365,7 +391,7 @@ function sendOfferClientEmail() {
     }
 
     offerClientEmail.sending = true;
-    if (button) button.disabled = true;
+    oceSyncSend();
     if (status) status.textContent = ' · Sending';
 
     const payload = Object.assign(oceOverrides(), {
@@ -390,7 +416,7 @@ function sendOfferClientEmail() {
         })
         .finally(() => {
             offerClientEmail.sending = false;
-            if (button) button.disabled = false;
+            oceSyncSend();
         });
 }
 

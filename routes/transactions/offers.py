@@ -580,8 +580,10 @@ def _client_email_selection(transaction, requested_ids):
     if wanted:
         chosen = [offer for offer in available if offer.id in wanted]
     else:
-        # Header "Email all" sends an empty list. That means every live offer,
-        # not whichever one happened to sort first.
+        # Header Email all omits IDs or previews with an empty list. That
+        # means every live offer, not whichever one happened to sort first.
+        # send_offer_client_email rejects [] so an empty picker cannot
+        # expand to all.
         chosen = list(available)
     return chosen, available
 
@@ -666,7 +668,14 @@ def send_offer_client_email(id):
         return error
 
     data = request.get_json(silent=True) or {}
-    chosen, _available = _client_email_selection(transaction, data.get('offer_ids'))
+    requested_ids = data.get('offer_ids')
+    if requested_ids == []:
+        # The picker posts offer_ids. [] is "none selected", not Email all.
+        return jsonify({
+            'success': False,
+            'error': 'Select at least one offer to email.',
+        }), 400
+    chosen, _available = _client_email_selection(transaction, requested_ids)
     if not chosen:
         return jsonify({
             'success': False,
