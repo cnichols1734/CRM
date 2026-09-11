@@ -594,6 +594,23 @@ def test_reviewed_survey_payer_wins_over_version_furnished_by():
     assert build(draft_offer).offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
 
 
+def test_canonical_survey_payer_blocks_version_furnished_by():
+    """SellerOffer.survey_payer occupies the survey family even when
+    terms_summary is empty. Version survey_furnished_by must stay out."""
+    offer = FakeOffer(survey_payer='Buyer', terms_summary={})
+    backed = ose._VersionBackedOffer(offer, {'survey_furnished_by': 'Seller'})
+    assert 'survey_furnished_by' not in backed.terms_summary
+    assert ose._survey_responsibility(backed) == ose.SURVEY_BUYER
+
+    draft_offer = full_offer(
+        survey_furnished_by=None,
+        survey_payer='Buyer',
+        terms_summary={},
+        current_version=FakeVersion({'survey_furnished_by': 'Seller'}),
+    )
+    assert build(draft_offer).offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
+
+
 def test_reviewed_sales_price_wins_over_version_offer_price():
     """Exact-key blank-fill used to let version offer_price sit next to
     reviewed sales_price. _pick then walked offer_price first."""
