@@ -826,12 +826,48 @@ def _family_has_value(merged: dict[str, Any], key: str, offer=None) -> bool:
     return any(not _blank(getattr(offer, alias, None)) for alias in aliases)
 
 
+def _merge_version_terms(
+    merged: dict[str, Any],
+    terms_data: dict[str, Any],
+    offer,
+) -> None:
+    """Fill gaps from version ``terms_data``.
+
+    Each ``_TERM_ALIASES`` family gets at most one nonblank version value,
+    in the same alias order ``_pick`` walks. Occupied families stay closed.
+    Keys outside those families still copy in dict order when the exact
+    key is empty.
+    """
+    seen_families: set[tuple[str, ...]] = set()
+    aliased: set[str] = set()
+    for aliases in _TERM_ALIASES.values():
+        aliased.update(aliases)
+        if aliases in seen_families:
+            continue
+        seen_families.add(aliases)
+        if _family_has_value(merged, aliases[0], offer):
+            continue
+        for alias in aliases:
+            if alias not in terms_data:
+                continue
+            value = terms_data[alias]
+            if not _blank(value):
+                merged[alias] = value
+                break
+    for key, value in terms_data.items():
+        if key in aliased:
+            continue
+        if value not in (None, '') and not _family_has_value(merged, key, offer):
+            merged[key] = value
+
+
 class _VersionBackedOffer:
     """Offer columns win in ``_pick``. Non-empty ``terms_summary`` stays.
     Current-version ``terms_data`` fills only missing or blank summary keys.
     Alias groups used by ``_pick`` are one family: a reviewed ``sales_price``
     or a canonical ``survey_payer`` column blocks a version alias from
-    joining the merge."""
+    joining the merge. When the family is empty, the version contributes
+    one value in ``_TERM_ALIASES`` order, not dict insertion order."""
 
     def __init__(self, offer, terms_data: dict[str, Any]):
         object.__setattr__(self, '_offer', offer)
@@ -840,9 +876,7 @@ class _VersionBackedOffer:
         if isinstance(existing, dict):
             merged.update(existing)
         if isinstance(terms_data, dict):
-            for key, value in terms_data.items():
-                if value not in (None, '') and not _family_has_value(merged, key, offer):
-                    merged[key] = value
+            _merge_version_terms(merged, terms_data, offer)
         object.__setattr__(self, 'terms_summary', merged)
 
     def __getattr__(self, name):

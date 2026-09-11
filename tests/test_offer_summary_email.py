@@ -611,6 +611,29 @@ def test_canonical_survey_payer_blocks_version_furnished_by():
     assert build(draft_offer).offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
 
 
+def test_version_merge_picks_one_alias_in_pick_order():
+    """terms_data insertion order must not beat _TERM_ALIASES order.
+    survey_payer first in the dict still loses to survey_furnished_by.
+    sales_price first still loses to offer_price. Extra keys still copy."""
+    offer = FakeOffer(terms_summary={})
+    backed = ose._VersionBackedOffer(offer, {
+        'survey_payer': 'Buyer',
+        'survey_furnished_by': (
+            'Seller shall furnish existing survey and T-47 affidavit'
+        ),
+        'sales_price': '400000',
+        'offer_price': '450000',
+        'non_realty_items': 'patio furniture',
+    })
+    assert backed.terms_summary['survey_furnished_by'].startswith('Seller shall')
+    assert 'survey_payer' not in backed.terms_summary
+    assert ose._survey_responsibility(backed) == ose.SURVEY_EXISTING
+    assert backed.terms_summary['offer_price'] == '450000'
+    assert 'sales_price' not in backed.terms_summary
+    assert ose._pick(backed, 'offer_price') == '450000'
+    assert backed.terms_summary['non_realty_items'] == 'patio furniture'
+
+
 def test_reviewed_sales_price_wins_over_version_offer_price():
     """Exact-key blank-fill used to let version offer_price sit next to
     reviewed sales_price. _pick then walked offer_price first."""
