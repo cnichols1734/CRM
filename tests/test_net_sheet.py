@@ -568,3 +568,45 @@ def test_compare_reads_unreviewed_version_terms(app, seed):
         assert lines['residential_service_contract'].amount == Decimal('500.00')
         # 400000 − 12000 − 2000 − 500 = 385500
         assert sheet.estimated_net == Decimal('385500.00')
+
+
+def test_compare_reads_reviewed_terms_summary_when_version_is_stale(app, seed):
+    """Reviewed terms_summary has commission and warranty. The column is
+    blank and the version still has the old extract. Compare net uses the
+    summary so it matches the matrix."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = _tx(seed)
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            offer_price=Decimal('400000'),
+            terms_summary={
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+            },
+            terms_data={
+                'buyer_agent_commission_percent': '3',
+                'residential_service_contract': '500',
+            },
+        )
+        terms = _commission_terms(
+            org_id, tx.id, user_id,
+            coop_compensation_percent=Decimal('3'),
+        )
+        db.session.commit()
+
+        from services.net_sheet import COMPARE_NET_OMIT
+
+        sheet = build_for_offer(
+            offer,
+            commission_terms=terms,
+            omit_keys=COMPARE_NET_OMIT,
+            listing_coop=False,
+        )
+        lines = _line_map(sheet)
+        assert lines['buyer_agent_commission'].amount == Decimal('10000.00')
+        assert lines['residential_service_contract'].amount == Decimal('650.00')
+        # 400000 − 10000 − 650 = 389350
+        assert sheet.estimated_net == Decimal('389350.00')

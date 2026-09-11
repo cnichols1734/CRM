@@ -538,15 +538,39 @@ def _terms_data_for_offer(offer: SellerOffer) -> dict:
     return (version.terms_data if version and version.terms_data else {}) or {}
 
 
-def _offer_or_version_term(offer: SellerOffer, terms_data: dict, attr: str) -> Any:
-    """Offer column first, then the current version's terms_data aliases."""
-    value = getattr(offer, attr, None)
-    if value not in (None, ''):
-        return value
-    for key in OFFER_TERM_ALIASES.get(attr, (attr,)):
-        if key in terms_data and terms_data[key] not in (None, ''):
-            return terms_data[key]
+def _filled(value: Any) -> bool:
+    """Same occupancy rule as ``_pick``: None, '', and whitespace are empty."""
+    if value is None or value == '':
+        return False
+    if isinstance(value, str) and not value.strip():
+        return False
+    return True
+
+
+def _alias_value(source: Any, aliases: tuple[str, ...]) -> Any:
+    """First nonblank alias in *source*, or None."""
+    if not isinstance(source, dict):
+        return None
+    for key in aliases:
+        if key in source and _filled(source[key]):
+            return source[key]
     return None
+
+
+def _offer_or_version_term(offer: SellerOffer, terms_data: dict, attr: str) -> Any:
+    """Column first, then terms_summary aliases, then version terms_data.
+
+    Same order as ``_pick`` / ``_VersionBackedOffer`` so Compare's matrix
+    and Estimated net cannot disagree on a reviewed summary value.
+    """
+    value = getattr(offer, attr, None)
+    if _filled(value):
+        return value
+    aliases = OFFER_TERM_ALIASES.get(attr, (attr,))
+    summary_value = _alias_value(getattr(offer, 'terms_summary', None), aliases)
+    if summary_value is not None:
+        return summary_value
+    return _alias_value(terms_data, aliases)
 
 
 def _current_version(offer: SellerOffer) -> Optional[SellerOfferVersion]:
@@ -571,13 +595,17 @@ def _sales_price_for_offer(offer: SellerOffer) -> Decimal | None:
     if price is not None:
         return _money(price)
 
+    summary_price = _as_decimal(
+        _alias_value(getattr(offer, 'terms_summary', None), PRICE_TERMS_ALIASES)
+    )
+    if summary_price is not None:
+        return _money(summary_price)
+
     version = _current_version(offer)
     terms_data = (version.terms_data if version and version.terms_data else {}) or {}
-    for alias in PRICE_TERMS_ALIASES:
-        if alias in terms_data and terms_data[alias] not in (None, ''):
-            price = _as_decimal(terms_data[alias])
-            if price is not None:
-                return _money(price)
+    version_price = _as_decimal(_alias_value(terms_data, PRICE_TERMS_ALIASES))
+    if version_price is not None:
+        return _money(version_price)
     return None
 
 
