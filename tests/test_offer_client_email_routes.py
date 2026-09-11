@@ -187,7 +187,7 @@ def test_preview_candidate_price_uses_version_terms_when_column_empty(
         assert response.status_code == 200
         body = response.get_json()
         assert body['candidates'][0]['price'] == '$418,000'
-        assert body['draft']['headline']['value'] == '$418,000'
+        assert body['draft']['offers'][0]['terms']['offer_price']['value'] == '$418,000'
     finally:
         with app.app_context():
             _teardown(tx_id)
