@@ -114,7 +114,9 @@ function openOfferClientEmail(offerId) {
     offerClientEmail.offerIds = oceOfferIds(offerId);
     offerClientEmail.dirty = {};
     offerClientEmail.terms = {};
-    offerClientEmail.sending = false;
+    // sending is a request lock, not a session flag. Close/reopen bumps
+    // sessionGen so the old response is ignored, but the POST stays on
+    // the wire. Clearing the lock here would let Send fire a second email.
     offerClientEmail.paintedFor = null;
 
     if (root.parentElement !== document.body) {
@@ -126,7 +128,7 @@ function openOfferClientEmail(offerId) {
         if (field) field.value = '';
     });
     const status = oceEl('status');
-    if (status) status.textContent = '';
+    if (status) status.textContent = offerClientEmail.sending ? ' · Sending' : '';
 
     oceOpenSheet('offerClientEmailModal');
     document.body.classList.add('overflow-hidden');
@@ -444,8 +446,9 @@ function sendOfferClientEmail() {
             if (status) status.textContent = '';
         })
         .finally(() => {
-            if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;
+            // Release when this POST settles, even if sessionGen moved.
             offerClientEmail.sending = false;
+            if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;
             oceSyncSend();
         });
 }

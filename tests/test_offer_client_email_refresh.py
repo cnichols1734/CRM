@@ -113,12 +113,33 @@ def test_composer_send_guards_success_error_and_cleanup():
     close_idx = send_fn.index('closeOfferClientEmail();')
     assert success_idx < close_idx
     finally_idx = send_fn.index('.finally(() => {')
+    reset_idx = send_fn.index('offerClientEmail.sending = false;', finally_idx)
     finally_guard = send_fn.index(
         'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;',
-        finally_idx,
+        reset_idx,
     )
-    reset_idx = send_fn.index('offerClientEmail.sending = false;')
-    assert finally_guard < reset_idx
+    assert reset_idx < finally_guard
+    sync_idx = send_fn.index('oceSyncSend();', finally_guard)
+    assert finally_guard < sync_idx
+
+
+def test_send_lock_survives_composer_reopen_until_post_settles():
+    """Close/reopen bumps sessionGen. The in-flight POST lock must stay
+    until that request settles, or Send can fire a second email."""
+    open_fn = OCE_JS[
+        OCE_JS.index('function openOfferClientEmail('):
+        OCE_JS.index('function closeOfferClientEmail(')
+    ]
+    assert 'offerClientEmail.sending = false' not in open_fn
+    send_fn = OCE_JS[OCE_JS.index('function sendOfferClientEmail('):]
+    assert 'if (offerClientEmail.sending) return;' in send_fn
+    finally_idx = send_fn.index('.finally(() => {')
+    reset_idx = send_fn.index('offerClientEmail.sending = false;', finally_idx)
+    guard_idx = send_fn.index(
+        'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;',
+        reset_idx,
+    )
+    assert reset_idx < guard_idx
 
 
 @pytest.mark.skipif(shutil.which('node') is None, reason='node is not installed')
