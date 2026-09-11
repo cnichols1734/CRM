@@ -139,9 +139,11 @@ function openOfferClientEmail(offerId) {
 
 function closeOfferClientEmail() {
     offerClientEmail.sessionGen = oceNextSessionGen(offerClientEmail.sessionGen);
+    const closeGen = offerClientEmail.sessionGen;
     const root = oceRoot();
     if (!root) return;
     oceCloseSheet('offerClientEmailModal', function () {
+        if (!oceSessionIsCurrent(closeGen, offerClientEmail.sessionGen)) return;
         document.body.classList.remove('overflow-hidden');
         if (offerClientEmail.timer) {
             clearTimeout(offerClientEmail.timer);
@@ -250,13 +252,14 @@ function oceRefresh({ initial }) {
             if (!data.success) throw new Error(data.error || 'Could not build the email');
             offerClientEmail.offerIds = data.draft.offer_ids || [];
             const key = offerClientEmail.offerIds.join(',');
+            const firstPaint = offerClientEmail.paintedFor == null;
             oceFillCopy(data.draft, initial);
             if (key !== offerClientEmail.paintedFor) {
                 offerClientEmail.paintedFor = key;
                 ocePaintPicker(data.candidates);
                 ocePaintFigures(data.draft);
             }
-            if (initial) oceFillRecipients(data.draft);
+            if (firstPaint) oceFillRecipients(data.draft);
             oceSetTitle(data.draft);
             ocePaintSender(data.sender);
             ocePaintPreview(data.html);

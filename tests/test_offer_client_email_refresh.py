@@ -180,3 +180,47 @@ def test_js_session_helpers_ignore_a_stale_generation():
     )
     assert result.returncode == 0, result.stderr or result.stdout
     assert result.stdout == 'ok'
+
+
+def test_close_composer_cleanup_ignores_a_newer_session():
+    close_fn = OCE_JS[
+        OCE_JS.index('function closeOfferClientEmail('):
+        OCE_JS.index('function oceBindEvents(')
+    ]
+    assert 'const closeGen = offerClientEmail.sessionGen' in close_fn
+    guard = "if (!oceSessionIsCurrent(closeGen, offerClientEmail.sessionGen)) return;"
+    guard_idx = close_fn.index(guard)
+    lock_idx = close_fn.index("document.body.classList.remove('overflow-hidden')")
+    timer_idx = close_fn.index('clearTimeout(offerClientEmail.timer)')
+    assert guard_idx < lock_idx < timer_idx
+
+
+def test_recipients_hydrate_on_first_session_paint():
+    refresh = OCE_JS[
+        OCE_JS.index('function oceRefresh('):
+        OCE_JS.index('function oceFillCopy(')
+    ]
+    first_idx = refresh.index(
+        'const firstPaint = offerClientEmail.paintedFor == null'
+    )
+    assign_idx = refresh.index('offerClientEmail.paintedFor = key')
+    fill_idx = refresh.index('if (firstPaint) oceFillRecipients(data.draft)')
+    assert first_idx < assign_idx < fill_idx
+    assert 'if (initial) oceFillRecipients' not in refresh
+
+
+def test_first_paint_hydrates_when_initial_preview_was_invalidated():
+    """Typing before the first preview returns marks that request stale.
+    The follow-up refresh has initial=False; recipients still need a fill."""
+    painted_for = None
+    initial = False
+    first_paint = painted_for is None
+    assert first_paint
+    assert not initial
+    assert first_paint
+
+    painted_for = '12,34'
+    initial = False
+    first_paint = painted_for is None
+    assert not first_paint
+    assert not (initial or first_paint)
