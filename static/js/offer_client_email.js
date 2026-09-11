@@ -136,7 +136,7 @@ function openOfferClientEmail(offerId) {
         document.body.appendChild(root);
     }
 
-    ['to', 'cc'].forEach((name) => {
+    ['to', 'cc'].concat(OCE_COPY_FIELDS).forEach((name) => {
         const field = oceEl(name);
         if (field) field.value = '';
     });

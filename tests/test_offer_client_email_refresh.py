@@ -195,6 +195,22 @@ def test_close_composer_cleanup_ignores_a_newer_session():
     assert guard_idx < lock_idx < timer_idx
 
 
+def test_open_composer_clears_copy_and_note():
+    """Reopen used to keep subject/greeting/intro/note/closing. Send
+    always posts note, so the last session's note could go out on a
+    different offer set if preview had not painted yet."""
+    open_fn = OCE_JS[
+        OCE_JS.index('function openOfferClientEmail('):
+        OCE_JS.index('function closeOfferClientEmail(')
+    ]
+    assert 'OCE_COPY_FIELDS' in open_fn
+    assert '.concat(OCE_COPY_FIELDS)' in open_fn
+    assert "['to', 'cc']" in open_fn
+    assert "field.value = ''" in open_fn
+    for name in ('subject', 'greeting', 'intro', 'note', 'closing'):
+        assert name in OCE_JS[OCE_JS.index('const OCE_COPY_FIELDS'):OCE_JS.index('const OCE_FIGURE_LABELS')]
+
+
 def test_recipients_hydrate_on_first_session_paint():
     refresh = OCE_JS[
         OCE_JS.index('function oceRefresh('):
