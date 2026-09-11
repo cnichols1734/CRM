@@ -100,9 +100,10 @@ def test_composer_send_guards_success_error_and_cleanup():
     assert 'sessionGen: 0' in OCE_JS
     assert 'function oceNextSessionGen(' in OCE_JS
     assert 'function oceSessionIsCurrent(' in OCE_JS
+    # then + catch ignore stale responses. finally must not.
     assert OCE_JS.count(
         'oceSessionIsCurrent(gen, offerClientEmail.sessionGen)'
-    ) >= 3
+    ) == 2
     assert OCE_JS.count(
         'offerClientEmail.sessionGen = oceNextSessionGen(offerClientEmail.sessionGen)'
     ) >= 2
@@ -112,15 +113,18 @@ def test_composer_send_guards_success_error_and_cleanup():
     )
     close_idx = send_fn.index('closeOfferClientEmail();')
     assert success_idx < close_idx
+    error_idx = send_fn.index(
+        'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;',
+        success_idx + 1,
+    )
+    assert close_idx < error_idx
     finally_idx = send_fn.index('.finally(() => {')
     reset_idx = send_fn.index('offerClientEmail.sending = false;', finally_idx)
-    finally_guard = send_fn.index(
-        'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;',
-        reset_idx,
-    )
-    assert reset_idx < finally_guard
-    sync_idx = send_fn.index('oceSyncSend();', finally_guard)
-    assert finally_guard < sync_idx
+    sync_idx = send_fn.index('oceSyncSend();', reset_idx)
+    assert reset_idx < sync_idx
+    finally_block = send_fn[finally_idx:sync_idx]
+    assert 'oceSessionIsCurrent' not in finally_block
+    assert 'closeOfferClientEmail' not in finally_block
 
 
 def test_send_lock_survives_composer_reopen_until_post_settles():
@@ -134,12 +138,21 @@ def test_send_lock_survives_composer_reopen_until_post_settles():
     send_fn = OCE_JS[OCE_JS.index('function sendOfferClientEmail('):]
     assert 'if (offerClientEmail.sending) return;' in send_fn
     finally_idx = send_fn.index('.finally(() => {')
+    send_fn.index('offerClientEmail.sending = false;', finally_idx)
+
+
+def test_stale_send_finally_syncs_the_live_session():
+    """Close/reopen while a POST is in flight. finally must unlock Send
+    on the live composer and clear "Sending", not return early."""
+    send_fn = OCE_JS[OCE_JS.index('function sendOfferClientEmail('):]
+    finally_idx = send_fn.index('.finally(() => {')
     reset_idx = send_fn.index('offerClientEmail.sending = false;', finally_idx)
-    guard_idx = send_fn.index(
-        'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;',
-        reset_idx,
-    )
-    assert reset_idx < guard_idx
+    sync_idx = send_fn.index('oceSyncSend();', reset_idx)
+    between = send_fn[reset_idx:sync_idx]
+    assert 'if (!oceSessionIsCurrent' not in between
+    assert 'return;' not in between
+    assert "oceEl('status')" in send_fn[finally_idx:sync_idx]
+    assert "statusEl.textContent = ''" in send_fn[finally_idx:sync_idx]
 
 
 @pytest.mark.skipif(shutil.which('node') is None, reason='node is not installed')

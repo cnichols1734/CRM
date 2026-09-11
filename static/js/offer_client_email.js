@@ -447,8 +447,10 @@ function sendOfferClientEmail() {
         })
         .finally(() => {
             // Release when this POST settles, even if sessionGen moved.
+            // The live composer still needs Send unlocked and "Sending" cleared.
             offerClientEmail.sending = false;
-            if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;
+            const statusEl = oceEl('status');
+            if (statusEl) statusEl.textContent = '';
             oceSyncSend();
         });
 }
