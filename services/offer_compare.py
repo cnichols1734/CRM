@@ -58,6 +58,7 @@ TERMS_DATA_ALIASES = {
     'offer_price': ('offer_price', 'sales_price', 'purchase_price'),
     'earnest_money': ('earnest_money',),
     'option_fee': ('option_fee',),
+    'seller_concessions_amount': ('seller_concessions_amount', 'seller_concessions'),
     'proposed_close_date': ('proposed_close_date', 'closing_date', 'close_date'),
     'financing_type': ('financing_type', 'loan_type'),
     'survey_responsibility': ('survey_furnished_by', 'survey_choice', 'survey_payer'),

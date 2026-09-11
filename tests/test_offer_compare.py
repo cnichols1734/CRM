@@ -283,3 +283,44 @@ def test_reviewed_survey_payer_wins_over_version_furnished_by(app, seed):
         result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
         col = result['offers'][0]
         assert col['terms']['survey_responsibility'] == 'Buyer'
+
+
+def test_compare_reads_unreviewed_seller_concessions(app, seed):
+    """Unreviewed versions park concessions in terms_data as
+    seller_concessions_amount or seller_concessions. The matrix has to
+    show that amount, the same one the net sheet deducts."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        amount = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Amount key',
+            offer_price=Decimal('410000'),
+            terms_data={'seller_concessions_amount': '4000'},
+        )
+        alias = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Alias key',
+            offer_price=Decimal('425000'),
+            terms_data={'seller_concessions': '2000'},
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(
+            tx, offer_ids=[amount.id, alias.id],
+        )
+        by_id = {col['offer_id']: col['terms'] for col in result['offers']}
+        sources = {col['offer_id']: col['sources'] for col in result['offers']}
+        rows = {row['field']: row for row in result['rows']}
+
+        assert by_id[amount.id]['seller_concessions_amount'] == '4000'
+        assert sources[amount.id]['seller_concessions_amount'] == (
+            'version.terms_data.seller_concessions_amount'
+        )
+        assert by_id[alias.id]['seller_concessions_amount'] == '2000'
+        assert sources[alias.id]['seller_concessions_amount'] == (
+            'version.terms_data.seller_concessions'
+        )
+        assert rows['seller_concessions_amount']['differs'] is True
