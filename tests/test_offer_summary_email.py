@@ -534,6 +534,46 @@ def test_unreviewed_version_terms_data_fills_draft_fields():
     assert block.value('residential_service_contract') == '$650'
 
 
+def test_reviewed_terms_summary_wins_over_version_terms_data():
+    """A reviewed or manual terms_summary keeps its values. Version
+    terms_data only fills keys the summary left blank or omitted."""
+    offer = full_offer(
+        title_policy_payer=None,
+        buyer_agent_commission_percent=None,
+        buyer_agent_commission_flat=None,
+        residential_service_contract=None,
+        terms_summary={
+            'title_policy_payer': 'Seller',
+            'buyer_agent_commission_percent': '3',
+        },
+        current_version=FakeVersion({
+            'title_policy_payer': 'Buyer',
+            'buyer_agent_commission_percent': '2.5',
+            'residential_service_contract': '650',
+        }),
+    )
+    draft = build(offer)
+    block = draft.offers[0]
+    assert block.value('title_policy_payer') == 'Seller'
+    assert block.value('buyer_agent_commission') == '3%'
+    assert block.value('residential_service_contract') == '$650'
+
+
+def test_version_terms_data_fills_only_blank_summary_keys():
+    offer = FakeOffer(terms_summary={
+        'title_policy_payer': 'Seller',
+        'buyer_agent_commission_percent': '',
+    })
+    backed = ose._VersionBackedOffer(offer, {
+        'title_policy_payer': 'Buyer',
+        'buyer_agent_commission_percent': '2.5',
+        'residential_service_contract': '650',
+    })
+    assert backed.terms_summary['title_policy_payer'] == 'Seller'
+    assert backed.terms_summary['buyer_agent_commission_percent'] == '2.5'
+    assert backed.terms_summary['residential_service_contract'] == '650'
+
+
 def test_build_draft_reads_current_version_like_compare(app, seed):
     """Same current_version_id lookup Compare uses, through the composer."""
     from models import SellerOffer, SellerOfferVersion, Transaction, db

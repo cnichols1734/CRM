@@ -805,8 +805,8 @@ def _from_name(agent, organization) -> str:
 # ---------------------------------------------------------------------------
 
 class _VersionBackedOffer:
-    """Offer columns win. Current version terms_data fills the same gaps
-    ``terms_summary`` does for the client-email formatters."""
+    """Offer columns win in ``_pick``. Non-empty ``terms_summary`` stays.
+    Current-version ``terms_data`` fills only missing or blank summary keys."""
 
     def __init__(self, offer, terms_data: dict[str, Any]):
         object.__setattr__(self, '_offer', offer)
@@ -816,7 +816,7 @@ class _VersionBackedOffer:
             merged.update(existing)
         if isinstance(terms_data, dict):
             for key, value in terms_data.items():
-                if value not in (None, ''):
+                if value not in (None, '') and _blank(merged.get(key)):
                     merged[key] = value
         object.__setattr__(self, 'terms_summary', merged)
 
@@ -864,8 +864,9 @@ def version_backed_offer(offer):
 def _pick(offer, key: str):
     """Canonical column wins; ``terms_summary`` only fills a gap.
 
-    ``version_backed_offer`` folds current-version ``terms_data`` into
-    ``terms_summary`` first, so an unreviewed offer still has those terms.
+    ``version_backed_offer`` copies current-version ``terms_data`` into
+    those same gaps, so an unreviewed offer still has those terms. A
+    reviewed summary value is left alone.
     """
     column = getattr(offer, key, None)
     if not _blank(column):
