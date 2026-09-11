@@ -116,6 +116,61 @@ def test_compare_page_two_offers_renders(app, seed, owner_a_client):
         # Net sheet totals are computed, not the unused net_to_seller_estimate.
         assert 'Estimated net to seller' in html
         assert '$410,000' in html.split('Estimated net to seller')[0]
+        assert 'Survey provided by' in html
+        assert 'Commission to buyer' in html
+        assert 'Home warranty' in html
+        assert 'Title policy paid by' in html
+        assert 'Listing commission' not in html
+        assert 'Referral fee' not in html
+        assert 'Admin / transaction fee' not in html
+        assert 'Loan payoff' not in html
+        assert 'Title and closing costs' not in html
+        assert 'known costs written in these contracts' in html
+        assert 'does not include title company fees, listing commissions' in html
+        assert 'Email sellers' in html
+        assert 'id="offerClientEmailModal"' in html
+        assert 'openOfferClientEmail([' in html
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
+def test_compare_page_renders_formatted_contract_terms(app, seed, owner_a_client):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx_id = seed['tx_a']
+        user_id = seed['owner_a']
+        _cleanup_offers(org_id, tx_id)
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Alpha Buyer',
+            offer_price=Decimal('410000'),
+            survey_furnished_by='Seller shall furnish existing survey and T-47 affidavit',
+            buyer_agent_commission_percent=Decimal('2.500'),
+            residential_service_contract='650',
+            title_policy_payer='Seller',
+        )
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Bravo Buyer',
+            offer_price=Decimal('425000'),
+            survey_furnished_by='Buyer',
+            buyer_agent_commission_flat=Decimal('3000'),
+            residential_service_contract='900',
+            title_policy_payer='Buyer',
+        )
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}/offers/compare')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'Seller will provide an existing survey' in html
+        assert '2.5%' in html
+        assert '$3,000' in html
+        assert '$650' in html
+        assert '$900' in html
+        assert 'Title policy paid by' in html
     finally:
         with app.app_context():
             _cleanup_offers(seed['org_a'], seed['tx_a'])

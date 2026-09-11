@@ -96,6 +96,7 @@ _TERM_ALIASES = {
     'survey_furnished_by': ('survey_furnished_by', 'survey_choice'),
     'survey_payer': ('survey_payer',),
     'residential_service_contract': ('residential_service_contract',),
+    'title_policy_payer': ('title_policy_payer',),
 }
 
 # TREC 6C offers three boxes. The agent-facing column holds whatever prose the

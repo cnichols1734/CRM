@@ -324,7 +324,10 @@ EXTRACTION_SCHEMAS = {
             'financing_contingency': 'Whether third party financing approval contingency exists. Return true, false, or null.',
             'sale_of_other_property_contingency': 'Whether sale of other property contingency/addendum is present. Return true, false, or null.',
             'inspection_or_repair_terms_summary': 'Short summary of any repair/inspection/as-is terms written in the offer.',
-            'title_policy_payer': 'Who pays owner title policy. Return exactly Buyer, Seller, Split, or null (capitalized).',
+            'title_policy_payer': (
+                'Who pays the Owner Policy of Title Insurance from Paragraph 6.A. '
+                'Return exactly Buyer, Seller, Split, or null (capitalized).'
+            ),
             'survey_payer': 'Who pays for a new survey if needed. Return exactly Buyer, Seller, Split, or null (capitalized).',
             'survey_furnished_by': 'Survey furnished by selection from Paragraph 6C on page 3. Return a concise description such as seller existing survey, buyer new survey, or seller new survey.',
             'hoa_resale_certificate_payer': 'Who pays HOA/resale certificate fees if stated. Return exactly Buyer, Seller, Split, or null (capitalized).',

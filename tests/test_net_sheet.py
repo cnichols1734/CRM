@@ -378,6 +378,46 @@ def test_zero_concession_is_known(app, seed):
         assert 'seller_concessions' not in sheet.unknown_keys
 
 
+def test_compare_omit_drops_listing_side_costs_from_total(app, seed):
+    """Compare net is price minus costs written in the offer, nothing else."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = _tx(seed)
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            offer_price=Decimal('721500'),
+            seller_concessions_amount=Decimal('4000'),
+            option_fee=Decimal('300'),
+            buyer_agent_commission_percent=Decimal('2.5'),
+            residential_service_contract='650',
+        )
+        terms = _commission_terms(
+            org_id, tx.id, user_id,
+            listing_commission_percent=Decimal('3'),
+            coop_compensation_percent=Decimal('3'),
+            bonus_amount=Decimal('1000'),
+        )
+        db.session.commit()
+
+        from services.net_sheet import COMPARE_NET_OMIT
+
+        sheet = build_for_offer(offer, commission_terms=terms, omit_keys=COMPARE_NET_OMIT)
+        keys = [line.key for line in sheet.lines]
+        assert keys == [
+            'sales_price',
+            'buyer_agent_commission',
+            'seller_concessions',
+            'residential_service_contract',
+            'estimated_net',
+        ]
+        # 721500 − 18037.50 (2.5%) − 4000 − 650 = 698812.50
+        assert sheet.estimated_net == Decimal('698812.50')
+        assert 'listing_commission' not in keys
+        assert 'option_fee' not in keys
+
+
 def test_build_for_offers_preserves_input_order(app, seed):
     with app.app_context():
         org_id = seed['org_a']

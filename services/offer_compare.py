@@ -10,8 +10,17 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
 
 from models import SellerOffer, SellerOfferVersion, Transaction
+from services.offer_summary_email import (
+    _commission,
+    _home_warranty,
+    _pick,
+    _survey_responsibility,
+    _text,
+)
 
 # Fields compared across offers (SellerOffer columns + common terms_data keys).
+# Survey, commission, warranty, and title policy use the same formatters as the
+# client offer email so the chart and the outbound summary agree.
 COMPARE_FIELDS = (
     ('offer_price', 'Offer price'),
     ('financing_type', 'Financing'),
@@ -23,6 +32,10 @@ COMPARE_FIELDS = (
     ('option_period_days', 'Option period (days)'),
     ('seller_concessions_amount', 'Seller concessions'),
     ('proposed_close_date', 'Proposed close'),
+    ('survey_responsibility', 'Survey provided by'),
+    ('buyer_agent_commission', "Commission to buyer's agent"),
+    ('residential_service_contract', 'Home warranty'),
+    ('title_policy_payer', 'Title policy paid by'),
     ('possession_type', 'Possession'),
     ('leaseback_days', 'Leaseback (days)'),
     ('appraisal_contingency', 'Appraisal contingency'),
@@ -30,6 +43,13 @@ COMPARE_FIELDS = (
     ('sale_of_other_property_contingency', 'Sale-of-other-property contingency'),
     ('net_to_seller_estimate', 'Est. net to seller'),
 )
+
+_FORMATTED_FIELDS = {
+    'survey_responsibility': _survey_responsibility,
+    'buyer_agent_commission': _commission,
+    'residential_service_contract': _home_warranty,
+    'title_policy_payer': lambda offer: _text(_pick(offer, 'title_policy_payer')),
+}
 
 # Prefer these keys when pulling from version.terms_data.
 TERMS_DATA_ALIASES = {
@@ -154,16 +174,21 @@ class OfferCompareService:
         sources: Dict[str, str] = {}
 
         for field_key, _label in COMPARE_FIELDS:
-            value = getattr(offer, field_key, None)
-            source = 'offer'
-            if value is None:
-                for alias in TERMS_DATA_ALIASES.get(field_key, (field_key,)):
-                    if alias in terms_data and terms_data[alias] not in (None, ''):
-                        value = terms_data[alias]
-                        source = f'version.terms_data.{alias}'
-                        break
+            formatter = _FORMATTED_FIELDS.get(field_key)
+            if formatter:
+                value = formatter(offer)
+                source = 'offer' if value is not None else None
+            else:
+                value = getattr(offer, field_key, None)
+                source = 'offer'
+                if value is None:
+                    for alias in TERMS_DATA_ALIASES.get(field_key, (field_key,)):
+                        if alias in terms_data and terms_data[alias] not in (None, ''):
+                            value = terms_data[alias]
+                            source = f'version.terms_data.{alias}'
+                            break
             terms[field_key] = OfferCompareService._normalize(value)
-            if value is not None:
+            if value is not None and source:
                 sources[field_key] = source
 
         return {

@@ -36,6 +36,19 @@ LINE_SPECS: tuple[tuple[str, str, str], ...] = (
     ('estimated_net', 'Estimated net', 'total'),
 )
 
+# Compare tab only shows costs written in the offer. Listing-side fees,
+# payoff, and title-company charges stay off that sheet so the total
+# matches the disclaimer.
+COMPARE_NET_OMIT = frozenset({
+    'listing_commission',
+    'bonus',
+    'referral_fee',
+    'admin_transaction_fee',
+    'option_fee',
+    'loan_payoff',
+    'title_and_closing_costs',
+})
+
 
 @dataclass
 class NetSheetLine:
@@ -83,6 +96,7 @@ def build_for_offer(
     *,
     commission_terms: SellerCommissionTerms | None = None,
     loan_payoff: Decimal | None = None,
+    omit_keys: Optional[Sequence[str]] = None,
 ) -> NetSheet:
     """Build a read-only net sheet for a seller offer. Never writes."""
     if offer is None:
@@ -104,6 +118,7 @@ def build_for_offer(
         option_fee=getattr(offer, 'option_fee', None),
         commission_terms=terms,
         loan_payoff=loan_payoff,
+        omit_keys=omit_keys,
     )
 
 
@@ -142,6 +157,7 @@ def build_for_offers(
     *,
     commission_terms: SellerCommissionTerms | None = None,
     loan_payoff: Decimal | None = None,
+    omit_keys: Optional[Sequence[str]] = None,
 ) -> list[NetSheet]:
     """Build one net sheet per offer, preserving input order. Never writes."""
     return [
@@ -149,6 +165,7 @@ def build_for_offers(
             offer,
             commission_terms=commission_terms,
             loan_payoff=loan_payoff,
+            omit_keys=omit_keys,
         )
         for offer in offers
     ]
@@ -170,6 +187,7 @@ def _assemble(
     option_fee: Any,
     commission_terms: SellerCommissionTerms | None,
     loan_payoff: Decimal | None,
+    omit_keys: Optional[Sequence[str]] = None,
 ) -> NetSheet:
     lines: list[NetSheetLine] = []
 
@@ -275,6 +293,10 @@ def _assemble(
         basis='Not estimated — varies by title company and county',
         known=False,
     ))
+
+    if omit_keys:
+        omitted = set(omit_keys)
+        lines = [line for line in lines if line.key not in omitted]
 
     # Totals from known lines only
     if sales_price is None:
