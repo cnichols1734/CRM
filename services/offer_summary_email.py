@@ -939,6 +939,11 @@ def _pick(offer, key: str):
     return None
 
 
+def resolved_title_policy_payer(offer) -> Optional[str]:
+    """Column, then terms_summary, then current-version terms_data."""
+    return _text(_pick(version_backed_offer(offer), 'title_policy_payer'))
+
+
 def _offer_label(offer) -> str:
     return (
         _text(getattr(offer, 'buyer_names', None))

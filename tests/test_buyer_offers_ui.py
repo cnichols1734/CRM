@@ -308,3 +308,35 @@ def test_offer_form_js_sends_a_blank_non_realty_field():
     source = Path('static/js/transaction_detail.js').read_text()
     assert "field === 'non_realty_items'" in source
     assert 'if (value !== \'\' || field === \'non_realty_items\') terms[field] = value;' in source
+
+
+def test_offer_form_shows_extracted_title_policy_payer(
+    app, seed, owner_a_client,
+):
+    """Scoped intake leaves the column unset until review. The terms
+    form still has to show the extracted payer from the current version."""
+    with app.app_context():
+        _cleanup_offers(seed['org_a'], seed['tx_a'])
+        offer = _add_offer(
+            seed['org_a'],
+            seed['owner_a'],
+            seed['tx_a'],
+            buyer_names='Title Policy Form Buyer',
+        )
+        offer.title_policy_payer = None
+        offer.terms_summary = {}
+        version = db.session.get(SellerOfferVersion, offer.current_version_id)
+        version.terms_data = {'title_policy_payer': 'Seller'}
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert (
+            'name="terms_data[title_policy_payer]" class="crm-input" '
+            'value="Seller"'
+        ) in html
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])

@@ -359,7 +359,7 @@
                                                                 </label>
                                                                 <label class="block">
                                                                     <span class="mb-1 block text-xs font-medium text-slate-700">Title policy paid by</span>
-                                                                    <input name="terms_data[title_policy_payer]" class="crm-input" value="{{ offer.title_policy_payer or '' }}" placeholder="Seller">
+                                                                    <input name="terms_data[title_policy_payer]" class="crm-input" value="{{ offer.resolved_title_policy_payer() or '' }}" placeholder="Seller">
                                                                 </label>
                                                                 <label class="block">
                                                                     <span class="mb-1 block text-xs font-medium text-slate-700">{% if offer_side == 'seller' %}Buyer agent commission %{% else %}Cooperating commission %{% endif %}</span>

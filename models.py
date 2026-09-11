@@ -1530,6 +1530,11 @@ class SellerOffer(db.Model):
         from services.offer_addenda import non_realty_items
         return non_realty_items(self)
 
+    def resolved_title_policy_payer(self):
+        """Column first, then terms_summary, then current-version terms_data."""
+        from services.offer_summary_email import resolved_title_policy_payer
+        return resolved_title_policy_payer(self)
+
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_offers')
     source_showing = db.relationship('SellerShowing', backref=db.backref('offers', lazy='dynamic'))
     backup_addendum_document = db.relationship('TransactionDocument', foreign_keys=[backup_addendum_document_id])

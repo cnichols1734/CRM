@@ -350,6 +350,38 @@ def test_title_policy_payer_falls_back_to_version_terms_data():
     assert draft.offers[0].value('title_policy_payer') == 'Buyer'
 
 
+def test_resolved_title_policy_payer_prefers_canonical_column():
+    offer = FakeOffer(
+        title_policy_payer='Seller',
+        terms_summary={'title_policy_payer': 'Buyer'},
+        current_version=FakeVersion({'title_policy_payer': 'Split'}),
+    )
+    assert ose.resolved_title_policy_payer(offer) == 'Seller'
+
+
+def test_resolved_title_policy_payer_uses_terms_summary_before_version():
+    offer = FakeOffer(
+        title_policy_payer=None,
+        terms_summary={'title_policy_payer': 'Seller'},
+        current_version=FakeVersion({'title_policy_payer': 'Buyer'}),
+    )
+    assert ose.resolved_title_policy_payer(offer) == 'Seller'
+
+
+def test_resolved_title_policy_payer_falls_back_to_version_terms_data():
+    offer = FakeOffer(
+        title_policy_payer=None,
+        terms_summary={},
+        current_version=FakeVersion({'title_policy_payer': 'Buyer'}),
+    )
+    assert ose.resolved_title_policy_payer(offer) == 'Buyer'
+
+
+def test_resolved_title_policy_payer_is_blank_when_nothing_was_read():
+    offer = FakeOffer(title_policy_payer=None, terms_summary={})
+    assert ose.resolved_title_policy_payer(offer) is None
+
+
 # ---------------------------------------------------------------------------
 # Contingent on the buyer selling another property
 # ---------------------------------------------------------------------------
