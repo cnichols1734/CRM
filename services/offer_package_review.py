@@ -17,7 +17,12 @@ from models import (
 )
 from services.document_classification_confirm import mark_auto_filed_offer_confirmation
 from services.document_review import refresh_document_review_findings
-from services.seller_workflow import apply_offer_terms, create_offer_activity, normalize_offer_terms
+from services.seller_workflow import (
+    apply_offer_terms,
+    create_offer_activity,
+    drop_cleared_offer_terms,
+    normalize_offer_terms,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -471,13 +476,14 @@ def confirm_offer_package(
     draft: bool = False,
 ) -> SellerOffer:
     """Save package terms and mark all linked docs filed to this offer."""
-    terms = _coerce_terms_input(terms_dict or {})
+    incoming = terms_dict or {}
+    terms = _coerce_terms_input(incoming)
 
-    if 'buyer_names' in (terms_dict or {}):
-        offer.buyer_names = (terms_dict or {}).get('buyer_names') or offer.buyer_names
+    if 'buyer_names' in incoming:
+        offer.buyer_names = incoming.get('buyer_names') or offer.buyer_names
     for field in ('buyer_agent_name', 'buyer_agent_brokerage', 'buyer_agent_email', 'buyer_agent_phone'):
-        if field in (terms_dict or {}):
-            setattr(offer, field, (terms_dict or {}).get(field) or None)
+        if field in incoming:
+            setattr(offer, field, incoming.get(field) or None)
 
     version = None
     if offer.current_version_id:
@@ -489,6 +495,7 @@ def confirm_offer_package(
     if version:
         merged = dict(version.terms_data or {})
         merged.update(terms)
+        drop_cleared_offer_terms(merged, incoming)
         version.terms_data = merged
         version.status = 'reviewed'
         version.extraction_reviewed_at = datetime.utcnow()

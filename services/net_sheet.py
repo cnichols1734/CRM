@@ -20,6 +20,12 @@ PERCENT_DIVISOR = Decimal('100')
 
 # Prefer these keys when pulling sales price from version.terms_data.
 PRICE_TERMS_ALIASES = ('offer_price', 'sales_price', 'purchase_price')
+OFFER_TERM_ALIASES = {
+    'buyer_agent_commission_percent': ('buyer_agent_commission_percent',),
+    'buyer_agent_commission_flat': ('buyer_agent_commission_flat',),
+    'seller_concessions_amount': ('seller_concessions_amount', 'seller_concessions'),
+    'residential_service_contract': ('residential_service_contract',),
+}
 
 LINE_SPECS: tuple[tuple[str, str, str], ...] = (
     ('sales_price', 'Sales price', 'credit'),
@@ -35,6 +41,19 @@ LINE_SPECS: tuple[tuple[str, str, str], ...] = (
     ('title_and_closing_costs', 'Title and closing costs', 'cost'),
     ('estimated_net', 'Estimated net', 'total'),
 )
+
+# Compare tab only shows costs written in the offer. Listing-side fees,
+# payoff, and title-company charges stay off that sheet so the total
+# matches the disclaimer.
+COMPARE_NET_OMIT = frozenset({
+    'listing_commission',
+    'bonus',
+    'referral_fee',
+    'admin_transaction_fee',
+    'option_fee',
+    'loan_payoff',
+    'title_and_closing_costs',
+})
 
 
 @dataclass
@@ -83,6 +102,8 @@ def build_for_offer(
     *,
     commission_terms: SellerCommissionTerms | None = None,
     loan_payoff: Decimal | None = None,
+    omit_keys: Optional[Sequence[str]] = None,
+    listing_coop: bool = True,
 ) -> NetSheet:
     """Build a read-only net sheet for a seller offer. Never writes."""
     if offer is None:
@@ -94,16 +115,27 @@ def build_for_offer(
         commission_terms,
     )
     sales_price = _sales_price_for_offer(offer)
+    version_terms = _terms_data_for_offer(offer)
     return _assemble(
         offer_id=offer.id,
         sales_price=sales_price,
-        buyer_agent_percent=getattr(offer, 'buyer_agent_commission_percent', None),
-        buyer_agent_flat=getattr(offer, 'buyer_agent_commission_flat', None),
-        seller_concessions=getattr(offer, 'seller_concessions_amount', None),
-        residential_service_contract=getattr(offer, 'residential_service_contract', None),
+        buyer_agent_percent=_offer_or_version_term(
+            offer, version_terms, 'buyer_agent_commission_percent',
+        ),
+        buyer_agent_flat=_offer_or_version_term(
+            offer, version_terms, 'buyer_agent_commission_flat',
+        ),
+        seller_concessions=_offer_or_version_term(
+            offer, version_terms, 'seller_concessions_amount',
+        ),
+        residential_service_contract=_offer_or_version_term(
+            offer, version_terms, 'residential_service_contract',
+        ),
         option_fee=getattr(offer, 'option_fee', None),
         commission_terms=terms,
         loan_payoff=loan_payoff,
+        omit_keys=omit_keys,
+        listing_coop=listing_coop,
     )
 
 
@@ -142,6 +174,8 @@ def build_for_offers(
     *,
     commission_terms: SellerCommissionTerms | None = None,
     loan_payoff: Decimal | None = None,
+    omit_keys: Optional[Sequence[str]] = None,
+    listing_coop: bool = True,
 ) -> list[NetSheet]:
     """Build one net sheet per offer, preserving input order. Never writes."""
     return [
@@ -149,6 +183,8 @@ def build_for_offers(
             offer,
             commission_terms=commission_terms,
             loan_payoff=loan_payoff,
+            omit_keys=omit_keys,
+            listing_coop=listing_coop,
         )
         for offer in offers
     ]
@@ -170,6 +206,8 @@ def _assemble(
     option_fee: Any,
     commission_terms: SellerCommissionTerms | None,
     loan_payoff: Decimal | None,
+    omit_keys: Optional[Sequence[str]] = None,
+    listing_coop: bool = True,
 ) -> NetSheet:
     lines: list[NetSheetLine] = []
 
@@ -201,6 +239,7 @@ def _assemble(
         buyer_agent_percent=buyer_agent_percent,
         buyer_agent_flat=buyer_agent_flat,
         commission_terms=commission_terms,
+        listing_coop=listing_coop,
     ))
 
     # 4. seller_concessions
@@ -275,6 +314,10 @@ def _assemble(
         basis='Not estimated — varies by title company and county',
         known=False,
     ))
+
+    if omit_keys:
+        omitted = set(omit_keys)
+        lines = [line for line in lines if line.key not in omitted]
 
     # Totals from known lines only
     if sales_price is None:
@@ -367,10 +410,22 @@ def _buyer_agent_commission_line(
     buyer_agent_percent: Any,
     buyer_agent_flat: Any,
     commission_terms: SellerCommissionTerms | None,
+    listing_coop: bool = True,
 ) -> NetSheetLine:
     key = 'buyer_agent_commission'
 
     offer_pct = _as_decimal(buyer_agent_percent)
+    offer_flat = _as_decimal(buyer_agent_flat)
+    if offer_pct is not None and offer_flat is not None:
+        if sales_price is None:
+            return _line(key, None, 'cost', basis='Sales price required', known=False)
+        amount = _percent_of(sales_price, offer_pct) + _money(offer_flat)
+        basis = (
+            f'{_format_percent(offer_pct)} + {_format_money(offer_flat)} '
+            f'(offer buyer-agent commission)'
+        )
+        return _line(key, amount, 'cost', basis=basis, known=True)
+
     if offer_pct is not None:
         if sales_price is None:
             return _line(key, None, 'cost', basis='Sales price required', known=False)
@@ -381,13 +436,15 @@ def _buyer_agent_commission_line(
         )
         return _line(key, amount, 'cost', basis=basis, known=True)
 
-    offer_flat = _as_decimal(buyer_agent_flat)
     if offer_flat is not None:
         return _line(
             key, _money(offer_flat), 'cost',
             basis='Flat fee (offer buyer-agent commission)',
             known=True,
         )
+
+    if not listing_coop:
+        return _line(key, None, 'cost', basis='Not provided', known=False)
 
     if commission_terms is None:
         return _line(
@@ -476,6 +533,46 @@ def _resolve_commission_terms(
     )
 
 
+def _terms_data_for_offer(offer: SellerOffer) -> dict:
+    version = _current_version(offer)
+    return (version.terms_data if version and version.terms_data else {}) or {}
+
+
+def _filled(value: Any) -> bool:
+    """Same occupancy rule as ``_pick``: None, '', and whitespace are empty."""
+    if value is None or value == '':
+        return False
+    if isinstance(value, str) and not value.strip():
+        return False
+    return True
+
+
+def _alias_value(source: Any, aliases: tuple[str, ...]) -> Any:
+    """First nonblank alias in *source*, or None."""
+    if not isinstance(source, dict):
+        return None
+    for key in aliases:
+        if key in source and _filled(source[key]):
+            return source[key]
+    return None
+
+
+def _offer_or_version_term(offer: SellerOffer, terms_data: dict, attr: str) -> Any:
+    """Column first, then terms_summary aliases, then version terms_data.
+
+    Same order as ``_pick`` / ``_VersionBackedOffer`` so Compare's matrix
+    and Estimated net cannot disagree on a reviewed summary value.
+    """
+    value = getattr(offer, attr, None)
+    if _filled(value):
+        return value
+    aliases = OFFER_TERM_ALIASES.get(attr, (attr,))
+    summary_value = _alias_value(getattr(offer, 'terms_summary', None), aliases)
+    if summary_value is not None:
+        return summary_value
+    return _alias_value(terms_data, aliases)
+
+
 def _current_version(offer: SellerOffer) -> Optional[SellerOfferVersion]:
     if offer.current_version_id:
         version = SellerOfferVersion.query.filter_by(
@@ -498,13 +595,17 @@ def _sales_price_for_offer(offer: SellerOffer) -> Decimal | None:
     if price is not None:
         return _money(price)
 
+    summary_price = _as_decimal(
+        _alias_value(getattr(offer, 'terms_summary', None), PRICE_TERMS_ALIASES)
+    )
+    if summary_price is not None:
+        return _money(summary_price)
+
     version = _current_version(offer)
     terms_data = (version.terms_data if version and version.terms_data else {}) or {}
-    for alias in PRICE_TERMS_ALIASES:
-        if alias in terms_data and terms_data[alias] not in (None, ''):
-            price = _as_decimal(terms_data[alias])
-            if price is not None:
-                return _money(price)
+    version_price = _as_decimal(_alias_value(terms_data, PRICE_TERMS_ALIASES))
+    if version_price is not None:
+        return _money(version_price)
     return None
 
 

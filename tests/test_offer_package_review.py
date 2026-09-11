@@ -267,3 +267,68 @@ def test_offer_package_review_route_and_confirm(app, owner_a_client, seed):
     data = confirm.get_json()
     assert data['success'] is True
     assert data['offer_id'] == offer_id
+
+
+def test_confirm_offer_package_clears_title_policy_payer(app, seed):
+    """Blank title_policy_payer on package-review save is a clear.
+    Coerce used to drop the blank before merge, so the old version
+    value survived into Compare and the client email."""
+    with app.app_context():
+        tx = _seller_tx(seed)
+        offer, _, _ = _make_offer_with_docs(seed, tx)
+        version = db.session.get(SellerOfferVersion, offer.current_version_id)
+        version.terms_data = {
+            'offer_price': '440000',
+            'title_policy_payer': 'Seller',
+        }
+        offer.title_policy_payer = 'Seller'
+        offer.terms_summary = {'title_policy_payer': 'Seller'}
+        db.session.flush()
+
+        confirm_offer_package(
+            offer=offer,
+            actor_id=seed['owner_a'],
+            terms_dict={
+                'offer_price': '440000',
+                'title_policy_payer': '',
+            },
+            draft=False,
+        )
+        db.session.flush()
+        db.session.refresh(offer)
+        db.session.refresh(version)
+
+        assert offer.title_policy_payer is None
+        assert 'title_policy_payer' not in (offer.terms_summary or {})
+        assert 'title_policy_payer' not in (version.terms_data or {})
+        from services.offer_summary_email import resolved_title_policy_payer
+        assert resolved_title_policy_payer(offer) is None
+        db.session.rollback()
+
+
+def test_confirm_offer_package_keeps_title_policy_when_omitted(app, seed):
+    """A payload that never mentions title_policy_payer is not a clear."""
+    with app.app_context():
+        tx = _seller_tx(seed)
+        offer, _, _ = _make_offer_with_docs(seed, tx)
+        version = db.session.get(SellerOfferVersion, offer.current_version_id)
+        version.terms_data = {
+            'offer_price': '440000',
+            'title_policy_payer': 'Seller',
+        }
+        offer.title_policy_payer = 'Seller'
+        db.session.flush()
+
+        confirm_offer_package(
+            offer=offer,
+            actor_id=seed['owner_a'],
+            terms_dict={'offer_price': '441000'},
+            draft=True,
+        )
+        db.session.flush()
+        db.session.refresh(offer)
+        db.session.refresh(version)
+
+        assert offer.title_policy_payer == 'Seller'
+        assert version.terms_data['title_policy_payer'] == 'Seller'
+        db.session.rollback()

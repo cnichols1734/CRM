@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 
 from models import (
+    SellerCommissionTerms,
     SellerListingProfile,
     SellerOffer,
     SellerOfferActivity,
@@ -27,6 +29,7 @@ def _offer(org_id, tx_id, user_id, **kwargs):
         financing_type=kwargs.pop('financing_type', 'conventional'),
         proposed_close_date=kwargs.pop('proposed_close_date', date(2026, 9, 15)),
     )
+    terms_data = kwargs.pop('terms_data', {})
     defaults.update(kwargs)
     offer = SellerOffer(**defaults)
     db.session.add(offer)
@@ -39,7 +42,7 @@ def _offer(org_id, tx_id, user_id, **kwargs):
         version_number=1,
         direction='buyer_offer',
         status='submitted',
-        terms_data={},
+        terms_data=terms_data,
     )
     db.session.add(version)
     db.session.flush()
@@ -116,6 +119,187 @@ def test_compare_page_two_offers_renders(app, seed, owner_a_client):
         # Net sheet totals are computed, not the unused net_to_seller_estimate.
         assert 'Estimated net to seller' in html
         assert '$410,000' in html.split('Estimated net to seller')[0]
+        assert 'Survey provided by' in html
+        assert 'Commission to buyer' in html
+        assert 'Home warranty' in html
+        assert 'Title policy paid by' in html
+        assert 'Listing commission' not in html
+        assert 'Referral fee' not in html
+        assert 'Admin / transaction fee' not in html
+        assert 'Loan payoff' not in html
+        assert 'Title and closing costs' not in html
+        assert 'known costs written in these contracts' in html
+        assert 'does not include title company fees, listing commissions' in html
+        assert 'Email sellers' in html
+        assert 'id="offerClientEmailModal"' in html
+        assert 'openOfferClientEmail([' in html
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
+def test_compare_page_renders_formatted_contract_terms(app, seed, owner_a_client):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx_id = seed['tx_a']
+        user_id = seed['owner_a']
+        _cleanup_offers(org_id, tx_id)
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Alpha Buyer',
+            offer_price=Decimal('410000'),
+            survey_furnished_by='Seller shall furnish existing survey and T-47 affidavit',
+            buyer_agent_commission_percent=Decimal('2.500'),
+            residential_service_contract='650',
+            title_policy_payer='Seller',
+        )
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Bravo Buyer',
+            offer_price=Decimal('425000'),
+            survey_furnished_by='Buyer',
+            buyer_agent_commission_flat=Decimal('3000'),
+            residential_service_contract='900',
+            title_policy_payer='Buyer',
+        )
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}/offers/compare')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'Seller will provide an existing survey' in html
+        assert '2.5%' in html
+        assert '$3,000' in html
+        assert '$650' in html
+        assert '$900' in html
+        assert 'Title policy paid by' in html
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
+def test_compare_page_skips_listing_coop_fallback(app, seed, owner_a_client):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx_id = seed['tx_a']
+        user_id = seed['owner_a']
+        _cleanup_offers(org_id, tx_id)
+        SellerCommissionTerms.query.filter_by(
+            organization_id=org_id, transaction_id=tx_id,
+        ).delete()
+        db.session.add(SellerCommissionTerms(
+            organization_id=org_id,
+            transaction_id=tx_id,
+            created_by_id=user_id,
+            coop_compensation_percent=Decimal('3'),
+        ))
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='No Commission Alpha',
+            offer_price=Decimal('400000'),
+        )
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='No Commission Bravo',
+            offer_price=Decimal('410000'),
+        )
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}/offers/compare')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        # 3% listing coop on $400,000 would print $388,000 if the fallback ran.
+        assert '$388,000' not in html
+        assert '$397,700' not in html
+        assert '$400,000' in html
+        assert '$410,000' in html
+    finally:
+        with app.app_context():
+            SellerCommissionTerms.query.filter_by(
+                organization_id=seed['org_a'], transaction_id=seed['tx_a'],
+            ).delete()
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
+def test_compare_page_renders_unreviewed_version_terms(app, seed, owner_a_client):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx_id = seed['tx_a']
+        user_id = seed['owner_a']
+        _cleanup_offers(org_id, tx_id)
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Intake Alpha',
+            offer_price=Decimal('410000'),
+            terms_data={
+                'survey_furnished_by': (
+                    'Seller shall furnish existing survey and T-47 affidavit'
+                ),
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+                'title_policy_payer': 'Seller',
+            },
+        )
+        _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Intake Bravo',
+            offer_price=Decimal('425000'),
+            terms_data={
+                'survey_choice': 'Buyer',
+                'buyer_agent_commission_flat': '3000',
+                'residential_service_contract': '900',
+                'title_policy_payer': 'Buyer',
+            },
+        )
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}/offers/compare')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'Seller will provide an existing survey' in html
+        assert '2.5%' in html
+        assert '$3,000' in html
+        assert '$650' in html
+        assert '$900' in html
+        assert 'Title policy paid by' in html
+        # 410000 − 2.5% − 650 = 399100
+        assert '$399,100' in html
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
+def test_compare_email_sellers_skips_accepted_offers(app, seed, owner_a_client):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx_id = seed['tx_a']
+        user_id = seed['owner_a']
+        _cleanup_offers(org_id, tx_id)
+        live = _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Live Buyer',
+            status='new',
+        )
+        accepted = _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Accepted Buyer',
+            status='accepted_primary',
+        )
+        db.session.commit()
+        live_id, accepted_id = live.id, accepted.id
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}/offers/compare')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'Email sellers' in html
+        assert f'openOfferClientEmail([{live_id}])' in html
+        assert f'openOfferClientEmail([{accepted_id}' not in html
+        calls = re.findall(r'openOfferClientEmail\(\[([^\]]*)\]\)', html)
+        assert calls == [str(live_id)]
     finally:
         with app.app_context():
             _cleanup_offers(seed['org_a'], seed['tx_a'])

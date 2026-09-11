@@ -17,11 +17,14 @@ from models import (
 )
 from services.offer_summary_email import (
     OfferEmailError,
+    _money,
+    _pick,
     build_draft,
     render_html,
     resolve_sender,
     selectable_offers,
     send_draft,
+    version_backed_offer,
 )
 from services.controlling_contracts import (
     ControllingContractConflict,
@@ -41,6 +44,7 @@ from services.offer_side import (
 from services.seller_workflow import (
     apply_offer_terms,
     create_offer_activity,
+    drop_cleared_offer_terms,
     expire_offer_if_needed,
     get_offer_document_type,
     infer_offer_document_type,
@@ -563,23 +567,70 @@ def _client_email_transaction(id, capability):
     return transaction, None
 
 
+def _coerce_offer_id(raw):
+    """Accept int IDs and digit strings. Skip bools and non-integral floats."""
+    if isinstance(raw, bool):
+        # bool is a subclass of int. int(True) == 1, int(False) == 0.
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        if not raw.is_integer():
+            return None
+        return int(raw)
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text.isdigit():
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            # str.isdigit() is true for Unicode digits such as ².
+            # int() is not. Treat those as unparseable, not a 500.
+            return None
+    return None
+
+
+def _parse_requested_offer_ids(requested_ids):
+    """Parse offer_ids. None means omitted or JSON null (email all)."""
+    if requested_ids is None:
+        return None
+    if not isinstance(requested_ids, list):
+        # Present string/number/object/bool. Same as a list with no valid IDs.
+        return []
+    wanted = []
+    for raw in requested_ids:
+        offer_id = _coerce_offer_id(raw)
+        if offer_id is not None:
+            wanted.append(offer_id)
+    return wanted
+
+
+def _none_selected_offer_ids(requested_ids, *, empty_list_ok=False):
+    """True when a present value has no valid IDs and must not expand to all."""
+    wanted = _parse_requested_offer_ids(requested_ids)
+    if wanted != []:
+        return False
+    if empty_list_ok and requested_ids == []:
+        return False
+    return True
+
+
 def _client_email_selection(transaction, requested_ids):
     """Offers the email may cover, plus everything the agent could have picked."""
     available = selectable_offers(
         transaction.seller_offers.order_by(SellerOffer.received_at.desc()).all()
     )
-    wanted = []
-    for raw in requested_ids or []:
-        try:
-            wanted.append(int(raw))
-        except (TypeError, ValueError):
-            continue
+    wanted = _parse_requested_offer_ids(requested_ids)
     if wanted:
         chosen = [offer for offer in available if offer.id in wanted]
-    else:
-        # Header "Email all" sends an empty list. That means every live offer,
-        # not whichever one happened to sort first.
+    elif wanted is None or requested_ids == []:
+        # Header Email all omits IDs. Preview still treats [] as all because
+        # the composer posts that on first open. Send rejects [] itself.
         chosen = list(available)
+    else:
+        # Present value, nothing parseable. Do not expand to all.
+        chosen = []
     return chosen, available
 
 
@@ -595,16 +646,18 @@ def _client_email_draft(transaction, offers, overrides):
 
 
 def _client_email_candidates(available, chosen_ids):
-    return [
-        {
+    rows = []
+    for offer in available:
+        backed = version_backed_offer(offer)
+        price = _money(_pick(backed, 'offer_price'))
+        rows.append({
             'offer_id': offer.id,
             'label': offer.buyer_names or offer.buyer_agent_name or f'Offer {offer.id}',
-            'price': f'${offer.offer_price:,.0f}' if offer.offer_price is not None else 'Price TBD',
+            'price': price or 'Price TBD',
             'status': offer.status,
             'selected': offer.id in chosen_ids,
-        }
-        for offer in available
-    ]
+        })
+    return rows
 
 
 def _email_list(value):
@@ -630,7 +683,13 @@ def preview_offer_client_email(id):
         return error
 
     data = request.get_json(silent=True) or {}
-    chosen, available = _client_email_selection(transaction, data.get('offer_ids'))
+    requested_ids = data.get('offer_ids')
+    if _none_selected_offer_ids(requested_ids, empty_list_ok=True):
+        return jsonify({
+            'success': False,
+            'error': 'Select at least one offer to email.',
+        }), 400
+    chosen, available = _client_email_selection(transaction, requested_ids)
     if not chosen:
         return jsonify({
             'success': False,
@@ -661,7 +720,15 @@ def send_offer_client_email(id):
         return error
 
     data = request.get_json(silent=True) or {}
-    chosen, _available = _client_email_selection(transaction, data.get('offer_ids'))
+    requested_ids = data.get('offer_ids')
+    if _none_selected_offer_ids(requested_ids):
+        # The picker posts offer_ids. [] or unparseable entries are
+        # "none selected", not Email all.
+        return jsonify({
+            'success': False,
+            'error': 'Select at least one offer to email.',
+        }), 400
+    chosen, _available = _client_email_selection(transaction, requested_ids)
     if not chosen:
         return jsonify({
             'success': False,
@@ -802,10 +869,12 @@ def update_seller_offer(id, offer_id):
         if version:
             merged_terms = dict(version.terms_data or {})
             merged_terms.update(terms)
+            drop_cleared_offer_terms(merged_terms, terms)
             version.terms_data = merged_terms
             version.status = 'reviewed'
         else:
-            merged_terms = terms
+            merged_terms = dict(terms)
+            drop_cleared_offer_terms(merged_terms, terms)
             version = SellerOfferVersion(
                 organization_id=current_user.organization_id,
                 transaction_id=transaction.id,

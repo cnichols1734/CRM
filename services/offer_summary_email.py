@@ -4,6 +4,7 @@ One button on an offer produces a finished email: the price and the handful of
 terms a seller or buyer actually asks about, written as sentences instead of
 contract fields. Figures are read off the saved offer row when the draft is
 built, so a summary written after a terms edit carries the new numbers.
+Current-version ``terms_data`` fills the same gaps Compare uses.
 
 Two shapes. A single offer reads as a short note with the price up top. Several
 offers read as the compare matrix from the offers screen, trimmed to the rows a
@@ -44,6 +45,7 @@ CLIENT_TERMS: tuple[tuple[str, str], ...] = (
     ('buyer_agent_commission', "Commission to buyer's agent"),
     ('survey_responsibility', 'Who pays for the survey'),
     ('residential_service_contract', 'Home warranty'),
+    ('title_policy_payer', 'Title policy paid by'),
     ('sale_of_other_property', 'Contingent on buyer selling another property'),
 )
 
@@ -83,6 +85,8 @@ _CLIENT_ROLES = {
     'buyer': ('buyer', 'co_buyer'),
 }
 
+_SURVEY_ALIASES = ('survey_furnished_by', 'survey_choice', 'survey_payer')
+
 _TERM_ALIASES = {
     'offer_price': ('offer_price', 'sales_price', 'purchase_price'),
     'financing_type': ('financing_type', 'loan_type'),
@@ -93,9 +97,10 @@ _TERM_ALIASES = {
     'proposed_close_date': ('proposed_close_date', 'closing_date', 'close_date'),
     'buyer_agent_commission_percent': ('buyer_agent_commission_percent',),
     'buyer_agent_commission_flat': ('buyer_agent_commission_flat',),
-    'survey_furnished_by': ('survey_furnished_by', 'survey_choice'),
-    'survey_payer': ('survey_payer',),
+    'survey_furnished_by': _SURVEY_ALIASES,
+    'survey_payer': _SURVEY_ALIASES,
     'residential_service_contract': ('residential_service_contract',),
+    'title_policy_payer': ('title_policy_payer',),
 }
 
 # TREC 6C offers three boxes. The agent-facing column holds whatever prose the
@@ -234,7 +239,9 @@ def build_draft(
     """Assemble the email for one or more offers on ``transaction``."""
     overrides = overrides or {}
     resolved_side = side or side_for_transaction(transaction) or 'seller'
-    ordered = _ordered_offers(offers)
+    ordered = _ordered_offers(
+        version_backed_offer(offer) for offer in offers
+    )
     if not ordered:
         raise ValueError('Pick at least one offer to summarize.')
 
@@ -332,6 +339,7 @@ def _offer_block(offer, *, overrides: dict) -> OfferBlock:
         'buyer_agent_commission': _commission(offer),
         'survey_responsibility': _survey_responsibility(offer),
         'residential_service_contract': _home_warranty(offer),
+        'title_policy_payer': _text(_pick(offer, 'title_policy_payer')),
         'sale_of_other_property': _sale_of_other_property(offer),
         'non_realty_items': offer_addenda.non_realty_items(offer),
     }
@@ -798,8 +806,127 @@ def _from_name(agent, organization) -> str:
 # Reading offers and people
 # ---------------------------------------------------------------------------
 
+def _alias_family(key: str) -> tuple[str, ...]:
+    """Aliases ``_pick`` walks for *key*, or the key alone."""
+    for aliases in _TERM_ALIASES.values():
+        if key in aliases:
+            return aliases
+    return (key,)
+
+
+def _family_has_value(merged: dict[str, Any], key: str, offer=None) -> bool:
+    """True when the alias family already has a value in ``merged`` or on
+    a canonical offer column. A reviewed ``survey_payer`` column occupies
+    the same family as ``survey_furnished_by``."""
+    aliases = _alias_family(key)
+    if any(not _blank(merged.get(alias)) for alias in aliases):
+        return True
+    if offer is None:
+        return False
+    return any(not _blank(getattr(offer, alias, None)) for alias in aliases)
+
+
+def _merge_version_terms(
+    merged: dict[str, Any],
+    terms_data: dict[str, Any],
+    offer,
+) -> None:
+    """Fill gaps from version ``terms_data``.
+
+    Each ``_TERM_ALIASES`` family gets at most one nonblank version value,
+    in the same alias order ``_pick`` walks. Occupied families stay closed.
+    Keys outside those families still copy in dict order when the exact
+    key is empty.
+    """
+    seen_families: set[tuple[str, ...]] = set()
+    aliased: set[str] = set()
+    for aliases in _TERM_ALIASES.values():
+        aliased.update(aliases)
+        if aliases in seen_families:
+            continue
+        seen_families.add(aliases)
+        if _family_has_value(merged, aliases[0], offer):
+            continue
+        for alias in aliases:
+            if alias not in terms_data:
+                continue
+            value = terms_data[alias]
+            if not _blank(value):
+                merged[alias] = value
+                break
+    for key, value in terms_data.items():
+        if key in aliased:
+            continue
+        if value not in (None, '') and not _family_has_value(merged, key, offer):
+            merged[key] = value
+
+
+class _VersionBackedOffer:
+    """Offer columns win in ``_pick``. Non-empty ``terms_summary`` stays.
+    Current-version ``terms_data`` fills only missing or blank summary keys.
+    Alias groups used by ``_pick`` are one family: a reviewed ``sales_price``
+    or a canonical ``survey_payer`` column blocks a version alias from
+    joining the merge. When the family is empty, the version contributes
+    one value in ``_TERM_ALIASES`` order, not dict insertion order."""
+
+    def __init__(self, offer, terms_data: dict[str, Any]):
+        object.__setattr__(self, '_offer', offer)
+        merged: dict[str, Any] = {}
+        existing = getattr(offer, 'terms_summary', None)
+        if isinstance(existing, dict):
+            merged.update(existing)
+        if isinstance(terms_data, dict):
+            _merge_version_terms(merged, terms_data, offer)
+        object.__setattr__(self, 'terms_summary', merged)
+
+    def __getattr__(self, name):
+        return getattr(self._offer, name)
+
+
+def _current_offer_version(offer):
+    """Same current-version rule as Compare: current_version_id, else latest."""
+    offer_id = getattr(offer, 'id', None)
+    org_id = getattr(offer, 'organization_id', None)
+    if offer_id is None or org_id is None:
+        return getattr(offer, 'current_version', None)
+
+    from models import SellerOfferVersion
+
+    current_version_id = getattr(offer, 'current_version_id', None)
+    if current_version_id:
+        version = SellerOfferVersion.query.filter_by(
+            id=current_version_id,
+            offer_id=offer_id,
+            organization_id=org_id,
+        ).first()
+        if version:
+            return version
+    return (
+        SellerOfferVersion.query
+        .filter_by(offer_id=offer_id, organization_id=org_id)
+        .order_by(SellerOfferVersion.version_number.desc())
+        .first()
+    )
+
+
+def version_backed_offer(offer):
+    """Wrap ``offer`` so ``_pick`` can see current-version terms_data."""
+    if offer is None or isinstance(offer, _VersionBackedOffer):
+        return offer
+    version = _current_offer_version(offer)
+    terms_data = (version.terms_data if version and version.terms_data else {}) or {}
+    if not terms_data:
+        return offer
+    return _VersionBackedOffer(offer, terms_data)
+
+
 def _pick(offer, key: str):
-    """Canonical column wins; ``terms_summary`` only fills a gap."""
+    """Canonical column wins; ``terms_summary`` only fills a gap.
+
+    ``version_backed_offer`` copies current-version ``terms_data`` into
+    those same gaps, so an unreviewed offer still has those terms. A
+    reviewed summary value is left alone.
+    """
     column = getattr(offer, key, None)
     if not _blank(column):
         return column
@@ -810,6 +937,11 @@ def _pick(offer, key: str):
         if not _blank(summary.get(alias)):
             return summary.get(alias)
     return None
+
+
+def resolved_title_policy_payer(offer) -> Optional[str]:
+    """Column, then terms_summary, then current-version terms_data."""
+    return _text(_pick(version_backed_offer(offer), 'title_policy_payer'))
 
 
 def _offer_label(offer) -> str:

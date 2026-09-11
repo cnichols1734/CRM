@@ -56,6 +56,7 @@ from services.seller_workflow import (
     ACTIVE_OFFER_STATUSES,
     apply_offer_terms,
     create_offer_activity,
+    drop_cleared_offer_terms,
 )
 from services.transaction_auth import CAP_EDIT, CAP_VIEW
 
@@ -684,7 +685,9 @@ def _merged_offer_terms(offer, data):
         merged.update(version.terms_data or {})
     if isinstance(offer.terms_summary, dict):
         merged.update(offer.terms_summary)
-    merged.update(_incoming_offer_terms(data))
+    incoming = _incoming_offer_terms(data)
+    merged.update(incoming)
+    drop_cleared_offer_terms(merged, incoming)
     return merged, version
 
 

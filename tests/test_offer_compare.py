@@ -17,6 +17,7 @@ def _offer(org_id, tx_id, user_id, **kwargs):
         earnest_money=kwargs.pop('earnest_money', Decimal('5000')),
         financing_type=kwargs.pop('financing_type', 'conventional'),
     )
+    terms_data = kwargs.pop('terms_data', {})
     defaults.update(kwargs)
     offer = SellerOffer(**defaults)
     db.session.add(offer)
@@ -29,7 +30,7 @@ def _offer(org_id, tx_id, user_id, **kwargs):
         version_number=1,
         direction='buyer_offer',
         status='submitted',
-        terms_data={},
+        terms_data=terms_data,
     )
     db.session.add(version)
     db.session.flush()
@@ -80,3 +81,325 @@ def test_compare_offers_filters_by_ids(app, seed):
         result = OfferCompareService.compare_offers(tx, offer_ids=[a.id])
         assert result['offer_count'] == 1
         assert result['offers'][0]['buyer_names'] == 'Only A'
+
+
+def test_compare_offers_surfaces_contract_terms(app, seed):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        alpha = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Survey Alpha',
+            offer_price=Decimal('410000'),
+            survey_furnished_by='Seller shall furnish existing survey and T-47 affidavit',
+            buyer_agent_commission_percent=Decimal('2.500'),
+            residential_service_contract='650',
+            title_policy_payer='Seller',
+        )
+        bravo = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Survey Bravo',
+            offer_price=Decimal('425000'),
+            survey_furnished_by='Buyer',
+            buyer_agent_commission_flat=Decimal('3000'),
+            residential_service_contract='900',
+            title_policy_payer='Buyer',
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(
+            tx, offer_ids=[alpha.id, bravo.id],
+        )
+        rows = {row['field']: row for row in result['rows']}
+        by_id = {col['offer_id']: col['terms'] for col in result['offers']}
+
+        assert rows['survey_responsibility']['label'] == 'Survey provided by'
+        assert rows['survey_responsibility']['differs'] is True
+        assert by_id[alpha.id]['survey_responsibility'] == (
+            'Seller will provide an existing survey'
+        )
+        assert by_id[bravo.id]['survey_responsibility'] == 'Buyer'
+
+        assert rows['buyer_agent_commission']['label'] == "Commission to buyer's agent"
+        assert by_id[alpha.id]['buyer_agent_commission'] == '2.5%'
+        assert by_id[bravo.id]['buyer_agent_commission'] == '$3,000'
+
+        assert rows['residential_service_contract']['label'] == 'Home warranty'
+        assert by_id[alpha.id]['residential_service_contract'] == '$650'
+        assert by_id[bravo.id]['residential_service_contract'] == '$900'
+
+        assert rows['title_policy_payer']['label'] == 'Title policy paid by'
+        assert by_id[alpha.id]['title_policy_payer'] == 'Seller'
+        assert by_id[bravo.id]['title_policy_payer'] == 'Buyer'
+
+        sources = {col['offer_id']: col['sources'] for col in result['offers']}
+        assert sources[alpha.id]['survey_responsibility'] == 'offer'
+        assert sources[alpha.id]['buyer_agent_commission'] == 'offer'
+        assert sources[alpha.id]['residential_service_contract'] == 'offer'
+        assert sources[alpha.id]['title_policy_payer'] == 'offer'
+
+
+def test_compare_formatters_read_version_terms_data(app, seed):
+    """Unreviewed offers keep survey, commission, warranty, and title on
+    the version. The matrix still has to format those the same way."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        alpha = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Version Alpha',
+            offer_price=Decimal('410000'),
+            terms_data={
+                'survey_furnished_by': (
+                    'Seller shall furnish existing survey and T-47 affidavit'
+                ),
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+                'title_policy_payer': 'Seller',
+            },
+        )
+        bravo = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Version Bravo',
+            offer_price=Decimal('425000'),
+            terms_data={
+                'survey_choice': 'Buyer',
+                'buyer_agent_commission_flat': '3000',
+                'residential_service_contract': '900',
+                'title_policy_payer': 'Buyer',
+            },
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(
+            tx, offer_ids=[alpha.id, bravo.id],
+        )
+        by_id = {col['offer_id']: col['terms'] for col in result['offers']}
+        sources = {col['offer_id']: col['sources'] for col in result['offers']}
+
+        assert by_id[alpha.id]['survey_responsibility'] == (
+            'Seller will provide an existing survey'
+        )
+        assert by_id[bravo.id]['survey_responsibility'] == 'Buyer'
+        assert by_id[alpha.id]['buyer_agent_commission'] == '2.5%'
+        assert by_id[bravo.id]['buyer_agent_commission'] == '$3,000'
+        assert by_id[alpha.id]['residential_service_contract'] == '$650'
+        assert by_id[bravo.id]['residential_service_contract'] == '$900'
+        assert by_id[alpha.id]['title_policy_payer'] == 'Seller'
+        assert by_id[bravo.id]['title_policy_payer'] == 'Buyer'
+
+        assert sources[alpha.id]['survey_responsibility'] == (
+            'version.terms_data.survey_furnished_by'
+        )
+        assert sources[bravo.id]['survey_responsibility'] == (
+            'version.terms_data.survey_choice'
+        )
+        assert sources[alpha.id]['buyer_agent_commission'] == (
+            'version.terms_data.buyer_agent_commission_percent'
+        )
+        assert sources[bravo.id]['buyer_agent_commission'] == (
+            'version.terms_data.buyer_agent_commission_flat'
+        )
+        assert sources[alpha.id]['residential_service_contract'] == (
+            'version.terms_data.residential_service_contract'
+        )
+        assert sources[bravo.id]['title_policy_payer'] == (
+            'version.terms_data.title_policy_payer'
+        )
+
+
+def test_compare_sources_label_terms_summary_over_version_terms_data(app, seed):
+    """Reviewed terms_summary supplied the formatted value. Source must
+    say so even when version.terms_data also has the key."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Reviewed',
+            terms_summary={
+                'survey_furnished_by': (
+                    'Seller shall furnish existing survey and T-47 affidavit'
+                ),
+                'buyer_agent_commission_percent': '3',
+                'residential_service_contract': '800',
+                'title_policy_payer': 'Seller',
+            },
+            terms_data={
+                'survey_furnished_by': 'Buyer',
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+                'title_policy_payer': 'Buyer',
+            },
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
+        col = result['offers'][0]
+
+        assert col['terms']['survey_responsibility'] == (
+            'Seller will provide an existing survey'
+        )
+        assert col['terms']['buyer_agent_commission'] == '3%'
+        assert col['terms']['residential_service_contract'] == '$800'
+        assert col['terms']['title_policy_payer'] == 'Seller'
+
+        assert col['sources']['survey_responsibility'] == (
+            'terms_summary.survey_furnished_by'
+        )
+        assert col['sources']['buyer_agent_commission'] == (
+            'terms_summary.buyer_agent_commission_percent'
+        )
+        assert col['sources']['residential_service_contract'] == (
+            'terms_summary.residential_service_contract'
+        )
+        assert col['sources']['title_policy_payer'] == (
+            'terms_summary.title_policy_payer'
+        )
+
+
+def test_differs_treats_supplied_versus_blank_as_a_difference():
+    differs = OfferCompareService._differs
+    assert differs(['Seller', None]) is True
+    assert differs([None, 'Seller']) is True
+    assert differs(['Seller', '']) is True
+    assert differs([None, None]) is False
+    assert differs(['', None]) is False
+    assert differs(['Seller', 'Seller']) is False
+    assert differs(['Seller', 'Buyer']) is True
+    assert differs(['Seller']) is False
+    assert differs([]) is False
+
+
+def test_reviewed_survey_payer_wins_over_version_furnished_by(app, seed):
+    """Reviewed survey_payer and version survey_furnished_by are one family.
+    Compare keeps Buyer, not the version Seller furnished_by."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Reviewed payer',
+            terms_summary={'survey_payer': 'Buyer'},
+            terms_data={'survey_furnished_by': 'Seller'},
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
+        col = result['offers'][0]
+        assert col['terms']['survey_responsibility'] == 'Buyer'
+
+
+def test_compare_reads_unreviewed_seller_concessions(app, seed):
+    """Unreviewed versions park concessions in terms_data as
+    seller_concessions_amount or seller_concessions. The matrix has to
+    show that amount, the same one the net sheet deducts."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        amount = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Amount key',
+            offer_price=Decimal('410000'),
+            terms_data={'seller_concessions_amount': '4000'},
+        )
+        alias = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Alias key',
+            offer_price=Decimal('425000'),
+            terms_data={'seller_concessions': '2000'},
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(
+            tx, offer_ids=[amount.id, alias.id],
+        )
+        by_id = {col['offer_id']: col['terms'] for col in result['offers']}
+        sources = {col['offer_id']: col['sources'] for col in result['offers']}
+        rows = {row['field']: row for row in result['rows']}
+
+        assert by_id[amount.id]['seller_concessions_amount'] == '4000'
+        assert sources[amount.id]['seller_concessions_amount'] == (
+            'version.terms_data.seller_concessions_amount'
+        )
+        assert by_id[alias.id]['seller_concessions_amount'] == '2000'
+        assert sources[alias.id]['seller_concessions_amount'] == (
+            'version.terms_data.seller_concessions'
+        )
+        assert rows['seller_concessions_amount']['differs'] is True
+
+
+def test_compare_marks_title_policy_when_only_one_offer_has_it(app, seed):
+    """Seller vs omitted is a difference. Two blanks still match."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        filled = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Has title',
+            title_policy_payer='Seller',
+        )
+        blank = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='No title',
+            title_policy_payer=None,
+        )
+        db.session.commit()
+
+        mixed = OfferCompareService.compare_offers(
+            tx, offer_ids=[filled.id, blank.id],
+        )
+        mixed_rows = {row['field']: row for row in mixed['rows']}
+        assert mixed_rows['title_policy_payer']['differs'] is True
+        by_id = {col['offer_id']: col['terms'] for col in mixed['offers']}
+        assert by_id[filled.id]['title_policy_payer'] == 'Seller'
+        assert by_id[blank.id]['title_policy_payer'] is None
+
+        both_blank = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Also blank',
+            title_policy_payer=None,
+        )
+        db.session.commit()
+        match = OfferCompareService.compare_offers(
+            tx, offer_ids=[blank.id, both_blank.id],
+        )
+        match_rows = {row['field']: row for row in match['rows']}
+        assert match_rows['title_policy_payer']['differs'] is False
+
+
+def test_compare_reads_reviewed_seller_concessions_over_version(app, seed):
+    """Blank column, reviewed terms_summary, stale version. Matrix
+    shows the summary amount, same as the net sheet."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Reviewed concessions',
+            seller_concessions_amount=None,
+            terms_summary={'seller_concessions_amount': '5000'},
+            terms_data={'seller_concessions_amount': '2000'},
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
+        col = result['offers'][0]
+        assert col['terms']['seller_concessions_amount'] == '5000'
+        assert col['sources']['seller_concessions_amount'] == (
+            'terms_summary.seller_concessions_amount'
+        )

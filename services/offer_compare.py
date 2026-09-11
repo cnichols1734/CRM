@@ -10,8 +10,19 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
 
 from models import SellerOffer, SellerOfferVersion, Transaction
+from services.offer_summary_email import (
+    _VersionBackedOffer,
+    _commission,
+    _current_offer_version,
+    _home_warranty,
+    _pick,
+    _survey_responsibility,
+    _text,
+)
 
 # Fields compared across offers (SellerOffer columns + common terms_data keys).
+# Survey, commission, warranty, and title policy use the same formatters as the
+# client offer email so the chart and the outbound summary agree.
 COMPARE_FIELDS = (
     ('offer_price', 'Offer price'),
     ('financing_type', 'Financing'),
@@ -23,6 +34,10 @@ COMPARE_FIELDS = (
     ('option_period_days', 'Option period (days)'),
     ('seller_concessions_amount', 'Seller concessions'),
     ('proposed_close_date', 'Proposed close'),
+    ('survey_responsibility', 'Survey provided by'),
+    ('buyer_agent_commission', "Commission to buyer's agent"),
+    ('residential_service_contract', 'Home warranty'),
+    ('title_policy_payer', 'Title policy paid by'),
     ('possession_type', 'Possession'),
     ('leaseback_days', 'Leaseback (days)'),
     ('appraisal_contingency', 'Appraisal contingency'),
@@ -31,13 +46,28 @@ COMPARE_FIELDS = (
     ('net_to_seller_estimate', 'Est. net to seller'),
 )
 
+_FORMATTED_FIELDS = {
+    'survey_responsibility': _survey_responsibility,
+    'buyer_agent_commission': _commission,
+    'residential_service_contract': _home_warranty,
+    'title_policy_payer': lambda offer: _text(_pick(offer, 'title_policy_payer')),
+}
+
 # Prefer these keys when pulling from version.terms_data.
 TERMS_DATA_ALIASES = {
     'offer_price': ('offer_price', 'sales_price', 'purchase_price'),
     'earnest_money': ('earnest_money',),
     'option_fee': ('option_fee',),
+    'seller_concessions_amount': ('seller_concessions_amount', 'seller_concessions'),
     'proposed_close_date': ('proposed_close_date', 'closing_date', 'close_date'),
     'financing_type': ('financing_type', 'loan_type'),
+    'survey_responsibility': ('survey_furnished_by', 'survey_choice', 'survey_payer'),
+    'buyer_agent_commission': (
+        'buyer_agent_commission_percent',
+        'buyer_agent_commission_flat',
+    ),
+    'residential_service_contract': ('residential_service_contract',),
+    'title_policy_payer': ('title_policy_payer',),
 }
 
 
@@ -129,20 +159,7 @@ class OfferCompareService:
 
     @staticmethod
     def _current_version(offer: SellerOffer) -> Optional[SellerOfferVersion]:
-        if offer.current_version_id:
-            version = SellerOfferVersion.query.filter_by(
-                id=offer.current_version_id,
-                offer_id=offer.id,
-                organization_id=offer.organization_id,
-            ).first()
-            if version:
-                return version
-        return (
-            SellerOfferVersion.query
-            .filter_by(offer_id=offer.id, organization_id=offer.organization_id)
-            .order_by(SellerOfferVersion.version_number.desc())
-            .first()
-        )
+        return _current_offer_version(offer)
 
     @staticmethod
     def _column_for_offer(
@@ -150,20 +167,27 @@ class OfferCompareService:
         version: Optional[SellerOfferVersion],
     ) -> Dict[str, Any]:
         terms_data = (version.terms_data if version and version.terms_data else {}) or {}
+        summary = getattr(offer, 'terms_summary', None)
         terms: Dict[str, Any] = {}
         sources: Dict[str, str] = {}
+        backed = _VersionBackedOffer(offer, terms_data)
 
         for field_key, _label in COMPARE_FIELDS:
-            value = getattr(offer, field_key, None)
-            source = 'offer'
-            if value is None:
-                for alias in TERMS_DATA_ALIASES.get(field_key, (field_key,)):
-                    if alias in terms_data and terms_data[alias] not in (None, ''):
-                        value = terms_data[alias]
-                        source = f'version.terms_data.{alias}'
-                        break
+            formatter = _FORMATTED_FIELDS.get(field_key)
+            if formatter:
+                value = formatter(backed)
+                source = (
+                    OfferCompareService._source_for_field(
+                        offer, field_key, terms_data, summary,
+                    )
+                    if value is not None else None
+                )
+            else:
+                value, source = OfferCompareService._unformatted_value(
+                    offer, field_key, terms_data, summary,
+                )
             terms[field_key] = OfferCompareService._normalize(value)
-            if value is not None:
+            if value is not None and source:
                 sources[field_key] = source
 
         return {
@@ -180,6 +204,52 @@ class OfferCompareService:
         }
 
     @staticmethod
+    def _unformatted_value(
+        offer: SellerOffer,
+        field_key: str,
+        terms_data: Dict[str, Any],
+        summary: Optional[Dict[str, Any]],
+    ) -> tuple[Any, Optional[str]]:
+        """Column, then terms_summary aliases, then version.terms_data.
+
+        Same order as ``_pick`` and the Compare net sheet so a reviewed
+        summary (seller concessions, price) wins over a stale extract.
+        """
+        value = getattr(offer, field_key, None)
+        if value not in (None, ''):
+            return value, 'offer'
+        aliases = TERMS_DATA_ALIASES.get(field_key, (field_key,))
+        if isinstance(summary, dict):
+            for alias in aliases:
+                if alias in summary and summary[alias] not in (None, ''):
+                    return summary[alias], f'terms_summary.{alias}'
+        for alias in aliases:
+            if alias in terms_data and terms_data[alias] not in (None, ''):
+                return terms_data[alias], f'version.terms_data.{alias}'
+        return None, None
+
+    @staticmethod
+    def _source_for_field(
+        offer: SellerOffer,
+        field_key: str,
+        terms_data: Dict[str, Any],
+        summary: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Offer columns, then reviewed terms_summary, then version terms_data."""
+        aliases = TERMS_DATA_ALIASES.get(field_key, (field_key,))
+        for key in aliases:
+            if getattr(offer, key, None) not in (None, ''):
+                return 'offer'
+        if isinstance(summary, dict):
+            for key in aliases:
+                if key in summary and summary[key] not in (None, ''):
+                    return f'terms_summary.{key}'
+        for key in aliases:
+            if key in terms_data and terms_data[key] not in (None, ''):
+                return f'version.terms_data.{key}'
+        return 'offer'
+
+    @staticmethod
     def _normalize(value: Any) -> Any:
         if isinstance(value, Decimal):
             return float(value)
@@ -188,12 +258,24 @@ class OfferCompareService:
         return value
 
     @staticmethod
+    def _omitted(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and not value.strip():
+            return True
+        return False
+
+    @staticmethod
     def _differs(values: List[Any]) -> bool:
-        present = [v for v in values if v is not None]
-        if len(present) < 2:
+        if len(values) < 2:
             return False
-        first = present[0]
-        return any(v != first for v in present[1:])
+        omitted = [OfferCompareService._omitted(v) for v in values]
+        if all(omitted):
+            return False
+        if any(omitted):
+            return True
+        first = values[0]
+        return any(v != first for v in values[1:])
 
     @staticmethod
     def _best_numeric(columns: List[dict], field: str, *, higher: bool) -> Optional[dict]:

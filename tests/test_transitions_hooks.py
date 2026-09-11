@@ -1,5 +1,9 @@
 """Assert transitions.dev hooks are installed once and wired on chrome."""
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -209,6 +213,9 @@ class TestChromeHooks:
         assert "hidePanel:" in js
         assert "openSheet:" in js
         assert "closeSheet:" in js
+        assert "function nextSheetCloseGen(" in js
+        assert "function sheetCloseIsCurrent(" in js
+        assert "function cancelSheetClose(" in js
         assert "openHiddenDropdown:" in js
         assert "closeHiddenDropdown:" in js
 
@@ -231,12 +238,20 @@ class TestChromeHooks:
         offers = _read("templates", "transactions", "_offers_panel.html")
         assert "seller-new-offer-panel t-modal" in offers
         assert "offer-command__panel t-panel-slide" in offers
-        assert "t-panel-slide absolute inset-2" in offers
+        assert "{% include 'transactions/_offer_client_email.html' %}" in offers
         assert 'md:-translate-y-1/2">\n                                     style=' not in offers
         assert (
             'style="background: var(--paper); border: 1px solid var(--hairline); '
             'color: var(--ink);"'
         ) in offers
+
+        composer = _read("templates", "transactions", "_offer_client_email.html")
+        assert "t-panel-slide absolute inset-2" in composer
+        assert 'md:-translate-y-1/2">\n                                     style=' not in composer
+        assert (
+            'style="background: var(--paper); border: 1px solid var(--hairline); '
+            'color: var(--ink);"'
+        ) in composer
 
         packages = _read("templates", "transactions", "_document_packages.html")
         assert "crm-row-menu__panel t-dropdown" in packages
@@ -334,6 +349,22 @@ class TestRestState:
         assert "button.t-check[aria-checked=\"true\"]" in bridge
         assert "#transaction-checklist .t-check-wrap > .t-success-check" in bridge
 
+    def test_close_sheet_delayed_hide_is_cancellable(self):
+        js = _read("static", "js", "transitions.js")
+        open_fn = js.split("function openSheet(", 1)[1].split(
+            "function closeSheet(", 1
+        )[0]
+        close_fn = js.split("function closeSheet(", 1)[1].split(
+            "function openHiddenDropdown(", 1
+        )[0]
+        assert "cancelSheetClose(shell)" in open_fn
+        assert "var gen = nextSheetCloseGen(shell)" in close_fn
+        guard_idx = close_fn.index("if (!sheetCloseIsCurrent(shell, gen)) return;")
+        hide_idx = close_fn.index("shell.classList.add('hidden')")
+        aria_idx = close_fn.index("shell.setAttribute('aria-hidden', 'true')")
+        after_idx = close_fn.index("if (after) after()")
+        assert guard_idx < hide_idx < aria_idx < after_idx
+
     def test_like_tokens_stay_unhooked(self):
         root = _read("static", "css", "transitions-root.css")
         snippets = _read("static", "css", "transitions-snippets.css")
@@ -360,3 +391,83 @@ class TestRestState:
         assert "prefersReducedMotion()" in js
         assert "burstConfetti" in js
         assert "whenConfettiSettled" in js
+
+
+class TestSheetCloseRace:
+    def test_reopen_invalidates_a_pending_close_generation(self):
+        current = 0
+        close_gen = current + 1
+        current = close_gen
+        open_gen = current + 1
+        current = open_gen
+        assert close_gen != current
+        assert open_gen == current
+
+    @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+    def test_js_close_then_open_sheet_stays_visible(self):
+        js = _read("static", "js", "transitions.js")
+        harness = r"""
+function FakeList() { this._s = Object.create(null); }
+FakeList.prototype.add = function () {
+  for (var i = 0; i < arguments.length; i++) this._s[arguments[i]] = true;
+};
+FakeList.prototype.remove = function () {
+  for (var i = 0; i < arguments.length; i++) delete this._s[arguments[i]];
+};
+FakeList.prototype.contains = function (c) { return !!this._s[c]; };
+function fakeEl() {
+  return {
+    classList: new FakeList(),
+    _attrs: Object.create(null),
+    setAttribute: function (k, v) { this._attrs[k] = String(v); },
+    getAttribute: function (k) { return this._attrs[k]; },
+    querySelector: function () { return null; }
+  };
+}
+var root = {
+  getAttribute: function () { return null; },
+  classList: new FakeList(),
+  style: {}
+};
+var document = {
+  documentElement: root,
+  readyState: 'loading',
+  addEventListener: function () {},
+  querySelectorAll: function () { return []; },
+  querySelector: function () { return null; }
+};
+function getComputedStyle() {
+  return { getPropertyValue: function () { return '0'; } };
+}
+var window = {
+  matchMedia: function () { return { matches: true }; },
+  requestAnimationFrame: function (cb) { return setTimeout(cb, 0); },
+  document: document
+};
+global.document = document;
+global.window = window;
+global.getComputedStyle = getComputedStyle;
+"""
+        race = r"""
+var shell = fakeEl();
+var panel = fakeEl();
+shell.classList.add('hidden');
+shell.setAttribute('aria-hidden', 'true');
+var afterRan = false;
+window.TMotion.closeSheet(shell, panel, function () { afterRan = true; });
+window.TMotion.openSheet(shell, panel);
+setTimeout(function () {
+  if (shell.classList.contains('hidden')) process.exit(1);
+  if (shell.getAttribute('aria-hidden') === 'true') process.exit(1);
+  if (afterRan) process.exit(1);
+  process.stdout.write('ok');
+}, 30);
+"""
+        result = subprocess.run(
+            [shutil.which("node"), "-e", harness + js + race],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr or result.stdout
+        assert result.stdout == "ok"

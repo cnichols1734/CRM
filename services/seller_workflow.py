@@ -665,9 +665,27 @@ def _normalize_extracted_money(
     return exact
 
 
+# Blank form values for these keys are a delete. A version merge must not
+# put the old extract back.
+CLEARED_ON_BLANK_TERM_KEYS = frozenset({'title_policy_payer'})
+
+
+def drop_cleared_offer_terms(merged, incoming):
+    """Drop keys the agent cleared so a terms merge cannot restore them."""
+    if not isinstance(merged, dict) or not isinstance(incoming, dict):
+        return merged
+    for key in CLEARED_ON_BLANK_TERM_KEYS:
+        if key not in incoming:
+            continue
+        if incoming.get(key) in (None, ''):
+            merged.pop(key, None)
+    return merged
+
+
 def apply_offer_terms(offer, terms):
     """Copy reviewed/extracted terms into canonical offer comparison columns."""
     terms = normalize_offer_terms(terms)
+    drop_cleared_offer_terms(terms, terms)
     list_price = terms.get('list_price')
     offer_price = _normalize_extracted_money(
         terms.get('offer_price') or terms.get('sales_price'),

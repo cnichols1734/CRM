@@ -90,6 +90,11 @@ class FakeOfferDocument:
         self.document_type = document_type
 
 
+class FakeVersion:
+    def __init__(self, terms_data):
+        self.terms_data = terms_data
+
+
 class FakeGmail:
     def __init__(self, email='cassie@gmail.com', sync_enabled=True, needs_reauth=False):
         self.connected_email = email
@@ -318,6 +323,66 @@ def test_legacy_home_warranty_prose_passes_through():
 
 
 # ---------------------------------------------------------------------------
+# Title policy paid by
+# ---------------------------------------------------------------------------
+
+def test_title_policy_payer_appears_in_row_specs_when_present():
+    draft = build(full_offer(title_policy_payer='Seller'))
+    labels = {spec['key']: spec['label'] for spec in draft.row_specs}
+    assert 'title_policy_payer' in labels
+    assert labels['title_policy_payer'] == 'Title policy paid by'
+    assert draft.offers[0].value('title_policy_payer') == 'Seller'
+
+
+def test_title_policy_payer_row_is_dropped_when_nothing_was_read():
+    draft = build(full_offer())
+    assert 'title_policy_payer' not in row_keys(draft)
+
+
+def test_title_policy_payer_falls_back_to_version_terms_data():
+    offer = full_offer(
+        title_policy_payer=None,
+        terms_summary={},
+        current_version=FakeVersion({'title_policy_payer': 'Buyer'}),
+    )
+    draft = build(offer)
+    assert 'title_policy_payer' in row_keys(draft)
+    assert draft.offers[0].value('title_policy_payer') == 'Buyer'
+
+
+def test_resolved_title_policy_payer_prefers_canonical_column():
+    offer = FakeOffer(
+        title_policy_payer='Seller',
+        terms_summary={'title_policy_payer': 'Buyer'},
+        current_version=FakeVersion({'title_policy_payer': 'Split'}),
+    )
+    assert ose.resolved_title_policy_payer(offer) == 'Seller'
+
+
+def test_resolved_title_policy_payer_uses_terms_summary_before_version():
+    offer = FakeOffer(
+        title_policy_payer=None,
+        terms_summary={'title_policy_payer': 'Seller'},
+        current_version=FakeVersion({'title_policy_payer': 'Buyer'}),
+    )
+    assert ose.resolved_title_policy_payer(offer) == 'Seller'
+
+
+def test_resolved_title_policy_payer_falls_back_to_version_terms_data():
+    offer = FakeOffer(
+        title_policy_payer=None,
+        terms_summary={},
+        current_version=FakeVersion({'title_policy_payer': 'Buyer'}),
+    )
+    assert ose.resolved_title_policy_payer(offer) == 'Buyer'
+
+
+def test_resolved_title_policy_payer_is_blank_when_nothing_was_read():
+    offer = FakeOffer(title_policy_payer=None, terms_summary={})
+    assert ose.resolved_title_policy_payer(offer) is None
+
+
+# ---------------------------------------------------------------------------
 # Contingent on the buyer selling another property
 # ---------------------------------------------------------------------------
 
@@ -474,6 +539,200 @@ def test_terms_summary_fills_a_gap_the_column_left_empty():
     offer = full_offer(offer_price=None, terms_summary={'sales_price': '418000'})
     draft = build(offer)
     assert draft.headline['value'] == '$418,000'
+
+
+def test_unreviewed_version_terms_data_fills_draft_fields():
+    """A scoped offer still sitting on the version, not the denormalized
+    columns, has to show those terms in the client email."""
+    offer = full_offer(
+        buyer_agent_commission_percent=None,
+        buyer_agent_commission_flat=None,
+        survey_furnished_by=None,
+        survey_payer=None,
+        residential_service_contract=None,
+        terms_summary={},
+        current_version=FakeVersion({
+            'survey_furnished_by': (
+                'Seller shall furnish existing survey and T-47 affidavit'
+            ),
+            'buyer_agent_commission_percent': '2.5',
+            'residential_service_contract': '650',
+        }),
+    )
+    draft = build(offer)
+    block = draft.offers[0]
+    assert block.value('buyer_agent_commission') == '2.5%'
+    assert block.value('survey_responsibility') == ose.SURVEY_EXISTING
+    assert block.value('residential_service_contract') == '$650'
+
+
+def test_reviewed_terms_summary_wins_over_version_terms_data():
+    """A reviewed or manual terms_summary keeps its values. Version
+    terms_data only fills keys the summary left blank or omitted."""
+    offer = full_offer(
+        title_policy_payer=None,
+        buyer_agent_commission_percent=None,
+        buyer_agent_commission_flat=None,
+        residential_service_contract=None,
+        terms_summary={
+            'title_policy_payer': 'Seller',
+            'buyer_agent_commission_percent': '3',
+        },
+        current_version=FakeVersion({
+            'title_policy_payer': 'Buyer',
+            'buyer_agent_commission_percent': '2.5',
+            'residential_service_contract': '650',
+        }),
+    )
+    draft = build(offer)
+    block = draft.offers[0]
+    assert block.value('title_policy_payer') == 'Seller'
+    assert block.value('buyer_agent_commission') == '3%'
+    assert block.value('residential_service_contract') == '$650'
+
+
+def test_version_terms_data_fills_only_blank_summary_keys():
+    offer = FakeOffer(terms_summary={
+        'title_policy_payer': 'Seller',
+        'buyer_agent_commission_percent': '',
+    })
+    backed = ose._VersionBackedOffer(offer, {
+        'title_policy_payer': 'Buyer',
+        'buyer_agent_commission_percent': '2.5',
+        'residential_service_contract': '650',
+    })
+    assert backed.terms_summary['title_policy_payer'] == 'Seller'
+    assert backed.terms_summary['buyer_agent_commission_percent'] == '2.5'
+    assert backed.terms_summary['residential_service_contract'] == '650'
+
+
+def test_reviewed_survey_payer_wins_over_version_furnished_by():
+    """survey_payer, survey_furnished_by, and survey_choice are one family.
+    A reviewed payer must block version furnished_by from joining the merge."""
+    offer = FakeOffer(terms_summary={'survey_payer': 'Buyer'})
+    backed = ose._VersionBackedOffer(offer, {'survey_furnished_by': 'Seller'})
+    assert backed.terms_summary['survey_payer'] == 'Buyer'
+    assert 'survey_furnished_by' not in backed.terms_summary
+    assert ose._pick(backed, 'survey_furnished_by') == 'Buyer'
+    assert ose._alias_family('survey_furnished_by') == ose._alias_family('survey_payer')
+    assert 'survey_choice' in ose._alias_family('survey_payer')
+
+    draft_offer = full_offer(
+        survey_furnished_by=None,
+        survey_payer=None,
+        terms_summary={'survey_payer': 'Buyer'},
+        current_version=FakeVersion({'survey_furnished_by': 'Seller'}),
+    )
+    assert build(draft_offer).offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
+
+
+def test_canonical_survey_payer_blocks_version_furnished_by():
+    """SellerOffer.survey_payer occupies the survey family even when
+    terms_summary is empty. Version survey_furnished_by must stay out."""
+    offer = FakeOffer(survey_payer='Buyer', terms_summary={})
+    backed = ose._VersionBackedOffer(offer, {'survey_furnished_by': 'Seller'})
+    assert 'survey_furnished_by' not in backed.terms_summary
+    assert ose._survey_responsibility(backed) == ose.SURVEY_BUYER
+
+    draft_offer = full_offer(
+        survey_furnished_by=None,
+        survey_payer='Buyer',
+        terms_summary={},
+        current_version=FakeVersion({'survey_furnished_by': 'Seller'}),
+    )
+    assert build(draft_offer).offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
+
+
+def test_version_merge_picks_one_alias_in_pick_order():
+    """terms_data insertion order must not beat _TERM_ALIASES order.
+    survey_payer first in the dict still loses to survey_furnished_by.
+    sales_price first still loses to offer_price. Extra keys still copy."""
+    offer = FakeOffer(terms_summary={})
+    backed = ose._VersionBackedOffer(offer, {
+        'survey_payer': 'Buyer',
+        'survey_furnished_by': (
+            'Seller shall furnish existing survey and T-47 affidavit'
+        ),
+        'sales_price': '400000',
+        'offer_price': '450000',
+        'non_realty_items': 'patio furniture',
+    })
+    assert backed.terms_summary['survey_furnished_by'].startswith('Seller shall')
+    assert 'survey_payer' not in backed.terms_summary
+    assert ose._survey_responsibility(backed) == ose.SURVEY_EXISTING
+    assert backed.terms_summary['offer_price'] == '450000'
+    assert 'sales_price' not in backed.terms_summary
+    assert ose._pick(backed, 'offer_price') == '450000'
+    assert backed.terms_summary['non_realty_items'] == 'patio furniture'
+
+
+def test_reviewed_sales_price_wins_over_version_offer_price():
+    """Exact-key blank-fill used to let version offer_price sit next to
+    reviewed sales_price. _pick then walked offer_price first."""
+    offer = FakeOffer(terms_summary={'sales_price': '418000'})
+    backed = ose._VersionBackedOffer(offer, {'offer_price': '450000'})
+    assert backed.terms_summary['sales_price'] == '418000'
+    assert 'offer_price' not in backed.terms_summary
+    assert ose._pick(backed, 'offer_price') == '418000'
+
+    draft_offer = full_offer(
+        offer_price=None,
+        terms_summary={'sales_price': '418000'},
+        current_version=FakeVersion({'offer_price': '450000'}),
+    )
+    assert build(draft_offer).headline['value'] == '$418,000'
+
+
+def test_build_draft_reads_current_version_like_compare(app, seed):
+    """Same current_version_id lookup Compare uses, through the composer."""
+    from models import SellerOffer, SellerOfferVersion, Transaction, db
+
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        offer = SellerOffer(
+            organization_id=org_id,
+            transaction_id=tx.id,
+            created_by_id=seed['owner_a'],
+            buyer_names='Version Alpha',
+            status='new',
+            offer_price=Decimal('410000'),
+            financing_type='conventional',
+        )
+        db.session.add(offer)
+        db.session.flush()
+        version = SellerOfferVersion(
+            organization_id=org_id,
+            transaction_id=tx.id,
+            offer_id=offer.id,
+            created_by_id=seed['owner_a'],
+            version_number=1,
+            direction='buyer_offer',
+            status='submitted',
+            terms_data={
+                'survey_furnished_by': (
+                    'Seller shall furnish existing survey and T-47 affidavit'
+                ),
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+            },
+        )
+        db.session.add(version)
+        db.session.flush()
+        offer.current_version_id = version.id
+        db.session.commit()
+        offer_id = offer.id
+        version_id = version.id
+        try:
+            draft = ose.build_draft(tx, [offer], side='seller')
+            block = draft.offers[0]
+            assert block.value('buyer_agent_commission') == '2.5%'
+            assert block.value('survey_responsibility') == ose.SURVEY_EXISTING
+            assert block.value('residential_service_contract') == '$650'
+        finally:
+            SellerOfferVersion.query.filter_by(id=version_id).delete()
+            SellerOffer.query.filter_by(id=offer_id).delete()
+            db.session.commit()
 
 
 def test_a_thin_offer_says_what_is_missing_instead_of_implying_zero():
@@ -650,6 +909,7 @@ def test_every_new_term_round_trips_an_agent_edit():
         'buyer_agent_commission': '3%',
         'survey_responsibility': ose.SURVEY_BUYER,
         'residential_service_contract': '$800',
+        'title_policy_payer': 'Buyer',
         'sale_of_other_property': 'Yes',
         'non_realty_items': 'Refrigerator\nRiding mower',
     }

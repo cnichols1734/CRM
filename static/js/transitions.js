@@ -107,8 +107,27 @@
     el.classList.remove('active');
   }
 
+  function nextSheetCloseGen(shell) {
+    var next = (Number(shell._tSheetCloseGen) || 0) + 1;
+    shell._tSheetCloseGen = next;
+    return next;
+  }
+
+  function sheetCloseIsCurrent(shell, gen) {
+    return shell._tSheetCloseGen === gen;
+  }
+
+  function cancelSheetClose(shell) {
+    nextSheetCloseGen(shell);
+    if (shell._tSheetCloseTimer) {
+      clearTimeout(shell._tSheetCloseTimer);
+      shell._tSheetCloseTimer = null;
+    }
+  }
+
   function openSheet(shell, panel) {
     if (!shell) return;
+    cancelSheetClose(shell);
     shell.classList.remove('hidden');
     shell.setAttribute('aria-hidden', 'false');
     showPanel(panel || shell.querySelector('.t-panel-slide'));
@@ -119,7 +138,13 @@
     var slide = panel || shell.querySelector('.t-panel-slide');
     if (slide) slide.setAttribute('data-open', 'false');
     var ms = prefersReducedMotion() ? 0 : cssMs('--panel-close-dur', 350);
-    setTimeout(function () {
+    var gen = nextSheetCloseGen(shell);
+    if (shell._tSheetCloseTimer) {
+      clearTimeout(shell._tSheetCloseTimer);
+    }
+    shell._tSheetCloseTimer = setTimeout(function () {
+      shell._tSheetCloseTimer = null;
+      if (!sheetCloseIsCurrent(shell, gen)) return;
       shell.classList.add('hidden');
       shell.setAttribute('aria-hidden', 'true');
       if (after) after();
