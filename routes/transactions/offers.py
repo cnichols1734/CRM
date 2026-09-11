@@ -567,9 +567,12 @@ def _client_email_transaction(id, capability):
 
 
 def _parse_requested_offer_ids(requested_ids):
-    """Parse offer_ids. None means omitted (email all). A list is a pick."""
-    if not isinstance(requested_ids, list):
+    """Parse offer_ids. None means omitted or JSON null (email all)."""
+    if requested_ids is None:
         return None
+    if not isinstance(requested_ids, list):
+        # Present string/number/object/bool. Same as a list with no valid IDs.
+        return []
     wanted = []
     for raw in requested_ids:
         try:
@@ -580,7 +583,7 @@ def _parse_requested_offer_ids(requested_ids):
 
 
 def _none_selected_offer_ids(requested_ids, *, empty_list_ok=False):
-    """True when a present list has no valid IDs and must not expand to all."""
+    """True when a present value has no valid IDs and must not expand to all."""
     wanted = _parse_requested_offer_ids(requested_ids)
     if wanted != []:
         return False
@@ -602,7 +605,7 @@ def _client_email_selection(transaction, requested_ids):
         # the composer posts that on first open. Send rejects [] itself.
         chosen = list(available)
     else:
-        # Present list, nothing parseable. Do not expand to all.
+        # Present value, nothing parseable. Do not expand to all.
         chosen = []
     return chosen, available
 

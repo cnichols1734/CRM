@@ -419,6 +419,51 @@ def test_preview_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_
             _teardown(tx_id)
 
 
+@pytest.mark.parametrize('offer_ids', ('bad', 123))
+def test_send_rejects_non_list_offer_ids(app, seed, owner_a_client, offer_ids):
+    """A present non-list is none selected, not Email all."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, created_ids = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/send',
+            json={'offer_ids': offer_ids, 'to': 'cassie@example.com'},
+        )
+        assert response.status_code == 400
+        assert 'at least one offer' in response.get_json()['error']
+
+        with app.app_context():
+            assert SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(created_ids),
+                SellerOfferActivity.event_type == 'client_email_sent',
+            ).count() == 0
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
+@pytest.mark.parametrize('offer_ids', ('bad', 123))
+def test_preview_rejects_non_list_offer_ids(app, seed, owner_a_client, offer_ids):
+    """Same hole on preview: do not expand a non-list to every live offer."""
+    second = dict(ONE_OFFER)
+    second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
+    with app.app_context():
+        tx_id, _ = _seller_listing(seed, offers=[ONE_OFFER, second])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/preview',
+            json={'offer_ids': offer_ids},
+        )
+        assert response.status_code == 400
+        assert 'at least one offer' in response.get_json()['error']
+        assert response.get_json().get('draft') is None
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
 def test_send_covers_only_the_named_offers(app, seed, owner_a_client):
     second = dict(ONE_OFFER)
     second.update(buyer_names='Priya Shah', offer_price=Decimal('440000'))
