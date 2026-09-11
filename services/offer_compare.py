@@ -258,12 +258,24 @@ class OfferCompareService:
         return value
 
     @staticmethod
+    def _omitted(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and not value.strip():
+            return True
+        return False
+
+    @staticmethod
     def _differs(values: List[Any]) -> bool:
-        present = [v for v in values if v is not None]
-        if len(present) < 2:
+        if len(values) < 2:
             return False
-        first = present[0]
-        return any(v != first for v in present[1:])
+        omitted = [OfferCompareService._omitted(v) for v in values]
+        if all(omitted):
+            return False
+        if any(omitted):
+            return True
+        first = values[0]
+        return any(v != first for v in values[1:])
 
     @staticmethod
     def _best_numeric(columns: List[dict], field: str, *, higher: bool) -> Optional[dict]:

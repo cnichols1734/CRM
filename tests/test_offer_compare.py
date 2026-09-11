@@ -264,6 +264,19 @@ def test_compare_sources_label_terms_summary_over_version_terms_data(app, seed):
         )
 
 
+def test_differs_treats_supplied_versus_blank_as_a_difference():
+    differs = OfferCompareService._differs
+    assert differs(['Seller', None]) is True
+    assert differs([None, 'Seller']) is True
+    assert differs(['Seller', '']) is True
+    assert differs([None, None]) is False
+    assert differs(['', None]) is False
+    assert differs(['Seller', 'Seller']) is False
+    assert differs(['Seller', 'Buyer']) is True
+    assert differs(['Seller']) is False
+    assert differs([]) is False
+
+
 def test_reviewed_survey_payer_wins_over_version_furnished_by(app, seed):
     """Reviewed survey_payer and version survey_furnished_by are one family.
     Compare keeps Buyer, not the version Seller furnished_by."""
@@ -324,6 +337,47 @@ def test_compare_reads_unreviewed_seller_concessions(app, seed):
             'version.terms_data.seller_concessions'
         )
         assert rows['seller_concessions_amount']['differs'] is True
+
+
+def test_compare_marks_title_policy_when_only_one_offer_has_it(app, seed):
+    """Seller vs omitted is a difference. Two blanks still match."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        filled = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Has title',
+            title_policy_payer='Seller',
+        )
+        blank = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='No title',
+            title_policy_payer=None,
+        )
+        db.session.commit()
+
+        mixed = OfferCompareService.compare_offers(
+            tx, offer_ids=[filled.id, blank.id],
+        )
+        mixed_rows = {row['field']: row for row in mixed['rows']}
+        assert mixed_rows['title_policy_payer']['differs'] is True
+        by_id = {col['offer_id']: col['terms'] for col in mixed['offers']}
+        assert by_id[filled.id]['title_policy_payer'] == 'Seller'
+        assert by_id[blank.id]['title_policy_payer'] is None
+
+        both_blank = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Also blank',
+            title_policy_payer=None,
+        )
+        db.session.commit()
+        match = OfferCompareService.compare_offers(
+            tx, offer_ids=[blank.id, both_blank.id],
+        )
+        match_rows = {row['field']: row for row in match['rows']}
+        assert match_rows['title_policy_payer']['differs'] is False
 
 
 def test_compare_reads_reviewed_seller_concessions_over_version(app, seed):
