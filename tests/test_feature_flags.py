@@ -5,8 +5,10 @@ Verifies that free-tier orgs are blocked from premium features,
 pro-tier orgs can access enabled premium features, and global
 feature overrides can disable a feature for everyone.
 """
-from feature_flags import get_org_features, org_has_feature
-from models import Organization
+import pytest
+
+from feature_flags import FEATURE_FLAGS, can_access_reports, get_org_features, org_has_feature
+from models import Organization, User, db
 
 
 class TestFreeTierRestrictions:
@@ -104,6 +106,43 @@ class TestGlobalFeatureOverrides:
         assert features['AI_DAILY_TODO'] is True
         assert features['MARKET_INSIGHTS'] is False
         assert features['AI_CHAT'] is True
+
+
+class TestReportsParked:
+    """Reports stays in the codebase but is off in nav and at /reports."""
+
+    def test_owner_cannot_access_while_parked(self, app, seed):
+        with app.app_context():
+            owner = db.session.get(User, seed['owner_a'])
+            assert can_access_reports(owner) is False
+
+    @pytest.mark.parametrize('url', [
+        '/dashboard',
+        '/contacts',
+        '/tasks',
+        '/briefing',
+        '/org/settings',
+    ])
+    def test_sidebar_omits_reports(self, owner_a_client, url):
+        resp = owner_a_client.get(url)
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'href="/reports/"' not in html
+        assert '>Reports</span>' not in html
+        if url == '/dashboard':
+            assert '>Daily Briefing</span>' in html
+
+    def test_reports_route_stays_registered(self, owner_a_client):
+        resp = owner_a_client.get('/reports/')
+        assert resp.status_code == 403
+
+    def test_flag_restores_admin_access(self, app, seed, monkeypatch):
+        monkeypatch.setitem(FEATURE_FLAGS, 'REPORTS_ENABLED', True)
+        with app.app_context():
+            owner = db.session.get(User, seed['owner_a'])
+            agent = db.session.get(User, seed['agent_a'])
+            assert can_access_reports(owner) is True
+            assert can_access_reports(agent) is False
 
 
 class TestCoreFeatures:

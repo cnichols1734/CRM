@@ -103,6 +103,8 @@ GLOBAL_FEATURE_OVERRIDES = {
 FEATURE_FLAGS = {
     'TRANSACTIONS_ENABLED': True,
     'REPORTS_ADMIN_ONLY': True,  # When True, only admins/owners can access Reports
+    # Parked. Flip True to put Reports back in nav and restore /reports access.
+    'REPORTS_ENABLED': False,
 }
 
 
@@ -418,10 +420,15 @@ def can_access_documents(user) -> bool:
 def can_access_reports(user) -> bool:
     """
     Check if user can access the Reports module.
-    If REPORTS_ADMIN_ONLY flag is True, only admins/owners can access.
-    If flag is False, all authenticated users can access.
+
+    REPORTS_ENABLED parks the module without deleting routes or templates.
+    If REPORTS_ADMIN_ONLY is True, only admins/owners can access.
+    If that flag is False, all authenticated users can access.
     """
     if not user or not user.is_authenticated:
+        return False
+
+    if not FEATURE_FLAGS.get('REPORTS_ENABLED', False):
         return False
     
     # Check if reports are admin-only
