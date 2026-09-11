@@ -183,14 +183,9 @@ class OfferCompareService:
                     if value is not None else None
                 )
             else:
-                value = getattr(offer, field_key, None)
-                source = 'offer'
-                if value is None:
-                    for alias in TERMS_DATA_ALIASES.get(field_key, (field_key,)):
-                        if alias in terms_data and terms_data[alias] not in (None, ''):
-                            value = terms_data[alias]
-                            source = f'version.terms_data.{alias}'
-                            break
+                value, source = OfferCompareService._unformatted_value(
+                    offer, field_key, terms_data, summary,
+                )
             terms[field_key] = OfferCompareService._normalize(value)
             if value is not None and source:
                 sources[field_key] = source
@@ -207,6 +202,31 @@ class OfferCompareService:
             'sources': sources,
             'label': offer.buyer_names or f'Offer {offer.id}',
         }
+
+    @staticmethod
+    def _unformatted_value(
+        offer: SellerOffer,
+        field_key: str,
+        terms_data: Dict[str, Any],
+        summary: Optional[Dict[str, Any]],
+    ) -> tuple[Any, Optional[str]]:
+        """Column, then terms_summary aliases, then version.terms_data.
+
+        Same order as ``_pick`` and the Compare net sheet so a reviewed
+        summary (seller concessions, price) wins over a stale extract.
+        """
+        value = getattr(offer, field_key, None)
+        if value not in (None, ''):
+            return value, 'offer'
+        aliases = TERMS_DATA_ALIASES.get(field_key, (field_key,))
+        if isinstance(summary, dict):
+            for alias in aliases:
+                if alias in summary and summary[alias] not in (None, ''):
+                    return summary[alias], f'terms_summary.{alias}'
+        for alias in aliases:
+            if alias in terms_data and terms_data[alias] not in (None, ''):
+                return terms_data[alias], f'version.terms_data.{alias}'
+        return None, None
 
     @staticmethod
     def _source_for_field(

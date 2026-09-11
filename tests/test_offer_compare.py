@@ -324,3 +324,28 @@ def test_compare_reads_unreviewed_seller_concessions(app, seed):
             'version.terms_data.seller_concessions'
         )
         assert rows['seller_concessions_amount']['differs'] is True
+
+
+def test_compare_reads_reviewed_seller_concessions_over_version(app, seed):
+    """Blank column, reviewed terms_summary, stale version. Matrix
+    shows the summary amount, same as the net sheet."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Reviewed concessions',
+            seller_concessions_amount=None,
+            terms_summary={'seller_concessions_amount': '5000'},
+            terms_data={'seller_concessions_amount': '2000'},
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
+        col = result['offers'][0]
+        assert col['terms']['seller_concessions_amount'] == '5000'
+        assert col['sources']['seller_concessions_amount'] == (
+            'terms_summary.seller_concessions_amount'
+        )
