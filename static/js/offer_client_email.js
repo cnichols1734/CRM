@@ -31,7 +31,8 @@ const offerClientEmail = {
     sending: false,
     bound: false,
     paintedFor: null,
-    refreshGen: 0
+    refreshGen: 0,
+    sessionGen: 0
 };
 
 function oceNextRefreshGen(current) {
@@ -39,6 +40,14 @@ function oceNextRefreshGen(current) {
 }
 
 function oceRefreshIsCurrent(gen, current) {
+    return gen === current;
+}
+
+function oceNextSessionGen(current) {
+    return (Number(current) || 0) + 1;
+}
+
+function oceSessionIsCurrent(gen, current) {
     return gen === current;
 }
 
@@ -101,6 +110,7 @@ function openOfferClientEmail(offerId) {
     const root = oceRoot();
     if (!root) return;
 
+    offerClientEmail.sessionGen = oceNextSessionGen(offerClientEmail.sessionGen);
     offerClientEmail.offerIds = oceOfferIds(offerId);
     offerClientEmail.dirty = {};
     offerClientEmail.terms = {};
@@ -126,6 +136,7 @@ function openOfferClientEmail(offerId) {
 }
 
 function closeOfferClientEmail() {
+    offerClientEmail.sessionGen = oceNextSessionGen(offerClientEmail.sessionGen);
     const root = oceRoot();
     if (!root) return;
     oceCloseSheet('offerClientEmailModal', function () {
@@ -405,6 +416,7 @@ function sendOfferClientEmail() {
         return;
     }
 
+    const gen = offerClientEmail.sessionGen;
     offerClientEmail.sending = true;
     oceSyncSend();
     if (status) status.textContent = ' · Sending';
@@ -421,15 +433,18 @@ function sendOfferClientEmail() {
     })
         .then((res) => res.json())
         .then((data) => {
+            if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;
             if (!data.success) throw new Error(data.error || 'Could not send the email');
             oceToast(data.message || 'Email sent.', data.skipped ? 'info' : 'success');
             closeOfferClientEmail();
         })
         .catch((err) => {
+            if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;
             oceToast(err.message || 'Could not send the email', 'error');
             if (status) status.textContent = '';
         })
         .finally(() => {
+            if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;
             offerClientEmail.sending = false;
             oceSyncSend();
         });

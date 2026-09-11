@@ -1,4 +1,4 @@
-"""Stale client-email previews must not overwrite the current picker set."""
+"""Stale client-email previews and send handlers must not touch a newer composer."""
 
 import shutil
 import subprocess
@@ -16,6 +16,14 @@ def oce_next_refresh_gen(current):
 
 
 def oce_refresh_is_current(gen, current):
+    return gen == current
+
+
+def oce_next_session_gen(current):
+    return (int(current or 0)) + 1
+
+
+def oce_session_is_current(gen, current):
     return gen == current
 
 
@@ -63,6 +71,72 @@ def test_js_refresh_helpers_ignore_a_stale_generation():
                 'if (oceRefreshIsCurrent(first, second)) process.exit(1);'
                 'if (!oceRefreshIsCurrent(second, second)) process.exit(1);'
                 'if (!oceRefreshIsCurrent(first, first)) process.exit(1);'
+                "process.stdout.write('ok');"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert result.stdout == 'ok'
+
+
+def test_later_composer_session_invalidates_an_earlier_send():
+    current = 0
+    first_open = oce_next_session_gen(current)
+    current = first_open
+    send_gen = current
+    closed = oce_next_session_gen(current)
+    current = closed
+    reopened = oce_next_session_gen(current)
+    current = reopened
+
+    assert not oce_session_is_current(send_gen, current)
+    assert oce_session_is_current(reopened, current)
+
+
+def test_composer_send_guards_success_error_and_cleanup():
+    assert 'sessionGen: 0' in OCE_JS
+    assert 'function oceNextSessionGen(' in OCE_JS
+    assert 'function oceSessionIsCurrent(' in OCE_JS
+    assert OCE_JS.count(
+        'oceSessionIsCurrent(gen, offerClientEmail.sessionGen)'
+    ) >= 3
+    assert OCE_JS.count(
+        'offerClientEmail.sessionGen = oceNextSessionGen(offerClientEmail.sessionGen)'
+    ) >= 2
+    send_fn = OCE_JS[OCE_JS.index('function sendOfferClientEmail('):]
+    success_idx = send_fn.index(
+        'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;'
+    )
+    close_idx = send_fn.index('closeOfferClientEmail();')
+    assert success_idx < close_idx
+    finally_idx = send_fn.index('.finally(() => {')
+    finally_guard = send_fn.index(
+        'if (!oceSessionIsCurrent(gen, offerClientEmail.sessionGen)) return;',
+        finally_idx,
+    )
+    reset_idx = send_fn.index('offerClientEmail.sending = false;')
+    assert finally_guard < reset_idx
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='node is not installed')
+def test_js_session_helpers_ignore_a_stale_generation():
+    helpers = _oce_refresh_helpers()
+    assert 'function oceNextSessionGen(' in helpers
+    assert 'function oceSessionIsCurrent(' in helpers
+    result = subprocess.run(
+        [
+            shutil.which('node'),
+            '-e',
+            helpers + (
+                'const first = oceNextSessionGen(0);'
+                'const closed = oceNextSessionGen(first);'
+                'const reopened = oceNextSessionGen(closed);'
+                'if (oceSessionIsCurrent(first, reopened)) process.exit(1);'
+                'if (!oceSessionIsCurrent(reopened, reopened)) process.exit(1);'
+                'if (!oceSessionIsCurrent(first, first)) process.exit(1);'
                 "process.stdout.write('ok');"
             ),
         ],
