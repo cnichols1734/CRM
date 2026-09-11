@@ -231,12 +231,20 @@ class TestChromeHooks:
         offers = _read("templates", "transactions", "_offers_panel.html")
         assert "seller-new-offer-panel t-modal" in offers
         assert "offer-command__panel t-panel-slide" in offers
-        assert "t-panel-slide absolute inset-2" in offers
+        assert "{% include 'transactions/_offer_client_email.html' %}" in offers
         assert 'md:-translate-y-1/2">\n                                     style=' not in offers
         assert (
             'style="background: var(--paper); border: 1px solid var(--hairline); '
             'color: var(--ink);"'
         ) in offers
+
+        composer = _read("templates", "transactions", "_offer_client_email.html")
+        assert "t-panel-slide absolute inset-2" in composer
+        assert 'md:-translate-y-1/2">\n                                     style=' not in composer
+        assert (
+            'style="background: var(--paper); border: 1px solid var(--hairline); '
+            'color: var(--ink);"'
+        ) in composer
 
         packages = _read("templates", "transactions", "_document_packages.html")
         assert "crm-row-menu__panel t-dropdown" in packages
