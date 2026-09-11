@@ -898,15 +898,21 @@ const OCE_FIGURE_LABELS = {
     financing_type: 'Financing',
     earnest_money: 'Earnest money',
     option_period: 'Option period',
-    seller_concessions_amount: 'Seller concessions',
-    proposed_close_date: 'Closing date'
+    proposed_close_date: 'Closing date',
+    seller_concessions_amount: 'Seller contributions',
+    buyer_agent_commission: "Commission to buyer's agent",
+    survey_responsibility: 'Who pays for the survey',
+    residential_service_contract: 'Home warranty',
+    sale_of_other_property: 'Contingent on buyer selling another property',
+    non_realty_items: 'Non-realty items the buyer is asking for'
 };
+// Figures that are a list, not a number. They get a textarea and a full row.
+const OCE_LONG_FIGURES = ['non_realty_items'];
 
 const offerClientEmail = {
     offerIds: [],
     dirty: {},
     terms: {},
-    netTouched: false,
     timer: null,
     sending: false,
     bound: false,
@@ -931,7 +937,6 @@ function openOfferClientEmail(offerId) {
     offerClientEmail.offerIds = offerId ? [Number(offerId)] : [];
     offerClientEmail.dirty = {};
     offerClientEmail.terms = {};
-    offerClientEmail.netTouched = false;
     offerClientEmail.sending = false;
     offerClientEmail.paintedFor = null;
 
@@ -987,11 +992,6 @@ function oceBindEvents() {
             oceScheduleRefresh();
             return;
         }
-        if (target.hasAttribute('data-oce-net')) {
-            offerClientEmail.netTouched = true;
-            oceRefresh({});
-            return;
-        }
         if (target.hasAttribute('data-oce-pick')) {
             offerClientEmail.offerIds = Array.from(
                 root.querySelectorAll('[data-oce-pick]:checked')
@@ -1021,11 +1021,6 @@ function oceOverrides() {
     // The note has no generated default, so it always travels.
     const note = oceEl('note');
     if (note) payload.note = note.value;
-
-    if (offerClientEmail.netTouched) {
-        const net = oceEl('net');
-        if (net) payload.include_net = net.checked;
-    }
 
     const terms = {};
     Object.keys(offerClientEmail.terms).forEach((offerId) => {
@@ -1058,7 +1053,6 @@ function oceRefresh({ initial }) {
                 ocePaintPicker(data.candidates);
                 ocePaintFigures(data.draft);
             }
-            ocePaintNet(data.draft);
             if (initial) oceFillRecipients(data.draft);
             oceSetTitle(data.draft);
             ocePaintSender(data.sender);
@@ -1142,20 +1136,6 @@ function ocePaintPicker(candidates) {
         .join('');
 }
 
-function ocePaintNet(draft) {
-    const wrap = oceEl('net-wrap');
-    const box = oceEl('net');
-    if (!wrap || !box) return;
-    if (draft.net_available) {
-        wrap.classList.remove('hidden');
-        wrap.classList.add('flex');
-        if (!offerClientEmail.netTouched) box.checked = !!draft.include_net;
-    } else {
-        wrap.classList.add('hidden');
-        wrap.classList.remove('flex');
-    }
-}
-
 function ocePaintFigures(draft) {
     const list = oceEl('figures');
     if (!list) return;
@@ -1166,6 +1146,17 @@ function ocePaintFigures(draft) {
             const rows = Object.keys(OCE_FIGURE_LABELS)
                 .map((key) => {
                     const cell = offer.terms[key] || {};
+                    if (OCE_LONG_FIGURES.includes(key)) {
+                        return `
+                        <label class="block sm:col-span-2">
+                            <span class="mb-1 block text-xs font-medium text-slate-700">${OCE_FIGURE_LABELS[key]}</span>
+                            <textarea class="crm-textarea w-full"
+                                      rows="3"
+                                      data-oce-figure="${key}"
+                                      data-oce-figure-offer="${offer.offer_id}"
+                                      placeholder="One item per line. Leave blank if there is no addendum.">${oceEscape(cell.value || '')}</textarea>
+                        </label>`;
+                    }
                     return `
                         <label class="block">
                             <span class="mb-1 block text-xs font-medium text-slate-700">${OCE_FIGURE_LABELS[key]}</span>

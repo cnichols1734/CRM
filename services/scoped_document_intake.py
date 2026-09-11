@@ -100,6 +100,8 @@ CANONICAL_TEMPLATE_SLUGS = frozenset({
     'third-party-financing-addendum',
     'appraisal-termination-addendum',
     'broker-compensation-agreement',
+    'non-realty-items-addendum',
+    'sale-of-other-property-addendum',
     'hoa-addendum',
     'seller-backup-addendum',
     'sellers-disclosure',
@@ -641,6 +643,8 @@ def _is_offer_support_document(document: TransactionDocument) -> bool:
     if slug in {
         'third-party-financing-addendum',
         'appraisal-termination-addendum',
+        'non-realty-items-addendum',
+        'sale-of-other-property-addendum',
         'hoa-addendum',
         'seller-backup-addendum',
         'pre-approval-or-proof-of-funds',

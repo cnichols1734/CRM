@@ -134,6 +134,48 @@ def test_identifies_amendment_and_addenda():
     assert pof.kind == KIND_PROOF_OF_FUNDS
 
 
+def test_identifies_non_realty_items_addendum():
+    identity = identify_from_text(
+        'PROMULGATED BY THE TEXAS REAL ESTATE COMMISSION (TREC)\n'
+        'NON-REALTY ITEMS ADDENDUM TO CONTRACT CONCERNING THE PROPERTY AT\n'
+        'A. For an additional sum of $ 0 and other and good and valuable consideration,\n'
+        'Seller shall convey the following personal property to Buyer at closing:\n'
+        'Refrigerator, washer and dryer\n'
+        'TREC NO. 51-0\n'
+    )
+    assert identity.kind == KIND_ADDENDUM
+    assert identity.template_slug == 'non-realty-items-addendum'
+    assert identity.addendum_key == 'non_realty_items'
+    assert identity.form_number == 'TREC 51'
+    assert identity.is_high_confidence
+
+
+def test_identifies_sale_of_other_property_addendum():
+    identity = identify_from_text(
+        'ADDENDUM FOR SALE OF OTHER PROPERTY BY BUYER\n'
+        'TO CONTRACT CONCERNING THE PROPERTY AT\n'
+        'TREC NO. 10-6\n'
+    )
+    assert identity.kind == KIND_ADDENDUM
+    assert identity.template_slug == 'sale-of-other-property-addendum'
+    assert identity.addendum_key == 'sale_of_other_property'
+    assert identity.is_high_confidence
+
+
+def test_paragraph_22_addendum_names_do_not_flip_a_contract():
+    """TREC 20 lists every addendum by name in its checklist."""
+    identity = identify_from_text(
+        TREC_20_TEXT
+        + '22. AGREEMENT OF PARTIES: The following are incorporated into this contract:\n'
+        '[ ] Third Party Financing Addendum\n'
+        '[ ] Addendum for Sale of Other Property by Buyer\n'
+        '[ ] Non-Realty Items Addendum\n',
+        filename='offer.pdf',
+    )
+    assert identity.kind == KIND_PURCHASE_CONTRACT
+    assert identity.template_slug != 'non-realty-items-addendum'
+
+
 def test_listing_support_docs_are_not_offer_contracts():
     """Wire fraud / IABS / T-47 / net sheets must never become Offer Contract."""
     cases = [

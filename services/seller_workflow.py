@@ -107,6 +107,18 @@ OFFER_DOCUMENT_TYPES = {
         'direction': None,
         'primary_terms': False,
     },
+    'non_realty_items': {
+        'label': 'Non-Realty Items Addendum',
+        'template_slug': 'non-realty-items-addendum',
+        'direction': None,
+        'primary_terms': False,
+    },
+    'sale_of_other_property': {
+        'label': 'Addendum for Sale of Other Property',
+        'template_slug': 'sale-of-other-property-addendum',
+        'direction': None,
+        'primary_terms': False,
+    },
 }
 
 _SLUG_TO_OFFER_DOCUMENT_TYPE = {
@@ -126,6 +138,8 @@ _SLUG_TO_OFFER_DOCUMENT_TYPE = {
     'pre-approval-or-proof-of-funds': 'pre_approval',
     'appraisal-termination-addendum': 'appraisal_termination',
     'broker-compensation-agreement': 'broker_compensation',
+    'non-realty-items-addendum': 'non_realty_items',
+    'sale-of-other-property-addendum': 'sale_of_other_property',
 }
 
 
@@ -326,6 +340,19 @@ def _financing_type_label(value):
     if key in known:
         return known[key]
     return text[:1].upper() + text[1:]
+
+
+def _non_realty_items_text(terms):
+    """One item per line from wherever the extractor put the addendum's list."""
+    from services.offer_addenda import normalize_items
+
+    direct = normalize_items(terms.get('non_realty_items'))
+    if direct:
+        return direct
+    addenda = terms.get('addenda')
+    if isinstance(addenda, dict):
+        return normalize_items(addenda.get('non_realty_items_addendum'))
+    return None
 
 
 def _residential_service_amount(value):
@@ -650,6 +677,7 @@ def apply_offer_terms(offer, terms):
         offer_price=offer_price,
         field_role='fee',
     ) or _coerce_decimal(terms.get('buyer_agent_commission_flat'))
+    offer.non_realty_items = _non_realty_items_text(terms)
     offer.response_deadline_at = _parse_datetime(terms.get('response_deadline_at')) or offer.response_deadline_at
     existing_terms = dict(offer.terms_summary or {})
     summary_terms = dict(terms)
@@ -735,6 +763,34 @@ def _normalized_supporting_payload(document_type, extracted):
                 'buyer_agent_commission_flat': extracted.get(
                     'buyer_agent_commission_flat'
                 ),
+            },
+            'supporting_documents': {
+                document_type: extracted,
+            },
+        }
+    if document_type == 'non_realty_items':
+        return {
+            'offer_terms': {
+                'non_realty_items': extracted.get('non_realty_items'),
+                'non_realty_items_price': extracted.get('non_realty_items_price'),
+            },
+            'addenda': {
+                'non_realty_items_addendum': {
+                    'items': extracted.get('non_realty_items'),
+                    'price': extracted.get('non_realty_items_price'),
+                },
+            },
+            'supporting_documents': {
+                document_type: extracted,
+            },
+        }
+    if document_type == 'sale_of_other_property':
+        return {
+            'offer_terms': {
+                'sale_of_other_property_contingency': True,
+            },
+            'addenda': {
+                'sale_of_other_property_addendum': extracted,
             },
             'supporting_documents': {
                 document_type: extracted,
@@ -828,11 +884,15 @@ SPLIT_DOCUMENT_TYPE_TO_OFFER_TYPE = {
     'broker_compensation': 'broker_compensation',
     'appraisal_termination': 'appraisal_termination',
     'appraisal_addendum': 'appraisal_termination',
+    'non_realty_items': 'non_realty_items',
+    'non_realty_items_addendum': 'non_realty_items',
+    'sale_of_other_property': 'sale_of_other_property',
+    'sale_of_other_property_addendum': 'sale_of_other_property',
 }
 # Addenda with no canonical slot of their own. Mapping them onto the contract
 # made the splitter drop them as duplicate primaries, so they file as
 # unidentified children and the package UI asks for a human classification.
-# sale_of_other_property, temporary_lease, and anything else land here.
+# temporary_lease and anything else land here.
 
 
 def _split_segment_to_offer_type(segment_type):
@@ -1982,6 +2042,13 @@ def normalize_offer_terms(terms):
         normalized.setdefault('hoa_resale_certificate_payer', hoa_addendum.get('title_company_info_payer'))
         addenda['hoa_addendum'] = hoa_addendum
         supporting.setdefault('hoa_addendum', hoa_addendum)
+
+    sale_addendum = (
+        _json_object(addenda.get('sale_of_other_property_addendum'))
+        or _json_object(supporting.get('sale_of_other_property'))
+    )
+    if sale_addendum and normalized.get('sale_of_other_property_contingency') in (None, ''):
+        normalized['sale_of_other_property_contingency'] = True
 
     compensation = _json_object(supporting.get('broker_compensation'))
     if compensation:

@@ -1511,6 +1511,8 @@ class SellerOffer(db.Model):
     residential_service_contract = db.Column(db.Text)
     buyer_agent_commission_percent = db.Column(db.Numeric(6, 3))
     buyer_agent_commission_flat = db.Column(db.Numeric(12, 2))
+    # Non-Realty Items Addendum (TREC 51), one item per line.
+    non_realty_items = db.Column(db.Text)
     net_to_seller_estimate = db.Column(db.Numeric(12, 2))
 
     last_activity_at = db.Column(db.DateTime)

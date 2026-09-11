@@ -153,18 +153,35 @@
                         </td>
                     </tr>
                     {%- endif %}
-                    {%- if draft.include_net or draft.footnote %}
+                    {%- if draft.footnote %}
                     <tr>
-                        <td style="padding-top:18px;font-family:{{ FONT }};font-size:11px;line-height:19px;font-weight:300;color:{{ MUTED }};">
-                            {%- if draft.include_net %}{{ net_caveat }}{% endif %}
-                            {%- if draft.include_net and draft.footnote %}<br>{% endif %}
-                            {%- if draft.footnote %}{{ draft.footnote }}{% endif %}
-                        </td>
+                        <td style="padding-top:18px;font-family:{{ FONT }};font-size:11px;line-height:19px;font-weight:300;color:{{ MUTED }};">{{ draft.footnote }}</td>
                     </tr>
                     {%- endif %}
                 </table>
             </td>
         </tr>
+        {%- if draft.long_rows %}
+        {# ── Paragraph terms. A list does not fit a right-aligned cell. ── #}
+        <tr>
+            <td bgcolor="#ffffff" class="gutter" style="background-color:#ffffff;padding:30px 40px 0 40px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {%- for spec in draft.long_rows if spec['key'] in block.cells %}
+                    <tr>
+                        <td style="padding-bottom:10px;font-family:{{ FONT }};font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:{{ SLATE }};">{{ spec['label'] }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-bottom:6px;font-family:{{ FONT }};font-size:14px;line-height:22px;font-weight:400;color:{{ INK }};">
+                            {%- for item in block.value(spec['key']).split('\n') if item.strip() %}
+                            <span style="display:block;padding:7px 0;border-top:1px solid {{ HAIRLINE }};">{{ item.strip() }}</span>
+                            {%- endfor %}
+                        </td>
+                    </tr>
+                    {%- endfor %}
+                </table>
+            </td>
+        </tr>
+        {%- endif %}
 
         {%- else %}
         {# ── SEVERAL OFFERS · side by side ────────────────────────── #}
@@ -185,14 +202,12 @@
                         {%- endfor %}
                     </tr>
                     {%- for spec in draft.row_specs %}
-                    {%- set is_net = spec['key'] == 'estimated_net' %}
-                    {%- set band = FOG if is_net else '#ffffff' %}
                     <tr>
-                        <td bgcolor="{{ band }}" style="background-color:{{ band }};padding:{{ cellpad }};border-bottom:1px solid {{ HAIRLINE }};font-family:{{ FONT }};font-size:11px;line-height:16px;font-weight:300;letter-spacing:0.4px;text-transform:uppercase;color:{{ SLATE }};">{{ spec['label'] }}</td>
+                        <td bgcolor="#ffffff" style="background-color:#ffffff;padding:{{ cellpad }};border-bottom:1px solid {{ HAIRLINE }};font-family:{{ FONT }};font-size:11px;line-height:16px;font-weight:300;letter-spacing:0.4px;text-transform:uppercase;color:{{ SLATE }};">{{ spec['label'] }}</td>
                         {%- for offer in draft.offers %}
                         {%- set cell = offer.cells.get(spec['key']) %}
                         {%- set won = cell and cell.wins %}
-                        {%- set cellbg = TEAL_TINT if won else band %}
+                        {%- set cellbg = TEAL_TINT if won else '#ffffff' %}
                         <td bgcolor="{{ cellbg }}" style="background-color:{{ cellbg }};padding:{{ cellpad }};border-bottom:1px solid {{ HAIRLINE }};border-left:1px solid {{ HAIRLINE }};font-family:{{ FONT }};font-size:13.5px;line-height:19px;font-weight:{{ '700' if won else '500' }};color:{{ TEAL_INK if won else INK }};">{{ offer.value(spec['key']) }}</td>
                         {%- endfor %}
                     </tr>
@@ -200,14 +215,36 @@
                 </table>
             </td>
         </tr>
-        {%- if draft.has_winners or draft.include_net or draft.footnote %}
+        {%- if draft.has_winners or draft.footnote %}
         <tr>
             <td bgcolor="#ffffff" class="gutter" style="background-color:#ffffff;padding:14px 40px 0 40px;font-family:{{ FONT }};font-size:11px;line-height:19px;font-weight:300;color:{{ MUTED }};">
                 {%- if draft.has_winners %}Highlighted figures are the strongest of the {{ columns }} for you.{% endif %}
-                {%- if draft.has_winners and (draft.include_net or draft.footnote) %}<br>{% endif %}
-                {%- if draft.include_net %}{{ net_caveat }}{% endif %}
-                {%- if draft.include_net and draft.footnote %}<br>{% endif %}
+                {%- if draft.has_winners and draft.footnote %}<br>{% endif %}
                 {%- if draft.footnote %}{{ draft.footnote }}{% endif %}
+            </td>
+        </tr>
+        {%- endif %}
+        {%- if draft.long_rows %}
+        {# ── Paragraph terms, one short block per offer that has them. ── #}
+        <tr>
+            <td bgcolor="#ffffff" class="gutter" style="background-color:#ffffff;padding:26px 40px 0 40px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {%- for spec in draft.long_rows %}
+                    <tr>
+                        <td style="padding-bottom:6px;font-family:{{ FONT }};font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:{{ SLATE }};">{{ spec['label'] }}</td>
+                    </tr>
+                    {%- for offer in draft.offers if spec['key'] in offer.cells %}
+                    <tr>
+                        <td style="padding:10px 0 12px 0;border-top:1px solid {{ HAIRLINE }};font-family:{{ FONT }};">
+                            <span style="display:block;font-size:12px;line-height:18px;font-weight:600;color:{{ INK }};padding-bottom:3px;">{{ offer.label }}</span>
+                            {%- for item in offer.value(spec['key']).split('\n') if item.strip() %}
+                            <span style="display:block;font-size:13.5px;line-height:21px;font-weight:400;color:{{ BODY }};">{{ item.strip() }}</span>
+                            {%- endfor %}
+                        </td>
+                    </tr>
+                    {%- endfor %}
+                    {%- endfor %}
+                </table>
             </td>
         </tr>
         {%- endif %}
