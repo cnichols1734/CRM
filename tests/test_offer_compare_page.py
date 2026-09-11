@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -297,8 +298,8 @@ def test_compare_email_sellers_skips_accepted_offers(app, seed, owner_a_client):
         assert 'Email sellers' in html
         assert f'openOfferClientEmail([{live_id}])' in html
         assert f'openOfferClientEmail([{accepted_id}' not in html
-        assert f'{accepted_id}, {live_id}' not in html
-        assert f'{live_id}, {accepted_id}' not in html
+        calls = re.findall(r'openOfferClientEmail\(\[([^\]]*)\]\)', html)
+        assert calls == [str(live_id)]
     finally:
         with app.app_context():
             _cleanup_offers(seed['org_a'], seed['tx_a'])
