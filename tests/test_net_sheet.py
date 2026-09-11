@@ -490,6 +490,45 @@ def test_compare_skips_listing_coop_when_offer_omits_commission(app, seed):
         assert compare.estimated_net == Decimal('400000.00')
 
 
+def test_compare_sums_offer_percent_and_flat_commission(app, seed):
+    """Offer percent used to early-return and drop a written flat fee."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = _tx(seed)
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            offer_price=Decimal('400000'),
+            buyer_agent_commission_percent=Decimal('2.5'),
+            buyer_agent_commission_flat=Decimal('500'),
+        )
+        terms = _commission_terms(
+            org_id, tx.id, user_id,
+            listing_commission_percent=Decimal('3'),
+            coop_compensation_percent=Decimal('3'),
+        )
+        db.session.commit()
+
+        from services.net_sheet import COMPARE_NET_OMIT
+
+        sheet = build_for_offer(
+            offer,
+            commission_terms=terms,
+            omit_keys=COMPARE_NET_OMIT,
+            listing_coop=False,
+        )
+        line = _line_map(sheet)['buyer_agent_commission']
+        assert line.amount == Decimal('10500.00')  # 2.5% of 400000 + 500
+        basis = line.basis or ''
+        assert '2.5%' in basis
+        assert '$500' in basis
+        assert 'offer' in basis.lower()
+        assert 'coop' not in basis.lower()
+        # 400000 − 10500 = 389500
+        assert sheet.estimated_net == Decimal('389500.00')
+
+
 def test_compare_reads_unreviewed_version_terms(app, seed):
     """Intake parks commission, concessions, and warranty on the version
     until someone reviews. Compare still has to deduct them."""

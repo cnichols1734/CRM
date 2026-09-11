@@ -415,6 +415,17 @@ def _buyer_agent_commission_line(
     key = 'buyer_agent_commission'
 
     offer_pct = _as_decimal(buyer_agent_percent)
+    offer_flat = _as_decimal(buyer_agent_flat)
+    if offer_pct is not None and offer_flat is not None:
+        if sales_price is None:
+            return _line(key, None, 'cost', basis='Sales price required', known=False)
+        amount = _percent_of(sales_price, offer_pct) + _money(offer_flat)
+        basis = (
+            f'{_format_percent(offer_pct)} + {_format_money(offer_flat)} '
+            f'(offer buyer-agent commission)'
+        )
+        return _line(key, amount, 'cost', basis=basis, known=True)
+
     if offer_pct is not None:
         if sales_price is None:
             return _line(key, None, 'cost', basis='Sales price required', known=False)
@@ -425,7 +436,6 @@ def _buyer_agent_commission_line(
         )
         return _line(key, amount, 'cost', basis=basis, known=True)
 
-    offer_flat = _as_decimal(buyer_agent_flat)
     if offer_flat is not None:
         return _line(
             key, _money(offer_flat), 'cost',
