@@ -44,6 +44,7 @@ from services.offer_side import (
 from services.seller_workflow import (
     apply_offer_terms,
     create_offer_activity,
+    drop_cleared_offer_terms,
     expire_offer_if_needed,
     get_offer_document_type,
     infer_offer_document_type,
@@ -868,10 +869,12 @@ def update_seller_offer(id, offer_id):
         if version:
             merged_terms = dict(version.terms_data or {})
             merged_terms.update(terms)
+            drop_cleared_offer_terms(merged_terms, terms)
             version.terms_data = merged_terms
             version.status = 'reviewed'
         else:
-            merged_terms = terms
+            merged_terms = dict(terms)
+            drop_cleared_offer_terms(merged_terms, terms)
             version = SellerOfferVersion(
                 organization_id=current_user.organization_id,
                 transaction_id=transaction.id,

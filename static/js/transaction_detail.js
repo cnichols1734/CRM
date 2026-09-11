@@ -798,7 +798,9 @@ function sellerFormData(form) {
         const termMatch = key.match(/^terms_data\[(.+)\]$/);
         if (termMatch) {
             const field = termMatch[1];
-            if (value !== '' || field === 'non_realty_items') terms[field] = value;
+            if (value !== '' || field === 'non_realty_items' || field === 'title_policy_payer') {
+                terms[field] = value;
+            }
         } else if (value !== '') {
             data[key] = value;
         }

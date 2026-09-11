@@ -8,6 +8,7 @@ from services.seller_workflow import (
     _non_realty_items_text,
     _normalized_supporting_payload,
     apply_offer_terms,
+    drop_cleared_offer_terms,
     normalize_offer_terms,
 )
 
@@ -210,6 +211,35 @@ def test_an_empty_column_is_an_explicit_clear():
         terms_summary={'addenda': {'non_realty_items_addendum': {'items': ['Fridge']}}},
     )
     assert offer_addenda.non_realty_items(o) is None
+
+
+def test_drop_cleared_offer_terms_removes_a_blank_title_policy_payer():
+    merged = {
+        'offer_price': '440000',
+        'title_policy_payer': 'Seller',
+    }
+    drop_cleared_offer_terms(merged, {'title_policy_payer': ''})
+    assert 'title_policy_payer' not in merged
+    assert merged['offer_price'] == '440000'
+
+    untouched = {'title_policy_payer': 'Seller'}
+    drop_cleared_offer_terms(untouched, {'offer_price': '440000'})
+    assert untouched['title_policy_payer'] == 'Seller'
+
+
+def test_apply_offer_terms_clears_title_policy_payer_when_blank():
+    offer_row = SimpleNamespace(
+        terms_summary={'title_policy_payer': 'Seller'},
+        response_deadline_at=None,
+        title_policy_payer='Seller',
+        non_realty_items=None,
+    )
+    apply_offer_terms(offer_row, {
+        'title_policy_payer': '',
+        'offer_price': '440000',
+    })
+    assert offer_row.title_policy_payer is None
+    assert 'title_policy_payer' not in (offer_row.terms_summary or {})
 
 
 def test_apply_offer_terms_clears_when_the_form_sends_a_blank():
