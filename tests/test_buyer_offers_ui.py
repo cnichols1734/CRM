@@ -204,6 +204,74 @@ def test_buyer_detail_shows_overage_notice_at_six_offers(app, seed, owner_a_clie
             db.session.commit()
 
 
+def test_offer_snapshot_reads_non_realty_items_from_the_addenda_bag(
+    app, seed, owner_a_client,
+):
+    with app.app_context():
+        _cleanup_offers(seed['org_a'], seed['tx_a'])
+        offer = _add_offer(
+            seed['org_a'],
+            seed['owner_a'],
+            seed['tx_a'],
+            buyer_names='Snapshot Fallback Buyer',
+        )
+        offer.non_realty_items = None
+        offer.terms_summary = {
+            'addenda': {
+                'non_realty_items_addendum': {
+                    'items': ['Refrigerator', 'Pool equipment'],
+                },
+            },
+        }
+        db.session.commit()
+
+    try:
+        response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        start = html.index('offer-command__snapshot')
+        snapshot = html[start:start + 8000]
+        assert 'Non-realty' in snapshot
+        assert 'Refrigerator' in snapshot
+        assert 'Pool equipment' in snapshot
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
+def test_blank_offer_form_clears_non_realty_items(app, seed, owner_a_client):
+    with app.app_context():
+        _cleanup_offers(seed['org_a'], seed['tx_a'])
+        offer = _add_offer(
+            seed['org_a'],
+            seed['owner_a'],
+            seed['tx_a'],
+            buyer_names='Clear Items Buyer',
+        )
+        offer.non_realty_items = 'Refrigerator'
+        offer.terms_summary = {
+            'addenda': {'non_realty_items_addendum': {'items': ['Refrigerator']}},
+        }
+        db.session.commit()
+        offer_id = offer.id
+
+    response = owner_a_client.post(
+        f'/transactions/{seed["tx_a"]}/offers/{offer_id}',
+        json={'terms_data': {'non_realty_items': ''}},
+    )
+    assert response.status_code == 200, response.get_data(as_text=True)
+
+    try:
+        with app.app_context():
+            saved = db.session.get(SellerOffer, offer_id)
+            assert saved.non_realty_items == ''
+            from services import offer_addenda
+            assert offer_addenda.non_realty_items(saved) is None
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
 def test_buyer_detail_hides_overage_notice_under_limit(app, seed, owner_a_client):
     with app.app_context():
         buyer_tx = _make_transaction(
@@ -232,3 +300,11 @@ def test_buyer_detail_hides_overage_notice_under_limit(app, seed, owner_a_client
             _cleanup_offers(seed['org_a'], buyer_tx_id)
             Transaction.query.filter_by(id=buyer_tx_id).delete()
             db.session.commit()
+
+
+def test_offer_form_js_sends_a_blank_non_realty_field():
+    from pathlib import Path
+
+    source = Path('static/js/transaction_detail.js').read_text()
+    assert "field === 'non_realty_items'" in source
+    assert 'if (value !== \'\' || field === \'non_realty_items\') terms[field] = value;' in source

@@ -70,9 +70,24 @@ class FakeOffer:
         self.option_period_days = kwargs.pop('option_period_days', None)
         self.seller_concessions_amount = kwargs.pop('seller_concessions_amount', None)
         self.proposed_close_date = kwargs.pop('proposed_close_date', None)
+        self.buyer_agent_commission_percent = kwargs.pop('buyer_agent_commission_percent', None)
+        self.buyer_agent_commission_flat = kwargs.pop('buyer_agent_commission_flat', None)
+        self.survey_furnished_by = kwargs.pop('survey_furnished_by', None)
+        self.survey_payer = kwargs.pop('survey_payer', None)
+        self.residential_service_contract = kwargs.pop('residential_service_contract', None)
+        self.sale_of_other_property_contingency = kwargs.pop(
+            'sale_of_other_property_contingency', None,
+        )
+        self.non_realty_items = kwargs.pop('non_realty_items', None)
+        self.offer_documents = kwargs.pop('offer_documents', [])
         self.terms_summary = kwargs.pop('terms_summary', {})
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+
+class FakeOfferDocument:
+    def __init__(self, document_type):
+        self.document_type = document_type
 
 
 class FakeGmail:
@@ -98,12 +113,6 @@ class FakeOrg:
     logo_url = None
 
 
-class FakeNetSheet:
-    def __init__(self, offer_id, estimated_net):
-        self.offer_id = offer_id
-        self.estimated_net = estimated_net
-
-
 def full_offer(**overrides):
     defaults = dict(
         buyer_names='Jordan and Riley Vance',
@@ -116,12 +125,15 @@ def full_offer(**overrides):
         option_period_days=7,
         seller_concessions_amount=Decimal('4000'),
         proposed_close_date=date(2026, 3, 15),
+        buyer_agent_commission_percent=Decimal('2.500'),
+        survey_furnished_by='Seller shall furnish existing survey and T-47 affidavit',
+        residential_service_contract='650',
     )
     defaults.update(overrides)
     return FakeOffer(**defaults)
 
 
-def build(offers, *, side='seller', net_sheets=None, overrides=None, organization=None):
+def build(offers, *, side='seller', overrides=None, organization=None):
     if not isinstance(offers, (list, tuple)):
         offers = [offers]
     return ose.build_draft(
@@ -130,9 +142,12 @@ def build(offers, *, side='seller', net_sheets=None, overrides=None, organizatio
         agent=FakeAgent(),
         organization=organization or FakeOrg(),
         side=side,
-        net_sheets=net_sheets,
         overrides=overrides,
     )
+
+
+def row_keys(draft):
+    return {spec['key'] for spec in draft.row_specs}
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +174,266 @@ def test_remaining_terms_read_in_plain_language():
     assert block.value('earnest_money') == '$5,000'
     assert block.value('option_period') == '7 days, $300 fee'
     assert block.value('proposed_close_date') == 'March 15, 2026'
+    assert block.value('seller_concessions_amount') == '$4,000'
+    assert block.value('buyer_agent_commission') == '2.5%'
+    assert block.value('survey_responsibility') == ose.SURVEY_EXISTING
+    assert block.value('residential_service_contract') == '$650'
+    assert block.value('sale_of_other_property') == 'No'
+
+
+def test_the_row_labels_are_the_ones_a_client_reads():
+    draft = build(full_offer())
+    labels = {spec['key']: spec['label'] for spec in draft.row_specs}
+    assert labels['seller_concessions_amount'] == 'Seller contributions'
+    assert labels['buyer_agent_commission'] == "Commission to buyer's agent"
+    assert labels['survey_responsibility'] == 'Who pays for the survey'
+    assert labels['residential_service_contract'] == 'Home warranty'
+    assert labels['sale_of_other_property'] == 'Contingent on buyer selling another property'
+
+
+# ---------------------------------------------------------------------------
+# The net sheet is gone from the client email
+# ---------------------------------------------------------------------------
+
+def test_the_draft_carries_no_estimated_net():
+    draft = build(full_offer())
+    assert 'estimated_net' not in row_keys(draft)
+    assert not hasattr(draft, 'include_net')
+    assert not hasattr(draft, 'net_available')
+    payload = draft.as_payload()
+    assert 'include_net' not in payload
+    assert 'net_available' not in payload
+
+
+def test_an_include_net_override_from_an_old_client_is_ignored():
+    draft = build(full_offer(), overrides={'include_net': True})
+    assert 'estimated_net' not in row_keys(draft)
+    assert 'estimated_net' not in draft.offers[0].cells
+
+
+def test_a_stray_estimated_net_figure_override_is_dropped():
+    offer = full_offer()
+    draft = build(offer, overrides={
+        'terms': {str(offer.id): {'estimated_net': '$401,000'}},
+    })
+    assert 'estimated_net' not in draft.offers[0].cells
+
+
+def test_rendered_html_has_no_net_language(app):
+    low, high = compare_set()
+    draft = build([low, high])
+    with app.app_context():
+        html = ose.render_html(draft)
+    assert 'Estimated net' not in html
+    assert 'settlement statement' not in html
+
+
+# ---------------------------------------------------------------------------
+# Commission to the buyer's agent
+# ---------------------------------------------------------------------------
+
+def test_commission_shows_the_percent_when_that_is_what_was_written():
+    draft = build(full_offer(buyer_agent_commission_percent=Decimal('3.000')))
+    assert draft.offers[0].value('buyer_agent_commission') == '3%'
+
+
+def test_commission_shows_the_flat_fee_when_that_is_what_was_written():
+    draft = build(full_offer(
+        buyer_agent_commission_percent=None,
+        buyer_agent_commission_flat=Decimal('9000'),
+    ))
+    assert draft.offers[0].value('buyer_agent_commission') == '$9,000'
+
+
+def test_commission_shows_both_when_the_contract_has_both():
+    draft = build(full_offer(
+        buyer_agent_commission_percent=Decimal('2.5'),
+        buyer_agent_commission_flat=Decimal('500'),
+    ))
+    assert draft.offers[0].value('buyer_agent_commission') == '2.5% + $500'
+
+
+def test_commission_row_is_dropped_when_neither_is_set():
+    draft = build(full_offer(buyer_agent_commission_percent=None))
+    assert 'buyer_agent_commission' not in row_keys(draft)
+
+
+def test_commission_falls_back_to_terms_summary():
+    offer = full_offer(
+        buyer_agent_commission_percent=None,
+        terms_summary={'buyer_agent_commission_percent': '2.75'},
+    )
+    assert build(offer).offers[0].value('buyer_agent_commission') == '2.75%'
+
+
+# ---------------------------------------------------------------------------
+# Who pays for the survey
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize('written, expected', [
+    ('Seller shall furnish existing survey and T-47 affidavit', ose.SURVEY_EXISTING),
+    ('seller existing survey', ose.SURVEY_EXISTING),
+    ('Buyer shall obtain a new survey at Buyer\'s expense', ose.SURVEY_BUYER),
+    ('buyer new survey', ose.SURVEY_BUYER),
+    ('Seller, at Seller\'s expense, shall furnish a new survey', ose.SURVEY_SELLER),
+    ('seller new survey', ose.SURVEY_SELLER),
+])
+def test_survey_prose_collapses_to_the_ticked_box(written, expected):
+    draft = build(full_offer(survey_furnished_by=written))
+    assert draft.offers[0].value('survey_responsibility') == expected
+
+
+def test_survey_falls_back_to_the_payer_column():
+    draft = build(full_offer(survey_furnished_by=None, survey_payer='Buyer'))
+    assert draft.offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
+
+
+def test_survey_row_is_dropped_when_nothing_was_read():
+    draft = build(full_offer(survey_furnished_by=None))
+    assert 'survey_responsibility' not in row_keys(draft)
+
+
+# ---------------------------------------------------------------------------
+# Home warranty
+# ---------------------------------------------------------------------------
+
+def test_home_warranty_is_a_dollar_amount():
+    draft = build(full_offer(residential_service_contract='900'))
+    assert draft.offers[0].value('residential_service_contract') == '$900'
+
+
+def test_home_warranty_keeps_cents_the_contract_wrote():
+    draft = build(full_offer(residential_service_contract='549.99'))
+    assert draft.offers[0].value('residential_service_contract') == '$549.99'
+
+
+def test_a_zero_home_warranty_is_not_a_term():
+    draft = build(full_offer(residential_service_contract='0'))
+    assert 'residential_service_contract' not in row_keys(draft)
+
+
+def test_legacy_home_warranty_prose_passes_through():
+    draft = build(full_offer(residential_service_contract='Seller to pay'))
+    assert draft.offers[0].value('residential_service_contract') == 'Seller to pay'
+
+
+# ---------------------------------------------------------------------------
+# Contingent on the buyer selling another property
+# ---------------------------------------------------------------------------
+
+def test_no_addendum_means_no():
+    draft = build(full_offer())
+    assert draft.offers[0].value('sale_of_other_property') == 'No'
+    assert 'sale_of_other_property' in row_keys(draft)
+
+
+def test_contingency_column_means_yes():
+    draft = build(full_offer(sale_of_other_property_contingency=True))
+    assert draft.offers[0].value('sale_of_other_property') == 'Yes'
+
+
+def test_addenda_entry_means_yes():
+    offer = full_offer(terms_summary={
+        'addenda': {'sale_of_other_property_addendum': {'deadline_days': 30}},
+    })
+    assert build(offer).offers[0].value('sale_of_other_property') == 'Yes'
+
+
+def test_a_null_addenda_entry_still_means_no():
+    offer = full_offer(terms_summary={
+        'addenda': {'sale_of_other_property_addendum': None},
+    })
+    assert build(offer).offers[0].value('sale_of_other_property') == 'No'
+
+
+def test_detected_document_segment_means_yes():
+    offer = full_offer(terms_summary={
+        'detected_documents': [
+            {'document_type': 'buyer_offer', 'start_page': 1, 'end_page': 9},
+            {'document_type': 'sale_of_other_property', 'start_page': 10, 'end_page': 10},
+        ],
+    })
+    assert build(offer).offers[0].value('sale_of_other_property') == 'Yes'
+
+
+def test_a_typed_offer_document_means_yes():
+    offer = full_offer(offer_documents=[FakeOfferDocument('sale_of_other_property')])
+    assert build(offer).offers[0].value('sale_of_other_property') == 'Yes'
+
+
+def test_the_contingency_is_never_marked_a_winner():
+    low, high = compare_set()
+    high.sale_of_other_property_contingency = True
+    draft = build([low, high])
+    assert all(not block.cells['sale_of_other_property'].wins for block in draft.offers)
+
+
+# ---------------------------------------------------------------------------
+# Non-realty items
+# ---------------------------------------------------------------------------
+
+def test_non_realty_items_are_a_paragraph_not_a_row():
+    draft = build(full_offer(non_realty_items='Refrigerator\nWasher and dryer'))
+    assert 'non_realty_items' not in row_keys(draft)
+    assert [spec['key'] for spec in draft.long_rows] == ['non_realty_items']
+    assert draft.offers[0].value('non_realty_items') == 'Refrigerator\nWasher and dryer'
+
+
+def test_no_non_realty_addendum_means_no_block():
+    draft = build(full_offer())
+    assert draft.long_rows == []
+    assert 'non_realty_items' not in draft.offers[0].cells
+
+
+def test_non_realty_items_read_from_the_addenda_bag_for_older_offers():
+    offer = full_offer(terms_summary={
+        'addenda': {
+            'non_realty_items_addendum': {
+                'items': ['Refrigerator', 'Pool equipment'],
+                'price': '0',
+            },
+        },
+    })
+    assert build(offer).offers[0].value('non_realty_items') == 'Refrigerator\nPool equipment'
+
+
+def test_non_realty_items_travel_in_the_payload():
+    draft = build(full_offer(non_realty_items='Refrigerator'))
+    payload = draft.as_payload()
+    assert payload['long_rows'] == [{
+        'key': 'non_realty_items',
+        'label': 'Non-realty items addendum, the buyer is asking for',
+    }]
+    assert payload['offers'][0]['terms']['non_realty_items']['value'] == 'Refrigerator'
+
+
+def test_non_realty_items_render_one_line_per_item(app):
+    draft = build(full_offer(non_realty_items='Refrigerator\nWasher and dryer'))
+    with app.app_context():
+        html = ose.render_html(draft)
+    assert 'Non-realty items addendum, the buyer is asking for' in html
+    assert 'Refrigerator' in html
+    assert 'Washer and dryer' in html
+
+
+def test_non_realty_items_sit_under_the_matrix_per_offer(app):
+    low, high = compare_set()
+    high.non_realty_items = 'Refrigerator'
+    draft = build([low, high])
+    with app.app_context():
+        html = ose.render_html(draft)
+    assert html.count('Refrigerator') == 1
+    # Alpha has no addendum, so only Bravo gets a block under the table.
+    block_section = html.split('Non-realty items addendum, the buyer is asking for', 1)[1]
+    assert 'Bravo Buyer' in block_section
+    assert 'Alpha Buyer' not in block_section.split('Refrigerator', 1)[0]
+
+
+def test_non_realty_items_are_in_the_text_alternative():
+    text = ose.render_text(build(full_offer(non_realty_items='Refrigerator\nPatio set')))
+    assert 'Non-realty items addendum, the buyer is asking for:' in text
+    assert '  Refrigerator' in text
+    assert '  Patio set' in text
 
 
 def test_one_option_day_is_singular():
@@ -251,13 +526,9 @@ def test_buyer_side_speaks_for_the_buyer():
     assert 'hear back' in draft.closing
 
 
-def test_buyer_side_never_shows_a_seller_net():
-    draft = build(
-        full_offer(), side='buyer',
-        net_sheets={1: FakeNetSheet(1, Decimal('390000'))},
-    )
-    assert draft.net_available is False
-    assert draft.include_net is False
+def test_buyer_side_shows_the_same_contract_terms():
+    draft = build(full_offer(), side='buyer')
+    assert {'buyer_agent_commission', 'survey_responsibility', 'sale_of_other_property'} <= row_keys(draft)
 
 
 # ---------------------------------------------------------------------------
@@ -312,35 +583,15 @@ def test_identical_figures_are_not_marked_as_a_winner():
     )
 
 
-def test_net_row_appears_for_sellers_and_marks_the_best():
+def test_the_matrix_carries_the_contract_terms_for_every_offer():
     low, high = compare_set()
-    draft = build(
-        [low, high],
-        net_sheets={
-            101: FakeNetSheet(101, Decimal('381000')),
-            102: FakeNetSheet(102, Decimal('402500')),
-        },
-    )
-    assert draft.include_net is True
-    assert {spec['key'] for spec in draft.row_specs} >= {ose.NET_ROW_KEY}
+    high.buyer_agent_commission_percent = None
+    high.buyer_agent_commission_flat = Decimal('10000')
+    draft = build([low, high])
     by_label = {block.label: block for block in draft.offers}
-    assert by_label['Bravo Buyer'].cells[ose.NET_ROW_KEY].value == '$402,500'
-    assert by_label['Bravo Buyer'].cells[ose.NET_ROW_KEY].wins is True
-
-
-def test_the_agent_can_leave_the_net_out():
-    low, high = compare_set()
-    draft = build(
-        [low, high],
-        net_sheets={
-            101: FakeNetSheet(101, Decimal('381000')),
-            102: FakeNetSheet(102, Decimal('402500')),
-        },
-        overrides={'include_net': False},
-    )
-    assert draft.net_available is True
-    assert draft.include_net is False
-    assert ose.NET_ROW_KEY not in {spec['key'] for spec in draft.row_specs}
+    assert 'buyer_agent_commission' in row_keys(draft)
+    assert by_label['Alpha Buyer'].value('buyer_agent_commission') == '2.5%'
+    assert by_label['Bravo Buyer'].value('buyer_agent_commission') == '$10,000'
 
 
 def test_an_empty_row_is_dropped_from_the_matrix():
@@ -390,6 +641,50 @@ def test_an_edited_figure_is_kept_and_flagged():
     cell = draft.offers[0].cells['earnest_money']
     assert cell.value == '$7,500'
     assert cell.edited is True
+
+
+def test_every_new_term_round_trips_an_agent_edit():
+    offer = full_offer(non_realty_items='Refrigerator')
+    edits = {
+        'seller_concessions_amount': '$6,000',
+        'buyer_agent_commission': '3%',
+        'survey_responsibility': ose.SURVEY_BUYER,
+        'residential_service_contract': '$800',
+        'sale_of_other_property': 'Yes',
+        'non_realty_items': 'Refrigerator\nRiding mower',
+    }
+    draft = build(offer, overrides={'terms': {str(offer.id): edits}})
+    block = draft.offers[0]
+    for key, value in edits.items():
+        assert block.cells[key].value == value, key
+        assert block.cells[key].edited is True, key
+
+
+def test_an_agent_can_type_a_term_the_contract_left_blank():
+    offer = full_offer(survey_furnished_by=None)
+    draft = build(offer, overrides={
+        'terms': {str(offer.id): {'survey_responsibility': ose.SURVEY_SELLER}},
+    })
+    assert draft.offers[0].value('survey_responsibility') == ose.SURVEY_SELLER
+    assert 'survey_responsibility' in row_keys(draft)
+
+
+def test_an_agent_can_add_non_realty_items_by_hand():
+    offer = full_offer()
+    draft = build(offer, overrides={
+        'terms': {str(offer.id): {'non_realty_items': 'Refrigerator'}},
+    })
+    assert [spec['key'] for spec in draft.long_rows] == ['non_realty_items']
+    assert draft.offers[0].cells['non_realty_items'].edited is True
+
+
+def test_a_blank_non_realty_override_clears_the_generated_list():
+    offer = full_offer(non_realty_items='Refrigerator')
+    draft = build(offer, overrides={
+        'terms': {str(offer.id): {'non_realty_items': ''}},
+    })
+    assert 'non_realty_items' not in draft.offers[0].cells
+    assert [spec['key'] for spec in draft.long_rows] == []
 
 
 def test_an_edited_figure_never_gets_the_winner_highlight():
@@ -465,6 +760,13 @@ def test_single_offer_html_renders(app):
     assert 'Conventional loan' in html
     assert '7 days, $300 fee' in html
     assert 'March 15, 2026' in html
+    assert 'Seller contributions' in html
+    assert "Commission to buyer&#39;s agent" in html or "Commission to buyer's agent" in html
+    assert '2.5%' in html
+    assert ose.SURVEY_EXISTING in html
+    assert 'Home warranty' in html
+    assert '$650' in html
+    assert 'Contingent on buyer selling another property' in html
     assert 'Origen Realty' in html
     assert 'Brokerage license #9003104' in html
     # Transactional mail must not carry a marketing opt-out.
@@ -496,20 +798,13 @@ def test_an_organization_logo_replaces_our_mark(app):
 
 def test_comparison_html_renders_a_column_per_offer(app):
     low, high = compare_set()
-    draft = build(
-        [low, high],
-        net_sheets={
-            101: FakeNetSheet(101, Decimal('381000')),
-            102: FakeNetSheet(102, Decimal('402500')),
-        },
-    )
+    draft = build([low, high])
     with app.app_context():
         html = ose.render_html(draft)
     assert 'Alpha Buyer' in html
     assert 'Bravo Buyer' in html
     assert '$440,000' in html
-    assert ose.NET_ROW_LABEL in html
-    assert ose.NET_CAVEAT in html
+    assert 'Who pays for the survey' in html
     assert 'Offer comparison' in html
     _assert_no_dash_placeholder(html)
 
@@ -549,6 +844,12 @@ def test_text_alternative_lists_every_row():
     assert 'Hi Cassie,' in text
     assert 'Earnest money: $5,000' in text
     assert 'Closing date: March 15, 2026' in text
+    assert 'Seller contributions: $4,000' in text
+    assert "Commission to buyer's agent: 2.5%" in text
+    assert f'Who pays for the survey: {ose.SURVEY_EXISTING}' in text
+    assert 'Home warranty: $650' in text
+    assert 'Contingent on buyer selling another property: No' in text
+    assert 'Estimated net' not in text
     assert 'Cassie Nichols' in text
     assert 'Origen Realty' in text
 

@@ -298,7 +298,7 @@ EXTRACTION_SCHEMAS = {
     },
     'seller-offer-contract': {
         'fields': {
-            'detected_document_types': 'Array of document types detected in this PDF package, using these labels when present: residential_contract, third_party_financing_addendum, hoa_addendum, sellers_disclosure, pre_approval, backup_addendum, other.',
+            'detected_document_types': 'Array of document types detected in this PDF package, using these labels when present: residential_contract, third_party_financing_addendum, hoa_addendum, sellers_disclosure, pre_approval, backup_addendum, sale_of_other_property_addendum, non_realty_items_addendum, other.',
             'buyer_names': 'Buyer name or names as written in Paragraph 1 or signature blocks.',
             'buyer_agent_name': (
                 "Buyer's associate / associate name from the Other Broker (Buyer) section "
@@ -335,6 +335,16 @@ EXTRACTION_SCHEMAS = {
             ),
             'buyer_agent_commission_percent': 'Buyer agent/buyer broker compensation percentage if explicitly written in the contract or compensation addendum (number only, no %).',
             'buyer_agent_commission_flat': 'Buyer agent/buyer broker compensation flat fee if explicitly written in the contract or compensation addendum (digits only, no $ or commas).',
+            'non_realty_items': (
+                'JSON array of the personal property items the buyer asks the seller to convey, '
+                'from the Non-Realty Items Addendum (TREC 51-0 / TXR 1924) Paragraph A, one item per '
+                'entry written exactly as listed (for example "Refrigerator", "Washer and dryer", '
+                '"Patio furniture"). Return null when no Non-Realty Items Addendum is in the package.'
+            ),
+            'non_realty_items_price': (
+                'Dollar amount the buyer pays for the non-realty items from Paragraph B of the '
+                'Non-Realty Items Addendum, if written (digits only, no $ or commas). Null when blank or no addendum.'
+            ),
             'response_deadline_at': 'Offer acceptance deadline/respond-by date and time if written. Use ISO-like YYYY-MM-DDTHH:MM when time is available, otherwise YYYY-MM-DD.',
             'effective_date': 'Effective date if the contract is already executed (YYYY-MM-DD).',
             'title_company': 'Escrow/title company name if written.',
@@ -347,11 +357,13 @@ EXTRACTION_SCHEMAS = {
                 'JSON object describing attached addenda and deadline-bearing terms. For combined PDFs, inspect all pages and include keys when present: '
                 'third_party_financing_addendum with financing_type, first_mortgage_amount, second_mortgage_amount, total_financing_amount, buyer_approval_required, buyer_approval_days from Paragraph 2A page 2, buyer_approval_deadline only when a calendar date is written; '
                 'hoa_addendum with association_name, association_phone, selected_subdivision_information_option, subdivision_information_delivery_days, buyer_termination_days_after_receipt, updated_resale_certificate_required, updated_resale_certificate_delivery_days, transfer_fee_cap, title_company_info_payer; '
-                'sale_of_other_property_addendum, seller_temporary_residential_lease, backup_addendum, lead_based_paint. Use nested simple key/value pairs.'
+                'sale_of_other_property_addendum, seller_temporary_residential_lease, backup_addendum, lead_based_paint; '
+                'non_realty_items_addendum with items (array of the personal property items listed in Paragraph A, one per entry) and price (digits only, from Paragraph B). '
+                'Use nested simple key/value pairs. Omit a key entirely when that addendum is not in the package.'
             ),
             'supporting_documents': (
                 'JSON object keyed by supporting document type when the same PDF includes addenda or supporting docs. '
-                'Use keys third_party_financing, hoa_addendum, sellers_disclosure, pre_approval, backup_addendum when present, with the same nested values extracted for those documents.'
+                'Use keys third_party_financing, hoa_addendum, sellers_disclosure, pre_approval, backup_addendum, sale_of_other_property, non_realty_items when present, with the same nested values extracted for those documents.'
             ),
             'detected_documents': (
                 'JSON array of every distinct document/addendum identified inside this PDF, in the order they appear. '
@@ -366,6 +378,7 @@ EXTRACTION_SCHEMAS = {
                 'appraisal_termination (Addendum Concerning Right to Terminate Due to '
                 'Lender\'s Appraisal / TREC 49 / TXR 1948), '
                 'sale_of_other_property (Addendum for Sale of Other Property), '
+                'non_realty_items (Non-Realty Items Addendum / TREC 51 / TXR 1924), '
                 'temporary_lease (Seller\'s/Buyer\'s Temporary Residential Lease), '
                 'compensation_agreement (broker compensation/cooperation agreement / TXR 2402), '
                 'other (anything else — a descriptive "title" is REQUIRED). '
@@ -538,6 +551,49 @@ EXTRACTION_SCHEMAS = {
             "(including TXR-2402 Compensation Agreement Between Brokers). "
             "Extract only explicit compensation amounts and party names. Use null when blank. "
             "Do not invent expansions, but if the form shows both an abbreviation and the full firm name, use the full name."
+        ),
+    },
+    'non-realty-items-addendum': {
+        'fields': {
+            'property_address': 'Property address from the addendum.',
+            'non_realty_items': (
+                'JSON array of the personal property items the seller conveys to the buyer, from '
+                'Paragraph A, one item per entry written exactly as listed. Return an empty array only '
+                'if Paragraph A is blank.'
+            ),
+            'non_realty_items_price': (
+                'Dollar amount the buyer pays for the items from Paragraph B, if written '
+                '(digits only, no $ or commas). Null when blank.'
+            ),
+            'buyer_names': 'Buyer name or names if visible.',
+            'seller_names': 'Seller name or names if visible.',
+            'buyer_signed_date': 'Buyer signature date if shown (YYYY-MM-DD).',
+            'seller_signed_date': 'Seller signature date if shown (YYYY-MM-DD).',
+        },
+        'system_prompt': (
+            "You are a precise document data extractor for Texas Non-Realty Items Addenda "
+            "(TREC 51-0 / TXR 1924). List every item written in Paragraph A exactly as written, "
+            "one per array entry. Extract only explicit values and use null for blanks."
+        ),
+    },
+    'sale-of-other-property-addendum': {
+        'fields': {
+            'other_property_address': (
+                'Address of the other property the buyer must sell, if written.'
+            ),
+            'deadline_days': (
+                'Number of days the buyer has to sell or close the other property, if written.'
+            ),
+            'waiver_deadline': (
+                'Date by which the buyer must waive the contingency, if written (YYYY-MM-DD).'
+            ),
+            'buyer_names': 'Buyer name or names if visible.',
+            'seller_names': 'Seller name or names if visible.',
+        },
+        'system_prompt': (
+            "You are a precise document data extractor for the Texas Addendum for Sale of "
+            "Other Property by Buyer (TREC 10 / TXR 1908). Extract only explicit values "
+            "and use null for blanks."
         ),
     },
     'amendment': {

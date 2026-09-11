@@ -107,6 +107,18 @@ OFFER_DOCUMENT_TYPES = {
         'direction': None,
         'primary_terms': False,
     },
+    'non_realty_items': {
+        'label': 'Non-Realty Items Addendum',
+        'template_slug': 'non-realty-items-addendum',
+        'direction': None,
+        'primary_terms': False,
+    },
+    'sale_of_other_property': {
+        'label': 'Addendum for Sale of Other Property',
+        'template_slug': 'sale-of-other-property-addendum',
+        'direction': None,
+        'primary_terms': False,
+    },
 }
 
 _SLUG_TO_OFFER_DOCUMENT_TYPE = {
@@ -126,6 +138,8 @@ _SLUG_TO_OFFER_DOCUMENT_TYPE = {
     'pre-approval-or-proof-of-funds': 'pre_approval',
     'appraisal-termination-addendum': 'appraisal_termination',
     'broker-compensation-agreement': 'broker_compensation',
+    'non-realty-items-addendum': 'non_realty_items',
+    'sale-of-other-property-addendum': 'sale_of_other_property',
 }
 
 
@@ -171,15 +185,42 @@ def infer_offer_document_type(filename='', explicit_type=None):
         return 'final_acceptance'
     if 'counter' in tokens:
         return 'seller_counter' if 'seller' in tokens else 'buyer_counter'
-    if (
+
+    is_non_realty = _filename_is_non_realty(normalized, tokens)
+    is_sale_of_other = _filename_is_sale_of_other(normalized, tokens)
+    is_contract = (
         'contract' in tokens
         or 'resale' in tokens
         or {'one', 'four', 'family'} <= tokens
         or {'residential', 'contract'} <= tokens
-    ):
+    )
+    if (is_non_realty or is_sale_of_other) and is_contract:
+        return 'offer_package'
+    if is_non_realty:
+        return 'non_realty_items'
+    if is_sale_of_other:
+        return 'sale_of_other_property'
+    if is_contract:
         return 'buyer_offer'
 
     return 'buyer_offer'
+
+
+def _filename_is_non_realty(normalized, tokens):
+    return (
+        {'non', 'realty'} <= tokens
+        or 'nonrealty' in tokens
+        or {'txr', '1924'} <= tokens
+        or bool(re.search(r'\btrec (?:no )?51\b', normalized))
+    )
+
+
+def _filename_is_sale_of_other(normalized, tokens):
+    return (
+        {'sale', 'other', 'property'} <= tokens
+        or {'txr', '1908'} <= tokens
+        or bool(re.search(r'\btrec (?:no )?10\b', normalized))
+    )
 
 
 def infer_offer_document_type_from_text(text='', filename='', explicit_type=None):
@@ -206,9 +247,20 @@ def infer_offer_document_type_from_text(text='', filename='', explicit_type=None
         or 'prequalification' in normalized
     )
     has_backup = 'addendum for back up contract' in normalized or 'backup contract' in normalized
+    has_non_realty = (
+        'non realty items' in normalized
+        or 'nonrealty items' in normalized
+        or bool(re.search(r'\btrec (?:no )?51\b', normalized))
+        or 'txr 1924' in normalized
+    )
+    has_sale_other = (
+        'sale of other property' in normalized
+        or bool(re.search(r'\btrec (?:no )?10\b', normalized))
+        or 'txr 1908' in normalized
+    )
 
     if has_contract:
-        if has_tpf or has_hoa or has_disclosure:
+        if has_tpf or has_hoa or has_disclosure or has_non_realty or has_sale_other:
             return 'offer_package'
         if explicit_type in ('buyer_offer', 'seller_counter', 'buyer_counter', 'final_acceptance'):
             return explicit_type
@@ -223,6 +275,12 @@ def infer_offer_document_type_from_text(text='', filename='', explicit_type=None
         return 'pre_approval'
     if has_backup:
         return 'backup_acceptance'
+    if has_non_realty and has_sale_other:
+        return 'offer_package'
+    if has_non_realty:
+        return 'non_realty_items'
+    if has_sale_other:
+        return 'sale_of_other_property'
     return infer_offer_document_type(filename, explicit_type)
 
 
@@ -326,6 +384,36 @@ def _financing_type_label(value):
     if key in known:
         return known[key]
     return text[:1].upper() + text[1:]
+
+
+def _non_realty_items_text(terms):
+    """One item per line from wherever the extractor put the addendum's list.
+
+    A present ``non_realty_items`` key is an explicit answer, including a blank
+    that means the agent cleared the list. Missing the key falls back to the
+    addenda and supporting-document bags.
+    """
+    from services.offer_addenda import normalize_items
+
+    if not isinstance(terms, dict):
+        return None
+    if 'non_realty_items' in terms:
+        return normalize_items(terms.get('non_realty_items'))
+
+    addenda = terms.get('addenda')
+    if isinstance(addenda, dict):
+        for name in ('non_realty_items_addendum', 'non_realty_items'):
+            found = normalize_items(addenda.get(name))
+            if found:
+                return found
+
+    supporting = terms.get('supporting_documents')
+    if isinstance(supporting, dict):
+        for name in ('non_realty_items', 'non_realty_items_addendum'):
+            found = normalize_items(supporting.get(name))
+            if found:
+                return found
+    return None
 
 
 def _residential_service_amount(value):
@@ -650,6 +738,11 @@ def apply_offer_terms(offer, terms):
         offer_price=offer_price,
         field_role='fee',
     ) or _coerce_decimal(terms.get('buyer_agent_commission_flat'))
+    items_text = _non_realty_items_text(terms)
+    if isinstance(terms, dict) and 'non_realty_items' in terms:
+        offer.non_realty_items = items_text if items_text is not None else ''
+    else:
+        offer.non_realty_items = items_text
     offer.response_deadline_at = _parse_datetime(terms.get('response_deadline_at')) or offer.response_deadline_at
     existing_terms = dict(offer.terms_summary or {})
     summary_terms = dict(terms)
@@ -735,6 +828,34 @@ def _normalized_supporting_payload(document_type, extracted):
                 'buyer_agent_commission_flat': extracted.get(
                     'buyer_agent_commission_flat'
                 ),
+            },
+            'supporting_documents': {
+                document_type: extracted,
+            },
+        }
+    if document_type == 'non_realty_items':
+        return {
+            'offer_terms': {
+                'non_realty_items': extracted.get('non_realty_items'),
+                'non_realty_items_price': extracted.get('non_realty_items_price'),
+            },
+            'addenda': {
+                'non_realty_items_addendum': {
+                    'items': extracted.get('non_realty_items'),
+                    'price': extracted.get('non_realty_items_price'),
+                },
+            },
+            'supporting_documents': {
+                document_type: extracted,
+            },
+        }
+    if document_type == 'sale_of_other_property':
+        return {
+            'offer_terms': {
+                'sale_of_other_property_contingency': True,
+            },
+            'addenda': {
+                'sale_of_other_property_addendum': extracted,
             },
             'supporting_documents': {
                 document_type: extracted,
@@ -828,11 +949,15 @@ SPLIT_DOCUMENT_TYPE_TO_OFFER_TYPE = {
     'broker_compensation': 'broker_compensation',
     'appraisal_termination': 'appraisal_termination',
     'appraisal_addendum': 'appraisal_termination',
+    'non_realty_items': 'non_realty_items',
+    'non_realty_items_addendum': 'non_realty_items',
+    'sale_of_other_property': 'sale_of_other_property',
+    'sale_of_other_property_addendum': 'sale_of_other_property',
 }
 # Addenda with no canonical slot of their own. Mapping them onto the contract
 # made the splitter drop them as duplicate primaries, so they file as
 # unidentified children and the package UI asks for a human classification.
-# sale_of_other_property, temporary_lease, and anything else land here.
+# temporary_lease and anything else land here.
 
 
 def _split_segment_to_offer_type(segment_type):
@@ -872,6 +997,31 @@ def _inherited_field_data_for_segment(segment_type, parent_field_data):
         payload = (
             _json_object(addenda.get('backup_addendum'))
             or _json_object(supporting.get('backup_addendum'))
+        )
+        if payload:
+            return dict(payload)
+    if offer_offer_type == 'non_realty_items':
+        payload = (
+            _json_object(addenda.get('non_realty_items_addendum'))
+            or _json_object(addenda.get('non_realty_items'))
+            or _json_object(supporting.get('non_realty_items'))
+            or _json_object(supporting.get('non_realty_items_addendum'))
+        )
+        if payload:
+            return dict(payload)
+        items = parent_field_data.get('non_realty_items')
+        if items not in (None, '', [], {}):
+            inherited = {'non_realty_items': items}
+            price = parent_field_data.get('non_realty_items_price')
+            if price not in (None, ''):
+                inherited['non_realty_items_price'] = price
+            return inherited
+    if offer_offer_type == 'sale_of_other_property':
+        payload = (
+            _json_object(addenda.get('sale_of_other_property_addendum'))
+            or _json_object(addenda.get('sale_of_other_property'))
+            or _json_object(supporting.get('sale_of_other_property'))
+            or _json_object(supporting.get('sale_of_other_property_addendum'))
         )
         if payload:
             return dict(payload)
@@ -992,6 +1142,12 @@ def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_pac
             continue
 
         inherited_field_data = _inherited_field_data_for_segment(seg.document_type, doc.field_data)
+        if inherited_field_data:
+            child_extraction_status = 'complete'
+        elif offer_type in ('non_realty_items', 'sale_of_other_property'):
+            child_extraction_status = 'pending'
+        else:
+            child_extraction_status = None
 
         child_doc = TransactionDocument(
             organization_id=organization_id,
@@ -1004,7 +1160,7 @@ def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_pac
             signed_file_size=len(split_result.pdf_bytes),
             signed_original_filename=child_filename,
             signed_at=datetime.utcnow(),
-            extraction_status='complete' if inherited_field_data else None,
+            extraction_status=child_extraction_status,
             field_data=inherited_field_data,
             parent_document_id=doc.id,
             page_start=seg.start_page,
@@ -1220,6 +1376,12 @@ def split_contract_package_into_children(doc_id, file_data, *, split_source='ai_
         inherited_field_data = _inherited_field_data_for_segment(seg.document_type, doc.field_data)
         if document_type == 'final_acceptance':
             inherited_field_data = dict(doc.field_data or {})
+        if inherited_field_data:
+            child_extraction_status = 'complete'
+        elif document_type in ('non_realty_items', 'sale_of_other_property'):
+            child_extraction_status = 'pending'
+        else:
+            child_extraction_status = None
 
         child_doc = TransactionDocument(
             organization_id=organization_id,
@@ -1232,7 +1394,7 @@ def split_contract_package_into_children(doc_id, file_data, *, split_source='ai_
             signed_file_size=len(split_result.pdf_bytes),
             signed_original_filename=child_filename,
             signed_at=datetime.utcnow(),
-            extraction_status='complete' if inherited_field_data else None,
+            extraction_status=child_extraction_status,
             field_data=inherited_field_data,
             parent_document_id=doc.id,
             page_start=seg.start_page,
@@ -1982,6 +2144,14 @@ def normalize_offer_terms(terms):
         normalized.setdefault('hoa_resale_certificate_payer', hoa_addendum.get('title_company_info_payer'))
         addenda['hoa_addendum'] = hoa_addendum
         supporting.setdefault('hoa_addendum', hoa_addendum)
+
+    from services.offer_addenda import _present
+
+    sale_addendum = addenda.get('sale_of_other_property_addendum')
+    if not _present(sale_addendum):
+        sale_addendum = supporting.get('sale_of_other_property')
+    if _present(sale_addendum) and normalized.get('sale_of_other_property_contingency') in (None, ''):
+        normalized['sale_of_other_property_contingency'] = True
 
     compensation = _json_object(supporting.get('broker_compensation'))
     if compensation:

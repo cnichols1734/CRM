@@ -1511,6 +1511,8 @@ class SellerOffer(db.Model):
     residential_service_contract = db.Column(db.Text)
     buyer_agent_commission_percent = db.Column(db.Numeric(6, 3))
     buyer_agent_commission_flat = db.Column(db.Numeric(12, 2))
+    # Non-Realty Items Addendum (TREC 51), one item per line.
+    non_realty_items = db.Column(db.Text)
     net_to_seller_estimate = db.Column(db.Numeric(12, 2))
 
     last_activity_at = db.Column(db.DateTime)
@@ -1522,6 +1524,11 @@ class SellerOffer(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def resolved_non_realty_items(self):
+        """Column first, then the addenda bags for older extracted offers."""
+        from services.offer_addenda import non_realty_items
+        return non_realty_items(self)
 
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_offers')
     source_showing = db.relationship('SellerShowing', backref=db.backref('offers', lazy='dynamic'))

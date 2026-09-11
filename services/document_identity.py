@@ -212,6 +212,38 @@ _FORM_RULES: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
     ),
     (
         (
+            r'\btrec\s*(?:no\.?\s*)?10[-\s]\d+\b',
+            r'\btxr[-\s]?1908\b',
+            r'addendum for sale of other property by buyer',
+        ),
+        {
+            'kind': KIND_ADDENDUM,
+            'template_slug': 'sale-of-other-property-addendum',
+            'form_number': 'TREC 10',
+            'label': 'Addendum for Sale of Other Property by Buyer',
+            'scopes': (SCOPE_OFFER, SCOPE_CONTRACT),
+            'base_confidence': 0.92,
+            'addendum_key': 'sale_of_other_property',
+        },
+    ),
+    (
+        (
+            r'\btrec\s*(?:no\.?\s*)?51[-\s]?\d*\b',
+            r'\btxr[-\s]?1924\b',
+            r'non[-\s]?realty items addendum',
+        ),
+        {
+            'kind': KIND_ADDENDUM,
+            'template_slug': 'non-realty-items-addendum',
+            'form_number': 'TREC 51',
+            'label': 'Non-Realty Items Addendum',
+            'scopes': (SCOPE_OFFER, SCOPE_CONTRACT),
+            'base_confidence': 0.92,
+            'addendum_key': 'non_realty_items',
+        },
+    ),
+    (
+        (
             r'\btxr[-\s]?2402\b',
             r'compensation agreement between brokers',
             r'broker compensation agreement',
@@ -398,6 +430,8 @@ _OFFER_TYPE_TO_KIND = {
     'hoa_addendum': KIND_ADDENDUM,
     'pre_approval': KIND_PROOF_OF_FUNDS,
     'third_party_financing': KIND_ADDENDUM,
+    'non_realty_items': KIND_ADDENDUM,
+    'sale_of_other_property': KIND_ADDENDUM,
 }
 
 
@@ -1013,6 +1047,30 @@ _AI_SEGMENT_TO_IDENTITY: dict[str, dict[str, Any]] = {
         'form_number': 'TREC 49',
         'label': "Addendum Concerning Right to Terminate Due to Lender's Appraisal",
         'addendum_key': 'appraisal_termination',
+        'scopes': (SCOPE_OFFER, SCOPE_CONTRACT),
+    },
+    'non_realty_items': {
+        'kind': KIND_ADDENDUM,
+        'template_slug': 'non-realty-items-addendum',
+        'form_number': 'TREC 51',
+        'label': 'Non-Realty Items Addendum',
+        'addendum_key': 'non_realty_items',
+        'scopes': (SCOPE_OFFER, SCOPE_CONTRACT),
+    },
+    'non_realty_items_addendum': {
+        'kind': KIND_ADDENDUM,
+        'template_slug': 'non-realty-items-addendum',
+        'form_number': 'TREC 51',
+        'label': 'Non-Realty Items Addendum',
+        'addendum_key': 'non_realty_items',
+        'scopes': (SCOPE_OFFER, SCOPE_CONTRACT),
+    },
+    'sale_of_other_property': {
+        'kind': KIND_ADDENDUM,
+        'template_slug': 'sale-of-other-property-addendum',
+        'form_number': 'TREC 10',
+        'label': 'Addendum for Sale of Other Property by Buyer',
+        'addendum_key': 'sale_of_other_property',
         'scopes': (SCOPE_OFFER, SCOPE_CONTRACT),
     },
     'wire_fraud_warning': {

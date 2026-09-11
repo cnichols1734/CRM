@@ -25,32 +25,38 @@ from typing import Any, Iterable, Optional, Sequence
 
 from flask import render_template
 
+from services import offer_addenda
 from services.email_send_guard import skip_outbound_send
 from services.offer_side import side_for_transaction
 
 logger = logging.getLogger(__name__)
 
-# Rows a client is asked to make a decision about. Deliberately shorter than the
-# internal compare matrix: title policy payers and survey language belong in the
-# contract review, not in the note that explains the offer.
+# Rows a client is asked to make a decision about. Contract terms only. The
+# seller's estimated net is our arithmetic, not the buyer's offer, and it stays
+# on the internal compare screen.
 CLIENT_TERMS: tuple[tuple[str, str], ...] = (
     ('offer_price', 'Price'),
     ('financing_type', 'Financing'),
     ('earnest_money', 'Earnest money'),
     ('option_period', 'Option period'),
-    ('seller_concessions_amount', 'Seller concessions'),
     ('proposed_close_date', 'Closing date'),
+    ('seller_concessions_amount', 'Seller contributions'),
+    ('buyer_agent_commission', "Commission to buyer's agent"),
+    ('survey_responsibility', 'Who pays for the survey'),
+    ('residential_service_contract', 'Home warranty'),
+    ('sale_of_other_property', 'Contingent on buyer selling another property'),
+)
+
+# Terms that read as a paragraph, not a figure. They get their own block under
+# the figures instead of a right-aligned cell that cannot hold a list.
+LONG_FORM_TERMS: tuple[tuple[str, str], ...] = (
+    ('non_realty_items', 'Non-realty items addendum, the buyer is asking for'),
 )
 
 _UNKNOWN_MATTERS = frozenset({
     'offer_price', 'financing_type', 'earnest_money', 'proposed_close_date',
 })
 
-NET_ROW_KEY = 'estimated_net'
-NET_ROW_LABEL = 'Estimated net to you'
-NET_CAVEAT = (
-    'Estimated net uses the costs we know today. It is not a settlement statement.'
-)
 MISSING_TERMS_NOTE = (
     "Anything not listed here is still open. I'll send an update once I have it."
 )
@@ -85,7 +91,18 @@ _TERM_ALIASES = {
     'option_period_days': ('option_period_days', 'option_days'),
     'seller_concessions_amount': ('seller_concessions_amount', 'seller_concessions'),
     'proposed_close_date': ('proposed_close_date', 'closing_date', 'close_date'),
+    'buyer_agent_commission_percent': ('buyer_agent_commission_percent',),
+    'buyer_agent_commission_flat': ('buyer_agent_commission_flat',),
+    'survey_furnished_by': ('survey_furnished_by', 'survey_choice'),
+    'survey_payer': ('survey_payer',),
+    'residential_service_contract': ('residential_service_contract',),
 }
+
+# TREC 6C offers three boxes. The agent-facing column holds whatever prose the
+# extractor wrote about the ticked one; the client gets the box's plain meaning.
+SURVEY_EXISTING = 'Seller will provide an existing survey'
+SURVEY_BUYER = 'Buyer'
+SURVEY_SELLER = 'Seller'
 
 _FINANCING_LABEL = {
     'cash': 'Cash',
@@ -152,8 +169,7 @@ class OfferEmailDraft:
     brand: dict[str, Optional[str]]
     recipients: list[Recipient]
     headline: Optional[dict[str, str]] = None
-    include_net: bool = False
-    net_available: bool = False
+    long_rows: list[dict[str, str]] = field(default_factory=list)
     footnote: Optional[str] = None
     offer_ids: list[int] = field(default_factory=list)
 
@@ -179,10 +195,9 @@ class OfferEmailDraft:
             'note': self.note,
             'closing': self.closing,
             'property_label': self.property_label,
-            'include_net': self.include_net,
-            'net_available': self.net_available,
             'offer_ids': list(self.offer_ids),
             'row_specs': list(self.row_specs),
+            'long_rows': list(self.long_rows),
             'recipients': [
                 {'name': r.name, 'email': r.email, 'role': r.role}
                 for r in self.recipients
@@ -214,7 +229,6 @@ def build_draft(
     agent=None,
     organization=None,
     side: Optional[str] = None,
-    net_sheets: Optional[dict[int, Any]] = None,
     overrides: Optional[dict[str, Any]] = None,
 ) -> OfferEmailDraft:
     """Assemble the email for one or more offers on ``transaction``."""
@@ -226,25 +240,16 @@ def build_draft(
 
     mode = 'compare' if len(ordered) > 1 else 'single'
     property_label = _property_label(transaction)
-    net_sheets = net_sheets or {}
-    net_available = resolved_side == 'seller' and any(
-        _net_value(net_sheets.get(offer.id)) is not None for offer in ordered
-    )
-    include_net = _flag(overrides.get('include_net'), default=net_available) and net_available
 
     term_overrides = overrides.get('terms') or {}
     blocks = [
-        _offer_block(
-            offer,
-            net_sheet=net_sheets.get(offer.id),
-            include_net=include_net,
-            overrides=_offer_overrides(term_overrides, offer.id),
-        )
+        _offer_block(offer, overrides=_offer_overrides(term_overrides, offer.id))
         for offer in ordered
     ]
-    row_specs = _row_specs(blocks, mode=mode, include_net=include_net)
+    row_specs = _row_specs(blocks, mode=mode)
+    long_rows = _long_rows(blocks)
     if resolved_side == 'seller':
-        _mark_winners(blocks, ordered, net_sheets, include_net=include_net)
+        _mark_winners(blocks, ordered)
 
     headline = _headline(blocks[0]) if mode == 'single' else None
     generated = _generated_copy(
@@ -271,8 +276,7 @@ def build_draft(
         brand=_brand(organization),
         recipients=resolve_recipients(transaction, resolved_side),
         headline=headline,
-        include_net=include_net,
-        net_available=net_available,
+        long_rows=long_rows,
         footnote=_footnote(blocks),
         offer_ids=[offer.id for offer in ordered],
     )
@@ -317,24 +321,29 @@ def _ordered_offers(offers: Sequence) -> list:
     return sorted(ordered, key=sort_key, reverse=True)
 
 
-def _offer_block(offer, *, net_sheet, include_net: bool, overrides: dict) -> OfferBlock:
+def _offer_block(offer, *, overrides: dict) -> OfferBlock:
     generated = {
         'offer_price': _money(_pick(offer, 'offer_price')),
         'financing_type': _financing(_pick(offer, 'financing_type')),
         'earnest_money': _money(_pick(offer, 'earnest_money')),
         'option_period': _option_period(offer),
-        'seller_concessions_amount': _money(_pick(offer, 'seller_concessions_amount')),
         'proposed_close_date': _long_date(_pick(offer, 'proposed_close_date')),
+        'seller_concessions_amount': _money(_pick(offer, 'seller_concessions_amount')),
+        'buyer_agent_commission': _commission(offer),
+        'survey_responsibility': _survey_responsibility(offer),
+        'residential_service_contract': _home_warranty(offer),
+        'sale_of_other_property': _sale_of_other_property(offer),
+        'non_realty_items': offer_addenda.non_realty_items(offer),
     }
-    if include_net:
-        # An estimate carrying cents invites arithmetic the client can't win.
-        generated[NET_ROW_KEY] = _money(_net_value(net_sheet), whole=True)
 
     cells: dict[str, TermCell] = {}
     for key, produced in generated.items():
+        override_given = key in overrides
         supplied = _text(overrides.get(key))
         if _is_empty_term(supplied):
             supplied = None
+        if key == 'non_realty_items' and override_given and supplied is None:
+            continue
         if supplied is not None and supplied != (produced or ''):
             cells[key] = TermCell(key=key, value=supplied, edited=True)
         elif produced:
@@ -349,15 +358,11 @@ def _offer_block(offer, *, net_sheet, include_net: bool, overrides: dict) -> Off
     )
 
 
-def _row_specs(blocks: list[OfferBlock], *, mode: str, include_net: bool) -> list[dict[str, str]]:
+def _row_specs(blocks: list[OfferBlock], *, mode: str) -> list[dict[str, str]]:
     """Rows with something to say. An all-blank row is noise in a client email."""
-    specs = list(CLIENT_TERMS)
-    if include_net:
-        specs = specs + [(NET_ROW_KEY, NET_ROW_LABEL)]
-
     skip = {'offer_price', 'financing_type'} if mode == 'single' else set()
     rows = []
-    for key, label in specs:
+    for key, label in CLIENT_TERMS:
         if key in skip:
             continue
         if any(key in block.cells for block in blocks):
@@ -365,7 +370,16 @@ def _row_specs(blocks: list[OfferBlock], *, mode: str, include_net: bool) -> lis
     return rows
 
 
-def _mark_winners(blocks, offers, net_sheets, *, include_net: bool) -> None:
+def _long_rows(blocks: list[OfferBlock]) -> list[dict[str, str]]:
+    """Paragraph terms at least one offer actually has."""
+    return [
+        {'key': key, 'label': label}
+        for key, label in LONG_FORM_TERMS
+        if any(key in block.cells for block in blocks)
+    ]
+
+
+def _mark_winners(blocks, offers) -> None:
     by_id = {offer.id: offer for offer in offers}
     if len(blocks) < 2:
         return
@@ -382,13 +396,6 @@ def _mark_winners(blocks, offers, net_sheets, *, include_net: bool) -> None:
         {b.offer_id: _as_date(_pick(by_id[b.offer_id], 'proposed_close_date')) for b in blocks},
         highest=False,
     )
-    if include_net:
-        _mark_best(
-            blocks,
-            NET_ROW_KEY,
-            {b.offer_id: _net_value(net_sheets.get(b.offer_id)) for b in blocks},
-            highest=True,
-        )
 
 
 def _mark_best(blocks, key: str, values: dict, *, highest: bool) -> None:
@@ -515,7 +522,6 @@ def render_html(draft: OfferEmailDraft) -> str:
     return render_template(
         'email/offer_summary.html',
         draft=draft,
-        net_caveat=NET_CAVEAT,
         year=date.today().year,
     )
 
@@ -533,6 +539,10 @@ def render_text(draft: OfferEmailDraft) -> str:
             lines.append(headline)
         for spec in draft.row_specs:
             lines.append(f"{spec['label']}: {block.value(spec['key'])}")
+        for spec in draft.long_rows:
+            if spec['key'] in block.cells:
+                lines.extend(['', f"{spec['label']}:"])
+                lines.extend(f'  {item}' for item in block.value(spec['key']).split('\n'))
     else:
         for block in draft.offers:
             heading = block.label
@@ -541,10 +551,12 @@ def render_text(draft: OfferEmailDraft) -> str:
             lines.append(heading)
             for spec in draft.row_specs:
                 lines.append(f"  {spec['label']}: {block.value(spec['key'])}")
+            for spec in draft.long_rows:
+                if spec['key'] in block.cells:
+                    lines.append(f"  {spec['label']}:")
+                    lines.extend(f'    {item}' for item in block.value(spec['key']).split('\n'))
             lines.append('')
 
-    if draft.include_net:
-        lines.extend(['', NET_CAVEAT])
     if draft.footnote:
         lines.extend(['', draft.footnote])
     if draft.note:
@@ -907,10 +919,6 @@ def _brokerage_name(organization) -> Optional[str]:
     )
 
 
-def _net_value(net_sheet):
-    return getattr(net_sheet, 'estimated_net', None) if net_sheet else None
-
-
 def _offer_overrides(term_overrides: Any, offer_id: int) -> dict:
     if not isinstance(term_overrides, dict):
         return {}
@@ -943,6 +951,62 @@ def _financing(value) -> Optional[str]:
         return None
     key = re.sub(r'[^a-z]+', '', text.lower())
     return _FINANCING_LABEL.get(key) or text[0].upper() + text[1:]
+
+
+def _commission(offer) -> Optional[str]:
+    """Whichever of percent and flat the contract filled in. Both, if both."""
+    percent = _percent(_pick(offer, 'buyer_agent_commission_percent'))
+    flat = _money(_pick(offer, 'buyer_agent_commission_flat'))
+    if percent and flat:
+        return f'{percent} + {flat}'
+    return percent or flat
+
+
+def _percent(value) -> Optional[str]:
+    amount = _decimal(str(value).replace('%', '') if isinstance(value, str) else value)
+    if amount is None:
+        return None
+    text = f'{amount.normalize():f}'
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return f'{text}%'
+
+
+def _survey_responsibility(offer) -> Optional[str]:
+    """Collapse the extractor's 6C prose to the box the buyer ticked."""
+    text = _text(_pick(offer, 'survey_furnished_by'))
+    if text:
+        lowered = text.lower()
+        if 'existing' in lowered or 't-47' in lowered or 't47' in lowered:
+            return SURVEY_EXISTING
+        if 'buyer' in lowered:
+            return SURVEY_BUYER
+        if 'seller' in lowered:
+            return SURVEY_SELLER
+        return text
+    payer = _text(_pick(offer, 'survey_payer'))
+    if not payer:
+        return None
+    lowered = payer.lower()
+    if lowered == 'buyer':
+        return SURVEY_BUYER
+    if lowered == 'seller':
+        return SURVEY_SELLER
+    return payer
+
+
+def _home_warranty(offer) -> Optional[str]:
+    """The residential service contract cap. Older rows may hold prose."""
+    raw = _pick(offer, 'residential_service_contract')
+    amount = _decimal(raw)
+    if amount is not None:
+        # A zero cap is no warranty at all. Do not print $0 as a term.
+        return _money(amount) if amount > 0 else None
+    return _text(raw)
+
+
+def _sale_of_other_property(offer) -> str:
+    return 'Yes' if offer_addenda.has_addendum(offer, offer_addenda.SALE_OF_OTHER_PROPERTY) else 'No'
 
 
 def _money(value, *, whole: bool = False) -> Optional[str]:
@@ -1018,14 +1082,6 @@ def _as_date(value) -> Optional[date]:
 def _override(overrides: dict, key: str, generated: str) -> str:
     supplied = _text(overrides.get(key))
     return supplied if supplied is not None else generated
-
-
-def _flag(value, *, default: bool) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 def _clean_email(value) -> Optional[str]:

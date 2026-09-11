@@ -305,6 +305,8 @@ _SLUG_CHOICES = (
     ('third-party-financing-addendum', 'Financing addendum (TREC 40)'),
     ('appraisal-termination-addendum', 'Appraisal termination (TREC 49)'),
     ('broker-compensation-agreement', 'Broker compensation (TXR 2402)'),
+    ('non-realty-items-addendum', 'Non-realty items (TREC 51)'),
+    ('sale-of-other-property-addendum', 'Sale of other property (TREC 10)'),
     ('sellers-disclosure', "Seller's disclosure"),
     ('pre-approval-or-proof-of-funds', 'Pre-approval / POF'),
 )

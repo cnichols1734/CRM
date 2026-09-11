@@ -8,7 +8,6 @@ from flask import abort, jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from models import (
-    SellerCommissionTerms,
     SellerOffer,
     SellerOfferDocument,
     SellerOfferVersion,
@@ -16,7 +15,6 @@ from models import (
     Transaction,
     db,
 )
-from services import net_sheet as net_sheet_service
 from services.offer_summary_email import (
     OfferEmailError,
     build_draft,
@@ -585,29 +583,13 @@ def _client_email_selection(transaction, requested_ids):
     return chosen, available
 
 
-def _client_email_net_sheets(transaction, offers, side):
-    """Seller proceeds per offer. A buyer has no net sheet to show."""
-    if side != 'seller' or not offers:
-        return {}
-    commission_terms = SellerCommissionTerms.query.filter_by(
-        transaction_id=transaction.id,
-        organization_id=current_user.organization_id,
-    ).first()
-    sheets = net_sheet_service.build_for_offers(
-        offers, commission_terms=commission_terms,
-    )
-    return {sheet.offer_id: sheet for sheet in sheets if sheet.offer_id}
-
-
 def _client_email_draft(transaction, offers, overrides):
-    side = side_for_transaction(transaction)
     return build_draft(
         transaction,
         offers,
         agent=current_user,
         organization=getattr(current_user, 'organization', None),
-        side=side,
-        net_sheets=_client_email_net_sheets(transaction, offers, side),
+        side=side_for_transaction(transaction),
         overrides=overrides,
     )
 

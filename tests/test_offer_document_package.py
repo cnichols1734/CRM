@@ -30,12 +30,30 @@ def test_offer_document_type_inference():
     assert infer_offer_document_type('Addendum for Property Subject to Mandatory Member. in Owners Assoc. #4.pdf') == 'hoa_addendum'
     assert infer_offer_document_type('Draughn PreQual.pdf') == 'pre_approval'
     assert infer_offer_document_type('Third Party Financing Addendum for Credit Approval.pdf') == 'third_party_financing'
+    assert infer_offer_document_type('Non-Realty Items Addendum.pdf') == 'non_realty_items'
+    assert infer_offer_document_type('TREC 51-0.pdf') == 'non_realty_items'
+    assert infer_offer_document_type('TXR-1924 Non Realty.pdf') == 'non_realty_items'
+    assert infer_offer_document_type('Addendum for Sale of Other Property by Buyer.pdf') == 'sale_of_other_property'
+    assert infer_offer_document_type('TREC 10-6.pdf') == 'sale_of_other_property'
+    assert infer_offer_document_type('TXR-1908.pdf') == 'sale_of_other_property'
     assert infer_offer_document_type_from_text(
         'ONE TO FOUR FAMILY RESIDENTIAL CONTRACT (RESALE) Third Party Financing Addendum '
         'ADDENDUM FOR PROPERTY SUBJECT TO MANDATORY MEMBERSHIP IN A PROPERTY OWNERS ASSOCIATION',
         filename='random upload.pdf',
         explicit_type='pre_approval',
     ) == 'offer_package'
+    assert infer_offer_document_type_from_text(
+        'PROMULGATED BY THE TEXAS REAL ESTATE COMMISSION (TREC)\n'
+        'NON-REALTY ITEMS ADDENDUM TO CONTRACT CONCERNING THE PROPERTY AT\n'
+        'TREC NO. 51-0\n',
+        filename='scan.pdf',
+    ) == 'non_realty_items'
+    assert infer_offer_document_type_from_text(
+        'ADDENDUM FOR SALE OF OTHER PROPERTY BY BUYER\n'
+        'TO CONTRACT CONCERNING THE PROPERTY AT\n'
+        'TREC NO. 10-6\n',
+        filename='scan.pdf',
+    ) == 'sale_of_other_property'
 
 
 def test_offer_extraction_schemas_registered():
@@ -47,6 +65,8 @@ def test_offer_extraction_schemas_registered():
         'hoa-addendum',
         'pre-approval-or-proof-of-funds',
         'third-party-financing-addendum',
+        'non-realty-items-addendum',
+        'sale-of-other-property-addendum',
     ):
         assert slug in EXTRACTION_SCHEMAS
         assert EXTRACTION_SCHEMAS[slug]['fields']
@@ -996,6 +1016,97 @@ def _offer_packet_parent(db, seed, owner, *, detected, page_count, document_type
     ))
     db.session.commit()
     return parent_doc.id, offer.id
+
+
+def test_split_offer_package_inherits_or_enqueues_new_addenda(app, db, seed):
+    from models import TransactionDocument, User
+    from services.seller_workflow import split_offer_package_into_children
+
+    pdf_bytes = _build_test_pdf(4)
+
+    with app.app_context():
+        owner = User.query.filter_by(username='owner_a').first()
+        parent_doc_id, _ = _offer_packet_parent(
+            db, seed, owner,
+            page_count=4,
+            document_type='buyer_offer',
+            detected=[
+                {'document_type': 'buyer_offer', 'start_page': 1, 'end_page': 2},
+                {'document_type': 'non_realty_items', 'start_page': 3, 'end_page': 3},
+                {'document_type': 'sale_of_other_property', 'start_page': 4, 'end_page': 4},
+            ],
+        )
+        parent = TransactionDocument.query.get(parent_doc_id)
+        parent.field_data = {
+            'detected_documents': parent.field_data['detected_documents'],
+            'addenda': {
+                'non_realty_items_addendum': {'items': ['Fridge'], 'price': '0'},
+                'sale_of_other_property_addendum': {'deadline_days': 21},
+            },
+        }
+        db.session.commit()
+
+    with app.app_context():
+        with patch(
+            'services.supabase_storage.upload_external_document',
+            side_effect=lambda transaction_id, file_data, original_filename, content_type: {
+                'path': f'test/{original_filename}'
+            },
+        ):
+            split_offer_package_into_children(parent_doc_id, pdf_bytes)
+        db.session.commit()
+
+        children = {
+            child.template_slug: child
+            for child in TransactionDocument.query.filter_by(
+                parent_document_id=parent_doc_id,
+            ).all()
+        }
+        assert children['non-realty-items-addendum'].field_data['items'] == ['Fridge']
+        assert children['non-realty-items-addendum'].extraction_status == 'complete'
+        assert children['sale-of-other-property-addendum'].field_data['deadline_days'] == 21
+        assert children['sale-of-other-property-addendum'].extraction_status == 'complete'
+        db.session.rollback()
+
+
+def test_split_offer_package_enqueues_new_addenda_without_inherited_fields(app, db, seed):
+    from models import TransactionDocument, User
+    from services.seller_workflow import split_offer_package_into_children
+
+    pdf_bytes = _build_test_pdf(3)
+
+    with app.app_context():
+        owner = User.query.filter_by(username='owner_a').first()
+        parent_doc_id, _ = _offer_packet_parent(
+            db, seed, owner,
+            page_count=3,
+            document_type='buyer_offer',
+            detected=[
+                {'document_type': 'buyer_offer', 'start_page': 1, 'end_page': 1},
+                {'document_type': 'non_realty_items', 'start_page': 2, 'end_page': 2},
+                {'document_type': 'sale_of_other_property', 'start_page': 3, 'end_page': 3},
+            ],
+        )
+
+    with app.app_context():
+        with patch(
+            'services.supabase_storage.upload_external_document',
+            side_effect=lambda transaction_id, file_data, original_filename, content_type: {
+                'path': f'test/{original_filename}'
+            },
+        ):
+            split_offer_package_into_children(parent_doc_id, pdf_bytes)
+        db.session.commit()
+
+        statuses = {
+            child.template_slug: child.extraction_status
+            for child in TransactionDocument.query.filter_by(
+                parent_document_id=parent_doc_id,
+            ).all()
+        }
+        assert statuses['non-realty-items-addendum'] == 'pending'
+        assert statuses['sale-of-other-property-addendum'] == 'pending'
+        db.session.rollback()
 
 
 def test_split_offer_package_files_every_form_and_trims_the_contract(app, db, seed):
