@@ -30,8 +30,17 @@ const offerClientEmail = {
     timer: null,
     sending: false,
     bound: false,
-    paintedFor: null
+    paintedFor: null,
+    refreshGen: 0
 };
+
+function oceNextRefreshGen(current) {
+    return (Number(current) || 0) + 1;
+}
+
+function oceRefreshIsCurrent(gen, current) {
+    return gen === current;
+}
 
 function oceTransactionId() {
     return window.TX_CONFIG && window.TX_CONFIG.transactionId;
@@ -211,6 +220,9 @@ function oceOverrides() {
 }
 
 function oceRefresh({ initial }) {
+    const gen = oceNextRefreshGen(offerClientEmail.refreshGen);
+    offerClientEmail.refreshGen = gen;
+
     const loading = oceEl('loading');
     if (loading) loading.classList.replace('hidden', 'flex');
 
@@ -221,6 +233,7 @@ function oceRefresh({ initial }) {
     })
         .then((res) => res.json())
         .then((data) => {
+            if (!oceRefreshIsCurrent(gen, offerClientEmail.refreshGen)) return;
             if (!data.success) throw new Error(data.error || 'Could not build the email');
             offerClientEmail.offerIds = data.draft.offer_ids || [];
             const key = offerClientEmail.offerIds.join(',');
@@ -238,10 +251,12 @@ function oceRefresh({ initial }) {
             return data;
         })
         .catch((err) => {
+            if (!oceRefreshIsCurrent(gen, offerClientEmail.refreshGen)) return;
             oceToast(err.message || 'Could not build the email', 'error');
             oceSyncSend();
         })
         .finally(() => {
+            if (!oceRefreshIsCurrent(gen, offerClientEmail.refreshGen)) return;
             if (loading) loading.classList.replace('flex', 'hidden');
         });
 }
