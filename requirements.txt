@@ -15,15 +15,15 @@ pytz==2026.3.post1
 email-validator==2.2.0
 
 # External APIs / HTTP
-openai==3.5.0
+openai==3.8.0
 sendgrid==6.12.5
 requests==2.34.2
-posthog==7.44.2
+posthog==7.45.3
 
 # Google Gmail Integration
-google-auth==2.57.0
+google-auth==2.57.1
 google-auth-oauthlib==1.4.1
-google-api-python-client==2.199.0
+google-api-python-client==2.200.0
 
 # Database driver
 psycopg2-binary==2.9.12
@@ -32,7 +32,7 @@ psycopg2-binary==2.9.12
 supabase==2.31.0
 
 # Security / serialization / templating dependencies
-Authlib==1.7.2
+Authlib==1.8.0
 itsdangerous==2.2.0
 PyYAML==6.0.3
 jsonschema==4.26.0
@@ -53,7 +53,7 @@ PyMuPDF==1.28.2
 
 # Task queue (background document extraction)
 redis==8.1.0
-rq==2.11.0
+rq==2.12.0
 
 # Server
 gunicorn==26.2.0
