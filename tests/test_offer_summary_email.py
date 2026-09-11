@@ -90,6 +90,11 @@ class FakeOfferDocument:
         self.document_type = document_type
 
 
+class FakeVersion:
+    def __init__(self, terms_data):
+        self.terms_data = terms_data
+
+
 class FakeGmail:
     def __init__(self, email='cassie@gmail.com', sync_enabled=True, needs_reauth=False):
         self.connected_email = email
@@ -474,6 +479,83 @@ def test_terms_summary_fills_a_gap_the_column_left_empty():
     offer = full_offer(offer_price=None, terms_summary={'sales_price': '418000'})
     draft = build(offer)
     assert draft.headline['value'] == '$418,000'
+
+
+def test_unreviewed_version_terms_data_fills_draft_fields():
+    """A scoped offer still sitting on the version, not the denormalized
+    columns, has to show those terms in the client email."""
+    offer = full_offer(
+        buyer_agent_commission_percent=None,
+        buyer_agent_commission_flat=None,
+        survey_furnished_by=None,
+        survey_payer=None,
+        residential_service_contract=None,
+        terms_summary={},
+        current_version=FakeVersion({
+            'survey_furnished_by': (
+                'Seller shall furnish existing survey and T-47 affidavit'
+            ),
+            'buyer_agent_commission_percent': '2.5',
+            'residential_service_contract': '650',
+        }),
+    )
+    draft = build(offer)
+    block = draft.offers[0]
+    assert block.value('buyer_agent_commission') == '2.5%'
+    assert block.value('survey_responsibility') == ose.SURVEY_EXISTING
+    assert block.value('residential_service_contract') == '$650'
+
+
+def test_build_draft_reads_current_version_like_compare(app, seed):
+    """Same current_version_id lookup Compare uses, through the composer."""
+    from models import SellerOffer, SellerOfferVersion, Transaction, db
+
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        offer = SellerOffer(
+            organization_id=org_id,
+            transaction_id=tx.id,
+            created_by_id=seed['owner_a'],
+            buyer_names='Version Alpha',
+            status='new',
+            offer_price=Decimal('410000'),
+            financing_type='conventional',
+        )
+        db.session.add(offer)
+        db.session.flush()
+        version = SellerOfferVersion(
+            organization_id=org_id,
+            transaction_id=tx.id,
+            offer_id=offer.id,
+            created_by_id=seed['owner_a'],
+            version_number=1,
+            direction='buyer_offer',
+            status='submitted',
+            terms_data={
+                'survey_furnished_by': (
+                    'Seller shall furnish existing survey and T-47 affidavit'
+                ),
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+            },
+        )
+        db.session.add(version)
+        db.session.flush()
+        offer.current_version_id = version.id
+        db.session.commit()
+        offer_id = offer.id
+        version_id = version.id
+        try:
+            draft = ose.build_draft(tx, [offer], side='seller')
+            block = draft.offers[0]
+            assert block.value('buyer_agent_commission') == '2.5%'
+            assert block.value('survey_responsibility') == ose.SURVEY_EXISTING
+            assert block.value('residential_service_contract') == '$650'
+        finally:
+            SellerOfferVersion.query.filter_by(id=version_id).delete()
+            SellerOffer.query.filter_by(id=offer_id).delete()
+            db.session.commit()
 
 
 def test_a_thin_offer_says_what_is_missing_instead_of_implying_zero():

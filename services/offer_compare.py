@@ -11,7 +11,9 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from models import SellerOffer, SellerOfferVersion, Transaction
 from services.offer_summary_email import (
+    _VersionBackedOffer,
     _commission,
+    _current_offer_version,
     _home_warranty,
     _pick,
     _survey_responsibility,
@@ -66,26 +68,6 @@ TERMS_DATA_ALIASES = {
     'residential_service_contract': ('residential_service_contract',),
     'title_policy_payer': ('title_policy_payer',),
 }
-
-
-class _VersionBackedOffer:
-    """Offer columns win. Current version terms_data fills the same gaps
-    ``terms_summary`` does for the client-email formatters."""
-
-    def __init__(self, offer: SellerOffer, terms_data: Dict[str, Any]):
-        object.__setattr__(self, '_offer', offer)
-        merged: Dict[str, Any] = {}
-        existing = getattr(offer, 'terms_summary', None)
-        if isinstance(existing, dict):
-            merged.update(existing)
-        if isinstance(terms_data, dict):
-            for key, value in terms_data.items():
-                if value not in (None, ''):
-                    merged[key] = value
-        object.__setattr__(self, 'terms_summary', merged)
-
-    def __getattr__(self, name):
-        return getattr(self._offer, name)
 
 
 class OfferCompareService:
@@ -176,20 +158,7 @@ class OfferCompareService:
 
     @staticmethod
     def _current_version(offer: SellerOffer) -> Optional[SellerOfferVersion]:
-        if offer.current_version_id:
-            version = SellerOfferVersion.query.filter_by(
-                id=offer.current_version_id,
-                offer_id=offer.id,
-                organization_id=offer.organization_id,
-            ).first()
-            if version:
-                return version
-        return (
-            SellerOfferVersion.query
-            .filter_by(offer_id=offer.id, organization_id=offer.organization_id)
-            .order_by(SellerOfferVersion.version_number.desc())
-            .first()
-        )
+        return _current_offer_version(offer)
 
     @staticmethod
     def _column_for_offer(

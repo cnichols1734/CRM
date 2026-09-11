@@ -4,6 +4,7 @@ One button on an offer produces a finished email: the price and the handful of
 terms a seller or buyer actually asks about, written as sentences instead of
 contract fields. Figures are read off the saved offer row when the draft is
 built, so a summary written after a terms edit carries the new numbers.
+Current-version ``terms_data`` fills the same gaps Compare uses.
 
 Two shapes. A single offer reads as a short note with the price up top. Several
 offers read as the compare matrix from the offers screen, trimmed to the rows a
@@ -235,7 +236,9 @@ def build_draft(
     """Assemble the email for one or more offers on ``transaction``."""
     overrides = overrides or {}
     resolved_side = side or side_for_transaction(transaction) or 'seller'
-    ordered = _ordered_offers(offers)
+    ordered = _ordered_offers(
+        version_backed_offer(offer) for offer in offers
+    )
     if not ordered:
         raise ValueError('Pick at least one offer to summarize.')
 
@@ -799,8 +802,69 @@ def _from_name(agent, organization) -> str:
 # Reading offers and people
 # ---------------------------------------------------------------------------
 
+class _VersionBackedOffer:
+    """Offer columns win. Current version terms_data fills the same gaps
+    ``terms_summary`` does for the client-email formatters."""
+
+    def __init__(self, offer, terms_data: dict[str, Any]):
+        object.__setattr__(self, '_offer', offer)
+        merged: dict[str, Any] = {}
+        existing = getattr(offer, 'terms_summary', None)
+        if isinstance(existing, dict):
+            merged.update(existing)
+        if isinstance(terms_data, dict):
+            for key, value in terms_data.items():
+                if value not in (None, ''):
+                    merged[key] = value
+        object.__setattr__(self, 'terms_summary', merged)
+
+    def __getattr__(self, name):
+        return getattr(self._offer, name)
+
+
+def _current_offer_version(offer):
+    """Same current-version rule as Compare: current_version_id, else latest."""
+    offer_id = getattr(offer, 'id', None)
+    org_id = getattr(offer, 'organization_id', None)
+    if offer_id is None or org_id is None:
+        return getattr(offer, 'current_version', None)
+
+    from models import SellerOfferVersion
+
+    current_version_id = getattr(offer, 'current_version_id', None)
+    if current_version_id:
+        version = SellerOfferVersion.query.filter_by(
+            id=current_version_id,
+            offer_id=offer_id,
+            organization_id=org_id,
+        ).first()
+        if version:
+            return version
+    return (
+        SellerOfferVersion.query
+        .filter_by(offer_id=offer_id, organization_id=org_id)
+        .order_by(SellerOfferVersion.version_number.desc())
+        .first()
+    )
+
+
+def version_backed_offer(offer):
+    """Wrap ``offer`` so ``_pick`` can see current-version terms_data."""
+    if offer is None or isinstance(offer, _VersionBackedOffer):
+        return offer
+    version = _current_offer_version(offer)
+    terms_data = (version.terms_data if version and version.terms_data else {}) or {}
+    if not terms_data:
+        return offer
+    return _VersionBackedOffer(offer, terms_data)
+
+
 def _pick(offer, key: str):
-    """Canonical column wins; ``terms_summary`` only fills a gap."""
+    """Canonical column wins; ``terms_summary`` only fills a gap.
+
+    ``version_backed_offer`` folds current-version ``terms_data`` into
+    ``terms_summary`` first, so an unreviewed offer still has those terms.
+    """
     column = getattr(offer, key, None)
     if not _blank(column):
         return column
