@@ -205,7 +205,12 @@ class OfferCompareService:
             formatter = _FORMATTED_FIELDS.get(field_key)
             if formatter:
                 value = formatter(backed)
-                source = 'offer' if value is not None else None
+                source = (
+                    OfferCompareService._source_for_field(
+                        offer, field_key, terms_data,
+                    )
+                    if value is not None else None
+                )
             else:
                 value = getattr(offer, field_key, None)
                 source = 'offer'
@@ -231,6 +236,21 @@ class OfferCompareService:
             'sources': sources,
             'label': offer.buyer_names or f'Offer {offer.id}',
         }
+
+    @staticmethod
+    def _source_for_field(
+        offer: SellerOffer,
+        field_key: str,
+        terms_data: Dict[str, Any],
+    ) -> str:
+        """Offer columns first, then the version terms_data key that filled the gap."""
+        aliases = TERMS_DATA_ALIASES.get(field_key, (field_key,))
+        for key in aliases:
+            if getattr(offer, key, None) not in (None, ''):
+                return 'offer'
+            if key in terms_data and terms_data[key] not in (None, ''):
+                return f'version.terms_data.{key}'
+        return 'offer'
 
     @staticmethod
     def _normalize(value: Any) -> Any:

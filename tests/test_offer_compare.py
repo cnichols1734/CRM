@@ -134,6 +134,12 @@ def test_compare_offers_surfaces_contract_terms(app, seed):
         assert by_id[alpha.id]['title_policy_payer'] == 'Seller'
         assert by_id[bravo.id]['title_policy_payer'] == 'Buyer'
 
+        sources = {col['offer_id']: col['sources'] for col in result['offers']}
+        assert sources[alpha.id]['survey_responsibility'] == 'offer'
+        assert sources[alpha.id]['buyer_agent_commission'] == 'offer'
+        assert sources[alpha.id]['residential_service_contract'] == 'offer'
+        assert sources[alpha.id]['title_policy_payer'] == 'offer'
+
 
 def test_compare_formatters_read_version_terms_data(app, seed):
     """Unreviewed offers keep survey, commission, warranty, and title on
@@ -173,6 +179,7 @@ def test_compare_formatters_read_version_terms_data(app, seed):
             tx, offer_ids=[alpha.id, bravo.id],
         )
         by_id = {col['offer_id']: col['terms'] for col in result['offers']}
+        sources = {col['offer_id']: col['sources'] for col in result['offers']}
 
         assert by_id[alpha.id]['survey_responsibility'] == (
             'Seller will provide an existing survey'
@@ -184,3 +191,22 @@ def test_compare_formatters_read_version_terms_data(app, seed):
         assert by_id[bravo.id]['residential_service_contract'] == '$900'
         assert by_id[alpha.id]['title_policy_payer'] == 'Seller'
         assert by_id[bravo.id]['title_policy_payer'] == 'Buyer'
+
+        assert sources[alpha.id]['survey_responsibility'] == (
+            'version.terms_data.survey_furnished_by'
+        )
+        assert sources[bravo.id]['survey_responsibility'] == (
+            'version.terms_data.survey_choice'
+        )
+        assert sources[alpha.id]['buyer_agent_commission'] == (
+            'version.terms_data.buyer_agent_commission_percent'
+        )
+        assert sources[bravo.id]['buyer_agent_commission'] == (
+            'version.terms_data.buyer_agent_commission_flat'
+        )
+        assert sources[alpha.id]['residential_service_contract'] == (
+            'version.terms_data.residential_service_contract'
+        )
+        assert sources[bravo.id]['title_policy_payer'] == (
+            'version.terms_data.title_policy_payer'
+        )
