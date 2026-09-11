@@ -167,6 +167,32 @@ def test_preview_covers_every_active_offer_when_none_is_named(app, seed, owner_a
             _teardown(tx_id)
 
 
+def test_preview_candidate_price_uses_version_terms_when_column_empty(
+    app, seed, owner_a_client,
+):
+    """Unreviewed price lives on the version. The picker has to show it."""
+    fields = dict(ONE_OFFER)
+    fields.pop('offer_price')
+    with app.app_context():
+        tx_id, offer_ids = _seller_listing(seed, offers=[fields])
+        offer = SellerOffer.query.get(offer_ids[0])
+        version = SellerOfferVersion.query.get(offer.current_version_id)
+        version.terms_data = {'offer_price': '418000'}
+        db.session.commit()
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/preview',
+            json={'offer_ids': offer_ids},
+        )
+        assert response.status_code == 200
+        body = response.get_json()
+        assert body['candidates'][0]['price'] == '$418,000'
+        assert body['draft']['headline']['value'] == '$418,000'
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
+
+
 def test_preview_compares_several_offers_side_by_side(app, seed, owner_a_client):
     second = dict(ONE_OFFER)
     second.update(

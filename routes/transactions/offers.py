@@ -17,11 +17,14 @@ from models import (
 )
 from services.offer_summary_email import (
     OfferEmailError,
+    _money,
+    _pick,
     build_draft,
     render_html,
     resolve_sender,
     selectable_offers,
     send_draft,
+    version_backed_offer,
 )
 from services.controlling_contracts import (
     ControllingContractConflict,
@@ -595,16 +598,18 @@ def _client_email_draft(transaction, offers, overrides):
 
 
 def _client_email_candidates(available, chosen_ids):
-    return [
-        {
+    rows = []
+    for offer in available:
+        backed = version_backed_offer(offer)
+        price = _money(_pick(backed, 'offer_price'))
+        rows.append({
             'offer_id': offer.id,
             'label': offer.buyer_names or offer.buyer_agent_name or f'Offer {offer.id}',
-            'price': f'${offer.offer_price:,.0f}' if offer.offer_price is not None else 'Price TBD',
+            'price': price or 'Price TBD',
             'status': offer.status,
             'selected': offer.id in chosen_ids,
-        }
-        for offer in available
-    ]
+        })
+    return rows
 
 
 def _email_list(value):

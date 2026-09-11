@@ -323,6 +323,34 @@ def test_legacy_home_warranty_prose_passes_through():
 
 
 # ---------------------------------------------------------------------------
+# Title policy paid by
+# ---------------------------------------------------------------------------
+
+def test_title_policy_payer_appears_in_row_specs_when_present():
+    draft = build(full_offer(title_policy_payer='Seller'))
+    labels = {spec['key']: spec['label'] for spec in draft.row_specs}
+    assert 'title_policy_payer' in labels
+    assert labels['title_policy_payer'] == 'Title policy paid by'
+    assert draft.offers[0].value('title_policy_payer') == 'Seller'
+
+
+def test_title_policy_payer_row_is_dropped_when_nothing_was_read():
+    draft = build(full_offer())
+    assert 'title_policy_payer' not in row_keys(draft)
+
+
+def test_title_policy_payer_falls_back_to_version_terms_data():
+    offer = full_offer(
+        title_policy_payer=None,
+        terms_summary={},
+        current_version=FakeVersion({'title_policy_payer': 'Buyer'}),
+    )
+    draft = build(offer)
+    assert 'title_policy_payer' in row_keys(draft)
+    assert draft.offers[0].value('title_policy_payer') == 'Buyer'
+
+
+# ---------------------------------------------------------------------------
 # Contingent on the buyer selling another property
 # ---------------------------------------------------------------------------
 
@@ -732,6 +760,7 @@ def test_every_new_term_round_trips_an_agent_edit():
         'buyer_agent_commission': '3%',
         'survey_responsibility': ose.SURVEY_BUYER,
         'residential_service_contract': '$800',
+        'title_policy_payer': 'Buyer',
         'sale_of_other_property': 'Yes',
         'non_realty_items': 'Refrigerator\nRiding mower',
     }

@@ -17,6 +17,7 @@ const OCE_FIGURE_LABELS = {
     buyer_agent_commission: "Commission to buyer's agent",
     survey_responsibility: 'Who pays for the survey',
     residential_service_contract: 'Home warranty',
+    title_policy_payer: 'Title policy paid by',
     sale_of_other_property: 'Contingent on buyer selling another property',
     non_realty_items: 'Non-realty items the buyer is asking for'
 };

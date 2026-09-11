@@ -45,6 +45,7 @@ CLIENT_TERMS: tuple[tuple[str, str], ...] = (
     ('buyer_agent_commission', "Commission to buyer's agent"),
     ('survey_responsibility', 'Who pays for the survey'),
     ('residential_service_contract', 'Home warranty'),
+    ('title_policy_payer', 'Title policy paid by'),
     ('sale_of_other_property', 'Contingent on buyer selling another property'),
 )
 
@@ -336,6 +337,7 @@ def _offer_block(offer, *, overrides: dict) -> OfferBlock:
         'buyer_agent_commission': _commission(offer),
         'survey_responsibility': _survey_responsibility(offer),
         'residential_service_contract': _home_warranty(offer),
+        'title_policy_payer': _text(_pick(offer, 'title_policy_payer')),
         'sale_of_other_property': _sale_of_other_property(offer),
         'non_realty_items': offer_addenda.non_realty_items(offer),
     }
