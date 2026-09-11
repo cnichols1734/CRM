@@ -43,12 +43,14 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 {% if can_compare %}
+                {% if email_offer_ids %}
                 <button type="button"
                         class="crm-btn crm-btn-secondary"
-                        onclick="openOfferClientEmail([{{ result.offers|map(attribute='offer_id')|join(', ') }}])">
+                        onclick="openOfferClientEmail([{{ email_offer_ids|join(', ') }}])">
                     <i class="fas fa-envelope text-xs" aria-hidden="true"></i>
                     Email sellers
                 </button>
+                {% endif %}
                 <button type="button"
                         class="crm-btn crm-btn-primary"
                         data-action="offer-compare#openHighestBest"

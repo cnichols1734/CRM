@@ -18,7 +18,7 @@ from models import (
 from services import net_sheet as net_sheet_service
 from services.offer_compare import OfferCompareService
 from services.offer_side import side_for_transaction
-from services.seller_workflow import create_offer_activity
+from services.seller_workflow import ACTIVE_OFFER_STATUSES, create_offer_activity
 from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
@@ -244,6 +244,11 @@ def compare_offers_view(id):
         col for col in result['offers']
         if (col.get('status') or '').lower() not in TERMINAL_OFFER_STATUSES
     ]
+    email_offer_ids = [
+        col['offer_id']
+        for col in result['offers']
+        if (col.get('status') or '') in ACTIVE_OFFER_STATUSES
+    ]
 
     return render_template(
         'transactions/offer_compare.html',
@@ -259,6 +264,7 @@ def compare_offers_view(id):
         highest_best_url=highest_best_url,
         accept_urls=accept_urls,
         hb_candidates=hb_candidates,
+        email_offer_ids=email_offer_ids,
         status_badge=_status_badge,
         format_money=_format_money,
         format_date=_format_date,

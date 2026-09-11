@@ -271,6 +271,39 @@ def test_compare_page_renders_unreviewed_version_terms(app, seed, owner_a_client
             _cleanup_offers(seed['org_a'], seed['tx_a'])
 
 
+def test_compare_email_sellers_skips_accepted_offers(app, seed, owner_a_client):
+    with app.app_context():
+        org_id = seed['org_a']
+        tx_id = seed['tx_a']
+        user_id = seed['owner_a']
+        _cleanup_offers(org_id, tx_id)
+        live = _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Live Buyer',
+            status='new',
+        )
+        accepted = _offer(
+            org_id, tx_id, user_id,
+            buyer_names='Accepted Buyer',
+            status='accepted_primary',
+        )
+        db.session.commit()
+        live_id, accepted_id = live.id, accepted.id
+
+    try:
+        response = owner_a_client.get(f'/transactions/{tx_id}/offers/compare')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'Email sellers' in html
+        assert f'openOfferClientEmail([{live_id}])' in html
+        assert f'openOfferClientEmail([{accepted_id}' not in html
+        assert f'{accepted_id}, {live_id}' not in html
+        assert f'{live_id}, {accepted_id}' not in html
+    finally:
+        with app.app_context():
+            _cleanup_offers(seed['org_a'], seed['tx_a'])
+
+
 def test_compare_page_one_offer_honest_state(app, seed, owner_a_client):
     with app.app_context():
         org_id = seed['org_a']
