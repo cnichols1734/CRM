@@ -166,6 +166,7 @@ class OfferCompareService:
         version: Optional[SellerOfferVersion],
     ) -> Dict[str, Any]:
         terms_data = (version.terms_data if version and version.terms_data else {}) or {}
+        summary = getattr(offer, 'terms_summary', None)
         terms: Dict[str, Any] = {}
         sources: Dict[str, str] = {}
         backed = _VersionBackedOffer(offer, terms_data)
@@ -176,7 +177,7 @@ class OfferCompareService:
                 value = formatter(backed)
                 source = (
                     OfferCompareService._source_for_field(
-                        offer, field_key, terms_data,
+                        offer, field_key, terms_data, summary,
                     )
                     if value is not None else None
                 )
@@ -211,12 +212,18 @@ class OfferCompareService:
         offer: SellerOffer,
         field_key: str,
         terms_data: Dict[str, Any],
+        summary: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Offer columns first, then the version terms_data key that filled the gap."""
+        """Offer columns, then reviewed terms_summary, then version terms_data."""
         aliases = TERMS_DATA_ALIASES.get(field_key, (field_key,))
         for key in aliases:
             if getattr(offer, key, None) not in (None, ''):
                 return 'offer'
+        if isinstance(summary, dict):
+            for key in aliases:
+                if key in summary and summary[key] not in (None, ''):
+                    return f'terms_summary.{key}'
+        for key in aliases:
             if key in terms_data and terms_data[key] not in (None, ''):
                 return f'version.terms_data.{key}'
         return 'offer'

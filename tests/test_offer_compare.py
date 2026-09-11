@@ -210,3 +210,55 @@ def test_compare_formatters_read_version_terms_data(app, seed):
         assert sources[bravo.id]['title_policy_payer'] == (
             'version.terms_data.title_policy_payer'
         )
+
+
+def test_compare_sources_label_terms_summary_over_version_terms_data(app, seed):
+    """Reviewed terms_summary supplied the formatted value. Source must
+    say so even when version.terms_data also has the key."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Reviewed',
+            terms_summary={
+                'survey_furnished_by': (
+                    'Seller shall furnish existing survey and T-47 affidavit'
+                ),
+                'buyer_agent_commission_percent': '3',
+                'residential_service_contract': '800',
+                'title_policy_payer': 'Seller',
+            },
+            terms_data={
+                'survey_furnished_by': 'Buyer',
+                'buyer_agent_commission_percent': '2.5',
+                'residential_service_contract': '650',
+                'title_policy_payer': 'Buyer',
+            },
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
+        col = result['offers'][0]
+
+        assert col['terms']['survey_responsibility'] == (
+            'Seller will provide an existing survey'
+        )
+        assert col['terms']['buyer_agent_commission'] == '3%'
+        assert col['terms']['residential_service_contract'] == '$800'
+        assert col['terms']['title_policy_payer'] == 'Seller'
+
+        assert col['sources']['survey_responsibility'] == (
+            'terms_summary.survey_furnished_by'
+        )
+        assert col['sources']['buyer_agent_commission'] == (
+            'terms_summary.buyer_agent_commission_percent'
+        )
+        assert col['sources']['residential_service_contract'] == (
+            'terms_summary.residential_service_contract'
+        )
+        assert col['sources']['title_policy_payer'] == (
+            'terms_summary.title_policy_payer'
+        )
