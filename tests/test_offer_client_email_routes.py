@@ -374,7 +374,7 @@ def test_send_rejects_an_empty_offer_list(app, seed, owner_a_client):
             _teardown(tx_id)
 
 
-@pytest.mark.parametrize('offer_ids', ([None], ['bad'], [True], [False], [1.9]))
+@pytest.mark.parametrize('offer_ids', ([None], ['bad'], [True], [False], [1.9], ['²']))
 def test_send_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids):
     """A present list with no valid IDs is none selected, not Email all."""
     second = dict(ONE_OFFER)
@@ -399,7 +399,7 @@ def test_send_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids
             _teardown(tx_id)
 
 
-@pytest.mark.parametrize('offer_ids', ([None], ['bad'], [True], [False], [1.9]))
+@pytest.mark.parametrize('offer_ids', ([None], ['bad'], [True], [False], [1.9], ['²']))
 def test_preview_rejects_unparseable_offer_ids(app, seed, owner_a_client, offer_ids):
     """Same hole on preview: do not expand junk IDs to every live offer."""
     second = dict(ONE_OFFER)
@@ -467,6 +467,7 @@ def test_preview_rejects_non_list_offer_ids(app, seed, owner_a_client, offer_ids
 def test_parse_requested_offer_ids_skips_bools_and_fractional_floats():
     """int(True)==1 and int(1.9)==1. Those must not look like a selected offer."""
     from routes.transactions.offers import (
+        _coerce_offer_id,
         _none_selected_offer_ids,
         _parse_requested_offer_ids,
     )
@@ -482,6 +483,34 @@ def test_parse_requested_offer_ids_skips_bools_and_fractional_floats():
     assert _none_selected_offer_ids([1.9]) is True
     assert _none_selected_offer_ids([1]) is False
     assert _none_selected_offer_ids(None) is False
+    # ² is a digit to str.isdigit and a ValueError to int().
+    assert '²'.isdigit() is True
+    assert _coerce_offer_id('²') is None
+    assert _parse_requested_offer_ids(['²']) == []
+    assert _none_selected_offer_ids(['²']) is True
+
+
+def test_send_rejects_unicode_digit_offer_ids(app, seed, owner_a_client):
+    """{"offer_ids": ["²"]} must be invalid-selection 400, not a 500."""
+    with app.app_context():
+        tx_id, created_ids = _seller_listing(seed, offers=[ONE_OFFER])
+    try:
+        response = owner_a_client.post(
+            f'/transactions/{tx_id}/offers/client-email/send',
+            json={'offer_ids': ['²'], 'to': 'cassie@example.com'},
+        )
+        assert response.status_code == 400
+        assert response.status_code != 500
+        assert 'at least one offer' in response.get_json()['error']
+
+        with app.app_context():
+            assert SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(created_ids),
+                SellerOfferActivity.event_type == 'client_email_sent',
+            ).count() == 0
+    finally:
+        with app.app_context():
+            _teardown(tx_id)
 
 
 def test_send_covers_only_the_named_offers(app, seed, owner_a_client):

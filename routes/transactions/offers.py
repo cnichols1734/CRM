@@ -581,7 +581,12 @@ def _coerce_offer_id(raw):
         text = raw.strip()
         if not text.isdigit():
             return None
-        return int(text)
+        try:
+            return int(text)
+        except ValueError:
+            # str.isdigit() is true for Unicode digits such as ².
+            # int() is not. Treat those as unparseable, not a 500.
+            return None
     return None
 
 
