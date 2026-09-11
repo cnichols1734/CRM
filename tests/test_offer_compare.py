@@ -262,3 +262,24 @@ def test_compare_sources_label_terms_summary_over_version_terms_data(app, seed):
         assert col['sources']['title_policy_payer'] == (
             'terms_summary.title_policy_payer'
         )
+
+
+def test_reviewed_survey_payer_wins_over_version_furnished_by(app, seed):
+    """Reviewed survey_payer and version survey_furnished_by are one family.
+    Compare keeps Buyer, not the version Seller furnished_by."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = Transaction.query.get(seed['tx_a'])
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            buyer_names='Reviewed payer',
+            terms_summary={'survey_payer': 'Buyer'},
+            terms_data={'survey_furnished_by': 'Seller'},
+        )
+        db.session.commit()
+
+        result = OfferCompareService.compare_offers(tx, offer_ids=[offer.id])
+        col = result['offers'][0]
+        assert col['terms']['survey_responsibility'] == 'Buyer'

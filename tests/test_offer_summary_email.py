@@ -574,6 +574,26 @@ def test_version_terms_data_fills_only_blank_summary_keys():
     assert backed.terms_summary['residential_service_contract'] == '650'
 
 
+def test_reviewed_survey_payer_wins_over_version_furnished_by():
+    """survey_payer, survey_furnished_by, and survey_choice are one family.
+    A reviewed payer must block version furnished_by from joining the merge."""
+    offer = FakeOffer(terms_summary={'survey_payer': 'Buyer'})
+    backed = ose._VersionBackedOffer(offer, {'survey_furnished_by': 'Seller'})
+    assert backed.terms_summary['survey_payer'] == 'Buyer'
+    assert 'survey_furnished_by' not in backed.terms_summary
+    assert ose._pick(backed, 'survey_furnished_by') == 'Buyer'
+    assert ose._alias_family('survey_furnished_by') == ose._alias_family('survey_payer')
+    assert 'survey_choice' in ose._alias_family('survey_payer')
+
+    draft_offer = full_offer(
+        survey_furnished_by=None,
+        survey_payer=None,
+        terms_summary={'survey_payer': 'Buyer'},
+        current_version=FakeVersion({'survey_furnished_by': 'Seller'}),
+    )
+    assert build(draft_offer).offers[0].value('survey_responsibility') == ose.SURVEY_BUYER
+
+
 def test_reviewed_sales_price_wins_over_version_offer_price():
     """Exact-key blank-fill used to let version offer_price sit next to
     reviewed sales_price. _pick then walked offer_price first."""

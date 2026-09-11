@@ -85,6 +85,8 @@ _CLIENT_ROLES = {
     'buyer': ('buyer', 'co_buyer'),
 }
 
+_SURVEY_ALIASES = ('survey_furnished_by', 'survey_choice', 'survey_payer')
+
 _TERM_ALIASES = {
     'offer_price': ('offer_price', 'sales_price', 'purchase_price'),
     'financing_type': ('financing_type', 'loan_type'),
@@ -95,8 +97,8 @@ _TERM_ALIASES = {
     'proposed_close_date': ('proposed_close_date', 'closing_date', 'close_date'),
     'buyer_agent_commission_percent': ('buyer_agent_commission_percent',),
     'buyer_agent_commission_flat': ('buyer_agent_commission_flat',),
-    'survey_furnished_by': ('survey_furnished_by', 'survey_choice'),
-    'survey_payer': ('survey_payer',),
+    'survey_furnished_by': _SURVEY_ALIASES,
+    'survey_payer': _SURVEY_ALIASES,
     'residential_service_contract': ('residential_service_contract',),
     'title_policy_payer': ('title_policy_payer',),
 }
