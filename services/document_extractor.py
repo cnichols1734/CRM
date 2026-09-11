@@ -576,6 +576,26 @@ EXTRACTION_SCHEMAS = {
             "one per array entry. Extract only explicit values and use null for blanks."
         ),
     },
+    'sale-of-other-property-addendum': {
+        'fields': {
+            'other_property_address': (
+                'Address of the other property the buyer must sell, if written.'
+            ),
+            'deadline_days': (
+                'Number of days the buyer has to sell or close the other property, if written.'
+            ),
+            'waiver_deadline': (
+                'Date by which the buyer must waive the contingency, if written (YYYY-MM-DD).'
+            ),
+            'buyer_names': 'Buyer name or names if visible.',
+            'seller_names': 'Seller name or names if visible.',
+        },
+        'system_prompt': (
+            "You are a precise document data extractor for the Texas Addendum for Sale of "
+            "Other Property by Buyer (TREC 10 / TXR 1908). Extract only explicit values "
+            "and use null for blanks."
+        ),
+    },
     'amendment': {
         'fields': {
             'amendment_number': 'Amendment number or version identifier printed on the form, if shown.',

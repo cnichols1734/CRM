@@ -1525,6 +1525,11 @@ class SellerOffer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    def resolved_non_realty_items(self):
+        """Column first, then the addenda bags for older extracted offers."""
+        from services.offer_addenda import non_realty_items
+        return non_realty_items(self)
+
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_offers')
     source_showing = db.relationship('SellerShowing', backref=db.backref('offers', lazy='dynamic'))
     backup_addendum_document = db.relationship('TransactionDocument', foreign_keys=[backup_addendum_document_id])

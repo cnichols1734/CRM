@@ -430,6 +430,8 @@ _OFFER_TYPE_TO_KIND = {
     'hoa_addendum': KIND_ADDENDUM,
     'pre_approval': KIND_PROOF_OF_FUNDS,
     'third_party_financing': KIND_ADDENDUM,
+    'non_realty_items': KIND_ADDENDUM,
+    'sale_of_other_property': KIND_ADDENDUM,
 }
 
 

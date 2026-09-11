@@ -338,9 +338,12 @@ def _offer_block(offer, *, overrides: dict) -> OfferBlock:
 
     cells: dict[str, TermCell] = {}
     for key, produced in generated.items():
+        override_given = key in overrides
         supplied = _text(overrides.get(key))
         if _is_empty_term(supplied):
             supplied = None
+        if key == 'non_realty_items' and override_given and supplied is None:
+            continue
         if supplied is not None and supplied != (produced or ''):
             cells[key] = TermCell(key=key, value=supplied, edited=True)
         elif produced:

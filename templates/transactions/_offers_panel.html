@@ -367,7 +367,7 @@
                                                                 </label>
                                                                 <label class="block md:col-span-2">
                                                                     <span class="mb-1 block text-xs font-medium text-slate-700">Non-realty items</span>
-                                                                    <textarea name="terms_data[non_realty_items]" class="crm-textarea w-full" rows="3" placeholder="One item per line, from the Non-Realty Items Addendum">{{ offer.non_realty_items or '' }}</textarea>
+                                                                    <textarea name="terms_data[non_realty_items]" class="crm-textarea w-full" rows="3" placeholder="One item per line, from the Non-Realty Items Addendum">{{ offer.resolved_non_realty_items() or '' }}</textarea>
                                                                 </label>
                                                             </div>
                                                         </div>
@@ -520,10 +520,11 @@
                                                                 <dt>RSC</dt>
                                                                 <dd>{{ offer.residential_service_contract or '—' }}</dd>
                                                             </div>
-                                                            {% if offer.non_realty_items %}
+                                                            {% set non_realty = offer.resolved_non_realty_items() %}
+                                                            {% if non_realty %}
                                                             <div class="offer-command__snapshot-row offer-command__snapshot-row--full">
                                                                 <dt>Non-realty</dt>
-                                                                <dd class="whitespace-pre-line">{{ offer.non_realty_items }}</dd>
+                                                                <dd class="whitespace-pre-line">{{ non_realty }}</dd>
                                                             </div>
                                                             {% endif %}
                                                             <div class="offer-command__snapshot-row offer-command__snapshot-row--full">

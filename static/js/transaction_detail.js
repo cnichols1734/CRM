@@ -797,7 +797,8 @@ function sellerFormData(form) {
     new FormData(form).forEach((value, key) => {
         const termMatch = key.match(/^terms_data\[(.+)\]$/);
         if (termMatch) {
-            if (value !== '') terms[termMatch[1]] = value;
+            const field = termMatch[1];
+            if (value !== '' || field === 'non_realty_items') terms[field] = value;
         } else if (value !== '') {
             data[key] = value;
         }

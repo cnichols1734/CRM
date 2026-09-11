@@ -84,9 +84,9 @@ def non_realty_items(offer) -> Optional[str]:
     """
     if offer is None:
         return None
-    direct = _lines(getattr(offer, 'non_realty_items', None))
-    if direct:
-        return direct
+    # An empty string is an explicit clear. Only an unset column falls back.
+    if getattr(offer, 'non_realty_items', None) is not None:
+        return _lines(offer.non_realty_items)
 
     summary = _summary(offer)
     direct = _lines(summary.get('non_realty_items'))

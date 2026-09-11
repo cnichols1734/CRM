@@ -678,6 +678,15 @@ def test_an_agent_can_add_non_realty_items_by_hand():
     assert draft.offers[0].cells['non_realty_items'].edited is True
 
 
+def test_a_blank_non_realty_override_clears_the_generated_list():
+    offer = full_offer(non_realty_items='Refrigerator')
+    draft = build(offer, overrides={
+        'terms': {str(offer.id): {'non_realty_items': ''}},
+    })
+    assert 'non_realty_items' not in draft.offers[0].cells
+    assert [spec['key'] for spec in draft.long_rows] == []
+
+
 def test_an_edited_figure_never_gets_the_winner_highlight():
     low, high = compare_set()
     draft = build([low, high], overrides={

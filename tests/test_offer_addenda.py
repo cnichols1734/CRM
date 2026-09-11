@@ -4,8 +4,10 @@ from types import SimpleNamespace
 
 from services import offer_addenda
 from services.seller_workflow import (
+    _inherited_field_data_for_segment,
     _non_realty_items_text,
     _normalized_supporting_payload,
+    apply_offer_terms,
     normalize_offer_terms,
 )
 
@@ -174,3 +176,97 @@ def test_an_explicit_contingency_answer_is_not_overwritten():
         'addenda': {'sale_of_other_property_addendum': {'deadline_days': 30}},
     })
     assert normalized['sale_of_other_property_contingency'] is False
+
+
+def test_present_false_does_not_promote_the_contingency():
+    normalized = normalize_offer_terms({
+        'addenda': {'sale_of_other_property_addendum': {'present': False}},
+    })
+    assert normalized.get('sale_of_other_property_contingency') in (None, False)
+
+    from_supporting = normalize_offer_terms({
+        'supporting_documents': {'sale_of_other_property': {'present': False}},
+    })
+    assert from_supporting.get('sale_of_other_property_contingency') in (None, False)
+
+
+def test_apply_reads_the_supporting_document_bag():
+    terms = {'supporting_documents': {'non_realty_items': {'non_realty_items': ['Curtains']}}}
+    assert _non_realty_items_text(terms) == 'Curtains'
+
+
+def test_a_blank_form_value_does_not_fall_back_to_the_addenda_bag():
+    terms = {
+        'non_realty_items': '',
+        'addenda': {'non_realty_items_addendum': {'items': ['Fridge']}},
+        'supporting_documents': {'non_realty_items': {'non_realty_items': ['Curtains']}},
+    }
+    assert _non_realty_items_text(terms) is None
+
+
+def test_an_empty_column_is_an_explicit_clear():
+    o = offer(
+        non_realty_items='',
+        terms_summary={'addenda': {'non_realty_items_addendum': {'items': ['Fridge']}}},
+    )
+    assert offer_addenda.non_realty_items(o) is None
+
+
+def test_apply_offer_terms_clears_when_the_form_sends_a_blank():
+    offer_row = SimpleNamespace(
+        terms_summary={'addenda': {'non_realty_items_addendum': {'items': ['Fridge']}}},
+        response_deadline_at=None,
+        non_realty_items='Fridge',
+    )
+    apply_offer_terms(offer_row, {
+        'non_realty_items': '',
+        'addenda': {'non_realty_items_addendum': {'items': ['Fridge']}},
+    })
+    assert offer_row.non_realty_items == ''
+    assert offer_addenda.non_realty_items(offer_row) is None
+
+
+def test_apply_offer_terms_still_reads_legacy_bags_when_untouched():
+    offer_row = SimpleNamespace(
+        terms_summary={},
+        response_deadline_at=None,
+        non_realty_items=None,
+    )
+    apply_offer_terms(offer_row, {
+        'addenda': {'non_realty_items_addendum': {'items': ['Fridge']}},
+    })
+    assert offer_row.non_realty_items == 'Fridge'
+
+    offer_row.non_realty_items = None
+    apply_offer_terms(offer_row, {
+        'supporting_documents': {'non_realty_items': {'items': ['Mower']}},
+    })
+    assert offer_row.non_realty_items == 'Mower'
+
+
+def test_split_children_inherit_the_new_addenda_payloads():
+    parent = {
+        'addenda': {
+            'non_realty_items_addendum': {'items': ['Fridge'], 'price': '0'},
+            'sale_of_other_property_addendum': {'deadline_days': 30},
+        },
+        'supporting_documents': {
+            'non_realty_items': {'non_realty_items': ['Should not win']},
+        },
+    }
+    non_realty = _inherited_field_data_for_segment('non_realty_items', parent)
+    sale = _inherited_field_data_for_segment('sale_of_other_property', parent)
+    assert non_realty['items'] == ['Fridge']
+    assert sale['deadline_days'] == 30
+
+    from_supporting = _inherited_field_data_for_segment('non_realty_items', {
+        'supporting_documents': {'non_realty_items': {'non_realty_items': ['Curtains']}},
+    })
+    assert from_supporting['non_realty_items'] == ['Curtains']
+
+    from_top_level = _inherited_field_data_for_segment('non_realty_items', {
+        'non_realty_items': ['Washer'],
+        'non_realty_items_price': '0',
+    })
+    assert from_top_level['non_realty_items'] == ['Washer']
+    assert from_top_level['non_realty_items_price'] == '0'
