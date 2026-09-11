@@ -189,6 +189,7 @@ def compare_offers_view(id):
         ordered_offers,
         commission_terms=commission_terms,
         omit_keys=net_sheet_service.COMPARE_NET_OMIT,
+        listing_coop=False,
     )
     net_sheets_by_offer = {sheet.offer_id: sheet for sheet in sheets}
     net_lines_by_offer = {

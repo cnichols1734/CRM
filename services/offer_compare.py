@@ -58,7 +58,34 @@ TERMS_DATA_ALIASES = {
     'option_fee': ('option_fee',),
     'proposed_close_date': ('proposed_close_date', 'closing_date', 'close_date'),
     'financing_type': ('financing_type', 'loan_type'),
+    'survey_responsibility': ('survey_furnished_by', 'survey_choice', 'survey_payer'),
+    'buyer_agent_commission': (
+        'buyer_agent_commission_percent',
+        'buyer_agent_commission_flat',
+    ),
+    'residential_service_contract': ('residential_service_contract',),
+    'title_policy_payer': ('title_policy_payer',),
 }
+
+
+class _VersionBackedOffer:
+    """Offer columns win. Current version terms_data fills the same gaps
+    ``terms_summary`` does for the client-email formatters."""
+
+    def __init__(self, offer: SellerOffer, terms_data: Dict[str, Any]):
+        object.__setattr__(self, '_offer', offer)
+        merged: Dict[str, Any] = {}
+        existing = getattr(offer, 'terms_summary', None)
+        if isinstance(existing, dict):
+            merged.update(existing)
+        if isinstance(terms_data, dict):
+            for key, value in terms_data.items():
+                if value not in (None, ''):
+                    merged[key] = value
+        object.__setattr__(self, 'terms_summary', merged)
+
+    def __getattr__(self, name):
+        return getattr(self._offer, name)
 
 
 class OfferCompareService:
@@ -172,11 +199,12 @@ class OfferCompareService:
         terms_data = (version.terms_data if version and version.terms_data else {}) or {}
         terms: Dict[str, Any] = {}
         sources: Dict[str, str] = {}
+        backed = _VersionBackedOffer(offer, terms_data)
 
         for field_key, _label in COMPARE_FIELDS:
             formatter = _FORMATTED_FIELDS.get(field_key)
             if formatter:
-                value = formatter(offer)
+                value = formatter(backed)
                 source = 'offer' if value is not None else None
             else:
                 value = getattr(offer, field_key, None)

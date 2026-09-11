@@ -37,6 +37,7 @@ def _offer(org_id, tx_id, user_id, **kwargs):
         earnest_money=kwargs.pop('earnest_money', Decimal('5000')),
         financing_type=kwargs.pop('financing_type', 'conventional'),
     )
+    terms_data = kwargs.pop('terms_data', {})
     defaults.update(kwargs)
     offer = SellerOffer(**defaults)
     db.session.add(offer)
@@ -49,7 +50,7 @@ def _offer(org_id, tx_id, user_id, **kwargs):
         version_number=1,
         direction='buyer_offer',
         status='submitted',
-        terms_data={},
+        terms_data=terms_data,
     )
     db.session.add(version)
     db.session.flush()
@@ -403,7 +404,12 @@ def test_compare_omit_drops_listing_side_costs_from_total(app, seed):
 
         from services.net_sheet import COMPARE_NET_OMIT
 
-        sheet = build_for_offer(offer, commission_terms=terms, omit_keys=COMPARE_NET_OMIT)
+        sheet = build_for_offer(
+            offer,
+            commission_terms=terms,
+            omit_keys=COMPARE_NET_OMIT,
+            listing_coop=False,
+        )
         keys = [line.key for line in sheet.lines]
         assert keys == [
             'sales_price',
@@ -448,3 +454,78 @@ def test_build_for_offers_preserves_input_order(app, seed):
         assert sheets[0].sales_price == Decimal('400000.00')
         assert sheets[1].sales_price == Decimal('450000.00')
         assert sheets[2].sales_price == Decimal('500000.00')
+
+
+def test_compare_skips_listing_coop_when_offer_omits_commission(app, seed):
+    """Listing coop is not a cost written in the offer. Compare leaves it off."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = _tx(seed)
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            offer_price=Decimal('400000'),
+        )
+        terms = _commission_terms(
+            org_id, tx.id, user_id,
+            listing_commission_percent=Decimal('3'),
+            coop_compensation_percent=Decimal('3'),
+        )
+        db.session.commit()
+
+        from services.net_sheet import COMPARE_NET_OMIT
+
+        full = build_for_offer(offer, commission_terms=terms)
+        compare = build_for_offer(
+            offer,
+            commission_terms=terms,
+            omit_keys=COMPARE_NET_OMIT,
+            listing_coop=False,
+        )
+        # Full sheet still uses listing coop. Compare must not.
+        assert _line_map(full)['buyer_agent_commission'].amount == Decimal('12000.00')
+        assert _line_map(full)['listing_commission'].amount == Decimal('12000.00')
+        assert _line_map(compare)['buyer_agent_commission'].known is False
+        assert compare.estimated_net == Decimal('400000.00')
+
+
+def test_compare_reads_unreviewed_version_terms(app, seed):
+    """Intake parks commission, concessions, and warranty on the version
+    until someone reviews. Compare still has to deduct them."""
+    with app.app_context():
+        org_id = seed['org_a']
+        tx = _tx(seed)
+        user_id = seed['owner_a']
+
+        offer = _offer(
+            org_id, tx.id, user_id,
+            offer_price=Decimal('400000'),
+            terms_data={
+                'buyer_agent_commission_percent': '3',
+                'seller_concessions': '2000',
+                'residential_service_contract': '500',
+            },
+        )
+        terms = _commission_terms(
+            org_id, tx.id, user_id,
+            coop_compensation_percent=Decimal('2.5'),
+        )
+        db.session.commit()
+
+        from services.net_sheet import COMPARE_NET_OMIT
+
+        sheet = build_for_offer(
+            offer,
+            commission_terms=terms,
+            omit_keys=COMPARE_NET_OMIT,
+            listing_coop=False,
+        )
+        lines = _line_map(sheet)
+        assert lines['buyer_agent_commission'].amount == Decimal('12000.00')
+        assert 'offer buyer-agent commission' in (lines['buyer_agent_commission'].basis or '')
+        assert 'listing coop' not in (lines['buyer_agent_commission'].basis or '')
+        assert lines['seller_concessions'].amount == Decimal('2000.00')
+        assert lines['residential_service_contract'].amount == Decimal('500.00')
+        # 400000 − 12000 − 2000 − 500 = 385500
+        assert sheet.estimated_net == Decimal('385500.00')

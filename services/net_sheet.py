@@ -20,6 +20,12 @@ PERCENT_DIVISOR = Decimal('100')
 
 # Prefer these keys when pulling sales price from version.terms_data.
 PRICE_TERMS_ALIASES = ('offer_price', 'sales_price', 'purchase_price')
+OFFER_TERM_ALIASES = {
+    'buyer_agent_commission_percent': ('buyer_agent_commission_percent',),
+    'buyer_agent_commission_flat': ('buyer_agent_commission_flat',),
+    'seller_concessions_amount': ('seller_concessions_amount', 'seller_concessions'),
+    'residential_service_contract': ('residential_service_contract',),
+}
 
 LINE_SPECS: tuple[tuple[str, str, str], ...] = (
     ('sales_price', 'Sales price', 'credit'),
@@ -97,6 +103,7 @@ def build_for_offer(
     commission_terms: SellerCommissionTerms | None = None,
     loan_payoff: Decimal | None = None,
     omit_keys: Optional[Sequence[str]] = None,
+    listing_coop: bool = True,
 ) -> NetSheet:
     """Build a read-only net sheet for a seller offer. Never writes."""
     if offer is None:
@@ -108,17 +115,27 @@ def build_for_offer(
         commission_terms,
     )
     sales_price = _sales_price_for_offer(offer)
+    version_terms = _terms_data_for_offer(offer)
     return _assemble(
         offer_id=offer.id,
         sales_price=sales_price,
-        buyer_agent_percent=getattr(offer, 'buyer_agent_commission_percent', None),
-        buyer_agent_flat=getattr(offer, 'buyer_agent_commission_flat', None),
-        seller_concessions=getattr(offer, 'seller_concessions_amount', None),
-        residential_service_contract=getattr(offer, 'residential_service_contract', None),
+        buyer_agent_percent=_offer_or_version_term(
+            offer, version_terms, 'buyer_agent_commission_percent',
+        ),
+        buyer_agent_flat=_offer_or_version_term(
+            offer, version_terms, 'buyer_agent_commission_flat',
+        ),
+        seller_concessions=_offer_or_version_term(
+            offer, version_terms, 'seller_concessions_amount',
+        ),
+        residential_service_contract=_offer_or_version_term(
+            offer, version_terms, 'residential_service_contract',
+        ),
         option_fee=getattr(offer, 'option_fee', None),
         commission_terms=terms,
         loan_payoff=loan_payoff,
         omit_keys=omit_keys,
+        listing_coop=listing_coop,
     )
 
 
@@ -158,6 +175,7 @@ def build_for_offers(
     commission_terms: SellerCommissionTerms | None = None,
     loan_payoff: Decimal | None = None,
     omit_keys: Optional[Sequence[str]] = None,
+    listing_coop: bool = True,
 ) -> list[NetSheet]:
     """Build one net sheet per offer, preserving input order. Never writes."""
     return [
@@ -166,6 +184,7 @@ def build_for_offers(
             commission_terms=commission_terms,
             loan_payoff=loan_payoff,
             omit_keys=omit_keys,
+            listing_coop=listing_coop,
         )
         for offer in offers
     ]
@@ -188,6 +207,7 @@ def _assemble(
     commission_terms: SellerCommissionTerms | None,
     loan_payoff: Decimal | None,
     omit_keys: Optional[Sequence[str]] = None,
+    listing_coop: bool = True,
 ) -> NetSheet:
     lines: list[NetSheetLine] = []
 
@@ -219,6 +239,7 @@ def _assemble(
         buyer_agent_percent=buyer_agent_percent,
         buyer_agent_flat=buyer_agent_flat,
         commission_terms=commission_terms,
+        listing_coop=listing_coop,
     ))
 
     # 4. seller_concessions
@@ -389,6 +410,7 @@ def _buyer_agent_commission_line(
     buyer_agent_percent: Any,
     buyer_agent_flat: Any,
     commission_terms: SellerCommissionTerms | None,
+    listing_coop: bool = True,
 ) -> NetSheetLine:
     key = 'buyer_agent_commission'
 
@@ -410,6 +432,9 @@ def _buyer_agent_commission_line(
             basis='Flat fee (offer buyer-agent commission)',
             known=True,
         )
+
+    if not listing_coop:
+        return _line(key, None, 'cost', basis='Not provided', known=False)
 
     if commission_terms is None:
         return _line(
@@ -496,6 +521,22 @@ def _resolve_commission_terms(
         )
         .first()
     )
+
+
+def _terms_data_for_offer(offer: SellerOffer) -> dict:
+    version = _current_version(offer)
+    return (version.terms_data if version and version.terms_data else {}) or {}
+
+
+def _offer_or_version_term(offer: SellerOffer, terms_data: dict, attr: str) -> Any:
+    """Offer column first, then the current version's terms_data aliases."""
+    value = getattr(offer, attr, None)
+    if value not in (None, ''):
+        return value
+    for key in OFFER_TERM_ALIASES.get(attr, (attr,)):
+        if key in terms_data and terms_data[key] not in (None, ''):
+            return terms_data[key]
+    return None
 
 
 def _current_version(offer: SellerOffer) -> Optional[SellerOfferVersion]:
