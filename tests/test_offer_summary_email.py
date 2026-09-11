@@ -574,6 +574,23 @@ def test_version_terms_data_fills_only_blank_summary_keys():
     assert backed.terms_summary['residential_service_contract'] == '650'
 
 
+def test_reviewed_sales_price_wins_over_version_offer_price():
+    """Exact-key blank-fill used to let version offer_price sit next to
+    reviewed sales_price. _pick then walked offer_price first."""
+    offer = FakeOffer(terms_summary={'sales_price': '418000'})
+    backed = ose._VersionBackedOffer(offer, {'offer_price': '450000'})
+    assert backed.terms_summary['sales_price'] == '418000'
+    assert 'offer_price' not in backed.terms_summary
+    assert ose._pick(backed, 'offer_price') == '418000'
+
+    draft_offer = full_offer(
+        offer_price=None,
+        terms_summary={'sales_price': '418000'},
+        current_version=FakeVersion({'offer_price': '450000'}),
+    )
+    assert build(draft_offer).headline['value'] == '$418,000'
+
+
 def test_build_draft_reads_current_version_like_compare(app, seed):
     """Same current_version_id lookup Compare uses, through the composer."""
     from models import SellerOffer, SellerOfferVersion, Transaction, db

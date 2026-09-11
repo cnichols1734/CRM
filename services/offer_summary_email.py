@@ -804,9 +804,23 @@ def _from_name(agent, organization) -> str:
 # Reading offers and people
 # ---------------------------------------------------------------------------
 
+def _alias_family(key: str) -> tuple[str, ...]:
+    """Aliases ``_pick`` walks for *key*, or the key alone."""
+    for aliases in _TERM_ALIASES.values():
+        if key in aliases:
+            return aliases
+    return (key,)
+
+
+def _family_has_value(merged: dict[str, Any], key: str) -> bool:
+    return any(not _blank(merged.get(alias)) for alias in _alias_family(key))
+
+
 class _VersionBackedOffer:
     """Offer columns win in ``_pick``. Non-empty ``terms_summary`` stays.
-    Current-version ``terms_data`` fills only missing or blank summary keys."""
+    Current-version ``terms_data`` fills only missing or blank summary keys.
+    Alias groups used by ``_pick`` are one family: a reviewed ``sales_price``
+    blocks a version ``offer_price`` from joining the merge."""
 
     def __init__(self, offer, terms_data: dict[str, Any]):
         object.__setattr__(self, '_offer', offer)
@@ -816,7 +830,7 @@ class _VersionBackedOffer:
             merged.update(existing)
         if isinstance(terms_data, dict):
             for key, value in terms_data.items():
-                if value not in (None, '') and _blank(merged.get(key)):
+                if value not in (None, '') and not _family_has_value(merged, key):
                     merged[key] = value
         object.__setattr__(self, 'terms_summary', merged)
 
