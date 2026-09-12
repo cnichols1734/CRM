@@ -167,6 +167,8 @@ class TestLockedMarketingCopy:
         assert 'syncRewriteSnapshot' in studio_js
         assert 'fields.current_blocks.value = this.blocksFieldTarget.value' in studio_js
         assert 'fields.current_subject.value = this.subjectTarget.value' in studio_js
+        assert 'fields.current_model.value = modelInput.value' in studio_js
+        assert 'fields.current_generation_prompt.value = promptInput.value' in studio_js
 
     def test_addendum_49_to_53(self):
         render = _read('services', 'marketing', 'render.py')

@@ -9,7 +9,9 @@ from conftest import login
 from models import MarketingTemplate, db
 
 from marketing_helpers import enable_campaigns, load_org_user, make_contact, ready_template
+from routes.marketing.pages import _restore_draft
 from services.marketing import system_templates as st
+from services.marketing.templates import TemplateError
 
 
 class TestMarketingPages:
@@ -299,6 +301,180 @@ class TestMarketingPages:
         assert 'value="Edited saved subject"' in body
         assert 'Edited saved body that must survive a bad rewrite.' in body
         assert 'just checking in' not in body.lower()
+
+    def test_restore_draft_recomputes_warn_compliance(self):
+        draft = _restore_draft({
+            'current_subject': 'Open house Saturday',
+            'current_preheader': 'Stop by if you can',
+            'current_name': 'Warn draft',
+            'current_blocks': json.dumps([
+                {
+                    'type': 'paragraph',
+                    'text': 'A safe neighborhood to raise a family in.',
+                },
+                {'type': 'signature'},
+            ]),
+            'category': 'open_house',
+        })
+        assert draft is not None
+        assert draft['compliance_state'] == 'warn'
+        assert draft['findings']
+        assert any(
+            (finding.get('matched_text') or '').lower().find('safe') >= 0
+            for finding in draft['findings']
+        )
+
+    def test_restore_draft_keeps_ai_provenance(self):
+        draft = _restore_draft({
+            'current_subject': 'Checking in this week',
+            'current_preheader': 'Just a note',
+            'current_name': 'AI draft',
+            'current_blocks': json.dumps([
+                {'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}.'},
+                {'type': 'signature'},
+            ]),
+            'current_model': 'test-model',
+            'current_generation_prompt': 'Check in with past clients.',
+            'category': 'check_in',
+        })
+        assert draft is not None
+        assert draft['model'] == 'test-model'
+        assert draft['prompt'] == 'Check in with past clients.'
+        assert draft['compliance_state'] == 'pass'
+
+    def test_failed_rewrite_keeps_fair_housing_warnings(
+        self, owner_a_client, app, seed,
+    ):
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        warn_blocks = [
+            {
+                'type': 'paragraph',
+                'text': 'A safe neighborhood to raise a family in.',
+            },
+            {'type': 'signature'},
+        ]
+        resp = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'generate',
+                'prompt': '',
+                'current_subject': 'Open house Saturday',
+                'current_preheader': 'Stop by if you can',
+                'current_name': 'Warn draft',
+                'current_blocks': json.dumps(warn_blocks),
+                'category': 'open_house',
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Describe the email you want.' in body
+        assert 'I reviewed the Fair Housing warnings' in body
+        assert 'name="acknowledge"' in body
+        assert 'safe neighborhood' in body.lower()
+        assert 'Compliance' in body
+
+        saved = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'save',
+                'name': 'Warn draft',
+                'subject': 'Open house Saturday',
+                'preheader': 'Stop by if you can',
+                'blocks': json.dumps(warn_blocks),
+                'category': 'open_house',
+                'acknowledge': '1',
+            },
+            follow_redirects=True,
+        )
+        assert saved.status_code == 200
+        assert 'Template saved.' in saved.get_data(as_text=True)
+        with app.app_context():
+            row = MarketingTemplate.query.filter_by(name='Warn draft').one()
+            assert row.compliance_state == 'warn'
+            assert row.status == 'ready'
+            assert row.compliance_ack_by_id is not None
+
+    def test_failed_rewrite_keeps_ai_provenance(
+        self, owner_a_client, app, seed, monkeypatch,
+    ):
+        def boom(prompt, **kwargs):
+            raise TemplateError('Could not finish that email. Try again.')
+
+        monkeypatch.setattr('services.marketing.studio.generate', boom)
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        original_prompt = 'Check in with past clients.'
+        rewrite_prompt = 'Make it shorter and punchier.'
+        resp = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'generate',
+                'prompt': rewrite_prompt,
+                'current_subject': 'Checking in this week',
+                'current_preheader': 'Just a note',
+                'current_name': 'AI draft',
+                'current_model': 'test-model',
+                'current_generation_prompt': original_prompt,
+                'current_blocks': json.dumps([
+                    {'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}.'},
+                    {'type': 'signature'},
+                ]),
+                'category': 'check_in',
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Could not finish that email. Try again.' in body
+        assert 'name="generated_by_ai" value="1"' in body
+        assert 'name="model" value="test-model"' in body
+        save_prompt = (
+            '<input type="hidden" name="prompt" '
+            f'value="{original_prompt}">'
+        )
+        assert save_prompt in body
+        assert rewrite_prompt in body
+        assert body.index(save_prompt) < body.index(rewrite_prompt)
+
+        saved = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'save',
+                'name': 'AI draft',
+                'subject': 'Checking in this week',
+                'preheader': 'Just a note',
+                'blocks': json.dumps([
+                    {'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}.'},
+                    {'type': 'signature'},
+                ]),
+                'category': 'check_in',
+                'generated_by_ai': '1',
+                'prompt': original_prompt,
+            },
+            follow_redirects=True,
+        )
+        assert saved.status_code == 200
+        assert 'Template saved.' in saved.get_data(as_text=True)
+        from models import MarketingTemplateVersion
+        with app.app_context():
+            row = MarketingTemplate.query.filter_by(name='AI draft').one()
+            assert row.source == 'ai'
+            version = (
+                MarketingTemplateVersion.query
+                .filter_by(template_id=row.id)
+                .order_by(MarketingTemplateVersion.version.desc())
+                .first()
+            )
+            assert version is not None
+            assert version.generated_by_ai is True
+            assert version.prompt == original_prompt
+            assert version.prompt != rewrite_prompt
 
     def test_library_generate_error_stays_on_the_library(self, owner_a_client, app, seed):
         with app.app_context():

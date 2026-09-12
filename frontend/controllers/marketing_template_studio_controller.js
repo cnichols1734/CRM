@@ -46,6 +46,14 @@ export default class extends Controller {
       const nameInput = this.saveFormTarget.elements.name;
       if (nameInput) fields.current_name.value = nameInput.value;
     }
+    if (fields.current_model && this.hasSaveFormTarget) {
+      const modelInput = this.saveFormTarget.elements.model;
+      if (modelInput) fields.current_model.value = modelInput.value;
+    }
+    if (fields.current_generation_prompt && this.hasSaveFormTarget) {
+      const promptInput = this.saveFormTarget.elements.prompt;
+      if (promptInput) fields.current_generation_prompt.value = promptInput.value;
+    }
   }
 
   desktop(event) {
