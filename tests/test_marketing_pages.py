@@ -232,6 +232,74 @@ class TestMarketingPages:
         body = resp.get_data(as_text=True)
         assert 'Template saved.' in body
 
+    def test_failed_rewrite_keeps_edited_unsaved_draft(
+        self, owner_a_client, app, seed,
+    ):
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        edited_blocks = [
+            {
+                'type': 'paragraph',
+                'text': 'Edited body that must survive a bad rewrite.',
+            },
+            {'type': 'signature'},
+        ]
+        resp = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'generate',
+                'prompt': '',
+                'current_subject': 'Edited subject after agent tweaks',
+                'current_preheader': 'Edited preview line',
+                'current_name': 'Unsaved draft',
+                'current_blocks': json.dumps(edited_blocks),
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Describe the email you want.' in body
+        assert 'value="Edited subject after agent tweaks"' in body
+        assert 'Edited body that must survive a bad rewrite.' in body
+        assert 'Save template' in body
+
+    def test_failed_rewrite_keeps_edited_draft_on_saved_template(
+        self, owner_a_client, app, seed,
+    ):
+        with app.app_context():
+            org, owner = load_org_user(seed)
+            enable_campaigns(org)
+            template = ready_template(org, owner, name='Saved check-in')
+            db.session.commit()
+            template_id = template.id
+        edited_blocks = [
+            {
+                'type': 'paragraph',
+                'text': 'Edited saved body that must survive a bad rewrite.',
+            },
+            {'type': 'signature'},
+        ]
+        resp = owner_a_client.post(
+            f'/marketing/studio/{template_id}',
+            data={
+                'action': 'generate',
+                'prompt': '',
+                'current_subject': 'Edited saved subject',
+                'current_preheader': 'Edited saved preview',
+                'current_name': 'Saved check-in',
+                'current_blocks': json.dumps(edited_blocks),
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Describe the email you want.' in body
+        assert 'value="Edited saved subject"' in body
+        assert 'Edited saved body that must survive a bad rewrite.' in body
+        assert 'just checking in' not in body.lower()
+
     def test_library_generate_error_stays_on_the_library(self, owner_a_client, app, seed):
         with app.app_context():
             org, _ = load_org_user(seed)

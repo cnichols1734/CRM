@@ -164,6 +164,9 @@ class TestLockedMarketingCopy:
         studio_js = _read('frontend', 'controllers', 'marketing_template_studio_controller.js')
         assert 'Could not read this template. Try again.' in studio_js
         assert 'The template content is not valid JSON.' not in studio_js
+        assert 'syncRewriteSnapshot' in studio_js
+        assert 'fields.current_blocks.value = this.blocksFieldTarget.value' in studio_js
+        assert 'fields.current_subject.value = this.subjectTarget.value' in studio_js
 
     def test_addendum_49_to_53(self):
         render = _read('services', 'marketing', 'render.py')

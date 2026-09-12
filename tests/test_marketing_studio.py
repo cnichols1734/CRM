@@ -32,6 +32,32 @@ def test_generate_drops_an_empty_button_and_saves(monkeypatch):
     assert out['status'] == 'ready'
 
 
+def test_generate_keeps_a_button_with_a_placeholder_url(monkeypatch):
+    def fake_structured(**kwargs):
+        return {
+            'subject': 'Open house Saturday',
+            'preheader': 'Stop by if you can',
+            'blocks': [
+                {'type': 'paragraph', 'text': 'Open house this weekend.'},
+                {
+                    'type': 'button',
+                    'label': 'See the listing',
+                    'url': '[listing link]',
+                },
+                {'type': 'signature'},
+            ],
+        }, 'test-model'
+
+    monkeypatch.setattr(
+        'services.marketing.studio.generate_structured_response',
+        fake_structured,
+    )
+    out = generate('Invite people to the open house')
+    button = next(block for block in out['blocks'] if block['type'] == 'button')
+    assert button['url'] == '[listing link]'
+    assert '[listing link]' in out['placeholders']
+
+
 def test_generate_keeps_a_button_with_a_real_url(monkeypatch):
     def fake_structured(**kwargs):
         return {

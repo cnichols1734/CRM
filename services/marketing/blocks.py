@@ -245,8 +245,16 @@ def ai_generation_schema() -> dict:
                             'description': 'Body copy for heading, paragraph, or quote.',
                         },
                         'level': {
-                            'type': ['string', 'null'],
-                            'enum': list(HEADING_LEVELS),
+                            # type:[string,null] plus a string enum still
+                            # rejects null. Structured output needs a real
+                            # union so non-heading blocks can emit level: null.
+                            'anyOf': [
+                                {
+                                    'type': 'string',
+                                    'enum': list(HEADING_LEVELS),
+                                },
+                                {'type': 'null'},
+                            ],
                             'description': 'Heading size. Defaults to h2.',
                         },
                         'items': {
@@ -483,12 +491,12 @@ def repair_generated_blocks(raw: Any) -> list[dict]:
         spec = BLOCK_SPECS_BY_TYPE[block['type']]
         if any(not block.get(name) for name in spec.required):
             continue
-        if block['type'] == 'button' and not is_real_url(block.get('url') or ''):
+        if block['type'] == 'button' and not is_safe_url(block.get('url') or ''):
             continue
         kept.append(block)
     hero = next((block for block in kept if block['type'] == 'hero'), None)
     if hero is not None:
-        kept = [hero] + [block for block in kept if block is not hero]
+        kept = [hero] + [block for block in kept if block['type'] != 'hero']
     return kept
 
 

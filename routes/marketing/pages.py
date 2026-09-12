@@ -714,9 +714,9 @@ def studio(template_id=None):
                     prompt=request.form.get('prompt') or '',
                     create_error=str(exc),
                 )
-            if action == 'generate' and template is None:
+            if action == 'generate':
                 return _render_studio(
-                    org, None, _restore_draft(request.form) or _blank_draft(),
+                    org, template, _restore_draft(request.form) or _blank_draft(),
                     prompt=request.form.get('prompt') or '',
                 )
             if action != 'generate':

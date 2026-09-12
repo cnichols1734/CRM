@@ -187,16 +187,75 @@ class TestBlockValidation:
         assert set(item['required']) == set(item['properties'])
         assert item['additionalProperties'] is False
 
-    def test_ai_schema_heading_enum_does_not_include_null(self):
-        # null inside a string enum is rejected by structured-output validators.
-        level = ai_generation_schema()['properties']['blocks']['items']['properties']['level']
+    def test_ai_schema_accepts_null_level_on_non_heading_blocks(self):
+        import jsonschema
+
+        item = ai_generation_schema()['properties']['blocks']['items']
+        level = item['properties']['level']
+        assert 'anyOf' in level
         assert None not in (level.get('enum') or [])
-        assert 'null' in level['type']
+        assert any(option.get('type') == 'null' for option in level['anyOf'])
+        string_enum = next(
+            option for option in level['anyOf'] if option.get('enum')
+        )
+        assert string_enum['enum'] == ['h2', 'h3']
+        assert None not in string_enum['enum']
+
+        instance = {key: None for key in item['required']}
+        instance['type'] = 'paragraph'
+        instance['text'] = 'Hi there.'
+        jsonschema.validate(instance, item)
+        jsonschema.validate(
+            {
+                'subject': 'Checking in',
+                'preheader': 'Just a note',
+                'blocks': [instance],
+            },
+            ai_generation_schema(),
+        )
+
+        instance['type'] = 'heading'
+        instance['level'] = 'h2'
+        jsonschema.validate(instance, item)
+
+        instance['level'] = 'h1'
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(instance, item)
 
     def test_repair_drops_a_button_with_no_url(self):
         raw = [
             {'type': 'paragraph', 'text': 'Hi there.'},
             {'type': 'button', 'label': 'See more', 'url': None},
+            {'type': 'signature'},
+        ]
+        out = repair_generated_blocks(raw)
+        assert [block['type'] for block in out] == ['paragraph', 'signature']
+
+    def test_repair_keeps_a_button_with_a_placeholder_url(self):
+        raw = [
+            {'type': 'paragraph', 'text': 'Open house this weekend.'},
+            {
+                'type': 'button',
+                'label': 'See the listing',
+                'url': '[listing link]',
+            },
+            {'type': 'signature'},
+        ]
+        out = repair_generated_blocks(raw)
+        assert [block['type'] for block in out] == [
+            'paragraph', 'button', 'signature',
+        ]
+        assert out[1]['url'] == '[listing link]'
+        validate_blocks(out)
+
+    def test_repair_drops_a_button_with_an_unsafe_url(self):
+        raw = [
+            {'type': 'paragraph', 'text': 'Hi there.'},
+            {
+                'type': 'button',
+                'label': 'See more',
+                'url': 'javascript:alert(1)',
+            },
             {'type': 'signature'},
         ]
         out = repair_generated_blocks(raw)
@@ -210,6 +269,20 @@ class TestBlockValidation:
         ]
         out = repair_generated_blocks(raw)
         assert [block['type'] for block in out] == ['hero', 'paragraph', 'signature']
+
+    def test_repair_keeps_only_the_first_hero(self):
+        raw = [
+            {'type': 'hero', 'title': 'First listed'},
+            {'type': 'paragraph', 'text': 'Hi there.'},
+            {'type': 'hero', 'title': 'Second listed'},
+            {'type': 'signature'},
+        ]
+        out = repair_generated_blocks(raw)
+        assert [block['type'] for block in out] == [
+            'hero', 'paragraph', 'signature',
+        ]
+        assert out[0]['title'] == 'First listed'
+        validate_blocks(out)
 
     def test_insert_before_signature_keeps_the_signoff_last(self):
         blocks = [
