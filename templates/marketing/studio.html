@@ -117,6 +117,10 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
                     <input type="hidden" name="action" value="generate">
                     <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
+                    <input type="hidden" name="current_subject" value="{{ draft.subject if draft else '' }}">
+                    <input type="hidden" name="current_preheader" value="{{ draft.preheader if draft else '' }}">
+                    <input type="hidden" name="current_name" value="{{ draft.name if draft and draft.get('name') else (template.name if template else '') }}">
+                    <textarea class="hidden" name="current_blocks">{{ (draft.blocks if draft else []) | tojson }}</textarea>
                     <details class="mkt-rewrite crm-surface">
                         <summary>Rewrite this email</summary>
                         <div class="mkt-rewrite__body">

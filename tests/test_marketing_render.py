@@ -15,6 +15,7 @@ from services.marketing.blocks import (
     insert_before_signature,
     missing_button_url_message,
     normalize_blocks,
+    repair_generated_blocks,
     validate_blocks,
 )
 from services.marketing.render import personalize, preview, render
@@ -185,6 +186,30 @@ class TestBlockValidation:
         item = ai_generation_schema()['properties']['blocks']['items']
         assert set(item['required']) == set(item['properties'])
         assert item['additionalProperties'] is False
+
+    def test_ai_schema_heading_enum_does_not_include_null(self):
+        # null inside a string enum is rejected by structured-output validators.
+        level = ai_generation_schema()['properties']['blocks']['items']['properties']['level']
+        assert None not in (level.get('enum') or [])
+        assert 'null' in level['type']
+
+    def test_repair_drops_a_button_with_no_url(self):
+        raw = [
+            {'type': 'paragraph', 'text': 'Hi there.'},
+            {'type': 'button', 'label': 'See more', 'url': None},
+            {'type': 'signature'},
+        ]
+        out = repair_generated_blocks(raw)
+        assert [block['type'] for block in out] == ['paragraph', 'signature']
+
+    def test_repair_moves_a_hero_to_the_top(self):
+        raw = [
+            {'type': 'paragraph', 'text': 'Hi there.'},
+            {'type': 'hero', 'title': 'Just listed'},
+            {'type': 'signature'},
+        ]
+        out = repair_generated_blocks(raw)
+        assert [block['type'] for block in out] == ['hero', 'paragraph', 'signature']
 
     def test_insert_before_signature_keeps_the_signoff_last(self):
         blocks = [

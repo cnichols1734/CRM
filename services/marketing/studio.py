@@ -13,7 +13,9 @@ from services.marketing import blocks as blockmod
 from services.marketing import compliance
 from services.marketing import merge_fields as mf
 from services.marketing import system_templates
-from services.marketing.blocks import BlockError, ai_generation_schema, validate_blocks
+from services.marketing.blocks import (
+    BlockError, ai_generation_schema, repair_generated_blocks, validate_blocks,
+)
 from services.marketing.templates import TemplateError, prepare
 
 logger = logging.getLogger(__name__)
@@ -110,7 +112,10 @@ def generate(
 
     subject = (parsed or {}).get('subject') or ''
     preheader = (parsed or {}).get('preheader') or ''
-    raw_blocks = (parsed or {}).get('blocks') or []
+    try:
+        raw_blocks = repair_generated_blocks((parsed or {}).get('blocks') or [])
+    except BlockError as exc:
+        raise TemplateError(str(exc)) from exc
     prepared = prepare(subject, preheader, raw_blocks)
     prepared['model'] = model_used
     prepared['prompt'] = prompt

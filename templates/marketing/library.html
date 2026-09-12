@@ -52,6 +52,10 @@
                   data-action="submit->marketing-template-library#busy">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
                 <input type="hidden" name="action" value="generate">
+                <input type="hidden" name="from_library" value="1">
+                {% if create_error %}
+                <div class="crm-callout crm-callout-warning mb-4" role="alert">{{ create_error }}</div>
+                {% endif %}
 
                 <label class="block">
                     <span class="mkt-prompt-label">Describe the email</span>

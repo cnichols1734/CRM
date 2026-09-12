@@ -186,6 +186,28 @@ def _blank_draft() -> dict:
     }
 
 
+def _restore_draft(form) -> dict | None:
+    """Keep the email on screen when a rewrite fails."""
+    try:
+        blocks = json.loads(form.get('current_blocks') or '[]')
+    except json.JSONDecodeError:
+        blocks = []
+    subject = (form.get('current_subject') or '').strip()
+    preheader = (form.get('current_preheader') or '').strip()
+    name = (form.get('current_name') or '').strip()
+    if not blocks and not subject and not name:
+        return None
+    return {
+        'subject': subject,
+        'preheader': preheader,
+        'blocks': blocks,
+        'name': name,
+        'category': form.get('category') or 'other',
+        'findings': [],
+        'placeholders': [],
+    }
+
+
 def _require_campaign_template(template):
     if not tpl.is_active(template):
         raise ValueError(f'"{template.name}" is not active.')
@@ -609,23 +631,28 @@ def campaign_progress(campaign_id):
     })
 
 
-@marketing.route('/marketing/library')
-@login_required
-@feature_required('EMAIL_CAMPAIGNS')
-def library():
-    org = _enable_flag_seed()
+def _render_library(org, **extra):
     templates = tpl.visible_to(org.id, current_user.id).all()
     saved = [t for t in templates if tpl.is_saved(t)]
     mine, org_saved = tpl.split_saved(saved, current_user.id)
+    extra.setdefault('prompt', request.args.get('prompt') or '')
+    extra.setdefault('create_error', '')
     return render_template(
         'marketing/library.html',
         starters=_starter_cards(org, templates),
         saved=saved,
         mine_cards=_template_cards(org, mine),
         org_cards=_template_cards(org, org_saved),
-        prompt=request.args.get('prompt') or '',
-        **_studio_chrome(),
+        **_studio_chrome(**extra),
     )
+
+
+@marketing.route('/marketing/library')
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def library():
+    org = _enable_flag_seed()
+    return _render_library(org)
 
 
 @marketing.route('/marketing/studio', methods=['GET', 'POST'])
@@ -681,9 +708,15 @@ def studio(template_id=None):
             return redirect(url_for('marketing.studio', template_id=saved.id))
         except (TemplateError, json.JSONDecodeError, ValueError) as exc:
             flash(str(exc), 'error')
+            if action == 'generate' and request.form.get('from_library'):
+                return _render_library(
+                    org,
+                    prompt=request.form.get('prompt') or '',
+                    create_error=str(exc),
+                )
             if action == 'generate' and template is None:
                 return _render_studio(
-                    org, None, _blank_draft(),
+                    org, None, _restore_draft(request.form) or _blank_draft(),
                     prompt=request.form.get('prompt') or '',
                 )
             if action != 'generate':

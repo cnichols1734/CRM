@@ -246,7 +246,7 @@ def ai_generation_schema() -> dict:
                         },
                         'level': {
                             'type': ['string', 'null'],
-                            'enum': [*HEADING_LEVELS, None],
+                            'enum': list(HEADING_LEVELS),
                             'description': 'Heading size. Defaults to h2.',
                         },
                         'items': {
@@ -467,6 +467,29 @@ def normalize_blocks(raw: Any) -> list[dict]:
         blocks.append(block)
 
     return blocks
+
+
+def repair_generated_blocks(raw: Any) -> list[dict]:
+    """Keep the blocks an agent can save after the model fills every field.
+
+    Strict JSON schema makes the model emit a button with ``url: null`` and
+    empty required fields. Those used to fail the whole create. Drop the
+    unusable extras, keep one hero at the top, and let ``prepare`` validate
+    what remains.
+    """
+    blocks = normalize_blocks(raw)
+    kept: list[dict] = []
+    for block in blocks:
+        spec = BLOCK_SPECS_BY_TYPE[block['type']]
+        if any(not block.get(name) for name in spec.required):
+            continue
+        if block['type'] == 'button' and not is_real_url(block.get('url') or ''):
+            continue
+        kept.append(block)
+    hero = next((block for block in kept if block['type'] == 'hero'), None)
+    if hero is not None:
+        kept = [hero] + [block for block in kept if block is not hero]
+    return kept
 
 
 def validate_blocks(raw: Any) -> list[dict]:

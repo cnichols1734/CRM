@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import login
-from models import db
+from models import MarketingTemplate, db
 
 from marketing_helpers import enable_campaigns, load_org_user, make_contact, ready_template
 from services.marketing import system_templates as st
@@ -231,6 +231,99 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'Template saved.' in body
+
+    def test_library_generate_error_stays_on_the_library(self, owner_a_client, app, seed):
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        resp = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'generate',
+                'from_library': '1',
+                'prompt': '',
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert 'Describe the email you want.' in body
+        assert 'Pick a template' in body
+        assert 'Save template' not in body
+
+    def test_create_from_library_saves_and_is_selectable(
+        self, owner_a_client, app, seed, monkeypatch,
+    ):
+        def fake_generate(prompt, **kwargs):
+            return {
+                'subject': 'Checking in this week',
+                'preheader': 'Just a note',
+                'blocks': [
+                    {'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}.'},
+                    {'type': 'signature'},
+                ],
+                'findings': [],
+                'compliance_state': 'pass',
+                'status': 'ready',
+                'merge_fields_used': ['contact.first_name'],
+                'placeholders': [],
+                'model': 'test-model',
+                'prompt': prompt,
+            }
+
+        monkeypatch.setattr(
+            'services.marketing.studio.generate', fake_generate,
+        )
+        with app.app_context():
+            org, _ = load_org_user(seed)
+            enable_campaigns(org)
+            db.session.commit()
+        generated = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'generate',
+                'from_library': '1',
+                'prompt': 'Check in with past clients.',
+                'category': 'check_in',
+            },
+            follow_redirects=False,
+        )
+        assert generated.status_code == 200
+        studio = generated.get_data(as_text=True)
+        assert 'Checking in this week' in studio
+        assert 'Save template' in studio
+
+        saved = owner_a_client.post(
+            '/marketing/studio',
+            data={
+                'action': 'save',
+                'name': 'Past client check-in',
+                'subject': 'Checking in this week',
+                'preheader': 'Just a note',
+                'blocks': json.dumps([
+                    {'type': 'paragraph', 'text': 'Hi {{contact.first_name|there}}.'},
+                    {'type': 'signature'},
+                ]),
+                'category': 'check_in',
+            },
+            follow_redirects=True,
+        )
+        assert saved.status_code == 200
+        assert 'Template saved.' in saved.get_data(as_text=True)
+
+        with app.app_context():
+            row = MarketingTemplate.query.filter_by(
+                name='Past client check-in',
+            ).first()
+            assert row is not None
+            assert row.status == 'ready'
+            saved_id = row.id
+
+        library = owner_a_client.get('/marketing/library', follow_redirects=True)
+        assert 'Past client check-in' in library.get_data(as_text=True)
+        wizard = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
+        assert f'data-template-id="{saved_id}"' in wizard.get_data(as_text=True)
 
     def test_wizard_lists_only_active_saved_templates(self, owner_a_client, app, seed):
         with app.app_context():
