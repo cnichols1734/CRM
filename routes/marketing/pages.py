@@ -19,6 +19,7 @@ from models import (
 from routes.marketing import marketing
 from routes.marketing.access import campaign_or_404, require_campaigns, template_or_404
 from services.marketing import audience as aud
+from services.marketing import compliance
 from services.marketing import launch as launchmod
 from services.marketing import sending_config
 from services.marketing import studio as studio_mod
@@ -184,6 +185,87 @@ def _blank_draft() -> dict:
         'findings': [],
         'placeholders': [],
     }
+
+
+def _finding_dicts(findings) -> list[dict]:
+    payload = []
+    for finding in findings:
+        if hasattr(finding, 'to_dict'):
+            payload.append(finding.to_dict())
+            continue
+        payload.append({
+            'severity': getattr(finding, 'severity', ''),
+            'field': getattr(finding, 'field', None),
+            'matched_text': getattr(finding, 'matched_text', None),
+            'message': getattr(finding, 'message', ''),
+            'protected_class': getattr(finding, 'protected_class', None),
+            'block_index': getattr(finding, 'block_index', None),
+        })
+    return payload
+
+
+def _apply_restored_compliance(draft: dict) -> None:
+    """Re-lint restored copy the same way a normal studio load does."""
+    try:
+        prepared = tpl.prepare(
+            draft.get('subject') or '',
+            draft.get('preheader') or '',
+            draft.get('blocks') or [],
+            acknowledge_warnings=False,
+        )
+    except TemplateError:
+        blocks = draft.get('blocks') or []
+        if not isinstance(blocks, list):
+            return
+        try:
+            findings = tpl.scan_template(
+                draft.get('subject') or '',
+                draft.get('preheader') or '',
+                blocks,
+            )
+        except (TypeError, AttributeError, ValueError):
+            return
+        draft['findings'] = _finding_dicts(findings)
+        draft['compliance_state'] = compliance.state_for(findings)
+        return
+    draft['subject'] = prepared['subject']
+    draft['preheader'] = prepared['preheader'] or ''
+    draft['blocks'] = prepared['blocks']
+    draft['findings'] = prepared['findings']
+    draft['compliance_state'] = prepared['compliance_state']
+    draft['placeholders'] = prepared['placeholders']
+
+
+def _restore_draft(form) -> dict | None:
+    """Keep the email on screen when a rewrite fails."""
+    try:
+        blocks = json.loads(form.get('current_blocks') or '[]')
+    except json.JSONDecodeError:
+        blocks = []
+    if not isinstance(blocks, list):
+        blocks = []
+    subject = (form.get('current_subject') or '').strip()
+    preheader = (form.get('current_preheader') or '').strip()
+    name = (form.get('current_name') or '').strip()
+    if not blocks and not subject and not name:
+        return None
+    draft = {
+        'subject': subject,
+        'preheader': preheader,
+        'blocks': blocks,
+        'name': name,
+        'category': form.get('category') or 'other',
+        'findings': [],
+        'placeholders': [],
+    }
+    model = (form.get('current_model') or '').strip()
+    if model:
+        draft['model'] = model
+    generation_prompt = (form.get('current_generation_prompt') or '').strip()
+    if generation_prompt:
+        draft['prompt'] = generation_prompt
+    _apply_restored_compliance(draft)
+    return draft
 
 
 def _require_campaign_template(template):
@@ -609,23 +691,28 @@ def campaign_progress(campaign_id):
     })
 
 
-@marketing.route('/marketing/library')
-@login_required
-@feature_required('EMAIL_CAMPAIGNS')
-def library():
-    org = _enable_flag_seed()
+def _render_library(org, **extra):
     templates = tpl.visible_to(org.id, current_user.id).all()
     saved = [t for t in templates if tpl.is_saved(t)]
     mine, org_saved = tpl.split_saved(saved, current_user.id)
+    extra.setdefault('prompt', request.args.get('prompt') or '')
+    extra.setdefault('create_error', '')
     return render_template(
         'marketing/library.html',
         starters=_starter_cards(org, templates),
         saved=saved,
         mine_cards=_template_cards(org, mine),
         org_cards=_template_cards(org, org_saved),
-        prompt=request.args.get('prompt') or '',
-        **_studio_chrome(),
+        **_studio_chrome(**extra),
     )
+
+
+@marketing.route('/marketing/library')
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def library():
+    org = _enable_flag_seed()
+    return _render_library(org)
 
 
 @marketing.route('/marketing/studio', methods=['GET', 'POST'])
@@ -681,9 +768,15 @@ def studio(template_id=None):
             return redirect(url_for('marketing.studio', template_id=saved.id))
         except (TemplateError, json.JSONDecodeError, ValueError) as exc:
             flash(str(exc), 'error')
-            if action == 'generate' and template is None:
+            if action == 'generate' and request.form.get('from_library'):
+                return _render_library(
+                    org,
+                    prompt=request.form.get('prompt') or '',
+                    create_error=str(exc),
+                )
+            if action == 'generate':
                 return _render_studio(
-                    org, None, _blank_draft(),
+                    org, template, _restore_draft(request.form) or _blank_draft(),
                     prompt=request.form.get('prompt') or '',
                 )
             if action != 'generate':

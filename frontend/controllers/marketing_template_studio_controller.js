@@ -24,8 +24,36 @@ export default class extends Controller {
     }
   }
 
-  busy() {
+  busy(event) {
+    const form = event && event.currentTarget;
+    if (form) this.syncRewriteSnapshot(form);
     if (this.hasBusyTarget) this.busyTarget.hidden = false;
+  }
+
+  syncRewriteSnapshot(form) {
+    const fields = form.elements;
+    if (!fields) return;
+    if (fields.current_subject && this.hasSubjectTarget) {
+      fields.current_subject.value = this.subjectTarget.value;
+    }
+    if (fields.current_preheader && this.hasPreheaderTarget) {
+      fields.current_preheader.value = this.preheaderTarget.value;
+    }
+    if (fields.current_blocks && this.hasBlocksFieldTarget) {
+      fields.current_blocks.value = this.blocksFieldTarget.value;
+    }
+    if (fields.current_name && this.hasSaveFormTarget) {
+      const nameInput = this.saveFormTarget.elements.name;
+      if (nameInput) fields.current_name.value = nameInput.value;
+    }
+    if (fields.current_model && this.hasSaveFormTarget) {
+      const modelInput = this.saveFormTarget.elements.model;
+      if (modelInput) fields.current_model.value = modelInput.value;
+    }
+    if (fields.current_generation_prompt && this.hasSaveFormTarget) {
+      const promptInput = this.saveFormTarget.elements.prompt;
+      if (promptInput) fields.current_generation_prompt.value = promptInput.value;
+    }
   }
 
   desktop(event) {

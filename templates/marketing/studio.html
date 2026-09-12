@@ -29,7 +29,8 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
                 <input type="hidden" name="action" value="save">
                 <input type="hidden" name="generated_by_ai" value="{{ '1' if draft and draft.get('model') else '' }}">
-                <input type="hidden" name="prompt" value="{{ prompt }}">
+                <input type="hidden" name="model" value="{{ draft.model if draft and draft.get('model') else '' }}">
+                <input type="hidden" name="prompt" value="{{ draft.prompt if draft and draft.get('prompt') else prompt }}">
                 <textarea class="hidden" name="blocks" data-marketing-template-studio-target="blocksField">{{ (draft.blocks if draft else []) | tojson }}</textarea>
                 <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
                 <input type="hidden" name="category" value="{{ (draft.category if draft and draft.get('category') else (template.category if template else 'other')) }}">
@@ -117,6 +118,12 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
                     <input type="hidden" name="action" value="generate">
                     <input type="hidden" name="keep_images" value="[]" data-marketing-template-studio-target="keepImages">
+                    <input type="hidden" name="current_subject" value="{{ draft.subject if draft else '' }}">
+                    <input type="hidden" name="current_preheader" value="{{ draft.preheader if draft else '' }}">
+                    <input type="hidden" name="current_name" value="{{ draft.name if draft and draft.get('name') else (template.name if template else '') }}">
+                    <input type="hidden" name="current_model" value="{{ draft.model if draft and draft.get('model') else '' }}">
+                    <input type="hidden" name="current_generation_prompt" value="{{ draft.prompt if draft and draft.get('prompt') else '' }}">
+                    <textarea class="hidden" name="current_blocks">{{ (draft.blocks if draft else []) | tojson }}</textarea>
                     <details class="mkt-rewrite crm-surface">
                         <summary>Rewrite this email</summary>
                         <div class="mkt-rewrite__body">
