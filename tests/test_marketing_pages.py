@@ -263,6 +263,9 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'Describe the email you want.' in body
+        assert 'class="mkt-busy" hidden role="status"' in body
+        assert 'aria-busy="true"' not in body
+        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
         assert 'value="Edited subject after agent tweaks"' in body
         assert 'Edited body that must survive a bad rewrite.' in body
         assert 'Save template' in body
@@ -298,6 +301,9 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'Describe the email you want.' in body
+        assert 'class="mkt-busy" hidden role="status"' in body
+        assert 'aria-busy="true"' not in body
+        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
         assert 'value="Edited saved subject"' in body
         assert 'Edited saved body that must survive a bad rewrite.' in body
         assert 'just checking in' not in body.lower()
@@ -372,6 +378,9 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'Describe the email you want.' in body
+        assert 'class="mkt-busy" hidden role="status"' in body
+        assert 'aria-busy="true"' not in body
+        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
         assert 'I reviewed the Fair Housing warnings' in body
         assert 'name="acknowledge"' in body
         assert 'safe neighborhood' in body.lower()
@@ -493,6 +502,9 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'Describe the email you want.' in body
+        assert 'class="mkt-busy" hidden role="status"' in body
+        assert 'aria-busy="true"' not in body
+        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
         assert 'Pick a template' in body
         assert 'Save template' not in body
 

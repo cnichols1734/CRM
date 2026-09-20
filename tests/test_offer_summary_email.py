@@ -224,13 +224,19 @@ def test_a_stray_estimated_net_figure_override_is_dropped():
     assert 'estimated_net' not in draft.offers[0].cells
 
 
-def test_rendered_html_has_no_net_language(app):
+def test_comparison_discloses_estimated_net_limits(app):
     low, high = compare_set()
     draft = build([low, high])
     with app.app_context():
         html = ose.render_html(draft)
-    assert 'Estimated net' not in html
-    assert 'settlement statement' not in html
+    disclaimer = (
+        'Estimated net only reflects known costs written in these contracts. '
+        'It does not include title company fees, listing commissions, loan payoff, '
+        'or other costs that are not in the offer.'
+    )
+    assert html.count(disclaimer) == 1
+    assert ose.render_text(draft).count(disclaimer) == 1
+    assert 'estimated_net' not in row_keys(draft)
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +485,12 @@ def test_non_realty_items_render_one_line_per_item(app):
     assert 'Non-realty items addendum, the buyer is asking for' in html
     assert 'Refrigerator' in html
     assert 'Washer and dryer' in html
+    terms_band = html.split('bgcolor="#101113"', 1)[1].split('bgcolor="#ffffff"', 1)[0]
+    assert 'Non-realty items addendum' in terms_band
+    assert 'Refrigerator' in terms_band
+    assert 'Washer and dryer' in terms_band
+    assert html.count('Refrigerator') == 1
+    assert 'Estimated net' not in html
 
 
 def test_non_realty_items_sit_under_the_matrix_per_offer(app):
@@ -1203,3 +1215,74 @@ def test_send_uses_gmail_when_the_agent_has_it_linked(app, monkeypatch):
     assert called['include_signature'] is False
     assert called['to_emails'] == ['seller@origenrealty.com']
     assert called['body_html'].startswith('<!DOCTYPE html')
+    assert called['body_text'] == ose.render_text(draft)
+
+
+def test_gmail_compare_send_includes_the_plain_text_disclaimer(app, monkeypatch):
+    low, high = compare_set()
+    draft = build([low, high])
+    agent = FakeAgent()
+    agent.email_integration = FakeGmail()
+    called = {}
+
+    def fake_gmail(integration, **kwargs):
+        called.update(kwargs)
+        return {'success': True, 'message_id': 'gmail-compare-1'}
+
+    monkeypatch.setattr(ose, 'skip_outbound_send', lambda _to: False)
+    monkeypatch.setattr('services.gmail_service.send_email', fake_gmail)
+
+    with app.app_context():
+        result = ose.send_draft(
+            draft,
+            to_emails=['seller@origenrealty.com'],
+            agent=agent,
+            organization=FakeOrg(),
+        )
+
+    disclaimer = ose.ESTIMATED_NET_DISCLAIMER
+    assert result['via'] == 'gmail'
+    assert called['body_text'] == ose.render_text(draft)
+    assert called['body_text'].count(disclaimer) == 1
+    assert called['body_html'].count(disclaimer) == 1
+
+
+def _gmail_text_parts(message):
+    return {
+        part.get_content_type(): part.get_payload(decode=True).decode('utf-8')
+        for part in message.walk()
+        if part.get_content_maintype() == 'text'
+    }
+
+
+def test_gmail_mime_puts_the_compare_disclaimer_in_text_plain(app):
+    from services.gmail_service import _build_outbound_mime
+
+    low, high = compare_set()
+    draft = build([low, high])
+    with app.app_context():
+        html = ose.render_html(draft)
+    message = _build_outbound_mime(
+        to_emails=['seller@origenrealty.com'],
+        subject=draft.subject,
+        body_html=html,
+        body_text=ose.render_text(draft),
+        from_email='cassie@gmail.com',
+    )
+    assert message.get_content_type() == 'multipart/alternative'
+    payloads = _gmail_text_parts(message)
+    assert payloads['text/plain'].count(ose.ESTIMATED_NET_DISCLAIMER) == 1
+    assert payloads['text/html'].count(ose.ESTIMATED_NET_DISCLAIMER) == 1
+
+
+def test_gmail_mime_stays_html_only_when_plain_text_is_omitted():
+    from services.gmail_service import _build_outbound_mime
+
+    message = _build_outbound_mime(
+        to_emails=['seller@origenrealty.com'],
+        subject='Hi',
+        body_html='<p>Only html</p>',
+    )
+    payloads = _gmail_text_parts(message)
+    assert list(payloads) == ['text/html']
+    assert payloads['text/html'] == '<p>Only html</p>'

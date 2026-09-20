@@ -9,15 +9,15 @@
      data-marketing-template-studio-preview-url-value="{{ url_for('marketing.api_preview') }}"
      data-marketing-template-studio-upload-url-value="{{ url_for('marketing.api_upload') }}"
      data-marketing-template-studio-test-url-value="{{ url_for('marketing.api_send_test') }}">
-    <div class="mkt-busy t-skel crm-panel-skel" hidden data-state="loading" data-marketing-template-studio-target="busy">
-        <div class="mkt-busy__card crm-surface t-skel-skeleton is-pulsing">
+    <div class="mkt-busy" hidden role="status" aria-live="polite" data-marketing-template-studio-target="busy">
+        <div class="mkt-busy__card crm-surface">
             <div class="mkt-spinner" aria-hidden="true"></div>
             <p class="mkt-busy__title">Making the email</p>
             <p class="mkt-busy__copy">Hang on.</p>
         </div>
     </div>
 
-    <div class="crm-page__inner">
+    <div class="crm-page__inner" data-marketing-template-studio-target="content">
         <a href="{{ url_for('marketing.library') }}" class="crm-back mb-3">
             <i class="fas fa-arrow-left text-xs"></i> Templates
         </a>

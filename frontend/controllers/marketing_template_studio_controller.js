@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { FormSubmission } from "../form_submission";
 
 export default class extends Controller {
   static values = { previewUrl: String, uploadUrl: String, testUrl: String };
@@ -6,10 +7,11 @@ export default class extends Controller {
     "frame", "subject", "preheader", "blocksField", "fileInput",
     "uploadStatus", "imageList", "keepImages", "busy", "sample",
     "filledSubject", "testTo", "testButton", "testStatus",
-    "links", "linkList", "linkStatus", "saveForm", "sampleToggle",
+    "links", "linkList", "linkStatus", "saveForm", "sampleToggle", "content",
   ];
 
   connect() {
+    this.submission = new FormSubmission(this.contentTarget, this.busyTarget);
     this.lastFocus = null;
     this.lastInput = null;
     this.iframeRange = null;
@@ -24,10 +26,14 @@ export default class extends Controller {
     }
   }
 
+  disconnect() {
+    this.submission.disconnect();
+  }
+
   busy(event) {
     const form = event && event.currentTarget;
     if (form) this.syncRewriteSnapshot(form);
-    if (this.hasBusyTarget) this.busyTarget.hidden = false;
+    this.submission.start(event);
   }
 
   syncRewriteSnapshot(form) {
@@ -406,7 +412,10 @@ export default class extends Controller {
 
   guardSave(event) {
     const message = this.missingButtonUrl();
-    if (!message) return;
+    if (!message) {
+      this.busy(event);
+      return;
+    }
     event.preventDefault();
     this.setLinkStatus(message);
     if (this.hasLinksTarget) {

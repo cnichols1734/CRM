@@ -142,6 +142,7 @@ class TestChromeHooks:
         deals = _read("templates", "transactions", "list.html")
         briefing = _read("templates", "briefing", "index.html")
         studio = _read("templates", "marketing", "studio.html")
+        library = _read("templates", "marketing", "library.html")
         contact = _read("templates", "contacts", "view.html")
         deal_file = _read("templates", "transactions", "detail.html")
         assert "list_skel" in tasks
@@ -149,7 +150,12 @@ class TestChromeHooks:
         assert "list_skel" in deals
         assert "t-skel crm-briefing-skel" in briefing
         assert "t-shimmer" in briefing
-        assert "t-skel crm-panel-skel" in studio
+        assert 'class="mkt-busy"' in studio
+        assert "mkt-spinner" in studio
+        assert "t-skel crm-panel-skel" not in studio
+        assert 'class="mkt-busy"' in library
+        assert "mkt-spinner" in library
+        assert "t-skel crm-panel-skel" not in library
         assert 'id="smartActionsLoading"' in contact
         assert "t-skel crm-panel-skel" in contact
         assert 'id="extraction-loading"' in deal_file

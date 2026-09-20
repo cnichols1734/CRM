@@ -319,10 +319,111 @@ def get_email_threads_for_contact(contact_id: int, user_id: int) -> List[Dict]:
     return threads
 
 
+def _build_outbound_mime(
+    *,
+    to_emails: List[str],
+    subject: str,
+    body_html: str,
+    body_text: str = None,
+    from_email: str = None,
+    cc_emails: List[str] = None,
+    bcc_emails: List[str] = None,
+    attachments: List[Dict] = None,
+    reply_to_message_id: str = None,
+    inline_images: List[Dict] = None,
+):
+    """Build the outbound MIME tree. HTML-only callers keep the old shape."""
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email.mime.image import MIMEImage
+    from email import encoders
+
+    has_file_attachments = bool(attachments)
+    has_inline_images = bool(inline_images)
+    has_plain = bool(body_text)
+
+    html_part = MIMEText(body_html or '', 'html', 'utf-8')
+    if has_inline_images:
+        visual = MIMEMultipart('related')
+        visual.attach(html_part)
+        for img in inline_images:
+            content_id = img.get('content_id')
+            bytes_b64 = img.get('bytes_b64')
+            mime_type = img.get('mime_type', 'image/png')
+            if not (content_id and bytes_b64):
+                continue
+            try:
+                img_bytes = base64.b64decode(bytes_b64)
+                _maintype, subtype = mime_type.split('/', 1)
+                img_part = MIMEImage(img_bytes, _subtype=subtype)
+                img_part.add_header('Content-ID', f'<{content_id}>')
+                img_part.add_header(
+                    'Content-Disposition',
+                    'inline',
+                    filename=img.get('filename', 'image.png'),
+                )
+                visual.attach(img_part)
+            except Exception as e:
+                logger.warning(f"Failed to attach signature image {content_id}: {e}")
+    else:
+        visual = html_part
+
+    if has_plain:
+        body_container = MIMEMultipart('alternative')
+        body_container.attach(MIMEText(body_text, 'plain', 'utf-8'))
+        body_container.attach(visual)
+    else:
+        body_container = visual
+
+    # Keep the old outer wrapper when there is no plain-text alternative:
+    # mixed for files or inline images, alternative for a lone HTML part.
+    if has_file_attachments or (has_inline_images and not has_plain):
+        message = MIMEMultipart('mixed')
+        message.attach(body_container)
+    elif has_plain:
+        message = body_container
+    else:
+        message = MIMEMultipart('alternative')
+        message.attach(body_container)
+
+    if from_email:
+        message['From'] = from_email
+    message['To'] = ', '.join(to_emails)
+    message['Subject'] = subject
+    if cc_emails:
+        message['Cc'] = ', '.join(cc_emails)
+    if bcc_emails:
+        message['Bcc'] = ', '.join(bcc_emails)
+    if reply_to_message_id:
+        message['In-Reply-To'] = reply_to_message_id
+        message['References'] = reply_to_message_id
+
+    if attachments:
+        for attachment in attachments:
+            filename = attachment.get('filename', 'attachment')
+            content = attachment.get('content')
+            mime_type = attachment.get('mime_type', 'application/octet-stream')
+            if not content:
+                continue
+            if '/' in mime_type:
+                maintype, subtype = mime_type.split('/', 1)
+            else:
+                maintype, subtype = 'application', 'octet-stream'
+            part = MIMEBase(maintype, subtype)
+            part.set_payload(content)
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', 'attachment', filename=filename)
+            message.attach(part)
+
+    return message
+
+
 def send_email(integration, to_emails: List[str], subject: str, body_html: str,
                cc_emails: List[str] = None, bcc_emails: List[str] = None,
                attachments: List[Dict] = None, reply_to_message_id: str = None,
-               thread_id: str = None, include_signature: bool = True) -> Dict:
+               thread_id: str = None, include_signature: bool = True,
+               body_text: str = None) -> Dict:
     """
     Send an email via Gmail API.
     
@@ -337,6 +438,8 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
         reply_to_message_id: Optional message ID to reply to (for threading)
         thread_id: Optional thread ID to add message to existing thread
         include_signature: Whether to append CRM signature (default True)
+        body_text: Optional plain-text alternative. When set, the message is
+            multipart/alternative with text/plain first, then text/html.
     
     Returns:
         Dict with: message_id, thread_id, success, error
@@ -344,13 +447,6 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
     Raises:
         Exception if send fails
     """
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-    from email.mime.base import MIMEBase
-    from email.mime.image import MIMEImage
-    from email import encoders
-    import mimetypes
-    
     # Check if user needs to reauth with new scopes
     if integration.oauth_scope_version is None or integration.oauth_scope_version < 2:
         return {
@@ -400,84 +496,24 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
             # Add signature with separator
             full_body_html = f"{body_html}<br><br>--<br>{signature_html}"
         
-        # Build proper MIME structure for CID image embedding:
-        # multipart/mixed
-        # ├── multipart/related
-        # │   ├── text/html (body + signature with cid: references)
-        # │   └── image/* (inline signature images with Content-ID)
-        # └── attachment/* (regular file attachments)
-        
-        # Determine if we need the full multipart/mixed structure
-        has_file_attachments = bool(attachments)
-        has_inline_images = bool(signature_images_to_embed)
-        
-        if has_file_attachments or has_inline_images:
-            # Need multipart/mixed as outer container
-            message = MIMEMultipart('mixed')
-        else:
-            # Simple HTML email, no attachments
-            message = MIMEMultipart('alternative')
-        
-        message['From'] = integration.connected_email
-        message['To'] = ', '.join(to_emails)
-        message['Subject'] = subject
-        
-        if cc_emails:
-            message['Cc'] = ', '.join(cc_emails)
-        if bcc_emails:
-            message['Bcc'] = ', '.join(bcc_emails)
-        
-        # Add threading headers if replying
-        if reply_to_message_id:
-            message['In-Reply-To'] = reply_to_message_id
-            message['References'] = reply_to_message_id
-        
-        # Build HTML content with inline images
-        if has_inline_images:
-            # Create multipart/related for HTML + inline images
-            related_part = MIMEMultipart('related')
-            
-            # Add HTML body
-            html_part = MIMEText(full_body_html, 'html', 'utf-8')
-            related_part.attach(html_part)
-            
-            # Add inline signature images
-            for img in signature_images_to_embed:
-                content_id = img.get('content_id')
-                bytes_b64 = img.get('bytes_b64')
-                mime_type = img.get('mime_type', 'image/png')
-                
-                if content_id and bytes_b64:
-                    try:
-                        img_bytes = base64.b64decode(bytes_b64)
-                        maintype, subtype = mime_type.split('/', 1)
-                        img_part = MIMEImage(img_bytes, _subtype=subtype)
-                        img_part.add_header('Content-ID', f'<{content_id}>')
-                        img_part.add_header('Content-Disposition', 'inline', filename=img.get('filename', 'image.png'))
-                        related_part.attach(img_part)
-                    except Exception as e:
-                        logger.warning(f"Failed to attach signature image {content_id}: {e}")
-            
-            message.attach(related_part)
-        else:
-            # No inline images, just attach HTML directly
-            html_part = MIMEText(full_body_html, 'html', 'utf-8')
-            message.attach(html_part)
-        
-        # Attach file attachments (after the related part)
-        if attachments:
-            for attachment in attachments:
-                filename = attachment.get('filename', 'attachment')
-                content = attachment.get('content')  # bytes
-                mime_type = attachment.get('mime_type', 'application/octet-stream')
-                
-                if content:
-                    maintype, subtype = mime_type.split('/', 1) if '/' in mime_type else ('application', 'octet-stream')
-                    part = MIMEBase(maintype, subtype)
-                    part.set_payload(content)
-                    encoders.encode_base64(part)
-                    part.add_header('Content-Disposition', 'attachment', filename=filename)
-                    message.attach(part)
+        # MIME:
+        # multipart/mixed (when files or leftover mixed wrapper)
+        # ├── multipart/alternative
+        # │   ├── text/plain (when body_text is set)
+        # │   └── text/html  or  multipart/related (html + cid images)
+        # └── attachment/*
+        message = _build_outbound_mime(
+            from_email=integration.connected_email,
+            to_emails=to_emails,
+            subject=subject,
+            body_html=full_body_html,
+            body_text=body_text,
+            cc_emails=cc_emails,
+            bcc_emails=bcc_emails,
+            attachments=attachments,
+            reply_to_message_id=reply_to_message_id,
+            inline_images=signature_images_to_embed,
+        )
         
         # Encode message
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
@@ -525,20 +561,18 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
 
 
 def create_draft(integration, to_emails: List[str], subject: str, body_html: str,
-                 cc_emails: List[str] = None) -> Dict:
+                 cc_emails: List[str] = None, body_text: str = None) -> Dict:
     """
     Create a Gmail draft (never sends).
 
     Requires Gmail compose/modify scope on the connected account. Used by the
     transaction communication outbox so approved client emails stay draft-only
-    until the agent sends from Gmail.
+    until the agent sends from Gmail. Optional body_text attaches a
+    text/plain alternative next to the HTML.
 
     Returns:
         Dict with success, draft_id, message_id, thread_id, error
     """
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
     if not to_emails:
         return {
             'success': False,
@@ -551,12 +585,13 @@ def create_draft(integration, to_emails: List[str], subject: str, body_html: str
     try:
         service = _get_gmail_service(integration)
 
-        message = MIMEMultipart('alternative')
-        message['To'] = ', '.join(to_emails)
-        if cc_emails:
-            message['Cc'] = ', '.join(cc_emails)
-        message['Subject'] = subject or ''
-        message.attach(MIMEText(body_html or '', 'html'))
+        message = _build_outbound_mime(
+            to_emails=to_emails,
+            subject=subject or '',
+            body_html=body_html or '',
+            body_text=body_text,
+            cc_emails=cc_emails,
+        )
 
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
         draft = service.users().drafts().create(
