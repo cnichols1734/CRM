@@ -224,13 +224,19 @@ def test_a_stray_estimated_net_figure_override_is_dropped():
     assert 'estimated_net' not in draft.offers[0].cells
 
 
-def test_rendered_html_has_no_net_language(app):
+def test_comparison_discloses_estimated_net_limits(app):
     low, high = compare_set()
     draft = build([low, high])
     with app.app_context():
         html = ose.render_html(draft)
-    assert 'Estimated net' not in html
-    assert 'settlement statement' not in html
+    disclaimer = (
+        'Estimated net only reflects known costs written in these contracts. '
+        'It does not include title company fees, listing commissions, loan payoff, '
+        'or other costs that are not in the offer.'
+    )
+    assert html.count(disclaimer) == 1
+    assert ose.render_text(draft).count(disclaimer) == 1
+    assert 'estimated_net' not in row_keys(draft)
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +485,12 @@ def test_non_realty_items_render_one_line_per_item(app):
     assert 'Non-realty items addendum, the buyer is asking for' in html
     assert 'Refrigerator' in html
     assert 'Washer and dryer' in html
+    terms_band = html.split('bgcolor="#101113"', 1)[1].split('bgcolor="#ffffff"', 1)[0]
+    assert 'Non-realty items addendum' in terms_band
+    assert 'Refrigerator' in terms_band
+    assert 'Washer and dryer' in terms_band
+    assert html.count('Refrigerator') == 1
+    assert 'Estimated net' not in html
 
 
 def test_non_realty_items_sit_under_the_matrix_per_offer(app):

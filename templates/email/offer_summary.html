@@ -138,15 +138,19 @@
                         <td style="font-family:{{ FONT }};font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:#ffffff;padding-top:10px;">{{ draft.headline.caption }}</td>
                     </tr>
                     {%- endif %}
-                    {%- if draft.row_specs %}
+                    {%- if draft.row_specs or draft.long_rows %}
                     <tr>
                         <td style="padding-top:26px;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                                {%- for spec in draft.row_specs %}
+                                {%- for spec in draft.row_specs + draft.long_rows %}
                                 {%- set cell = block.cells.get(spec['key']) %}
                                 <tr>
-                                    <td style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:{{ MUTED }};">{{ spec['label'] }}</td>
-                                    <td align="right" style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:15px;font-weight:500;color:#ffffff;">{{ block.value(spec['key']) }}</td>
+                                    <td valign="top" style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:{{ MUTED }};">{{ spec['label'] }}</td>
+                                    <td align="right" valign="top" style="padding:13px 0;border-top:1px solid {{ INK_RULE }};font-family:{{ FONT }};font-size:15px;font-weight:500;color:#ffffff;">
+                                        {%- for item in block.value(spec['key']).split('\n') if item.strip() %}
+                                        <span style="display:block;">{{ item.strip() }}</span>
+                                        {%- endfor %}
+                                    </td>
                                 </tr>
                                 {%- endfor %}
                             </table>
@@ -161,28 +165,6 @@
                 </table>
             </td>
         </tr>
-        {%- if draft.long_rows %}
-        {# ── Paragraph terms. A list does not fit a right-aligned cell. ── #}
-        <tr>
-            <td bgcolor="#ffffff" class="gutter" style="background-color:#ffffff;padding:30px 40px 0 40px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                    {%- for spec in draft.long_rows if spec['key'] in block.cells %}
-                    <tr>
-                        <td style="padding-bottom:10px;font-family:{{ FONT }};font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:{{ SLATE }};">{{ spec['label'] }}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding-bottom:6px;font-family:{{ FONT }};font-size:14px;line-height:22px;font-weight:400;color:{{ INK }};">
-                            {%- for item in block.value(spec['key']).split('\n') if item.strip() %}
-                            <span style="display:block;padding:7px 0;border-top:1px solid {{ HAIRLINE }};">{{ item.strip() }}</span>
-                            {%- endfor %}
-                        </td>
-                    </tr>
-                    {%- endfor %}
-                </table>
-            </td>
-        </tr>
-        {%- endif %}
-
         {%- else %}
         {# ── SEVERAL OFFERS · side by side ────────────────────────── #}
         {#- Fixed widths, or each column sizes off its longest value and
@@ -214,6 +196,9 @@
                     {%- endfor %}
                 </table>
             </td>
+        </tr>
+        <tr>
+            <td bgcolor="#ffffff" class="gutter" style="background-color:#ffffff;padding:14px 40px 0 40px;font-family:{{ FONT }};font-size:12px;line-height:20px;font-weight:400;color:{{ BODY }};">{{ draft.net_disclaimer }}</td>
         </tr>
         {%- if draft.has_winners or draft.footnote %}
         <tr>

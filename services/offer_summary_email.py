@@ -49,8 +49,7 @@ CLIENT_TERMS: tuple[tuple[str, str], ...] = (
     ('sale_of_other_property', 'Contingent on buyer selling another property'),
 )
 
-# Terms that read as a paragraph, not a figure. They get their own block under
-# the figures instead of a right-aligned cell that cannot hold a list.
+# Keep multiline terms separate in the composer so agents can edit each item.
 LONG_FORM_TERMS: tuple[tuple[str, str], ...] = (
     ('non_realty_items', 'Non-realty items addendum, the buyer is asking for'),
 )
@@ -58,6 +57,12 @@ LONG_FORM_TERMS: tuple[tuple[str, str], ...] = (
 _UNKNOWN_MATTERS = frozenset({
     'offer_price', 'financing_type', 'earnest_money', 'proposed_close_date',
 })
+
+ESTIMATED_NET_DISCLAIMER = (
+    "Estimated net only reflects known costs written in these contracts. "
+    "It does not include title company fees, listing commissions, loan payoff, "
+    "or other costs that are not in the offer."
+)
 
 MISSING_TERMS_NOTE = (
     "Anything not listed here is still open. I'll send an update once I have it."
@@ -181,6 +186,10 @@ class OfferEmailDraft:
     @property
     def eyebrow(self) -> str:
         return 'Offer comparison' if self.mode == 'compare' else 'Offer summary'
+
+    @property
+    def net_disclaimer(self) -> Optional[str]:
+        return ESTIMATED_NET_DISCLAIMER if self.mode == 'compare' else None
 
     @property
     def has_winners(self) -> bool:
@@ -565,6 +574,8 @@ def render_text(draft: OfferEmailDraft) -> str:
                     lines.extend(f'    {item}' for item in block.value(spec['key']).split('\n'))
             lines.append('')
 
+    if draft.net_disclaimer:
+        lines.extend(['', draft.net_disclaimer])
     if draft.footnote:
         lines.extend(['', draft.footnote])
     if draft.note:
