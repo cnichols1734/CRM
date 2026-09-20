@@ -1215,3 +1215,74 @@ def test_send_uses_gmail_when_the_agent_has_it_linked(app, monkeypatch):
     assert called['include_signature'] is False
     assert called['to_emails'] == ['seller@origenrealty.com']
     assert called['body_html'].startswith('<!DOCTYPE html')
+    assert called['body_text'] == ose.render_text(draft)
+
+
+def test_gmail_compare_send_includes_the_plain_text_disclaimer(app, monkeypatch):
+    low, high = compare_set()
+    draft = build([low, high])
+    agent = FakeAgent()
+    agent.email_integration = FakeGmail()
+    called = {}
+
+    def fake_gmail(integration, **kwargs):
+        called.update(kwargs)
+        return {'success': True, 'message_id': 'gmail-compare-1'}
+
+    monkeypatch.setattr(ose, 'skip_outbound_send', lambda _to: False)
+    monkeypatch.setattr('services.gmail_service.send_email', fake_gmail)
+
+    with app.app_context():
+        result = ose.send_draft(
+            draft,
+            to_emails=['seller@origenrealty.com'],
+            agent=agent,
+            organization=FakeOrg(),
+        )
+
+    disclaimer = ose.ESTIMATED_NET_DISCLAIMER
+    assert result['via'] == 'gmail'
+    assert called['body_text'] == ose.render_text(draft)
+    assert called['body_text'].count(disclaimer) == 1
+    assert called['body_html'].count(disclaimer) == 1
+
+
+def _gmail_text_parts(message):
+    return {
+        part.get_content_type(): part.get_payload(decode=True).decode('utf-8')
+        for part in message.walk()
+        if part.get_content_maintype() == 'text'
+    }
+
+
+def test_gmail_mime_puts_the_compare_disclaimer_in_text_plain(app):
+    from services.gmail_service import _build_outbound_mime
+
+    low, high = compare_set()
+    draft = build([low, high])
+    with app.app_context():
+        html = ose.render_html(draft)
+    message = _build_outbound_mime(
+        to_emails=['seller@origenrealty.com'],
+        subject=draft.subject,
+        body_html=html,
+        body_text=ose.render_text(draft),
+        from_email='cassie@gmail.com',
+    )
+    assert message.get_content_type() == 'multipart/alternative'
+    payloads = _gmail_text_parts(message)
+    assert payloads['text/plain'].count(ose.ESTIMATED_NET_DISCLAIMER) == 1
+    assert payloads['text/html'].count(ose.ESTIMATED_NET_DISCLAIMER) == 1
+
+
+def test_gmail_mime_stays_html_only_when_plain_text_is_omitted():
+    from services.gmail_service import _build_outbound_mime
+
+    message = _build_outbound_mime(
+        to_emails=['seller@origenrealty.com'],
+        subject='Hi',
+        body_html='<p>Only html</p>',
+    )
+    payloads = _gmail_text_parts(message)
+    assert list(payloads) == ['text/html']
+    assert payloads['text/html'] == '<p>Only html</p>'

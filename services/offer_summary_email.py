@@ -655,6 +655,7 @@ def send_draft(
         message_id = _send_via_gmail(
             _gmail_integration(agent),
             html=html,
+            text=text,
             subject=subject,
             recipients=recipients,
             copies=copies,
@@ -700,7 +701,7 @@ def _gmail_integration(agent):
     return integration
 
 
-def _send_via_gmail(integration, *, html, subject, recipients, copies, transaction_id):
+def _send_via_gmail(integration, *, html, text, subject, recipients, copies, transaction_id):
     from services.gmail_service import send_email
 
     result = send_email(
@@ -708,6 +709,7 @@ def _send_via_gmail(integration, *, html, subject, recipients, copies, transacti
         to_emails=list(recipients),
         subject=subject,
         body_html=html,
+        body_text=text,
         cc_emails=list(copies) or None,
         include_signature=False,
     )
