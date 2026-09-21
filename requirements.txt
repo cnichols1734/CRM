@@ -12,13 +12,13 @@ Flask-Login==0.6.3
 # Config / utilities
 python-dotenv==1.2.3
 pytz==2026.3.post1
-email-validator==2.2.0
+email-validator==2.3.0
 
 # External APIs / HTTP
-openai==3.13.0
+openai==3.15.0
 sendgrid==6.12.5
 requests==2.34.2
-posthog==7.51.0
+posthog==7.56.0
 
 # Google Gmail Integration
 google-auth==2.58.0
@@ -57,7 +57,7 @@ rq==2.12.0
 
 # Server
 gunicorn==26.2.0
-flask-compress==1.24
+flask-compress==1.25
 
 # System monitoring (for health checks)
 psutil==7.2.2
