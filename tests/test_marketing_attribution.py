@@ -1,4 +1,5 @@
 """Webhook attribution and the bounce circuit breaker."""
+import pytest
 import os
 import sys
 
@@ -28,6 +29,9 @@ def _queued_send(app, seed, name='Webhook'):
     campaign.sent_count = (campaign.sent_count or 0) + 1
     db.session.flush()
     return campaign, send
+
+
+pytestmark = pytest.mark.usefixtures('marketing_gmail')
 
 
 class TestAttribution:

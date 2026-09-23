@@ -38,6 +38,12 @@
         {% endcall %}
         {% include 'marketing/_nav.html' %}
 
+        <p class="text-sm crm-muted mb-4">
+            {% if sending_email %}Sends from {{ sending_email }} through the campaign creator's Google account.
+            {% else %}{{ gmail_error }}{% endif %}
+            Gmail sends are recorded as Sent. Delivery and bounce reports are available only for earlier SendGrid emails.
+        </p>
+
         {% if campaign.auto_paused_reason %}
         <div class="crm-callout crm-callout-warning mb-5">
             <p>Paused automatically: {{ campaign.auto_paused_reason }}</p>

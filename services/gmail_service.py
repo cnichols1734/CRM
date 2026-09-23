@@ -14,10 +14,12 @@ Usage:
 
 import logging
 import base64
+import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -27,6 +29,11 @@ import bleach
 from config import Config
 
 logger = logging.getLogger(__name__)
+
+
+class GmailReauthRequired(Exception):
+    """The connected account needs fresh authorization."""
+
 
 # Gmail API scopes - send-only (no restricted scopes to avoid paid security assessment)
 # OpenID email scope used to get user's email address during OAuth
@@ -188,12 +195,13 @@ def exchange_code_for_tokens(code: str) -> Dict:
     }
 
 
-def refresh_access_token(integration) -> bool:
+def refresh_access_token(integration, *, commit: bool = True) -> bool:
     """
     Refresh expired access token using refresh token.
     
     Args:
         integration: UserEmailIntegration model instance
+        commit: False keeps token updates in the caller's transaction.
     
     Returns:
         True if refresh successful, False otherwise
@@ -221,7 +229,8 @@ def refresh_access_token(integration) -> bool:
         integration.token_expires_at = datetime.utcnow() + timedelta(hours=1)
         integration.sync_status = 'active'
         integration.sync_error = None
-        db.session.commit()
+        if commit:
+            db.session.commit()
         
         logger.info(f"Refreshed access token for user {integration.user_id}")
         return True
@@ -230,24 +239,26 @@ def refresh_access_token(integration) -> bool:
         logger.error(f"Failed to refresh token for user {integration.user_id}: {e}")
         integration.sync_status = 'error'
         integration.sync_error = str(e)
-        db.session.commit()
+        if commit:
+            db.session.commit()
         return False
 
 
-def _get_gmail_service(integration):
+def _get_gmail_service(integration, *, commit_refresh: bool = True):
     """
     Get authenticated Gmail API service.
     
     Args:
         integration: UserEmailIntegration model instance
+        commit_refresh: Whether token refresh may commit the session.
     
     Returns:
         Gmail API service object
     """
     # Check if token needs refresh
     if integration.token_expires_at and integration.token_expires_at < datetime.utcnow():
-        if not refresh_access_token(integration):
-            raise Exception("Failed to refresh access token")
+        if not refresh_access_token(integration, commit=commit_refresh):
+            raise GmailReauthRequired('Please reconnect your Gmail account in your profile.')
     
     access_token = decrypt_token(integration.access_token_encrypted)
     
@@ -331,6 +342,9 @@ def _build_outbound_mime(
     attachments: List[Dict] = None,
     reply_to_message_id: str = None,
     inline_images: List[Dict] = None,
+    reply_to: str = None,
+    list_unsubscribe: str = None,
+    list_unsubscribe_post: str = None,
 ):
     """Build the outbound MIME tree. HTML-only callers keep the old shape."""
     from email.mime.multipart import MIMEMultipart
@@ -391,6 +405,12 @@ def _build_outbound_mime(
         message['From'] = from_email
     message['To'] = ', '.join(to_emails)
     message['Subject'] = subject
+    if reply_to:
+        message['Reply-To'] = reply_to
+    if list_unsubscribe:
+        message['List-Unsubscribe'] = list_unsubscribe
+    if list_unsubscribe_post:
+        message['List-Unsubscribe-Post'] = list_unsubscribe_post
     if cc_emails:
         message['Cc'] = ', '.join(cc_emails)
     if bcc_emails:
@@ -423,7 +443,10 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
                cc_emails: List[str] = None, bcc_emails: List[str] = None,
                attachments: List[Dict] = None, reply_to_message_id: str = None,
                thread_id: str = None, include_signature: bool = True,
-               body_text: str = None) -> Dict:
+               body_text: str = None, from_name: str = None,
+               reply_to: str = None, list_unsubscribe: str = None,
+               list_unsubscribe_post: str = None,
+               commit_token_refresh: bool = True) -> Dict:
     """
     Send an email via Gmail API.
     
@@ -440,6 +463,11 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
         include_signature: Whether to append CRM signature (default True)
         body_text: Optional plain-text alternative. When set, the message is
             multipart/alternative with text/plain first, then text/html.
+        from_name: Display name for the connected mailbox.
+        reply_to: Optional reply address.
+        list_unsubscribe: Optional List-Unsubscribe header.
+        list_unsubscribe_post: Optional List-Unsubscribe-Post header.
+        commit_token_refresh: False lets a background job own its transaction.
     
     Returns:
         Dict with: message_id, thread_id, success, error
@@ -458,7 +486,10 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
         }
     
     try:
-        service = _get_gmail_service(integration)
+        if commit_token_refresh:
+            service = _get_gmail_service(integration)
+        else:
+            service = _get_gmail_service(integration, commit_refresh=False)
         
         # Build the full email body with optional CRM signature
         full_body_html = body_html
@@ -502,8 +533,13 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
         # │   ├── text/plain (when body_text is set)
         # │   └── text/html  or  multipart/related (html + cid images)
         # └── attachment/*
+        from email.utils import formataddr
+
         message = _build_outbound_mime(
-            from_email=integration.connected_email,
+            from_email=(
+                formataddr((from_name, integration.connected_email))
+                if from_name else integration.connected_email
+            ),
             to_emails=to_emails,
             subject=subject,
             body_html=full_body_html,
@@ -513,6 +549,9 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
             attachments=attachments,
             reply_to_message_id=reply_to_message_id,
             inline_images=signature_images_to_embed,
+            reply_to=reply_to,
+            list_unsubscribe=list_unsubscribe,
+            list_unsubscribe_post=list_unsubscribe_post,
         )
         
         # Encode message
@@ -542,11 +581,39 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
     except HttpError as e:
         error_msg = f"Gmail API error: {e.resp.status} - {e.reason}"
         logger.error(f"Failed to send email: {error_msg}")
+        try:
+            reasons = {
+                error.get('reason')
+                for error in json.loads(e.content).get('error', {}).get('errors', [])
+            }
+        except (ValueError, TypeError, AttributeError):
+            reasons = set()
+        retryable = e.resp.status in (429, 500, 502, 503, 504) or bool(
+            reasons & {'rateLimitExceeded', 'userRateLimitExceeded'}
+        )
+        needs_reauth = e.resp.status == 401 or 'insufficientPermissions' in reasons
+        if needs_reauth:
+            error_msg = 'Please reconnect your Gmail account in your profile to allow email sending.'
         return {
             'success': False,
             'message_id': None,
             'thread_id': None,
-            'error': error_msg
+            'error': error_msg,
+            'retryable': retryable,
+            'needs_reauth': needs_reauth,
+        }
+
+    except GmailReauthRequired as e:
+        return {
+            'success': False, 'message_id': None, 'thread_id': None,
+            'error': str(e), 'needs_reauth': True,
+        }
+
+    except RefreshError:
+        return {
+            'success': False, 'message_id': None, 'thread_id': None,
+            'error': 'Please reconnect your Gmail account in your profile.',
+            'needs_reauth': True,
         }
         
     except Exception as e:

@@ -1,14 +1,13 @@
-"""Deliver one marketing send through SendGrid.
+"""Deliver marketing campaigns and template tests through the agent's Gmail.
 
 The layout is rendered here, per recipient, so the signature belongs to the
-sending agent and merge fields are escaped. Batching via SendGrid personalizations
-would force the same HTML for everyone; we already substitute before the wire.
+campaign creator and merge fields are escaped.
 """
 from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from config import Config
@@ -31,9 +30,11 @@ _EMAIL_RE = re.compile(r'^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$', re.I)
 
 
 class SendError(Exception):
-    def __init__(self, message: str, *, retryable: bool = False):
+    def __init__(self, message: str, *, retryable: bool = False,
+                 needs_reauth: bool = False):
         super().__init__(message)
         self.retryable = retryable
+        self.needs_reauth = needs_reauth
 
 
 def render_for_send(send: MarketingSend, campaign: MarketingCampaign) -> tuple[str, str, str]:
@@ -44,11 +45,7 @@ def render_for_send(send: MarketingSend, campaign: MarketingCampaign) -> tuple[s
     contact = send.contact or db.session.get(Contact, send.contact_id)
     template = send.template or db.session.get(MarketingTemplate, send.template_id)
     org = db.session.get(Organization, send.organization_id)
-    agent = None
-    if send.user_id:
-        agent = db.session.get(User, send.user_id)
-    if agent is None:
-        agent = db.session.get(User, campaign.user_id)
+    agent = db.session.get(User, campaign.user_id) if campaign.user_id else None
 
     if contact is None or template is None or org is None:
         raise SendError('Send is missing its contact, template, or organization.')
@@ -79,59 +76,30 @@ def _provider_send(
     text: str,
     sender,
     headers: dict[str, str],
-    custom_args: dict,
 ) -> str:
-    """Talk to SendGrid. Returns the provider message id when present."""
-    api_key = Config.SENDGRID_API_KEY
-    if not api_key:
-        raise SendError('SENDGRID_API_KEY is not configured.', retryable=False)
+    """Send through the authenticated agent mailbox and return Gmail's message ID."""
+    from services.gmail_service import send_email
 
-    try:
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import (
-            CustomArg, Email, Header, Mail, To,
-        )
-    except ImportError as exc:
-        raise SendError('SendGrid library is not installed.', retryable=False) from exc
-
-    message = Mail(
-        from_email=Email(sender.from_email, sender.from_name),
-        to_emails=To(to_email),
+    result = send_email(
+        sender.integration,
+        to_emails=[to_email],
         subject=subject,
-        html_content=html,
-        plain_text_content=text,
+        body_html=html,
+        body_text=text,
+        include_signature=False,
+        from_name=sender.from_name,
+        reply_to=sender.reply_to,
+        list_unsubscribe=headers.get('List-Unsubscribe'),
+        list_unsubscribe_post=headers.get('List-Unsubscribe-Post'),
+        commit_token_refresh=False,
     )
-    if sender.reply_to:
-        message.reply_to = Email(sender.reply_to)
-    for name, value in headers.items():
-        message.add_header(Header(name, value))
-    for key, value in custom_args.items():
-        if value is None:
-            continue
-        message.add_custom_arg(CustomArg(str(key), str(value)))
-
-    try:
-        response = SendGridAPIClient(api_key).send(message)
-    except Exception as exc:
-        status = getattr(exc, 'status_code', None) or getattr(
-            getattr(exc, 'http_error', None), 'status_code', None,
-        )
-        retryable = status in (429, 500, 502, 503, 504) or status is None
-        raise SendError(str(exc)[:400], retryable=retryable) from exc
-
-    if response.status_code not in (200, 201, 202):
-        retryable = response.status_code in (429, 500, 502, 503, 504)
+    if not result.get('success'):
         raise SendError(
-            f'SendGrid returned {response.status_code}',
-            retryable=retryable,
+            result.get('error') or 'Gmail could not send the email.',
+            retryable=bool(result.get('retryable')),
+            needs_reauth=bool(result.get('needs_reauth')),
         )
-
-    headers_out = getattr(response, 'headers', None) or {}
-    return (
-        headers_out.get('X-Message-Id')
-        or headers_out.get('X-Message-ID')
-        or ''
-    )
+    return result.get('message_id') or ''
 
 
 def parse_test_recipients(raw: str) -> list[str]:
@@ -171,8 +139,8 @@ def send_test(
 ) -> dict:
     """Send the current studio draft to listed addresses.
 
-    Uses sample merge values, not a real contact. Does not create a campaign
-    send or count against the monthly quota.
+    Uses sample merge values, not a real contact. Uses the agent's connected
+    Gmail account. Does not create a campaign send or count against the quota.
     """
     from services.marketing.templates import TemplateError, prepare
 
@@ -185,7 +153,10 @@ def send_test(
     except TemplateError as exc:
         raise SendError(str(exc), retryable=False) from exc
 
-    sender = sending_config.sender_for(agent, org)
+    try:
+        sender = sending_config.sender_for(agent, org)
+    except sending_config.GmailConnectionError as exc:
+        raise SendError(str(exc), needs_reauth=True) from exc
     token = supp.issue_token(getattr(org, 'id', 0) or 1)
     ctx = shell_for(
         org,
@@ -213,10 +184,6 @@ def send_test(
                 text=text,
                 sender=sender,
                 headers={},
-                custom_args={
-                    'organization_id': getattr(org, 'id', None),
-                    'kind': 'marketing_test',
-                },
             )
             sent.append(to_email)
         except SendError as exc:
@@ -248,10 +215,14 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> Marketing
         return send
 
     org = db.session.get(Organization, send.organization_id)
-    agent = db.session.get(User, send.user_id) if send.user_id else None
-    sender = sending_config.sender_for(
-        agent, org, reply_to=campaign.reply_to if campaign else None,
-    )
+    agent = db.session.get(User, campaign.user_id) if campaign.user_id else None
+    try:
+        sender = sending_config.sender_for(
+            agent, org, reply_to=campaign.reply_to, from_name=campaign.from_name,
+        )
+    except sending_config.GmailConnectionError as exc:
+        _pause_for_connection(campaign, send, str(exc), now)
+        return send
     unsub = unsubscribe_url(send.unsubscribe_token)
     headers = supp.unsubscribe_headers(
         unsub, mailto=Config.MARKETING_UNSUBSCRIBE_MAILTO,
@@ -282,19 +253,15 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> Marketing
             text=text,
             sender=sender,
             headers=headers,
-            custom_args={
-                'send_id': send.id,
-                'campaign_id': campaign.id,
-                'step_id': send.step_id,
-                'organization_id': send.organization_id,
-                'kind': 'marketing',
-            },
         )
     except SendError as exc:
         send.error = str(exc)[:500]
+        if exc.needs_reauth:
+            _pause_for_connection(campaign, send, str(exc), now)
+            return send
         if exc.retryable and send.attempt_count < MarketingSend.MAX_ATTEMPTS:
             send.status = 'queued'
-            send.scheduled_for = now
+            send.scheduled_for = now + timedelta(minutes=2 ** send.attempt_count)
             return send
         send.status = 'failed'
         campaign.queued_count = max((campaign.queued_count or 1) - 1, 0)
@@ -308,3 +275,11 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> Marketing
     campaign.queued_count = max((campaign.queued_count or 1) - 1, 0)
     campaign.sent_count = (campaign.sent_count or 0) + 1
     return send
+
+
+def _pause_for_connection(campaign, send, message, now):
+    campaign.status = 'paused'
+    campaign.paused_at = now
+    campaign.auto_paused_reason = message[:300]
+    send.status = 'queued'
+    send.error = message[:500]
