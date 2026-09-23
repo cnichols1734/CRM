@@ -298,6 +298,29 @@ def _rollback_after_test(app):
         _db.session.rollback()
 
 
+@pytest.fixture(autouse=True)
+def _marketing_org_state(app, request):
+    """Private-rollout test setup must not leave platform access enabled elsewhere."""
+    if not request.node.path.name.startswith('test_marketing'):
+        yield
+        return
+    from copy import deepcopy
+    request.getfixturevalue('seed')
+    with app.app_context():
+        original = {
+            org.id: (org.is_platform_admin, org.subscription_tier, deepcopy(org.feature_flags))
+            for org in Organization.query.all()
+        }
+    yield
+    with app.app_context():
+        _db.session.rollback()
+        for org_id, state in original.items():
+            org = _db.session.get(Organization, org_id)
+            if org is not None:
+                org.is_platform_admin, org.subscription_tier, org.feature_flags = state
+        _db.session.commit()
+
+
 @pytest.fixture()
 def marketing_gmail(app, seed):
     """A connected campaign owner; delivery tests still mock the provider."""
