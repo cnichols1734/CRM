@@ -206,6 +206,8 @@ def usage(app, seed):
     """A campaign with one send row per status, so counting can be checked."""
     with app.app_context():
         org = Organization.query.filter_by(slug='test-realty-a').first()
+        org.is_platform_admin = False
+        org.subscription_tier = 'pro'
         user = User.query.filter_by(organization_id=org.id).first()
         contact = Contact.query.filter_by(organization_id=org.id).first()
         MarketingSend.query.filter_by(organization_id=org.id).delete()

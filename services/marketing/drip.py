@@ -42,6 +42,12 @@ def advance_one(enrollment: MarketingEnrollment, *, now: Optional[datetime] = No
     if campaign is None or campaign.status not in ('active', 'sending'):
         return False
 
+    from feature_flags import marketing_available
+    from models import Organization
+    if not marketing_available(db.session.get(Organization, campaign.organization_id)):
+        launchmod.pause(campaign, reason='Marketing is not available for this organization.', commit=False)
+        return False
+
     step = MarketingCampaignStep.query.filter_by(
         campaign_id=campaign.id,
         step_index=enrollment.current_step_index,

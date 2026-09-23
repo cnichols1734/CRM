@@ -457,7 +457,7 @@ def render(
     documented spam signal, and some clients show nothing without it.
     """
     if validate:
-        blocks = validate_blocks(blocks)
+        blocks = validate_blocks(blocks, allow_incomplete=editable)
 
     # The hero is full-bleed, so the shell places it as its own row rather than
     # inside the padded content cell. Validation guarantees it is first.

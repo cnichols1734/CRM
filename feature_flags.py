@@ -59,8 +59,7 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
         'MARKETING': False,  # Still disabled for all
-        # First live cohort is enterprise plus platform super-admins. Free and
-        # Pro stay off so a bad campaign cannot burn the shared sending domain.
+        # Marketing availability is further restricted to the existing brokerage.
         'EMAIL_CAMPAIGNS': False,
         'TAX_PROTEST': False,
         'MCP_CONNECTOR': True,
@@ -127,6 +126,17 @@ def _current_user_is_super_admin() -> bool:
     )
 
 
+def marketing_available(org) -> bool:
+    """Only the existing brokerage rollout can use marketing, including workers."""
+    return bool(
+        GLOBAL_FEATURE_OVERRIDES.get('EMAIL_CAMPAIGNS', True)
+        and GLOBAL_FEATURE_OVERRIDES.get('MARKETING', True)
+        and org and getattr(org, 'is_platform_admin', False)
+        and getattr(org, 'subscription_tier', None) == 'enterprise'
+        and (getattr(org, 'feature_flags', None) or {}).get('EMAIL_CAMPAIGNS', True)
+    )
+
+
 def org_has_feature(feature_name: str, org=None) -> bool:
     """
     Check if organization has access to a feature.
@@ -148,12 +158,12 @@ def org_has_feature(feature_name: str, org=None) -> bool:
     if not org:
         return False
 
+    # Even a global enable cannot expand the private marketing rollout.
+    if feature_name in ('MARKETING', 'EMAIL_CAMPAIGNS'):
+        return marketing_available(org)
+
     if feature_name in GLOBAL_FEATURE_OVERRIDES:
         return GLOBAL_FEATURE_OVERRIDES[feature_name]
-
-    # Super-admins keep marketing when they switch into a free/pro org.
-    if feature_name == 'EMAIL_CAMPAIGNS' and _current_user_is_super_admin():
-        return True
     
     # Platform admin org (Origen) gets everything
     if org.is_platform_admin:
@@ -289,6 +299,7 @@ def get_org_features(org=None) -> dict:
     if org.is_platform_admin:
         features = {k: True for k in TIER_FEATURES['enterprise'].keys()}
         features.update(GLOBAL_FEATURE_OVERRIDES)
+        features['MARKETING'] = features['EMAIL_CAMPAIGNS'] = marketing_available(org)
         return features
     
     # Start with tier defaults
@@ -301,11 +312,7 @@ def get_org_features(org=None) -> dict:
             features[feature_name] = enabled
 
     features.update(GLOBAL_FEATURE_OVERRIDES)
-    if (
-        'EMAIL_CAMPAIGNS' not in GLOBAL_FEATURE_OVERRIDES
-        and _current_user_is_super_admin()
-    ):
-        features['EMAIL_CAMPAIGNS'] = True
+    features['MARKETING'] = features['EMAIL_CAMPAIGNS'] = marketing_available(org)
     
     return features
 

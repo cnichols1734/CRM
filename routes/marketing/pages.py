@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+from werkzeug.datastructures import MultiDict
 
 from flask import (
     abort, current_app, flash, jsonify, redirect, render_template, request,
-    url_for,
+    url_for, session,
 )
 from flask_login import current_user, login_required
 
@@ -18,6 +20,7 @@ from models import (
 )
 from routes.marketing import marketing
 from routes.marketing.access import campaign_or_404, require_campaigns, template_or_404
+from services.marketing import workspace
 from services.marketing import audience as aud
 from services.marketing import compliance
 from services.marketing import launch as launchmod
@@ -49,6 +52,34 @@ def _enable_flag_seed():
         abort(404)
     system_templates.seed_for_org(org.id, commit=True)
     return org
+
+
+@marketing.context_processor
+def marketing_context():
+    org = _org() if current_user.is_authenticated else None
+    return {
+        'saved_marketing_draft': session.pop('saved_marketing_draft', None),
+        'brokerage_name': (getattr(org, 'broker_name', None) or getattr(org, 'name', None) or 'Your brokerage'),
+        'can_manage_marketing': bool(current_user.is_authenticated and (
+            current_user.org_role in ('owner', 'admin') or current_user.role == 'admin')),
+    }
+
+
+def _confirm_draft_save():
+    key = request.form.get('_draft_recovery_key', '')
+    if key.startswith(f'marketing:{current_user.organization_id}:{current_user.id}:') and len(key) < 250:
+        session['saved_marketing_draft'] = key
+
+
+def _editable_campaign(campaign_id):
+    campaign = campaign_or_404(campaign_id)
+    if campaign.user_id != current_user.id or not campaign.is_editable:
+        abort(403)
+    if request.method == 'POST':
+        campaign = MarketingCampaign.query.filter_by(id=campaign.id).with_for_update().one()
+        if not campaign.is_editable:
+            abort(409)
+    return campaign
 
 
 def _kept_images(raw) -> list:
@@ -177,7 +208,7 @@ def _blank_draft() -> dict:
         'subject': '',
         'preheader': '',
         'blocks': [
-            {'type': 'paragraph', 'text': ''},
+            {'type': 'paragraph', 'text': '[Write your message here]'},
             {'type': 'signature'},
         ],
         'name': '',
@@ -399,6 +430,9 @@ def _studio_preview(org, draft, samples=None, fill_samples=False) -> dict:
 def _studio_chrome(**extra):
     extra.setdefault('merge_fields', MERGE_FIELDS)
     extra.setdefault('nav', 'templates')
+    extra.setdefault('flow', 'campaign' if request.values.get('campaign', type=int) else request.values.get('flow') or 'campaign')
+    extra.setdefault('workspace_campaign_id', request.values.get('campaign', type=int))
+    extra.setdefault('workspace_step', request.values.get('step') or '0')
     extra.setdefault('category_choices', list(CATEGORY_LABELS.items()))
     extra.setdefault('tone_choices', (
         ('warm', 'Warm'),
@@ -421,7 +455,7 @@ def _render_studio(org, template, draft, prompt='', **extra):
         (draft or {}).get('preheader') or '',
         (draft or {}).get('blocks') or [],
     )
-    preview = _studio_preview(org, draft, samples, fill_samples=False)
+    preview = _studio_preview(org, draft, samples, fill_samples=True)
     extra.setdefault('merge_groups', _merge_groups(samples, used))
     extra.setdefault('preview_filled_subject', '')
     extra.update(_sending_mailbox(org, current_user.id))
@@ -462,6 +496,7 @@ def overview():
         campaigns=campaigns,
         active_count=active,
         nav='overview',
+        **_sending_mailbox(org, current_user.id),
     )
 
 
@@ -489,120 +524,51 @@ def campaigns_list():
 
 
 @marketing.route('/marketing/campaigns/new', methods=['GET', 'POST'])
+@marketing.route('/marketing/campaigns/<int:campaign_id>/edit', methods=['GET', 'POST'])
 @login_required
 @feature_required('EMAIL_CAMPAIGNS')
-def campaign_new():
+def campaign_new(campaign_id=None):
     org = _enable_flag_seed()
-    templates = tpl.campaign_pickable(org.id, current_user.id).all()
-    groups = aud.group_choices(org.id, current_user)
+    campaign = _editable_campaign(campaign_id) if campaign_id else None
+    if request.method == 'GET' and campaign is None:
+        return redirect(url_for('marketing.library', flow='campaign'))
+    posted = workspace.form_for(campaign) if campaign else MultiDict()
     if request.method == 'POST':
+        posted = request.form
         try:
-            campaign = _build_campaign_from_form(org)
+            campaign = _build_campaign_from_form(org, campaign)
             action = request.form.get('action') or 'save'
             if action == 'launch':
                 launchmod.launch(campaign, org, current_user)
-                flash('Campaign is sending.', 'success')
-            else:
-                db.session.commit()
-                flash('Draft saved.', 'success')
-            return redirect(url_for('marketing.campaign_detail', campaign_id=campaign.id))
-        except (launchmod.LaunchError, aud.AudienceError, ValueError) as exc:
+                _confirm_draft_save()
+                flash('Email scheduled.' if campaign.status == 'scheduled' else 'Your email is queued to send.', 'success')
+                return redirect(url_for('marketing.campaign_detail', campaign_id=campaign.id))
+            db.session.commit()
+            _confirm_draft_save()
+            if action == 'add_email':
+                return redirect(url_for('marketing.library', flow='campaign', campaign=campaign.id, step='new'))
+            if action.startswith('edit_email:'):
+                return redirect(url_for('marketing.studio', flow='campaign', campaign=campaign.id, step=action.split(':')[1]))
+            flash('Draft saved. You can continue editing anytime.', 'success')
+            return redirect(url_for('marketing.campaign_new', campaign_id=campaign.id))
+        except (launchmod.LaunchError, aud.AudienceError, TemplateError, ValueError) as exc:
             db.session.rollback()
             flash(str(exc), 'error')
-            return render_template(
-                'marketing/wizard.html',
-                **_wizard_context(org, templates, groups, posted=request.form),
-            )
-    return render_template(
-        'marketing/wizard.html',
-        **_wizard_context(org, templates, groups),
-    )
+    templates = tpl.campaign_pickable(org.id, current_user.id).all()
+    ids = [posted.get('template_id')] + posted.getlist('step_template_id')
+    for raw in ids:
+        if raw and str(raw).isdigit():
+            email = template_or_404(int(raw))
+            if email not in templates:
+                templates.append(email)
+    context = _wizard_context(org, templates, aud.group_choices(org.id, current_user), posted=posted)
+    context['campaign'] = campaign
+    context['selected_email'] = next((t for t in templates if str(t.id) == posted.get('template_id')), None)
+    return render_template('marketing/wizard.html', **context)
 
 
-def _build_campaign_from_form(org) -> MarketingCampaign:
-    name = (request.form.get('name') or '').strip()
-    if not name:
-        raise ValueError('Name this campaign so you can find it later.')
-    template_id = int(request.form.get('template_id') or 0)
-    if not template_id:
-        raise ValueError('Pick a template.')
-    template = _require_campaign_template(template_or_404(template_id))
-
-    contact_ids = request.form.getlist('contact_id')
-    filt = aud.parse_filter({
-        'groups': request.form.getlist('groups'),
-        'zips': [z.strip() for z in (request.form.get('zips') or '').split(',') if z.strip()],
-        'cities': [c.strip() for c in (request.form.get('cities') or '').split(',') if c.strip()],
-        'states': [s.strip() for s in (request.form.get('states') or '').split(',') if s.strip()],
-        'owners': request.form.getlist('owners'),
-        'contact_ids': contact_ids,
-        'require_consent': bool(request.form.get('require_consent')),
-        'whole_org': bool(request.form.get('whole_org')),
-    })
-    if not filt.has_selection():
-        raise ValueError('Pick people or a filter. An empty list sends to nobody.')
-    audience = MarketingAudience(
-        organization_id=org.id,
-        user_id=current_user.id,
-        name=request.form.get('audience_name') or None,
-        filter=filt.to_dict(),
-        is_saved=bool(request.form.get('save_audience')),
-    )
-    db.session.add(audience)
-    db.session.flush()
-
-    extra_ids = [raw for raw in request.form.getlist('step_template_id') if raw]
-    extra_waits = request.form.getlist('step_wait')
-    kind = 'drip' if extra_ids or request.form.get('kind') == 'drip' else 'one_time'
-    if not extra_ids:
-        kind = 'one_time'
-    hour = int(request.form.get('send_hour') or 9)
-    campaign = MarketingCampaign(
-        organization_id=org.id,
-        user_id=current_user.id,
-        name=name[:200],
-        kind=kind,
-        status='draft',
-        audience_id=audience.id,
-        timezone=request.form.get('timezone') or 'America/Chicago',
-        created_via='web',
-        from_name=request.form.get('from_name') or None,
-        reply_to=request.form.get('reply_to') or None,
-    )
-    scheduled = (request.form.get('scheduled_at') or '').strip()
-    if scheduled:
-        try:
-            campaign.scheduled_at = datetime.fromisoformat(scheduled)
-        except ValueError:
-            raise ValueError('That send time is not a valid date.')
-    db.session.add(campaign)
-    db.session.flush()
-
-    db.session.add(MarketingCampaignStep(
-        organization_id=org.id,
-        campaign_id=campaign.id,
-        template_id=template.id,
-        step_index=0,
-        name='Email 1',
-        delay_days=0,
-        send_hour_local=hour,
-    ))
-    delay = 0
-    for index, raw_id in enumerate(extra_ids, start=1):
-        extra = _require_campaign_template(template_or_404(int(raw_id)))
-        wait = extra_waits[index - 1] if index - 1 < len(extra_waits) else 'week'
-        delay += WAIT_DAYS.get(wait, 7)
-        db.session.add(MarketingCampaignStep(
-            organization_id=org.id,
-            campaign_id=campaign.id,
-            template_id=extra.id,
-            step_index=index,
-            name=f'Email {index + 1}',
-            delay_days=delay,
-            send_hour_local=hour,
-        ))
-    db.session.flush()
-    return campaign
+def _build_campaign_from_form(org, campaign=None):
+    return workspace.save_form(org, current_user, request.form, campaign)
 
 
 @marketing.route('/marketing/campaigns/<int:campaign_id>')
@@ -625,6 +591,7 @@ def campaign_detail(campaign_id):
         'marketing/campaign_detail.html',
         campaign=campaign,
         sends=sends,
+        scheduled_local=(campaign.scheduled_at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(campaign.timezone)).strftime('%b %d, %Y at %I:%M %p %Z') if campaign.scheduled_at else None),
         steps=steps,
         nav='campaigns',
         **_sending_mailbox(_org(), campaign.user_id),
@@ -638,7 +605,7 @@ def campaign_launch(campaign_id):
     campaign = campaign_or_404(campaign_id)
     try:
         launchmod.launch(campaign, _org(), current_user)
-        flash('Campaign is sending.', 'success')
+        flash('Email scheduled.' if campaign.status == 'scheduled' else 'Your email is queued to send.', 'success')
     except launchmod.LaunchError as exc:
         flash(str(exc), 'error')
     return redirect(url_for('marketing.campaign_detail', campaign_id=campaign.id))
@@ -732,7 +699,24 @@ def library():
 @feature_required('EMAIL_CAMPAIGNS')
 def studio(template_id=None):
     org = _enable_flag_seed()
-    template = template_or_404(template_id) if template_id else None
+    flow = request.values.get('flow') or 'campaign'
+    campaign_id = request.values.get('campaign', type=int)
+    campaign = _editable_campaign(campaign_id) if campaign_id else None
+    step_key = request.values.get('step') or '0'
+    steps = workspace.steps_for(campaign) if campaign else []
+    step = next((s for s in steps if str(s.step_index) == step_key), None)
+    if campaign and step_key != 'new' and step is None:
+        abort(404)
+    template = template_or_404(template_id) if template_id else (step.template if step else None)
+    if template and template.source == 'campaign' and (campaign is None or step is None or step.template_id != template.id):
+        abort(403)
+    if campaign and template_id and (step is None or step.template_id != template_id):
+        abort(403)
+    if campaign:
+        flow = 'campaign'
+    if flow == 'campaign' and template and template.source != 'campaign':
+        # Old shared templates are copied when saved into a campaign.
+        template_id = None
     if request.method == 'POST':
         action = request.form.get('action') or 'save'
         try:
@@ -759,25 +743,56 @@ def studio(template_id=None):
                 user_id=current_user.id,
                 org=org,
                 agent=current_user,
-                name=request.form.get('name') or 'Untitled',
+                name=request.form.get('name') or request.form.get('subject') or 'Untitled email',
                 subject=request.form.get('subject') or '',
                 preheader=request.form.get('preheader') or '',
                 blocks=json.loads(request.form.get('blocks') or '[]'),
                 description=request.form.get('description') or '',
                 category=request.form.get('category') or 'other',
                 visibility='org' if request.form.get('share') else 'private',
-                template=template,
+                template=template if flow == 'template' or (template and template.source == 'campaign') else None,
+                source='campaign' if flow == 'campaign' else None,
+                commit=False,
                 acknowledge_warnings=bool(request.form.get('acknowledge')),
                 generated_by_ai=bool(request.form.get('generated_by_ai')),
                 prompt=request.form.get('prompt') or None,
-                active=(
-                    request.form.getlist('active')[-1] in ('1', 'true', 'on')
-                    if request.form.getlist('active') else None
-                ),
+                active=action != 'save_draft',
             )
+            if flow == 'campaign':
+                if campaign is None:
+                    campaign = MarketingCampaign(organization_id=org.id, user_id=current_user.id,
+                        name=saved.name, status='draft', kind='one_time', created_via='web')
+                    db.session.add(campaign)
+                    db.session.flush()
+                if step is None:
+                    if len(steps) >= 10:
+                        raise ValueError('Use up to ten emails in a sequence.')
+                    step = MarketingCampaignStep(organization_id=org.id, campaign_id=campaign.id,
+                        step_index=len(steps), name=f'Email {len(steps) + 1}',
+                        delay_days=(steps[-1].delay_days + 7 if steps else 0), send_hour_local=9)
+                    db.session.add(step)
+                step.template_id = saved.id
+                campaign.kind = 'drip' if step.step_index else campaign.kind
+                if step.step_index == 0:
+                    campaign.name = saved.name
+                campaign.updated_at = datetime.utcnow()
+                if action == 'save_template':
+                    tpl.save(organization_id=org.id, user_id=current_user.id, org=org, agent=current_user,
+                        name=saved.name, subject=saved.subject, preheader=saved.preheader, blocks=saved.blocks,
+                        category=saved.category, source='manual', visibility='private', commit=False,
+                        acknowledge_warnings=bool(saved.compliance_ack_at))
+                db.session.commit()
+                _confirm_draft_save()
+                if action in ('save_draft', 'save_template'):
+                    flash('Draft and reusable template saved.' if action == 'save_template' else 'Draft saved.', 'success')
+                    return redirect(url_for('marketing.studio', flow='campaign', campaign=campaign.id, step=step.step_index))
+                return redirect(url_for('marketing.campaign_new', campaign_id=campaign.id, panel='review' if campaign_id else None))
+            db.session.commit()
+            _confirm_draft_save()
             flash('Template saved.', 'success')
-            return redirect(url_for('marketing.studio', template_id=saved.id))
+            return redirect(url_for('marketing.studio', template_id=saved.id, flow='template'))
         except (TemplateError, json.JSONDecodeError, ValueError) as exc:
+            db.session.rollback()
             flash(str(exc), 'error')
             if action == 'generate' and request.form.get('from_library'):
                 return _render_library(
@@ -861,6 +876,7 @@ def api_preview():
         prepared = tpl.prepare(
             subject, preheader, blocks,
             acknowledge_warnings=False,
+            allow_incomplete=True,
         )
         return jsonify({
             'subject': filled_subject,
@@ -881,6 +897,11 @@ def api_send_test():
     require_campaigns()
     payload = request.get_json(silent=True) or {}
     try:
+        if payload.get('template_id'):
+            email = template_or_404(int(payload['template_id']))
+            payload = {**payload, 'subject': email.subject, 'preheader': email.preheader, 'blocks': email.blocks}
+            mailbox = sending_config.gmail_for(current_user.id, _org().id)
+            payload['to'] = mailbox.connected_email
         to_emails = sendmod.parse_test_recipients(payload.get('to') or '')
         values = coerce_sample_values(
             payload.get('samples'),
@@ -895,6 +916,8 @@ def api_send_test():
             to_emails=to_emails,
             sample_values=values,
             category=payload.get('category') or '',
+            from_name=payload.get('from_name') or None,
+            reply_to=payload.get('reply_to') or None,
         )
         db.session.commit()
         return jsonify(result)
@@ -914,8 +937,14 @@ def api_estimate():
         estimate = aud.estimate(
             current_user.organization_id, payload, current_user,
         )
-        return jsonify(estimate.as_dict())
-    except aud.AudienceError as exc:
+        result = estimate.as_dict()
+        offset = max(0, min(int(payload.get('offset') or 0), estimate.matched))
+        rows = [dict(id=r.contact.id, name=f'{r.contact.first_name or ""} {r.contact.last_name or ""}'.strip(), email=r.email, reason='Ready') for r in estimate.sendable]
+        rows += [dict(id=r.contact.id, name=f'{r.contact.first_name or ""} {r.contact.last_name or ""}'.strip(), email=r.email or '', reason=r.reason.replace('_', ' ')) for r in estimate.excluded]
+        result['recipients'] = rows[offset:offset + 50]
+        result['has_more'] = offset + 50 < len(rows)
+        return jsonify(result)
+    except (aud.AudienceError, ValueError, TypeError) as exc:
         return jsonify({'error': str(exc)}), 400
 
 
@@ -971,15 +1000,13 @@ def api_preview_as():
         if contact is None:
             return jsonify({'error': 'That contact is not available.'}), 404
     org = _org()
-    values = {
-        key: value or ''
-        for key, value in resolve_values(contact, current_user, org).items()
-    }
+    values = ({key: value or '' for key, value in resolve_values(contact, current_user, org).items()}
+              if contact else studio_sample_values(current_user, org))
     ctx = shell_for(org, current_user, preheader=template.preheader)
     try:
         subject, html = preview_email(
             template.blocks or [], ctx, template.subject or '',
-            fill_samples=bool(contact),
+            fill_samples=True,
             sample_values=values,
         )
     except (TemplateError, ValueError) as exc:
@@ -1013,9 +1040,10 @@ def api_upload():
 @feature_required('EMAIL_CAMPAIGNS')
 def settings():
     org = _org()
-    if current_user.org_role not in ('owner', 'admin') and current_user.role != 'admin':
-        abort(403)
+    can_manage = current_user.org_role in ('owner', 'admin') or current_user.role == 'admin'
     if request.method == 'POST':
+        if not can_manage:
+            abort(403)
         org.broker_name = (request.form.get('broker_name') or '').strip() or None
         org.broker_license_number = (request.form.get('broker_license_number') or '').strip() or None
         org.broker_address = (request.form.get('broker_address') or '').strip() or None
@@ -1036,6 +1064,7 @@ def settings():
         quota=sending_config.quota_for(org),
         suppressions=suppressions,
         nav='settings',
+        **_sending_mailbox(org, current_user.id),
     )
 
 

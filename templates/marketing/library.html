@@ -1,114 +1,19 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header, badge, empty_state %}
-
-{% block title %}Templates - AgentFlow{% endblock %}
-{% block mobile_title %}Templates{% endblock %}
-
+{% from "components/ui.html" import page_header %}
+{% block title %}{{ 'Create email' if flow == 'campaign' else 'Templates' }} - AgentFlow{% endblock %}
+{% block mobile_title %}Choose an email{% endblock %}
 {% block content %}
+{% include 'marketing/_recovery_receipt.html' %}
 <div class="crm-page mkt-page" data-controller="marketing-template-library">
-    <div class="mkt-busy" hidden role="status" aria-live="polite" data-marketing-template-library-target="busy">
-        <div class="mkt-busy__card crm-surface">
-            <div class="mkt-spinner" aria-hidden="true"></div>
-            <p class="mkt-busy__title">Making the email</p>
-            <p class="mkt-busy__copy">Hang on.</p>
-        </div>
-    </div>
-
-    <div class="crm-page__inner" data-marketing-template-library-target="content">
-        {% call page_header('Templates', 'Pick a template or write a new one.') %}
-            <a href="{{ url_for('marketing.studio') }}" class="crm-btn crm-btn-primary">Create Template</a>
-        {% endcall %}
-        {% include 'marketing/_nav.html' %}
-
-        <section class="mkt-section" aria-labelledby="mkt-start-title">
-            <p class="crm-section-kicker">Use one of these</p>
-            <h2 id="mkt-start-title" class="mkt-section-title">Pick a template</h2>
-            <p class="crm-section-description mb-4">Pick a template, change the details, and send it.</p>
-
-            {% if starters %}
-            <div class="mkt-rail" role="list">
-                {% for card in starters %}
-                <a href="{{ url_for('marketing.studio') }}?from={{ card.template.id }}"
-                   class="mkt-cover" role="listitem">
-                    {% set html = card.html %}
-                    {% include 'marketing/_cover.html' %}
-                    <p class="mkt-cover__kicker">{{ card.kicker }}</p>
-                    <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
-                    <p class="mkt-cover__blurb">{{ card.template.description or card.template.subject }}</p>
-                </a>
-                {% endfor %}
-            </div>
-            {% else %}
-                {% call empty_state('No templates yet', 'Refresh the page to load the templates.', 'fa-file') %}{% endcall %}
-            {% endif %}
-        </section>
-
-        <section class="mkt-section" aria-labelledby="mkt-create-title">
-            <p class="crm-section-kicker">New</p>
-            <h2 id="mkt-create-title" class="mkt-section-title">Create Template</h2>
-            <p class="crm-section-description mb-4">Describe the email. You can edit it in the preview before you save.</p>
-
-            <form method="post" action="{{ url_for('marketing.studio') }}" class="mkt-composer crm-surface"
-                  data-action="submit->marketing-template-library#busy">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
-                <input type="hidden" name="action" value="generate">
-                <input type="hidden" name="from_library" value="1">
-                {% if create_error %}
-                <div class="crm-callout crm-callout-warning mb-4" role="alert">{{ create_error }}</div>
-                {% endif %}
-
-                <label class="block">
-                    <span class="mkt-prompt-label">Describe the email</span>
-                    <textarea class="crm-textarea mkt-prompt" name="prompt" required rows="6"
-                              placeholder="Open house Saturday at Heritage Creek. Casual. Invite past clients.">{{ prompt }}</textarea>
-                </label>
-
-                {% include 'marketing/_composer_options.html' %}
-
-                <div class="mt-5">
-                    <button class="crm-btn crm-btn-primary" type="submit">Create Template</button>
-                </div>
-            </form>
-        </section>
-
-        <section class="mkt-section" aria-labelledby="mkt-yours-title">
-            <p class="crm-section-kicker">Saved templates</p>
-            <h2 id="mkt-yours-title" class="mkt-section-title">My templates</h2>
-            {% if mine_cards %}
-            <div class="mkt-rail" role="list">
-                {% for card in mine_cards %}
-                <a href="{{ url_for('marketing.studio', template_id=card.template.id) }}"
-                   class="mkt-cover" role="listitem">
-                    {% set html = card.html %}
-                    {% include 'marketing/_cover.html' %}
-                    <p class="mkt-cover__kicker">{{ card.kicker }}</p>
-                    <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
-                    <p class="mkt-cover__blurb">{{ card.template.subject }}</p>
-                    <p class="mkt-cover__badge">{{ 'Org templates' if card.template.visibility == 'org' else 'Private' }}</p>
-                </a>
-                {% endfor %}
-            </div>
-            {% elif not org_cards %}
-                {% call empty_state('Saved templates', 'Templates you save show up here.', 'fa-file') %}{% endcall %}
-            {% endif %}
-
-            {% if org_cards %}
-            <h2 class="mkt-section-title mt-8">Org templates</h2>
-            <div class="mkt-rail" role="list">
-                {% for card in org_cards %}
-                <a href="{{ url_for('marketing.studio', template_id=card.template.id) }}"
-                   class="mkt-cover" role="listitem">
-                    {% set html = card.html %}
-                    {% include 'marketing/_cover.html' %}
-                    <p class="mkt-cover__kicker">{{ card.kicker }}</p>
-                    <h3 class="mkt-cover__title">{{ card.template.name }}</h3>
-                    <p class="mkt-cover__blurb">{{ card.template.subject }}</p>
-                    <p class="mkt-cover__badge">Org templates</p>
-                </a>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </section>
-    </div>
-</div>
-{% endblock %}
+<div class="mkt-busy" hidden role="status" aria-live="polite" data-marketing-template-library-target="busy"><div class="mkt-busy__card crm-surface"><div class="mkt-spinner" aria-hidden="true"></div><p class="mkt-busy__title">Writing your email</p><p>Keeping the {{ brokerage_name }} design.</p></div></div>
+<div class="crm-page__inner" data-marketing-template-library-target="content">
+{% call page_header('Choose your next email' if flow == 'campaign' else 'Templates', 'Your words, in the ' ~ brokerage_name ~ ' design.') %}<a class="crm-btn" href="{{ url_for('marketing.studio', flow=flow, campaign=workspace_campaign_id, step=workspace_step) }}">Start from scratch</a>{% endcall %}
+{% if workspace_campaign_id %}<a class="crm-back" href="{{ url_for('marketing.campaign_new', campaign_id=workspace_campaign_id) }}">← Back to your email</a>{% else %}{% include 'marketing/_nav.html' %}{% endif %}
+<section class="mkt-work-section"><div class="mkt-section-heading"><h2 class="crm-section-title">Start with an idea</h2><span class="crm-muted">Edit the words, photos and links.</span></div>
+<div class="mkt-starter-grid">{% for card in starters %}<a class="mkt-cover" href="{{ url_for('marketing.studio', flow=flow, campaign=workspace_campaign_id, step=workspace_step, **{'from':card.template.id}) }}">{% set html = card.html %}{% include 'marketing/_cover.html' %}<h3 class="mkt-cover__title crm-section-title">{{ card.template.name }}</h3><p class="mkt-cover__blurb">{{ card.template.description }}</p></a>{% endfor %}</div></section>
+{% if mine_cards or org_cards %}<section class="mkt-work-section"><h2 class="crm-section-title">Use a saved template</h2><div class="mkt-saved-list">{% for card in mine_cards + org_cards %}<div class="mkt-email-row"><div><h3 class="crm-section-title">{{ card.template.name }}</h3><p>{{ card.template.subject }}</p></div><a class="crm-btn" href="{{ url_for('marketing.studio', flow='campaign', campaign=workspace_campaign_id, step=workspace_step, **{'from':card.template.id}) }}">Use email</a>{% if flow == 'template' %}<a class="crm-link" href="{{ url_for('marketing.studio', template_id=card.template.id, flow='template') }}">Edit template</a>{% endif %}</div>{% endfor %}</div></section>{% endif %}
+<details class="mkt-disclosure" {% if create_error %}open{% endif %}><summary>Write an email with AI</summary><form method="post" action="{{ url_for('marketing.studio') }}" data-action="submit->marketing-template-library#busy" class="mkt-ai-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}"><input type="hidden" name="action" value="generate"><input type="hidden" name="from_library" value="1"><input type="hidden" name="flow" value="{{ flow }}"><input type="hidden" name="campaign" value="{{ workspace_campaign_id or '' }}"><input type="hidden" name="step" value="{{ workspace_step }}"><input type="hidden" name="include_hero" value="1">
+{% if create_error %}<p role="alert">{{ create_error }}</p>{% endif %}
+<label class="block"><span class="crm-label">What would you like to say?</span><textarea class="crm-textarea" name="prompt" required rows="3" placeholder="Invite past clients to my open house this Saturday. Include the address and a link for directions.">{{ prompt }}</textarea></label><p class="crm-muted text-sm">Include the facts you want in the email. You can edit the draft before sending.</p><button class="crm-btn crm-btn-accent" type="submit">Write a draft</button></form></details>
+</div></div>{% endblock %}

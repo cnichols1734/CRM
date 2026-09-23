@@ -4451,7 +4451,7 @@ class MarketingTemplate(db.Model):
 
     VISIBILITIES = {'private', 'org'}
     STATUSES = {'draft', 'ready', 'archived'}
-    SOURCES = {'ai', 'manual', 'system'}
+    SOURCES = {'ai', 'manual', 'system', 'campaign'}
     COMPLIANCE_STATES = {'pass', 'warn', 'blocked'}
     CATEGORIES = {
         'check_in', 'open_house', 'market_update', 'just_listed',
@@ -4623,7 +4623,7 @@ class MarketingCampaign(db.Model):
     }
     CREATED_VIA = {'web', 'mcp', 'bob'}
     # Statuses an agent can still edit from.
-    EDITABLE_STATUSES = {'draft', 'pending_review', 'scheduled'}
+    EDITABLE_STATUSES = {'draft', 'pending_review'}
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(

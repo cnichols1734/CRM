@@ -1,8 +1,8 @@
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-  static values = { url: String, running: Boolean };
-  static targets = ["queued", "sent", "delivered", "bounced", "skipped", "status"];
+  static values = { url: String, running: Boolean, status: String };
+  static targets = ["queued", "sent", "delivered", "bounced", "failed", "skipped", "status"];
 
   connect() {
     if (!this.runningValue) return;
@@ -18,6 +18,8 @@ export default class extends Controller {
       const response = await fetch(this.urlValue, { headers: { Accept: "application/json" } });
       if (!response.ok) return;
       const data = await response.json();
+      if (data.status !== this.statusValue) { window.location.reload(); return; }
+      this._set("failed", data.failed);
       this._set("queued", data.queued);
       this._set("sent", data.sent);
       this._set("delivered", data.delivered);

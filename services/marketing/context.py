@@ -32,7 +32,7 @@ def shell_for(
     header = (
         getattr(org, 'broker_name', None)
         or getattr(org, 'name', None)
-        or 'AgentFlow'
+        or 'Your brokerage'
     )
     agent_name = agent_display_name(agent)
     agent_title = None

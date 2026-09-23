@@ -1,17 +1,19 @@
 import { Controller } from "@hotwired/stimulus";
+import { DraftRecovery } from "../marketing_draft_recovery";
 import { FormSubmission } from "../form_submission";
 
 export default class extends Controller {
   static values = { previewUrl: String, uploadUrl: String, testUrl: String };
   static targets = [
     "frame", "subject", "preheader", "blocksField", "fileInput",
-    "uploadStatus", "imageList", "keepImages", "busy", "sample",
+    "uploadStatus", "imageList", "imageSlot", "keepImages", "busy", "sample",
     "filledSubject", "testTo", "testButton", "testStatus",
     "links", "linkList", "linkStatus", "saveForm", "sampleToggle", "content",
   ];
 
   connect() {
     this.submission = new FormSubmission(this.contentTarget, this.busyTarget);
+    this.recovery = new DraftRecovery(this.element, this.saveFormTarget, () => queueMicrotask(() => this.preview()));
     this.lastFocus = null;
     this.lastInput = null;
     this.iframeRange = null;
@@ -28,11 +30,13 @@ export default class extends Controller {
 
   disconnect() {
     this.submission.disconnect();
+    this.recovery.disconnect();
   }
 
   busy(event) {
     const form = event && event.currentTarget;
     if (form) this.syncRewriteSnapshot(form);
+    this.recovery.submitting();
     this.submission.start(event);
   }
 
@@ -101,6 +105,7 @@ export default class extends Controller {
     if (!this.uploadUrlValue || !this.hasFileInputTarget) return;
     const file = this.fileInputTarget.files && this.fileInputTarget.files[0];
     if (!file) return;
+    const slot = this.imageSlotTarget.value;
     this.setStatus("Uploading…");
     const body = new FormData();
     body.append("file", file);
@@ -117,14 +122,14 @@ export default class extends Controller {
       })
       .then((data) => {
         const blocks = this.readBlocks();
-        this.insertImage(blocks, {
-          type: "image",
-          image_url: data.url,
-          alt: file.name.replace(/\.[^.]+$/, "") || "Photo",
-        });
+        if (slot !== "new" && blocks[Number(slot)] && ["image", "listing_card"].includes(blocks[Number(slot)].type)) {
+          blocks[Number(slot)].image_url = data.url;
+        } else {
+          this.insertImage(blocks, {type: "image", image_url: data.url, alt: file.name.replace(/\.[^.]+$/, "") || "Photo"});
+        }
         this.writeBlocks(blocks);
         this.fileInputTarget.value = "";
-        this.setStatus("Photo added to the email. Save the template to keep it.");
+        this.setStatus("Photo added to the email. Save your draft to keep it.");
         this.renderImageList();
         this.syncKeptImages();
         this.renderLinks();
@@ -145,7 +150,7 @@ export default class extends Controller {
       return seen !== index;
     });
     this.writeBlocks(next);
-    this.setStatus("Photo removed. Save the template to keep the change.");
+    this.setStatus("Photo removed. Save your draft to keep the change.");
     this.renderImageList();
     this.syncKeptImages();
     this.renderLinks();
@@ -411,7 +416,7 @@ export default class extends Controller {
   }
 
   guardSave(event) {
-    const message = this.missingButtonUrl();
+    const message = event.submitter?.value === "save_draft" ? "" : this.missingButtonUrl();
     if (!message) {
       this.busy(event);
       return;
@@ -542,6 +547,7 @@ export default class extends Controller {
 
   writeBlocks(blocks) {
     this.blocksFieldTarget.value = JSON.stringify(blocks);
+    this.recovery?.save();
   }
 
   insertImage(blocks, image) {
@@ -556,6 +562,12 @@ export default class extends Controller {
   renderImageList() {
     if (!this.hasImageListTarget) return;
     const blocks = this.readBlocks() || [];
+    const slot = this.imageSlotTarget.value;
+    this.imageSlotTarget.replaceChildren(new Option("Add above your signature", "new"));
+    blocks.forEach((block, index) => {
+      if (["image", "listing_card"].includes(block.type)) this.imageSlotTarget.add(new Option(`Replace ${block.type === "listing_card" ? "listing photo" : block.alt || "photo"} (${index + 1})`, String(index)));
+    });
+    if ([...this.imageSlotTarget.options].some(option => option.value === slot)) this.imageSlotTarget.value = slot;
     const images = blocks.filter((block) => block.type === "image" && block.image_url);
     if (!images.length) {
       this.imageListTarget.hidden = true;
@@ -611,7 +623,7 @@ export default class extends Controller {
     const used = keys ? new Set(keys) : this.usedMergeKeys();
     this.sampleTargets.forEach((input) => {
       const row = input.closest(".mkt-sample-row");
-      if (row) row.classList.toggle("is-used", used.has(input.dataset.key));
+      if (row) { row.classList.toggle("is-used", used.has(input.dataset.key)); row.hidden = !used.has(input.dataset.key); }
     });
   }
 

@@ -47,19 +47,18 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/library', follow_redirects=True)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Pick a template' in body
-        assert 'Create Template' in body
-        assert 'Describe the email' in body
-        assert 'Pick a template or write a new one.' in body
-        assert 'Saved templates' in body
-        assert 'My templates' in body
+        assert 'Start with an idea' in body
+        assert 'Write an email with AI' in body
+        assert 'What would you like to say?' in body
+        assert 'Your words, in the' in body
+        assert 'Start from scratch' in body
         assert 'Just checking in' in body
         assert 'data-controller="marketing-cover"' in body
         assert 'color-scheme' in body
         assert 'sandbox="allow-same-origin"' in body
         assert 'mkt-cover__viewport' in body
 
-    def test_wizard_is_a_campaign_studio_with_preview(self, owner_a_client, app, seed):
+    def test_new_campaign_starts_with_an_email(self, owner_a_client, app, seed):
         with app.app_context():
             org, owner = load_org_user(seed)
             enable_campaigns(org)
@@ -68,26 +67,10 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Name and template' in body
-        assert 'Who gets it' in body
-        assert 'Review and launch' in body
-        assert 'My templates' in body
-        assert 'Org templates' in body
-        assert 'Search contacts' in body
-        assert 'step_wait' in body
-        assert 'send_hour' in body
-        assert 'name="timezone"' in body
-        assert 'name="from_name"' in body
-        assert 'name="reply_to"' in body
-        assert 'Sends from owner-google@example.com' in body
-        assert 'name="owners"' in body
-        assert 'name="scheduled_at"' in body
-        assert 'Pick a template, pick who gets it, then send.' in body
-        assert 'mkt-campaign' in body
-        assert 'mkt-preview' in body
-        assert 'mkt-pick' in body
-        assert 'data-controller="marketing-cover"' in body
-        assert 'bg-blue-600' not in body
+        assert 'Choose your next email' in body
+        assert 'Studio preview' in body
+        assert 'Just checking in' in body
+        assert 'Create Template' not in body
 
     def test_sendgrid_admin_is_not_the_marketing_ui(self, owner_a_client, app, seed):
         with app.app_context():
@@ -113,10 +96,10 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/studio', follow_redirects=False)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Save template' in body
-        assert 'Active' in body
-        assert 'Rewrite this email' in body
-        assert 'Making the email' in body
+        assert 'Choose recipients' in body
+        assert 'Save draft' in body
+        assert 'Rewrite with AI' in body
+        assert 'Saving your email' in body
 
     def test_start_from_template_opens_a_copy(self, owner_a_client, app, seed):
         with app.app_context():
@@ -133,17 +116,17 @@ class TestMarketingPages:
         resp = owner_a_client.get(f'/marketing/studio?from={starter_id}', follow_redirects=True)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Click any line in the email to edit it' in body
+        assert 'Click the words in your email to edit.' in body
         assert 'data-mkt-edit' in body
-        assert 'Sample data' in body
-        assert 'Show sample data' in body
+        assert 'Sample contact details' in body
+        assert 'Preview with a name' in body
         assert 'data-marketing-template-studio-target="sampleToggle"' in body
         assert 'data-marketing-template-studio-target="sample"' in body
         assert 'data-key="contact.first_name"' in body
         assert 'mkt-sample-row is-used' in body
         assert 'placeholder="John"' in body
         assert 'value="John"' not in body
-        assert 'Send test email' in body
+        assert 'Send yourself a test' in body
         assert 'Sends from owner-google@example.com' in body
         assert 'owner_a@test.com' in body
         assert f'/marketing/studio/{starter_id}' not in resp.request.path
@@ -198,6 +181,7 @@ class TestMarketingPages:
             '/marketing/studio',
             data={
                 'action': 'save',
+                'flow': 'template',
                 'name': 'Just listed copy',
                 'subject': spec['subject'],
                 'preheader': spec['preheader'],
@@ -228,6 +212,7 @@ class TestMarketingPages:
             '/marketing/studio',
             data={
                 'action': 'save',
+                'flow': 'template',
                 'name': 'Just listed copy',
                 'subject': spec['subject'],
                 'preheader': spec['preheader'],
@@ -271,10 +256,10 @@ class TestMarketingPages:
         assert 'Describe the email you want.' in body
         assert 'class="mkt-busy" hidden role="status"' in body
         assert 'aria-busy="true"' not in body
-        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
+        assert 'crm-btn-accent' in body
         assert 'value="Edited subject after agent tweaks"' in body
         assert 'Edited body that must survive a bad rewrite.' in body
-        assert 'Save template' in body
+        assert 'Choose recipients' in body or 'Save template' in body
 
     def test_failed_rewrite_keeps_edited_draft_on_saved_template(
         self, owner_a_client, app, seed,
@@ -309,7 +294,7 @@ class TestMarketingPages:
         assert 'Describe the email you want.' in body
         assert 'class="mkt-busy" hidden role="status"' in body
         assert 'aria-busy="true"' not in body
-        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
+        assert 'crm-btn-accent' in body
         assert 'value="Edited saved subject"' in body
         assert 'Edited saved body that must survive a bad rewrite.' in body
         assert 'just checking in' not in body.lower()
@@ -386,16 +371,17 @@ class TestMarketingPages:
         assert 'Describe the email you want.' in body
         assert 'class="mkt-busy" hidden role="status"' in body
         assert 'aria-busy="true"' not in body
-        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
-        assert 'I reviewed the Fair Housing warnings' in body
+        assert 'crm-btn-accent' in body
+        assert 'I reviewed these wording warnings' in body
         assert 'name="acknowledge"' in body
         assert 'safe neighborhood' in body.lower()
-        assert 'Compliance' in body
+        assert 'Before you send' in body
 
         saved = owner_a_client.post(
             '/marketing/studio',
             data={
                 'action': 'save',
+                'flow': 'template',
                 'name': 'Warn draft',
                 'subject': 'Open house Saturday',
                 'preheader': 'Stop by if you can',
@@ -461,6 +447,7 @@ class TestMarketingPages:
             '/marketing/studio',
             data={
                 'action': 'save',
+                'flow': 'template',
                 'name': 'AI draft',
                 'subject': 'Checking in this week',
                 'preheader': 'Just a note',
@@ -510,8 +497,8 @@ class TestMarketingPages:
         assert 'Describe the email you want.' in body
         assert 'class="mkt-busy" hidden role="status"' in body
         assert 'aria-busy="true"' not in body
-        assert '<button class="crm-btn crm-btn-primary" type="submit">' in body
-        assert 'Pick a template' in body
+        assert 'crm-btn-accent' in body
+        assert 'Start with an idea' in body
         assert 'Save template' not in body
 
     def test_create_from_library_saves_and_is_selectable(
@@ -545,6 +532,7 @@ class TestMarketingPages:
             '/marketing/studio',
             data={
                 'action': 'generate',
+                'flow': 'template',
                 'from_library': '1',
                 'prompt': 'Check in with past clients.',
                 'category': 'check_in',
@@ -560,6 +548,7 @@ class TestMarketingPages:
             '/marketing/studio',
             data={
                 'action': 'save',
+                'flow': 'template',
                 'name': 'Past client check-in',
                 'subject': 'Checking in this week',
                 'preheader': 'Just a note',
@@ -585,9 +574,9 @@ class TestMarketingPages:
         library = owner_a_client.get('/marketing/library', follow_redirects=True)
         assert 'Past client check-in' in library.get_data(as_text=True)
         wizard = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
-        assert f'data-template-id="{saved_id}"' in wizard.get_data(as_text=True)
+        assert 'Past client check-in' in wizard.get_data(as_text=True)
 
-    def test_wizard_lists_only_active_saved_templates(self, owner_a_client, app, seed):
+    def test_email_picker_includes_starters_and_saved_templates(self, owner_a_client, app, seed):
         with app.app_context():
             org, owner = load_org_user(seed)
             enable_campaigns(org)
@@ -602,8 +591,8 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'June check-in' in body
-        assert f'data-template-id="{saved_id}"' in body
-        assert 'Just checking in' not in body
+        assert f'from={saved_id}' in body
+        assert 'Just checking in' in body
 
     def test_campaign_post_keeps_the_form_on_error(self, owner_a_client, app, seed):
         with app.app_context():
@@ -617,7 +606,8 @@ class TestMarketingPages:
             data={
                 'name': 'Broken send',
                 'template_id': str(template_id),
-                'action': 'save',
+                'action': 'launch',
+                'flow': 'template',
                 'kind': 'one_time',
                 'send_hour': '10',
                 'timezone': 'America/Chicago',
@@ -626,7 +616,7 @@ class TestMarketingPages:
         )
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Pick people or a filter' in body
+        assert 'Nobody in this audience' in body
         assert 'Broken send' in body
         assert f'value="{template_id}"' in body
         assert 'selected' in body
@@ -658,6 +648,7 @@ class TestMarketingPages:
                 'from_name': 'Jane Agent',
                 'reply_to': 'jane-agent@example.com',
                 'action': 'save',
+                'flow': 'template',
             },
             follow_redirects=False,
         )

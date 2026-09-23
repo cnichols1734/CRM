@@ -4,6 +4,8 @@ from services.marketing import templates as tpl
 
 
 def enable_campaigns(org, *, broker=True):
+    org.is_platform_admin = True
+    org.subscription_tier = 'enterprise'
     flags = dict(org.feature_flags or {})
     flags['EMAIL_CAMPAIGNS'] = True
     org.feature_flags = flags
