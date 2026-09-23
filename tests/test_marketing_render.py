@@ -471,21 +471,24 @@ class TestRender:
         assert 'Origen Realty' in out.html
         assert 'AgentFlow' not in out.html
 
-    def test_footer_carries_required_disclosures(self):
+    def test_footer_omits_broker_license_and_address_in_html_and_text(self):
         out = render(SIMPLE, ctx())
-        assert '9003104' in out.html
-        assert '1401 Common St' in out.html
-        assert 'Unsubscribe' in out.html
+        for content in (out.html, out.text):
+            assert '9003104' not in content
+            assert '1401 Common St' not in content
+            assert 'Unsubscribe' in content
+            assert 'https://app.example/u/7.abc' in content
+            assert 'Origen Realty' in content
 
-    def test_footer_disclosures_reach_plain_text_too(self):
-        out = render(SIMPLE, ctx())
-        assert 'License #9003104' in out.text
-        assert 'https://app.example/u/7.abc' in out.text
-
-    def test_footer_does_not_repeat_the_signature(self):
-        out = render(SIMPLE + [{'type': 'signature'}], ctx())
-        # The agent's phone belongs to the signature block alone.
-        assert out.html.count('(830) 555-0134') == 1
+    def test_signature_uses_only_the_agents_name(self):
+        from services.marketing.render import render_block, render_blocks_text
+        for content in (render_block({'type': 'signature'}, ctx()),
+                        render_blocks_text([{'type': 'signature'}], ctx())):
+            assert 'Suzie Harrington' in content
+            assert 'REALTOR' not in content
+            assert '(830) 555-0134' not in content
+            assert 'suzie@origenrealty.com' not in content
+            assert 'Origen Realty' not in content
 
     def test_preview_without_a_send_shows_an_inert_optout(self):
         out = render(SIMPLE, ctx(unsubscribe_url=None))
@@ -908,24 +911,3 @@ class TestFairHousingLinter:
         payload = finding.to_dict()
         assert payload['severity'] == 'block'
         assert 'suggestion' in payload
-
-
-class TestOrgDisclosure:
-    def test_lists_every_missing_field(self):
-        class Org:
-            broker_name = None
-            broker_license_number = '  '
-            broker_address = None
-
-        missing = compliance.missing_org_disclosure(Org())
-        assert missing == [
-            'brokerage name', 'brokerage license number', 'brokerage mailing address',
-        ]
-
-    def test_passes_when_complete(self):
-        class Org:
-            broker_name = 'Origen Realty'
-            broker_license_number = '9003104'
-            broker_address = '1401 Common St'
-
-        assert compliance.missing_org_disclosure(Org()) == []

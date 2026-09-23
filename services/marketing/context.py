@@ -35,9 +35,6 @@ def shell_for(
         or 'Your brokerage'
     )
     agent_name = agent_display_name(agent)
-    agent_title = None
-    if getattr(agent, 'license_number', None):
-        agent_title = 'REALTOR®'
 
     if reason_line is None:
         if agent_name:
@@ -57,12 +54,7 @@ def shell_for(
         mark_url=brand['mark_url'],
         wordmark_url=brand['wordmark_url'],
         agent_name=agent_name,
-        agent_title=agent_title,
-        agent_email=getattr(agent, 'email', None),
-        agent_phone=getattr(agent, 'phone', None),
         brokerage_name=getattr(org, 'broker_name', None) or getattr(org, 'name', None),
-        brokerage_license=getattr(org, 'broker_license_number', None),
-        brokerage_address=getattr(org, 'broker_address', None),
         unsubscribe_url=unsubscribe_url(unsubscribe_token) if unsubscribe_token else None,
         reason_line=reason_line,
         preheader=preheader,

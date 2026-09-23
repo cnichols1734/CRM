@@ -160,7 +160,7 @@ BLOCK_SPECS: tuple[BlockSpec, ...] = (
         type='signature',
         label='Signature',
         description=(
-            "The sending agent's name, title, phone, and brokerage, filled in "
+            "The sending agent's name, filled in "
             'automatically. Put it last.'
         ),
     ),

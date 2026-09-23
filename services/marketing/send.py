@@ -222,6 +222,14 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> Marketing
             send.skip_reason = 'campaign_cancelled'
         return send
 
+    contact = send.contact
+    if contact is None or contact.user_id != campaign.user_id or contact.organization_id != campaign.organization_id:
+        send.status = 'skipped'
+        send.skip_reason = 'contact_not_owned'
+        campaign.queued_count = max((campaign.queued_count or 0) - 1, 0)
+        campaign.skipped_count = (campaign.skipped_count or 0) + 1
+        return send
+
     org = db.session.get(Organization, send.organization_id)
     from feature_flags import marketing_available
     if not marketing_available(org):

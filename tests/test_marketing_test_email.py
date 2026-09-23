@@ -207,7 +207,10 @@ def test_campaign_sends_from_creator_with_unsubscribe_headers(app, seed, monkeyp
         assert send.unsubscribe_token in message['List-Unsubscribe']
         assert message['List-Unsubscribe-Post'] == 'List-Unsubscribe=One-Click'
         html = message.get_body(preferencelist=('html',)).get_content()
-        assert owner.email in html
+        assert f'{owner.first_name} {owner.last_name}' in html
+        assert owner.email not in html
+        assert org.broker_license_number not in html
+        assert org.broker_address not in html
         assert other.email not in html
         assert send.unsubscribe_token in html
         assert 'Extra Gmail signature' not in html

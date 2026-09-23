@@ -67,7 +67,7 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Choose your next email' in body
+        assert 'Start your campaign' in body
         assert 'Studio preview' in body
         assert 'Just checking in' in body
         assert 'Create Template' not in body
@@ -720,4 +720,4 @@ class TestMarketingPages:
         assert 'Paused drip' in body
         assert 'Live drip' in body
         assert 'Draft drip' not in body
-        assert 'One-time blast' not in body
+        assert 'One-time blast' in body

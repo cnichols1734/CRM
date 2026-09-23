@@ -48,6 +48,15 @@ def advance_one(enrollment: MarketingEnrollment, *, now: Optional[datetime] = No
         launchmod.pause(campaign, reason='Marketing is not available for this organization.', commit=False)
         return False
 
+    contact = enrollment.contact
+    if contact is None or contact.user_id != campaign.user_id or contact.organization_id != campaign.organization_id:
+        enrollment.status = 'stopped'
+        enrollment.stop_reason = 'contact_not_owned'
+        enrollment.completed_at = now
+        enrollment.next_send_at = None
+        launchmod.maybe_complete(campaign)
+        return False
+
     step = MarketingCampaignStep.query.filter_by(
         campaign_id=campaign.id,
         step_index=enrollment.current_step_index,

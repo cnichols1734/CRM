@@ -1,11 +1,31 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header %}
-{% block title %}Emails - AgentFlow{% endblock %}
-{% block mobile_title %}Emails{% endblock %}
+{% from "components/ui.html" import page_header, badge %}
+{% block title %}Marketing - AgentFlow{% endblock %}
+{% block mobile_title %}Marketing{% endblock %}
 {% block content %}
-{% include 'marketing/_recovery_receipt.html' %}<div class="crm-page mkt-page"><div class="crm-page__inner">
-{% call page_header('Your emails', 'Drafts, scheduled sends and follow-ups in one place.') %}<a class="crm-btn crm-btn-accent" href="{{ url_for('marketing.campaign_new') }}">Create email</a>{% endcall %}
+{% include 'marketing/_recovery_receipt.html' %}
+<div class="crm-page mkt-page"><div class="crm-page__inner">
+{% call page_header('Marketing', 'Send an email. Add follow-ups when you need them.') %}<a class="crm-btn crm-btn-accent" href="{{ url_for('marketing.campaign_new') }}">Create campaign</a>{% endcall %}
 {% include 'marketing/_nav.html' %}
-<nav class="crm-segment mkt-work-nav mkt-filter-nav" aria-label="Filter emails">{% for key,label in [('', 'All'),('draft','Drafts'),('scheduled','Scheduled'),('sending','Sending'),('active','Follow-ups'),('paused','Paused'),('failed','Failed'),('completed','Sent')] %}<a class="crm-segment__item {% if request.args.get('status','') == key %}is-active{% endif %}" href="{{ url_for('marketing.campaigns_list', status=key) }}" {% if request.args.get('status','') == key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
-<div class="crm-surface overflow-hidden">{% for campaign in campaigns %}{% include 'marketing/_campaign_row.html' %}{% else %}<div class="mkt-empty"><h2 class="crm-section-title">No emails here yet</h2><p>Your saved drafts and sent emails will appear here.</p><a class="crm-btn" href="{{ url_for('marketing.campaign_new') }}">Create email</a></div>{% endfor %}
-</div></div></div>{% endblock %}
+<div class="mkt-notices">{% include 'marketing/_readiness.html' %}</div>
+<div class="mkt-section-heading"><h2 class="crm-section-title">{{ 'Drafts' if status == 'draft' else 'Finished campaigns' if status == 'completed' else 'Active campaigns' }}</h2>{% if sending_email %}<span class="crm-muted text-sm">Sending from {{ sending_email }}</span>{% endif %}</div>
+<div class="crm-surface overflow-hidden">
+{% for campaign in campaigns %}
+{% set info = activity_by_id[campaign.id] %}
+<article class="mkt-campaign-entry">
+<a class="mkt-campaign-summary" href="{{ url_for('marketing.campaign_new' if campaign.is_editable else 'marketing.campaign_detail', campaign_id=campaign.id) }}">
+    <div class="mkt-section-heading"><h3 class="crm-section-title">{{ campaign.name }}</h3>{{ badge(info.status_label) }}</div>
+    <p class="crm-muted text-sm">{{ info.steps|length }} email{{ 's' if info.steps|length != 1 else '' }}{% if info.steps|length > 1 %}, including {{ info.steps|length - 1 }} follow-up{{ 's' if info.steps|length > 2 else '' }}{% endif %}{% if not campaign.is_editable %} · {{ campaign.total_recipients }} recipient{{ 's' if campaign.total_recipients != 1 else '' }}{% endif %}</p>
+    {% if campaign.auto_paused_reason %}<p class="mt-2">{{ campaign.auto_paused_reason }}</p>{% endif %}
+    {% if campaign.is_editable %}<p class="mt-3 crm-link">Continue writing →</p>{% else %}
+    <p class="mt-3">{{ campaign.sent_count }} sent{% if info.pending %} · {{ info.pending }} scheduled{% endif %}{% if campaign.failed_count %} · {{ campaign.failed_count }} failed{% endif %}</p>
+    {% if info.next_card %}<p class="mkt-next-email"><strong>Next: {{ info.next_card.step.template.name }}</strong><span>{{ info.next_card.next_local }} · {{ info.next_card.pending }} recipient{{ 's' if info.next_card.pending != 1 else '' }}</span></p>{% elif campaign.status == 'paused' %}<p class="crm-muted mt-2">Sending is paused. Open the campaign to review its remaining emails.</p>{% endif %}
+    <span class="crm-link text-sm">View emails and recipients →</span>
+    {% endif %}
+</a>
+{% if campaign.is_editable %}<form method="post" action="{{ url_for('marketing.campaign_delete', campaign_id=campaign.id) }}" class="px-6 pb-4" onsubmit="return confirm('Delete this draft campaign? This cannot be undone.')"><input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}"><button class="crm-btn" type="submit">Delete draft campaign</button></form>{% endif %}
+</article>
+{% else %}<div class="mkt-empty"><h3 class="crm-section-title">{{ 'No drafts' if status == 'draft' else 'No finished campaigns' if status == 'completed' else 'No active campaigns' }}</h3><p>{{ 'Save an email to continue writing it here.' if status == 'draft' else 'Campaigns appear here once every email has finished.' if status == 'completed' else 'Your scheduled emails and follow-ups will appear here. Emails already sent are in Sent emails.' }}</p><a class="crm-btn" href="{{ url_for('marketing.campaign_new') }}">Create campaign</a></div>{% endfor %}
+</div>
+{% if pagination.pages > 1 %}<nav class="mkt-pagination" aria-label="Campaign pages">{% if pagination.has_prev %}<a class="crm-link" href="{{ url_for('marketing.campaigns_list', status=status, page=pagination.prev_num) }}">Previous</a>{% endif %}<span>Page {{ pagination.page }} of {{ pagination.pages }}</span>{% if pagination.has_next %}<a class="crm-link" href="{{ url_for('marketing.campaigns_list', status=status, page=pagination.next_num) }}">Next</a>{% endif %}</nav>{% endif %}
+</div></div>{% endblock %}

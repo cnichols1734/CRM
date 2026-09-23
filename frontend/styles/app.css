@@ -4658,8 +4658,8 @@ html[data-theme="dark"] .mkt-page {
 }
 .mkt-steps__item {
   display: grid;
-  grid-template-columns: 72px 64px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 20px;
   align-items: baseline;
   padding: 10px 0;
   border-bottom: 0.5px solid var(--hairline);
@@ -4671,7 +4671,10 @@ html[data-theme="dark"] .mkt-page {
   color: var(--ink);
 }
 .mkt-steps__time { color: var(--ink-3); }
-.mkt-steps__name { color: var(--ink-2); }
+.mkt-steps__content { min-width: 0; }
+.mkt-steps__name { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.mkt-steps__content p { margin: 0; }
+.mkt-steps__content .mkt-steps__time { margin-top: 4px; font-size: 13px; }
 
 .mkt-settings { max-width: 44rem; }
 .mkt-settings__form { padding: 22px; }
@@ -4884,3 +4887,20 @@ html[data-theme="dark"] .mkt-page {
   .mkt-sequence-row { flex-wrap:wrap; }
   .mkt-results-summary { gap:24px; }
 }
+
+.mkt-campaign-summary { display:block; padding:22px; border-bottom:1px solid var(--hairline); color:var(--ink); }
+.mkt-campaign-summary:last-child { border-bottom:0; }
+.mkt-campaign-summary:hover { background:var(--paper-2); }
+.mkt-next-email { display:flex; flex-direction:column; gap:4px; margin:16px 0; font-size:14px; }
+.mkt-next-email span { color:var(--ink-3); font-size:13px; }
+.mkt-email-preview { margin-top:12px; }
+.mkt-email-preview > summary { cursor:pointer; font-size:13px; padding:4px 0; }
+.mkt-email-preview iframe { display:block; width:100%; min-width:280px; max-width:680px; height:780px; border:1px solid var(--hairline); margin-top:12px; border-radius:8px; background:var(--paper); }
+.mkt-pagination { display:flex; justify-content:center; gap:24px; padding:20px 0; font-size:13px; }
+.mkt-recipient-table { min-width:780px; }
+
+.mkt-recipient-table td { vertical-align: top; }
+
+.mkt-campaign-entry { border-bottom: 1px solid var(--hairline); }
+.mkt-campaign-entry:last-child { border-bottom: 0; }
+.mkt-campaign-entry .mkt-campaign-summary { border-bottom: 0; }

@@ -120,20 +120,9 @@ def parse_filter(raw: Any) -> Filter:
     )
 
 
-def can_use_org_scope(user) -> bool:
-    return getattr(user, 'org_role', None) in ('owner', 'admin') or getattr(user, 'role', None) == 'admin'
-
-
-def _owner_ids(filt: Filter, user) -> Optional[list[int]]:
-    """Whose contacts this filter may see. None means the whole org."""
-    if filt.owners:
-        if not can_use_org_scope(user) and any(oid != user.id for oid in filt.owners):
-            raise AudienceError('You can only send to your own contacts.')
-        return filt.owners
-    if filt.whole_org:
-        if not can_use_org_scope(user):
-            raise AudienceError('Only an owner or admin can send to the whole org.')
-        return None
+def _owner_ids(filt: Filter, user) -> list[int]:
+    if filt.whole_org or any(oid != user.id for oid in filt.owners):
+        raise AudienceError('You can only send to your own contacts.')
     return [user.id]
 
 
@@ -166,8 +155,7 @@ def _picked_contacts(organization_id: int, filt: Filter, user) -> list[Contact]:
         Contact.organization_id == organization_id,
         Contact.id.in_(filt.contact_ids),
     )
-    if not can_use_org_scope(user):
-        query = query.filter(Contact.user_id == user.id)
+    query = query.filter(Contact.user_id == user.id)
     return query.all()
 
 
@@ -212,12 +200,13 @@ def matching_contacts(organization_id: int, filt: Filter, user) -> list[Contact]
     if not filt.has_selection():
         return []
 
+    _owner_ids(filt, user)
     picked = _picked_contacts(organization_id, filt, user)
     has_filters = bool(
         filt.groups or filt.zips or filt.cities or filt.states
         or filt.owners or filt.whole_org
     )
-    if picked and not has_filters:
+    if filt.contact_ids and not has_filters:
         return _sort_contacts(picked)
 
     filtered = _filtered_contacts(organization_id, filt, user)
@@ -325,6 +314,5 @@ def group_choices(organization_id: int, user) -> list[ContactGroup]:
     query = ContactGroup.query.filter_by(
         organization_id=organization_id, is_active=True,
     )
-    if not can_use_org_scope(user):
-        query = query.filter_by(user_id=user.id)
+    query = query.filter_by(user_id=user.id)
     return query.order_by(ContactGroup.sort_order.asc(), ContactGroup.name.asc()).all()

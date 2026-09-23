@@ -1,4 +1,5 @@
 """Audience filters and the exclusion breakdown."""
+import pytest
 import os
 import sys
 
@@ -136,18 +137,25 @@ class TestAudienceEstimate:
             try:
                 aud.estimate(org.id, {'whole_org': True}, agent)
             except aud.AudienceError as exc:
-                assert 'owner or admin' in str(exc)
+                assert 'your own contacts' in str(exc)
             else:
                 raise AssertionError('expected AudienceError')
 
-    def test_owner_can_send_org_wide(self, app, seed):
+    @pytest.mark.parametrize('role', ['owner', 'admin', 'super_admin'])
+    def test_privileged_users_are_restricted_to_owned_contacts(self, app, seed, role):
         with app.app_context():
             org, owner = load_org_user(seed)
-            enable_campaigns(org)
-            estimate = aud.estimate(org.id, {'whole_org': True}, owner)
-            ids = {row.contact.id for row in estimate.sendable}
-            assert seed['contact_a'] in ids
-            assert seed['contact_a2'] in ids
+            owner.org_role = 'owner' if role == 'owner' else 'admin'
+            owner.role = role
+            for filt in ({'whole_org': True}, {'owners': [seed['agent_a']]}):
+                with pytest.raises(aud.AudienceError, match='your own contacts'):
+                    aud.estimate(org.id, filt, owner)
+            estimate = aud.estimate(org.id, {'contact_ids': [seed['contact_a2']]}, owner)
+            assert estimate.matched == 0
+            estimate = aud.estimate(org.id, {'contact_ids': [seed['contact_a'], seed['contact_a2']]}, owner)
+            assert {r.contact.id for r in estimate.sendable} == {seed['contact_a']}
+            assert all(g.user_id == owner.id for g in aud.group_choices(org.id, owner))
+            db.session.rollback()
 
     def test_duplicate_email_is_excluded_once(self, app, seed):
         with app.app_context():

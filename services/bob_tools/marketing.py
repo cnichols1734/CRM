@@ -308,7 +308,7 @@ def get_campaign(ctx: BobContext, *, campaign_id: int) -> ToolResult:
     ).first()
     if campaign is None:
         raise ToolError('That campaign is not available.')
-    if campaign.user_id != user.id and user.org_role not in ('owner', 'admin'):
+    if campaign.user_id != user.id:
         raise ToolError('That campaign is not available.')
     steps = (
         MarketingCampaignStep.query.filter_by(campaign_id=campaign.id)
@@ -339,7 +339,11 @@ def get_campaign(ctx: BobContext, *, campaign_id: int) -> ToolResult:
 def create_campaign(ctx: BobContext, **kwargs) -> ToolResult:
     user, org = _user_org(ctx)
     _require_feature(org)
-    readiness = sending_config.readiness_for(org)
+    gmail_error = None
+    try:
+        sending_config.gmail_for(user.id, org.id)
+    except sending_config.GmailConnectionError as exc:
+        gmail_error = str(exc)
     name = (kwargs.get('name') or '').strip()
     if not name:
         raise ToolError('Name the campaign.')
@@ -422,8 +426,8 @@ def create_campaign(ctx: BobContext, **kwargs) -> ToolResult:
             'sendable': estimate.sendable_count,
             'excluded': estimate.excluded_count,
             'breakdown': estimate.breakdown(),
-            'readiness_ok': readiness.ok,
-            'readiness': readiness.message,
+            'readiness_ok': gmail_error is None,
+            'readiness': gmail_error,
             'quota_remaining': quota.remaining,
             'launch_url': f'/marketing/campaigns/{campaign.id}',
         },
@@ -490,7 +494,7 @@ def set_consent(ctx: BobContext, *, contact_id: int, marketing_consent: str) -> 
     ).first()
     if contact is None:
         raise ToolError('That contact is not available.')
-    if contact.user_id != user.id and user.org_role not in ('owner', 'admin'):
+    if contact.user_id != user.id:
         raise ToolError('That contact is not available.')
     contact.marketing_consent = marketing_consent
     contact.marketing_consent_source = 'manual'

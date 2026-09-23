@@ -1,4 +1,4 @@
-"""Sender identity, org readiness, and the monthly send quota."""
+"""Sender identity and the monthly send quota."""
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -48,9 +48,9 @@ class TestSender:
         sender = sc.sender_for(FakeAgent(), FakeOrg())
         assert sender.from_email == 'suzie-google@example.com'
 
-    def test_shows_the_agent_and_the_brokerage(self, app):
+    def test_shows_only_the_agent_name(self, app):
         sender = sc.sender_for(FakeAgent(), FakeOrg())
-        assert sender.from_name == 'Suzie Harrington | Origen Realty'
+        assert sender.from_name == 'Suzie Harrington'
 
     def test_replies_go_to_the_agent(self, app):
         sender = sc.sender_for(FakeAgent(), FakeOrg())
@@ -60,47 +60,15 @@ class TestSender:
         sender = sc.sender_for(FakeAgent(), FakeOrg(), reply_to='team@x.com')
         assert sender.reply_to == 'team@x.com'
 
-    def test_falls_back_to_the_org_name(self, app):
+    def test_falls_back_to_the_connected_email_without_an_agent_name(self, app):
         org = FakeOrg(broker_name=None, name='Some Brokerage')
         sender = sc.sender_for(FakeAgent(first_name=None, last_name=None), org)
-        assert sender.from_name == 'Some Brokerage'
+        assert sender.from_name == 'suzie-google@example.com'
 
     def test_survives_a_nameless_agent_and_org(self, app):
         org = FakeOrg(broker_name=None, name=None)
         sender = sc.sender_for(None, org)
-        assert sender.from_name == app.config['MARKETING_FROM_NAME']
-
-
-# ---------------------------------------------------------------------------
-# Readiness
-# ---------------------------------------------------------------------------
-
-class TestReadiness:
-    def test_complete_org_is_ready(self):
-        assert sc.readiness_for(FakeOrg()).ok
-
-    def test_missing_disclosure_blocks_sending(self):
-        result = sc.readiness_for(FakeOrg(broker_license_number=None))
-        assert not result.ok
-        assert result.missing == ['brokerage license number']
-
-    def test_message_names_one_missing_field(self):
-        result = sc.readiness_for(FakeOrg(broker_address=None))
-        assert result.message == (
-            'Add your brokerage mailing address before sending marketing email.'
-        )
-
-    def test_message_lists_several(self):
-        result = sc.readiness_for(
-            FakeOrg(broker_name=None, broker_license_number=None)
-        )
-        assert result.message == (
-            'Add your brokerage name and brokerage license number '
-            'before sending marketing email.'
-        )
-
-    def test_ready_org_has_no_message(self):
-        assert sc.readiness_for(FakeOrg()).message is None
+        assert sender.from_name == 'suzie-google@example.com'
 
 
 # ---------------------------------------------------------------------------

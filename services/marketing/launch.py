@@ -97,10 +97,6 @@ def validate_for_launch(campaign: MarketingCampaign, org, user) -> list[Marketin
     if not steps:
         raise LaunchError('A campaign needs at least one email.')
 
-    readiness = sending_config.readiness_for(org)
-    if not readiness.ok:
-        raise LaunchError(readiness.message)
-
     for step in steps:
         template = step.template or db.session.get(MarketingTemplate, step.template_id)
         if template is None:
@@ -393,3 +389,5 @@ def maybe_complete(campaign: MarketingCampaign) -> None:
     if remaining == 0 and (campaign.kind != 'drip' or active_enrollments == 0):
         campaign.status = 'completed'
         campaign.completed_at = datetime.utcnow()
+    elif remaining == 0 and active_enrollments:
+        campaign.status = 'active'

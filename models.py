@@ -4688,6 +4688,14 @@ class MarketingCampaign(db.Model):
         return self.status in ('sending', 'active')
 
     @property
+    def status_label(self) -> str:
+        if self.status in ('active', 'sending') and self.kind == 'drip' and not self.queued_count:
+            return 'Waiting for follow-up'
+        return {'active': 'Sending now', 'sending': 'Sending now',
+                'completed': 'Finished with issues' if self.failed_count else 'Completed',
+                'pending_review': 'Pending review'}.get(self.status, self.status.capitalize())
+
+    @property
     def bounce_rate(self) -> float:
         """Bounces over attempted sends. The circuit breaker reads this."""
         attempted = self.delivered_count + self.bounced_count
@@ -4799,7 +4807,7 @@ class MarketingSend(db.Model):
     SKIP_REASONS = {
         'no_email', 'suppressed', 'opted_out', 'consent_required',
         'duplicate_email', 'missing_merge_field', 'over_quota',
-        'campaign_cancelled', 'unfilled_placeholder',
+        'campaign_cancelled', 'unfilled_placeholder', 'contact_not_owned',
     }
     MAX_ATTEMPTS = 3
 
