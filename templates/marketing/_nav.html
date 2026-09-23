@@ -1,5 +1,5 @@
-<nav class="mkt-work-nav" aria-label="Marketing">
+<nav class="crm-segment mkt-work-nav" aria-label="Marketing">
     {% for endpoint, label, key in [('overview', 'Home', 'overview'), ('campaigns_list', 'All emails', 'campaigns'), ('library', 'Templates', 'templates'), ('settings', 'Settings', 'settings')] %}
-    <a href="{{ url_for('marketing.' ~ endpoint, flow='template') if endpoint == 'library' else url_for('marketing.' ~ endpoint) }}" {% if nav == key %}aria-current="page"{% endif %}>{{ label }}</a>
+    <a class="crm-segment__item {% if nav == key %}is-active{% endif %}" href="{{ url_for('marketing.' ~ endpoint, flow='template') if endpoint == 'library' else url_for('marketing.' ~ endpoint) }}" {% if nav == key %}aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
 </nav>

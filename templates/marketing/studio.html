@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import badge %}
+{% from "components/ui.html" import badge, page_header %}
 {% block title %}Write your email - AgentFlow{% endblock %}
 {% block mobile_title %}Write your email{% endblock %}
 {% block content %}
@@ -14,6 +14,7 @@
 <div class="mkt-busy" hidden role="status" aria-live="polite" data-marketing-template-studio-target="busy"><div class="mkt-busy__card crm-surface"><div class="mkt-spinner" aria-hidden="true"></div><p class="mkt-busy__title">Saving your email</p></div></div>
 <div class="crm-page__inner" data-marketing-template-studio-target="content">
 <div class="mkt-section-heading"><a class="crm-back" href="{{ url_for('marketing.campaign_new', campaign_id=workspace_campaign_id) if workspace_campaign_id else url_for('marketing.library', flow=flow) }}">← {{ 'Back to your email' if workspace_campaign_id else 'Choose an email' }}</a><span class="crm-muted">{{ brokerage_name }}</span></div>
+{% call page_header('Write email' if flow == 'campaign' else 'Edit template') %}{% endcall %}
 {% if flow == 'campaign' %}<ol class="mkt-flow" aria-label="Email progress"><li aria-current="step">1 <span>Write</span></li><li>2 <span>Recipients</span></li><li>3 <span>Review and send</span></li></ol>{% endif %}
 <div class="mkt-editor">
 <form method="post" id="mkt-save" data-marketing-template-studio-target="saveForm" data-action="submit->marketing-template-studio#guardSave">
