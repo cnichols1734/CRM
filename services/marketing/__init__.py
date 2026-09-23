@@ -9,9 +9,9 @@ Layering, outermost first:
       merge_fields.py      the closed set of personalization tokens
       render.py            blocks -> email HTML and plain text
       shell.py             the locked brand wrapper and compliance footer
-      compliance.py        Fair Housing linter and required disclosures
+      compliance.py        Fair Housing linter
       suppression.py       addresses we will not email, and opt-out tokens
-      sending_config.py    sender identity, org readiness, monthly quota
+      sending_config.py    sender identity, monthly quota
       audience.py          filter -> contacts + exclusion breakdown
       templates.py         validate, lint, version, cache
       launch.py            enrollments, send rows, pause/resume/cancel

@@ -18,9 +18,7 @@ def campaign_or_404(campaign_id: int) -> MarketingCampaign:
     require_campaigns()
     campaign = org_query(MarketingCampaign).filter_by(id=campaign_id).first_or_404()
     if campaign.user_id != current_user.id:
-        from services.tenant_service import can_view_all_org_data
-        if not can_view_all_org_data():
-            abort(403)
+        abort(403)
     return campaign
 
 

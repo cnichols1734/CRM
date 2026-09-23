@@ -3,11 +3,10 @@
 The chrome is the shipped offer-summary email: a 600px white column on #E8EBEE,
 a slate masthead and footer, a teal hairline, Poppins. Tokens and bands live in
 ``services/email_chrome.py``. Marketing adds a hero, a signature block, and the
-CAN-SPAM footer. It does not invent a third look.
+unsubscribe footer. It does not invent a third look.
 
-Nothing in this module is author-editable. The compliance footer in particular
-is assembled here rather than from blocks, so an agent cannot delete the
-unsubscribe link or the license disclosure.
+Nothing in this module is author-editable. The unsubscribe link is assembled
+here rather than from editable blocks.
 """
 from __future__ import annotations
 
@@ -73,7 +72,7 @@ class ShellContext:
     agent_email: Optional[str] = None
     agent_phone: Optional[str] = None
 
-    # Advertising disclosure. Sending is blocked upstream when these are unset.
+    # Brokerage branding. Legacy license/address fields are not rendered.
     brokerage_name: Optional[str] = None
     brokerage_license: Optional[str] = None
     brokerage_address: Optional[str] = None
@@ -162,21 +161,10 @@ def _unsubscribe(ctx: ShellContext) -> str:
 
 
 def _footer(ctx: ShellContext) -> str:
-    """Advertising disclosure, mailing address, and unsubscribe.
-
-    Assembled from org records so it cannot be edited out of a template.
-    CAN-SPAM requires the address and a working opt-out; Texas advertising
-    rules require the brokerage identification.
-
-    Deliberately compliance-only. The agent's own name and contact details are
-    the signature block's job, and carrying them here too made every email say
-    the same thing twice.
-    """
+    """Brokerage branding and unsubscribe link."""
     return footer_html(
         name=ctx.brokerage_name or ctx.header_title,
         wordmark_url=ctx.wordmark_url,
-        license_number=ctx.brokerage_license,
-        address=ctx.brokerage_address,
         reason_line=ctx.reason_line,
         unsubscribe_html=_unsubscribe(ctx),
         year=ctx.resolved_year(),
@@ -279,19 +267,9 @@ def wrap(
 
 
 def footer_text(ctx: ShellContext) -> str:
-    """Plain-text counterpart of the compliance footer."""
+    """Plain-text counterpart of the branded unsubscribe footer."""
     lines: list[str] = []
 
-    disclosure = [ctx.brokerage_name]
-    if ctx.brokerage_license:
-        disclosure.append(f'License #{ctx.brokerage_license}')
-    joined = ' · '.join(p for p in disclosure if p)
-    if joined:
-        lines.append(joined)
-    if ctx.brokerage_address:
-        lines.append(ctx.brokerage_address)
-
-    lines.append('')
     lines.append(ctx.reason_line)
     if ctx.unsubscribe_url:
         lines.append(f'Unsubscribe: {ctx.unsubscribe_url}')

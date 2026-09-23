@@ -132,7 +132,10 @@ def test_regular_agent_can_view_settings_but_cannot_change_brokerage(agent_a_cli
     enable(app,seed)
     response=agent_a_client.get('/marketing/settings')
     assert response.status_code==200 and b'Your sending account' in response.data
-    assert agent_a_client.post('/marketing/settings',data={'broker_name':'Changed'}).status_code==403
+    assert b'Email signature' in response.data
+    assert b'License number' not in response.data
+    assert b'Mailing address' not in response.data
+    assert agent_a_client.post('/marketing/settings',data={'broker_name':'Changed'}).status_code==405
 
 
 def test_estimate_lists_recipients_and_exclusions(owner_a_client, app, seed):

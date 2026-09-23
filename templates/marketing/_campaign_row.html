@@ -1,5 +1,5 @@
 <a class="mkt-email-row" href="{{ url_for('marketing.campaign_new' if campaign.is_editable else 'marketing.campaign_detail', campaign_id=campaign.id) }}">
     <div><h3>{{ campaign.name }}</h3><p>{{ 'Email with follow-ups' if campaign.kind == 'drip' else 'One email' }}{% if campaign.auto_paused_reason %} · {{ campaign.auto_paused_reason }}{% endif %}</p></div>
-    <span class="mkt-row-status">{{ campaign.status.replace('_',' ') | capitalize }}</span>
+    <span class="mkt-row-status">{{ campaign.status_label }}</span>
     <span class="mkt-row-action">{% if campaign.is_editable %}Continue editing →{% else %}{{ campaign.sent_count }} sent →{% endif %}</span>
 </a>

@@ -16,11 +16,11 @@ from feature_flags import feature_required
 from models import (
     Contact, MarketingAudience, MarketingCampaign, MarketingCampaignStep,
     MarketingSend, MarketingSuppression, MarketingTemplate, Notification,
-    Organization, User, db,
+    Organization, User, MarketingEnrollment, db,
 )
 from routes.marketing import marketing
 from routes.marketing.access import campaign_or_404, require_campaigns, template_or_404
-from services.marketing import workspace
+from services.marketing import workspace, activity
 from services.marketing import audience as aud
 from services.marketing import compliance
 from services.marketing import launch as launchmod
@@ -333,8 +333,7 @@ def _wizard_context(org, templates, groups, posted=None):
                 Contact.organization_id == org.id,
                 Contact.id.in_(ids),
             )
-            if not aud.can_use_org_scope(current_user):
-                query = query.filter_by(user_id=current_user.id)
+            query = query.filter_by(user_id=current_user.id)
             by_id = {contact.id: contact for contact in query.all()}
             picked = [by_id[i] for i in ids if i in by_id]
     extra_steps = []
@@ -354,24 +353,13 @@ def _wizard_context(org, templates, groups, posted=None):
         'org_cards': _template_cards(org, org_saved),
         'groups': groups,
         'merge_fields': MERGE_FIELDS,
-        'can_org': aud.can_use_org_scope(current_user),
-        'readiness': sending_config.readiness_for(org),
         'quota': sending_config.quota_for(org),
         'campaign': None,
         'nav': 'campaigns',
         'posted': posted,
         'picked_contacts': picked,
         'extra_steps': extra_steps,
-        'org_users': _org_users(org) if aud.can_use_org_scope(current_user) else [],
     }
-
-
-def _org_users(org):
-    return (
-        User.query.filter_by(organization_id=org.id)
-        .order_by(User.first_name.asc(), User.last_name.asc())
-        .all()
-    )
 
 
 def _merge_groups(samples: dict, used: set | None = None):
@@ -475,52 +463,46 @@ def _render_studio(org, template, draft, prompt='', **extra):
 @login_required
 @feature_required('EMAIL_CAMPAIGNS')
 def overview():
-    org = _enable_flag_seed()
-    quota = sending_config.quota_for(org)
-    readiness = sending_config.readiness_for(org)
-    campaigns = (
-        org_query(MarketingCampaign)
-        .filter_by(user_id=current_user.id)
-        .order_by(MarketingCampaign.created_at.desc())
-        .limit(20)
-        .all()
-    )
-    active = org_query(MarketingCampaign).filter(
-        MarketingCampaign.user_id == current_user.id,
-        MarketingCampaign.status.in_(('sending', 'active', 'scheduled')),
-    ).count()
-    return render_template(
-        'marketing/overview.html',
-        quota=quota,
-        readiness=readiness,
-        campaigns=campaigns,
-        active_count=active,
-        nav='overview',
-        **_sending_mailbox(org, current_user.id),
-    )
+    return redirect(url_for('marketing.campaigns_list'))
 
 
 @marketing.route('/marketing/campaigns')
 @login_required
 @feature_required('EMAIL_CAMPAIGNS')
 def campaigns_list():
-    _enable_flag_seed()
-    status = request.args.get('status') or ''
-    query = org_query(MarketingCampaign).filter_by(user_id=current_user.id)
-    if status in ('active', 'drip'):
-        query = query.filter(
-            MarketingCampaign.kind == 'drip',
-            MarketingCampaign.status.in_(('active', 'scheduled', 'paused')),
-        )
-    elif status:
-        query = query.filter_by(status=status)
-    campaigns = query.order_by(MarketingCampaign.created_at.desc()).all()
+    org = _enable_flag_seed()
+    view = request.args.get('status', 'active')
+    states = {'draft': ('draft', 'pending_review'),
+              'completed': ('completed', 'cancelled')}.get(
+                  view, ('scheduled', 'sending', 'active', 'paused', 'failed'))
+    pagination = org_query(MarketingCampaign).filter(
+        MarketingCampaign.user_id == current_user.id,
+        MarketingCampaign.status.in_(states),
+    ).order_by(MarketingCampaign.created_at.desc()).paginate(
+        page=request.args.get('page', 1, type=int), per_page=20, error_out=False)
+    campaigns = pagination.items
     return render_template(
-        'marketing/campaigns.html',
-        campaigns=campaigns,
-        status=status,
-        nav='campaigns',
+        'marketing/campaigns.html', campaigns=campaigns,
+        activity_by_id=activity.snapshots(campaigns), pagination=pagination,
+        status=view, nav='drafts' if view == 'draft' else 'campaigns',
+        **_sending_mailbox(org, current_user.id),
     )
+
+
+@marketing.route('/marketing/sent')
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def sent_emails():
+    from sqlalchemy.orm import joinedload
+    pagination = org_query(MarketingSend).join(MarketingCampaign).filter(
+        MarketingCampaign.user_id == current_user.id,
+        MarketingSend.sent_at.isnot(None),
+        MarketingSend.contact.has(Contact.user_id == current_user.id),
+    ).options(joinedload(MarketingSend.campaign), joinedload(MarketingSend.step)).order_by(
+        MarketingSend.sent_at.desc(), MarketingSend.id.desc(),
+    ).paginate(page=request.args.get('page', 1, type=int), per_page=50, error_out=False)
+    return render_template('marketing/sent.html', pagination=pagination,
+                           local_time=activity.local_time, nav='sent')
 
 
 @marketing.route('/marketing/campaigns/new', methods=['GET', 'POST'])
@@ -576,26 +558,80 @@ def _build_campaign_from_form(org, campaign=None):
 @feature_required('EMAIL_CAMPAIGNS')
 def campaign_detail(campaign_id):
     campaign = campaign_or_404(campaign_id)
-    sends = (
-        MarketingSend.query.filter_by(campaign_id=campaign.id)
-        .order_by(MarketingSend.created_at.desc())
-        .limit(200)
-        .all()
-    )
-    steps = (
-        MarketingCampaignStep.query.filter_by(campaign_id=campaign.id)
-        .order_by(MarketingCampaignStep.step_index.asc())
-        .all()
-    )
+    details = activity.snapshot(campaign)
+    step_id = request.args.get('step', type=int)
+    selected = next((s for s in details['steps'] if s.id == step_id), None)
+    if step_id is not None and selected is None:
+        abort(404)
+    if selected is None:
+        selected = (details['next_card']['step'] if details['next_card']
+                    else next(iter(details['steps']), None))
+    people = activity.recipient_page(campaign, selected, details['steps'], _org(),
+                                    request.args.get('page', 1, type=int)) if selected else None
     return render_template(
-        'marketing/campaign_detail.html',
-        campaign=campaign,
-        sends=sends,
-        scheduled_local=(campaign.scheduled_at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(campaign.timezone)).strftime('%b %d, %Y at %I:%M %p %Z') if campaign.scheduled_at else None),
-        steps=steps,
-        nav='campaigns',
+        'marketing/campaign_detail.html', campaign=campaign, details=details,
+        selected_step=selected, people=people, nav='campaigns',
         **_sending_mailbox(_org(), campaign.user_id),
     )
+
+
+@marketing.route('/marketing/campaigns/<int:campaign_id>/steps/<int:step_id>/preview')
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def campaign_step_preview(campaign_id, step_id):
+    campaign = campaign_or_404(campaign_id)
+    step = MarketingCampaignStep.query.filter_by(
+        id=step_id, campaign_id=campaign.id, organization_id=campaign.organization_id,
+    ).first_or_404()
+    contact_id = request.args.get('contact', type=int)
+    values = studio_sample_values(campaign.owner, _org())
+    if contact_id is not None:
+        enrollment = MarketingEnrollment.query.filter_by(
+            campaign_id=campaign.id, organization_id=campaign.organization_id,
+            contact_id=contact_id,
+        ).first_or_404()
+        if enrollment.contact.user_id != current_user.id:
+            abort(404)
+        values = resolve_values(enrollment.contact, campaign.owner, _org())
+    template = step.template
+    if template is None:
+        abort(404)
+    _, html = preview_email(template.blocks or [], shell_for(
+        _org(), campaign.owner, preheader=template.preheader,
+        eyebrow=(template.category or '').replace('_', ' ') or None,
+    ), template.subject, sample_values=values)
+    from flask import make_response
+    response = make_response(html)
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['Content-Security-Policy'] = "sandbox; default-src 'none'; img-src https: data:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com"
+    return response
+
+
+@marketing.route('/marketing/campaigns/<int:campaign_id>/delete', methods=['POST'])
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def campaign_delete(campaign_id):
+    campaign = _editable_campaign(campaign_id)
+    if campaign.sends.count() or campaign.enrollments.count():
+        abort(409)
+    db.session.delete(campaign)
+    db.session.commit()
+    flash('Draft campaign deleted.', 'success')
+    return redirect(url_for('marketing.campaigns_list', status='draft'))
+
+
+@marketing.route('/marketing/templates/<int:template_id>/delete', methods=['POST'])
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def template_delete(template_id):
+    template = template_or_404(template_id)
+    if template.created_by_id != current_user.id or not tpl.is_saved(template):
+        abort(403)
+    # Retain references in existing campaigns and sent history.
+    template.status = 'archived'
+    db.session.commit()
+    flash('Saved template deleted.', 'success')
+    return redirect(url_for('marketing.library', flow='template'))
 
 
 @marketing.route('/marketing/campaigns/<int:campaign_id>/launch', methods=['POST'])
@@ -655,7 +691,10 @@ def campaign_cancel(campaign_id):
 @feature_required('EMAIL_CAMPAIGNS')
 def campaign_progress(campaign_id):
     campaign = campaign_or_404(campaign_id)
+    details = activity.snapshot(campaign)
     return jsonify({
+        'revision': details['revision'],
+        'status_label': details['status_label'],
         'status': campaign.status,
         'queued': campaign.queued_count,
         'sent': campaign.sent_count,
@@ -828,7 +867,7 @@ def studio(template_id=None):
             'subject': template.subject,
             'preheader': template.preheader,
             'blocks': template.blocks,
-            'name': template.name,
+            'name': campaign.name if campaign and step and step.step_index == 0 else template.name,
             'category': template.category,
             'compliance_state': template.compliance_state,
             'findings': template.compliance_findings,
@@ -955,8 +994,7 @@ def api_contacts():
     require_campaigns()
     query_text = (request.args.get('q') or '').strip()
     query = Contact.query.filter_by(organization_id=current_user.organization_id)
-    if not aud.can_use_org_scope(current_user):
-        query = query.filter_by(user_id=current_user.id)
+    query = query.filter_by(user_id=current_user.id)
     if query_text:
         like = f'%{query_text}%'
         query = query.filter(
@@ -994,8 +1032,7 @@ def api_preview_as():
             id=int(raw_id),
             organization_id=current_user.organization_id,
         )
-        if not aud.can_use_org_scope(current_user):
-            contact_query = contact_query.filter_by(user_id=current_user.id)
+        contact_query = contact_query.filter_by(user_id=current_user.id)
         contact = contact_query.first()
         if contact is None:
             return jsonify({'error': 'That contact is not available.'}), 404
@@ -1035,24 +1072,15 @@ def api_upload():
         return jsonify({'error': str(exc)}), 400
 
 
-@marketing.route('/marketing/settings', methods=['GET', 'POST'])
+@marketing.route('/marketing/settings')
 @login_required
 @feature_required('EMAIL_CAMPAIGNS')
 def settings():
     org = _org()
-    can_manage = current_user.org_role in ('owner', 'admin') or current_user.role == 'admin'
-    if request.method == 'POST':
-        if not can_manage:
-            abort(403)
-        org.broker_name = (request.form.get('broker_name') or '').strip() or None
-        org.broker_license_number = (request.form.get('broker_license_number') or '').strip() or None
-        org.broker_address = (request.form.get('broker_address') or '').strip() or None
-        db.session.commit()
-        flash('Brokerage details saved.', 'success')
-        return redirect(url_for('marketing.settings'))
     suppressions = (
         MarketingSuppression.query
         .filter_by(organization_id=org.id, scope='org')
+        .filter(MarketingSuppression.email.in_(db.session.query(db.func.lower(Contact.email)).filter_by(organization_id=org.id, user_id=current_user.id)))
         .order_by(MarketingSuppression.created_at.desc())
         .limit(100)
         .all()
@@ -1060,7 +1088,6 @@ def settings():
     return render_template(
         'marketing/settings.html',
         org=org,
-        readiness=sending_config.readiness_for(org),
         quota=sending_config.quota_for(org),
         suppressions=suppressions,
         nav='settings',
@@ -1075,6 +1102,8 @@ def release_suppression(suppression_id):
     if current_user.org_role not in ('owner', 'admin') and current_user.role != 'admin':
         abort(403)
     row = org_query(MarketingSuppression).filter_by(id=suppression_id).first_or_404()
+    if not Contact.query.filter_by(organization_id=current_user.organization_id, user_id=current_user.id).filter(db.func.lower(Contact.email) == row.email).first():
+        abort(404)
     supp.release(row.email, current_user.organization_id, actor_id=current_user.id)
     db.session.commit()
     flash(f'{row.email} can receive marketing email again.', 'success')

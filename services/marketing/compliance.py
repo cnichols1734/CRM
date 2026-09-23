@@ -339,25 +339,3 @@ def summarize(findings: list[Finding]) -> str:
     if warns:
         parts.append(f'{warns} warning{"s" if warns != 1 else ""}')
     return ' and '.join(parts) + '.'
-
-
-# ---------------------------------------------------------------------------
-# Sending prerequisites
-# ---------------------------------------------------------------------------
-
-def missing_org_disclosure(organization) -> list[str]:
-    """Which required advertising or CAN-SPAM fields the org has not filled in.
-
-    Sending is blocked while this is non-empty. CAN-SPAM requires a physical
-    mailing address in every commercial message, and Texas advertising rules
-    require the brokerage be identified, so there is no version of this feature
-    that works without them.
-    """
-    missing: list[str] = []
-    if not (getattr(organization, 'broker_name', None) or '').strip():
-        missing.append('brokerage name')
-    if not (getattr(organization, 'broker_license_number', None) or '').strip():
-        missing.append('brokerage license number')
-    if not (getattr(organization, 'broker_address', None) or '').strip():
-        missing.append('brokerage mailing address')
-    return missing

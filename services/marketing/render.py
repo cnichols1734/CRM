@@ -264,22 +264,6 @@ def _signature(ctx: ShellContext) -> str:
         f'<p style="margin:0 0 5px 0;font-family:{FONT};font-size:14px;'
         f'letter-spacing:1.6px;text-transform:uppercase;color:{INK};">{esc(ctx.agent_name)}</p>'
     ]
-    if ctx.agent_title:
-        lines.append(
-            f'<p style="margin:0 0 2px 0;font-family:{FONT};font-size:13px;'
-            f'color:{INK_MUTED};">{esc(ctx.agent_title)}</p>'
-        )
-    if ctx.brokerage_name:
-        lines.append(
-            f'<p style="margin:0 0 2px 0;font-family:{FONT};font-size:13px;'
-            f'color:{INK_MUTED};">{esc(ctx.brokerage_name)}</p>'
-        )
-    detail = ' · '.join(p for p in (ctx.agent_phone, ctx.agent_email) if p)
-    if detail:
-        lines.append(
-            f'<p style="margin:0;font-family:{FONT};font-size:13px;'
-            f'color:{INK_FAINT};">{esc(detail)}</p>'
-        )
     body = '\n'.join(lines)
     return f'''<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:6px 0 0 0;">
     <tr><td style="border-top:1px dashed {DASHED};padding:22px 0 0 0;">{body}</td></tr>
@@ -428,11 +412,7 @@ def _block_text(block: dict, ctx: ShellContext) -> str:
     if kind == 'divider':
         return '---'
     if kind == 'signature':
-        parts = [p for p in (
-            ctx.agent_name, ctx.agent_title, ctx.brokerage_name,
-            ' · '.join(p for p in (ctx.agent_phone, ctx.agent_email) if p),
-        ) if p]
-        return '\n'.join(parts)
+        return ctx.agent_name or ''
     return ''
 
 

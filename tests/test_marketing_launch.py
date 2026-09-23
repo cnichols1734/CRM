@@ -96,7 +96,7 @@ class TestLaunch:
                 campaign_id=campaign.id,
             ).count() == result.sendable + result.skipped
 
-    def test_refuses_without_broker_disclosure(self, app, seed):
+    def test_launches_without_broker_details(self, app, seed):
         with app.app_context():
             org, owner = load_org_user(seed)
             enable_campaigns(org, broker=False)
@@ -105,13 +105,9 @@ class TestLaunch:
             org.broker_address = None
             template = ready_template(org, owner, name='No broker')
             campaign = _draft(org, owner, template)
-            try:
-                launchmod.launch(campaign, org, owner)
-            except launchmod.LaunchError as exc:
-                assert 'brokerage' in str(exc)
-            else:
-                raise AssertionError('expected LaunchError')
-            assert campaign.status == 'draft'
+            result = launchmod.launch(campaign, org, owner)
+            assert result.sendable > 0
+            assert campaign.status == 'sending'
 
     def test_refuses_unfilled_placeholders(self, app, seed):
         with app.app_context():

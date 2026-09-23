@@ -1,16 +1,4 @@
-"""What an org needs in place before it can send marketing email.
-
-Two independent gates:
-
-    readiness   the org's own disclosure fields. Every marketing email has to
-                carry the brokerage name, license number, and a physical
-                mailing address, so a campaign cannot launch without them.
-    quota       the org's monthly marketing send cap. Gmail also applies
-                limits to each connected account.
-
-Both are read at launch and shown in the UI beforehand, because finding out
-about either one at the moment you press send is a bad way to find out.
-"""
+"""Connected Gmail sender identity and monthly marketing send quotas."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,9 +7,7 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from config import Config
 from models import MarketingSend, UserEmailIntegration, db
-from services.marketing import compliance
 from tier_config.tier_limits import get_tier_defaults
 
 # Per-org quota override. Lives in the feature_flags JSON so raising a limit for
@@ -81,18 +67,10 @@ def sender_for(agent, org, *, reply_to: Optional[str] = None,
     integration = gmail_for(getattr(agent, 'id', None), getattr(org, 'id', None))
     return Sender(
         from_email=integration.connected_email,
-        from_name=from_name or _display_name(agent, org),
+        from_name=from_name or _agent_name(agent) or integration.connected_email,
         reply_to=reply_to or integration.connected_email,
         integration=integration,
     )
-
-
-def _display_name(agent, org) -> str:
-    agent_name = _agent_name(agent)
-    brokerage = getattr(org, 'broker_name', None) or getattr(org, 'name', None)
-    if agent_name and brokerage:
-        return f'{agent_name} | {brokerage}'
-    return agent_name or brokerage or Config.MARKETING_FROM_NAME
 
 
 def _agent_name(agent) -> Optional[str]:
@@ -104,31 +82,6 @@ def _agent_name(agent) -> Optional[str]:
     parts = [getattr(agent, 'first_name', None), getattr(agent, 'last_name', None)]
     joined = ' '.join(p for p in parts if p).strip()
     return joined or None
-
-
-# ---------------------------------------------------------------------------
-# Readiness
-# ---------------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class Readiness:
-    ok: bool
-    missing: list[str]
-
-    @property
-    def message(self) -> Optional[str]:
-        if self.ok:
-            return None
-        if len(self.missing) == 1:
-            return f'Add your {self.missing[0]} before sending marketing email.'
-        listed = ', '.join(self.missing[:-1]) + f' and {self.missing[-1]}'
-        return f'Add your {listed} before sending marketing email.'
-
-
-def readiness_for(org) -> Readiness:
-    """Whether the org can legally identify itself in a marketing email."""
-    missing = compliance.missing_org_disclosure(org)
-    return Readiness(ok=not missing, missing=missing)
 
 
 # ---------------------------------------------------------------------------
