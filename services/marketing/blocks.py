@@ -500,11 +500,11 @@ def repair_generated_blocks(raw: Any) -> list[dict]:
     return kept
 
 
-def validate_blocks(raw: Any) -> list[dict]:
+def validate_blocks(raw: Any, *, allow_incomplete: bool = False) -> list[dict]:
     """Normalize then check. Raises ``BlockError`` with an agent-facing message."""
     blocks = normalize_blocks(raw)
 
-    if not blocks:
+    if not blocks and not allow_incomplete:
         raise BlockError('An email needs at least one block.')
     if len(blocks) > MAX_BLOCKS:
         raise BlockError(f'An email can hold at most {MAX_BLOCKS} blocks.')
@@ -512,7 +512,7 @@ def validate_blocks(raw: Any) -> list[dict]:
     has_content = any(
         b['type'] not in ('divider', 'signature') for b in blocks
     )
-    if not has_content:
+    if not has_content and not allow_incomplete:
         raise BlockError('An email needs some actual content, not only a divider or signature.')
 
     # The hero is a full-width banner rendered outside the padded content area,
@@ -529,7 +529,9 @@ def validate_blocks(raw: Any) -> list[dict]:
         where = f'Block {index} ({spec.label})'
 
         for name in spec.required:
-            if not block.get(name):
+            if allow_incomplete and name not in block:
+                block[name] = [] if name in ('items', 'steps', 'stats') else ''
+            if not block.get(name) and not allow_incomplete:
                 if block['type'] == 'button' and name == 'url':
                     label = block.get('label') or 'button'
                     raise BlockError(

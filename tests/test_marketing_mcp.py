@@ -27,7 +27,7 @@ class TestToolSurface:
         with app.app_context():
             org, owner = load_org_user(seed)
             flags = dict(org.feature_flags or {})
-            flags.pop('EMAIL_CAMPAIGNS', None)
+            flags['EMAIL_CAMPAIGNS'] = False
             org.feature_flags = flags
             db.session.flush()
             names = {tool.name for tool in select_tools(_ctx(owner))}

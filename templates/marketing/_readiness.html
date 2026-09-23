@@ -1,0 +1,6 @@
+{% if not sending_email %}
+<div class="crm-callout crm-callout-warning" role="status"><strong>Connect your sending account</strong><p>{{ gmail_error }} <a class="crm-link" href="{{ url_for('auth.view_user_profile') }}">Open your profile</a></p></div>
+{% endif %}
+{% if readiness is defined and not readiness.ok %}
+<div class="crm-callout crm-callout-warning" role="status"><strong>Brokerage details are incomplete</strong><p>{% if can_manage_marketing %}{{ readiness.message }} <a class="crm-link" href="{{ url_for('marketing.settings') }}">Complete setup</a>{% else %}Your brokerage administrator needs to add the license number and mailing address. You can keep working on your draft.{% endif %}</p></div>
+{% endif %}

@@ -20,7 +20,7 @@ class TemplateError(ValueError):
 
 
 def is_saved(template: MarketingTemplate) -> bool:
-    return getattr(template, 'source', None) != 'system'
+    return getattr(template, 'source', None) not in ('system', 'campaign')
 
 
 def is_active(template: MarketingTemplate) -> bool:
@@ -33,7 +33,7 @@ def is_active(template: MarketingTemplate) -> bool:
 def saved_visible(organization_id: int, user_id: int, *, include_archived: bool = False):
     """Agent-saved templates only. Starters stay in the library, not here."""
     return visible_to(organization_id, user_id, include_archived=include_archived).filter(
-        MarketingTemplate.source != 'system',
+        MarketingTemplate.source.notin_(('system', 'campaign')),
     )
 
 
@@ -116,17 +116,18 @@ def prepare(
     raw_blocks,
     *,
     acknowledge_warnings: bool = False,
+    allow_incomplete: bool = False,
 ) -> dict[str, Any]:
     """Validate, lint, and decide sendability. Does not write."""
     subject = (subject or '').strip()
     preheader = (preheader or '').strip() or None
-    if not subject:
+    if not subject and not allow_incomplete:
         raise TemplateError('An email needs a subject line.')
     if len(subject) > 300:
         raise TemplateError('Subject is too long.')
 
     try:
-        blocks = validate_blocks(raw_blocks)
+        blocks = validate_blocks(raw_blocks, allow_incomplete=allow_incomplete)
     except BlockError as exc:
         raise TemplateError(str(exc)) from exc
 
@@ -247,9 +248,10 @@ def save(
     prepared = prepare(
         subject, preheader, blocks,
         acknowledge_warnings=acknowledge_warnings,
+        allow_incomplete=active is False,
     )
     button_error = missing_button_url_message(prepared['blocks'])
-    if button_error:
+    if button_error and active is not False:
         raise TemplateError(button_error)
 
     creating = template is None

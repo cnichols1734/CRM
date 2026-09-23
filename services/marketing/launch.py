@@ -85,6 +85,9 @@ def _template_ready(template: MarketingTemplate) -> None:
 
 
 def validate_for_launch(campaign: MarketingCampaign, org, user) -> list[MarketingCampaignStep]:
+    from feature_flags import marketing_available
+    if not marketing_available(org):
+        raise LaunchError('Marketing is not available for this organization.')
     if campaign.status not in MarketingCampaign.EDITABLE_STATUSES:
         raise LaunchError('This campaign has already been launched.')
     if not campaign.audience_id:
@@ -305,11 +308,13 @@ def _advance_enrollment_pointer(enrollment, steps, now, timezone_name):
         enrollment.next_send_at = None
         return
     following = nxt[0]
+    previous = next((s for s in steps if s.step_index == enrollment.current_step_index), None)
+    delay = max(0, following.delay_days - (previous.delay_days if previous else 0))
     enrollment.current_step_index = following.step_index
     enrollment.next_send_at = send_at(
         now=now,
         timezone_name=timezone_name,
-        delay_days=following.delay_days,
+        delay_days=delay,
         send_hour_local=following.send_hour_local,
     )
 
@@ -326,6 +331,10 @@ def pause(campaign: MarketingCampaign, *, reason: Optional[str] = None, commit: 
 
 
 def resume(campaign: MarketingCampaign, *, commit: bool = True):
+    from feature_flags import marketing_available
+    from models import Organization
+    if not marketing_available(db.session.get(Organization, campaign.organization_id)):
+        raise LaunchError('Marketing is not available for this organization.')
     if campaign.status != 'paused':
         raise LaunchError('This campaign is not paused.')
     try:

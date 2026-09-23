@@ -23,6 +23,7 @@ _STATE: contextvars.ContextVar[Optional[EditState]] = contextvars.ContextVar(
 
 EDIT_CSS = '''
     [data-mkt-edit] { cursor: text; }
+    [data-mkt-edit]:empty { display: inline-block; min-width: 2rem; min-height: 1.5em; }
     [data-mkt-edit]:hover { background-color: rgba(249, 115, 22, 0.08); }
     [data-mkt-edit]:focus { background-color: rgba(249, 115, 22, 0.12); }
     [data-mkt-merge] {

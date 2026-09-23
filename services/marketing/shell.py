@@ -58,7 +58,7 @@ class ShellContext:
     """Everything the wrapper needs that does not come from blocks."""
 
     # Header
-    header_title: str = 'AgentFlow'
+    header_title: str = 'Your brokerage'
     logo_url: Optional[str] = None
     mark_url: Optional[str] = None
     wordmark_url: Optional[str] = None

@@ -45,6 +45,9 @@ def render_for_send(send: MarketingSend, campaign: MarketingCampaign) -> tuple[s
     contact = send.contact or db.session.get(Contact, send.contact_id)
     template = send.template or db.session.get(MarketingTemplate, send.template_id)
     org = db.session.get(Organization, send.organization_id)
+    from feature_flags import marketing_available
+    if not marketing_available(org):
+        raise SendError('Marketing is not available for this organization.')
     agent = db.session.get(User, campaign.user_id) if campaign.user_id else None
 
     if contact is None or template is None or org is None:
@@ -136,6 +139,8 @@ def send_test(
     to_emails: list[str],
     sample_values: Optional[dict] = None,
     category: str = '',
+    from_name: Optional[str] = None,
+    reply_to: Optional[str] = None,
 ) -> dict:
     """Send the current studio draft to listed addresses.
 
@@ -144,6 +149,9 @@ def send_test(
     """
     from services.marketing.templates import TemplateError, prepare
 
+    from feature_flags import marketing_available
+    if not marketing_available(org):
+        raise SendError('Marketing is not available for this organization.')
     if not to_emails:
         raise SendError('Add at least one email address.')
     try:
@@ -154,7 +162,7 @@ def send_test(
         raise SendError(str(exc), retryable=False) from exc
 
     try:
-        sender = sending_config.sender_for(agent, org)
+        sender = sending_config.sender_for(agent, org, from_name=from_name, reply_to=reply_to)
     except sending_config.GmailConnectionError as exc:
         raise SendError(str(exc), needs_reauth=True) from exc
     token = supp.issue_token(getattr(org, 'id', 0) or 1)
@@ -215,6 +223,10 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> Marketing
         return send
 
     org = db.session.get(Organization, send.organization_id)
+    from feature_flags import marketing_available
+    if not marketing_available(org):
+        _pause_for_connection(campaign, send, 'Marketing is not available for this organization.', now)
+        return send
     agent = db.session.get(User, campaign.user_id) if campaign.user_id else None
     try:
         sender = sending_config.sender_for(

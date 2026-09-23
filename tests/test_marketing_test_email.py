@@ -25,7 +25,7 @@ from test_marketing_launch import _draft
 
 
 @pytest.fixture(autouse=True)
-def cleanup_connections(app):
+def cleanup_connections(app, seed):
     with app.app_context():
         # Other suites bulk-delete parents without SQLite foreign-key cascades.
         for model in (
@@ -35,6 +35,9 @@ def cleanup_connections(app):
             model.query.delete(synchronize_session=False)
         db.session.commit()
         existing = [row.id for row in UserEmailIntegration.query.all()]
+        org, _ = load_org_user(seed)
+        enable_campaigns(org)
+        db.session.commit()
     yield
     with app.app_context():
         UserEmailIntegration.query.filter(
