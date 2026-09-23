@@ -1,4 +1,5 @@
 """Marketing HTTP surface: flag gate and a happy-path overview."""
+import pytest
 import json
 import os
 import sys
@@ -12,6 +13,9 @@ from marketing_helpers import enable_campaigns, load_org_user, make_contact, rea
 from routes.marketing.pages import _restore_draft
 from services.marketing import system_templates as st
 from services.marketing.templates import TemplateError
+
+
+pytestmark = pytest.mark.usefixtures('marketing_gmail')
 
 
 class TestMarketingPages:
@@ -75,6 +79,7 @@ class TestMarketingPages:
         assert 'name="timezone"' in body
         assert 'name="from_name"' in body
         assert 'name="reply_to"' in body
+        assert 'Sends from owner-google@example.com' in body
         assert 'name="owners"' in body
         assert 'name="scheduled_at"' in body
         assert 'Pick a template, pick who gets it, then send.' in body
@@ -139,6 +144,7 @@ class TestMarketingPages:
         assert 'placeholder="John"' in body
         assert 'value="John"' not in body
         assert 'Send test email' in body
+        assert 'Sends from owner-google@example.com' in body
         assert 'owner_a@test.com' in body
         assert f'/marketing/studio/{starter_id}' not in resp.request.path
 

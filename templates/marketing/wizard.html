@@ -300,6 +300,10 @@
                                        value="{{ posted.get('scheduled_at', '') if posted else '' }}">
                             </label>
                         </div>
+                        <p class="text-sm crm-muted mb-3">
+                            {% if sending_email %}Sends from {{ sending_email }} through your connected Google account.
+                            {% else %}{{ gmail_error }} <a href="{{ url_for('auth.view_user_profile') }}" class="crm-link">Open profile</a>{% endif %}
+                        </p>
                         <div class="mkt-geo mb-4">
                             <label class="block">
                                 <span class="crm-label">From name</span>
@@ -310,7 +314,7 @@
                             <label class="block">
                                 <span class="crm-label">Reply to</span>
                                 <input class="crm-input" type="email" name="reply_to"
-                                       value="{{ posted.get('reply_to', '') if posted else current_user.email }}">
+                                       value="{{ posted.get('reply_to', '') if posted else (sending_email or '') }}">
                             </label>
                         </div>
                         <div class="mkt-drip {% if posted_kind != 'drip' %}hidden{% endif %}" data-marketing-campaign-wizard-target="drip" {% if posted_kind != 'drip' %}hidden{% endif %}>

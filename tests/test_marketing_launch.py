@@ -1,4 +1,5 @@
 """Launch snapshot, drip advancement, and mocked delivery."""
+import pytest
 import os
 import sys
 from datetime import datetime, timedelta
@@ -57,6 +58,9 @@ def _draft(org, user, template, filt=None, kind='one_time'):
     ))
     db.session.flush()
     return campaign
+
+
+pytestmark = pytest.mark.usefixtures('marketing_gmail')
 
 
 class TestLaunch:
@@ -242,11 +246,11 @@ class TestDeliver:
             ).first()
             monkeypatch.setattr(
                 sendmod, '_provider_send',
-                lambda **kwargs: 'sg-test-1',
+                lambda **kwargs: 'gmail-test-1',
             )
             sendmod.deliver(send)
             assert send.status == 'sent'
-            assert send.provider_message_id == 'sg-test-1'
+            assert send.provider_message_id == 'gmail-test-1'
             assert campaign.sent_count >= 1
 
 
@@ -306,4 +310,4 @@ class TestSendTest:
         assert captured[0]['to_email'] == 'owner_a@test.com'
         assert captured[0]['subject'].startswith('[Test] ')
         assert 'Sarah' in captured[0]['html']
-        assert captured[0]['custom_args']['kind'] == 'marketing_test'
+        assert captured[0]['sender'].from_email == 'owner-google@example.com'

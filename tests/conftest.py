@@ -298,6 +298,27 @@ def _rollback_after_test(app):
         _db.session.rollback()
 
 
+@pytest.fixture()
+def marketing_gmail(app, seed):
+    """A connected campaign owner; delivery tests still mock the provider."""
+    from models import UserEmailIntegration
+
+    with app.app_context():
+        integration = UserEmailIntegration(
+            user_id=seed['owner_a'], organization_id=seed['org_a'],
+            provider='gmail', connected_email='owner-google@example.com',
+            sync_enabled=True, oauth_scope_version=2,
+            access_token_encrypted='mock-access', refresh_token_encrypted='mock-refresh',
+        )
+        _db.session.add(integration)
+        _db.session.commit()
+        integration_id = integration.id
+    yield integration_id
+    with app.app_context():
+        UserEmailIntegration.query.filter_by(id=integration_id).delete()
+        _db.session.commit()
+
+
 @pytest.fixture(autouse=True)
 def block_live_email(monkeypatch):
     """Stub every live mail client so register/invite tests cannot hit SendGrid."""

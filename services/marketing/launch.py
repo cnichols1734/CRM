@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 from models import (
     MarketingAudience, MarketingCampaign, MarketingCampaignStep,
-    MarketingEnrollment, MarketingSend, MarketingTemplate, db,
+    MarketingEnrollment, MarketingSend, MarketingTemplate, User, db,
 )
 from services.marketing import audience as aud
 from services.marketing import sending_config
@@ -108,6 +108,11 @@ def validate_for_launch(campaign: MarketingCampaign, org, user) -> list[Marketin
             raise LaunchError(str(exc)) from exc
         _template_ready(template)
 
+    try:
+        sending_config.gmail_for(campaign.user_id, campaign.organization_id)
+    except sending_config.GmailConnectionError as exc:
+        raise LaunchError(str(exc)) from exc
+
     return steps
 
 
@@ -167,8 +172,10 @@ def launch(
     campaign.failed_count = 0
     campaign.unsubscribed_count = 0
     campaign.auto_paused_reason = None
-    campaign.from_name = campaign.from_name or sending_config.sender_for(user, org).from_name
-    campaign.reply_to = campaign.reply_to or getattr(user, 'email', None)
+    creator = db.session.get(User, campaign.user_id)
+    sender = sending_config.sender_for(creator, org)
+    campaign.from_name = campaign.from_name or sender.from_name
+    campaign.reply_to = campaign.reply_to or sender.reply_to
 
     if is_future:
         campaign.status = 'scheduled'
@@ -211,7 +218,7 @@ def launch(
             when = scheduled
             db.session.add(_queued_send(
                 campaign, first, enrollment, recipient.contact, recipient.email,
-                user_id=user.id, scheduled_for=when,
+                user_id=campaign.user_id, scheduled_for=when,
             ))
             campaign.queued_count += 1
             if is_drip:
@@ -240,7 +247,7 @@ def launch(
             campaign, first, enrollment, exclusion.contact,
             email=exclusion.email or '',
             reason=exclusion.reason,
-            user_id=user.id,
+            user_id=campaign.user_id,
         ))
         campaign.skipped_count += 1
 
@@ -321,6 +328,10 @@ def pause(campaign: MarketingCampaign, *, reason: Optional[str] = None, commit: 
 def resume(campaign: MarketingCampaign, *, commit: bool = True):
     if campaign.status != 'paused':
         raise LaunchError('This campaign is not paused.')
+    try:
+        sending_config.gmail_for(campaign.user_id, campaign.organization_id)
+    except sending_config.GmailConnectionError as exc:
+        raise LaunchError(str(exc)) from exc
     campaign.auto_paused_reason = None
     campaign.paused_at = None
     if campaign.kind == 'drip':

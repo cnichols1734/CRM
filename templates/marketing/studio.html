@@ -77,7 +77,10 @@
                     </div>
                     <div class="mkt-test">
                         <span class="crm-label">Send test email</span>
-                        <p class="mt-1 text-xs crm-muted mb-2">Uses the sample data on the right. Add more addresses with commas.</p>
+                        <p class="mt-1 text-xs crm-muted mb-2">Uses the sample data on the right. Add more addresses with commas.
+                            {% if sending_email %}Sends from {{ sending_email }}.
+                            {% else %}{{ gmail_error }} <a href="{{ url_for('auth.view_user_profile') }}" class="crm-link">Open profile</a>{% endif %}
+                        </p>
                         <div class="mkt-test__row">
                             <input class="crm-input" type="text"
                                    data-marketing-template-studio-target="testTo"

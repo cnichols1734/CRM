@@ -15,7 +15,7 @@ Layering, outermost first:
       audience.py          filter -> contacts + exclusion breakdown
       templates.py         validate, lint, version, cache
       launch.py            enrollments, send rows, pause/resume/cancel
-      send.py              per-recipient render + SendGrid
+      send.py              per-recipient render + the creator's Gmail account
       attribution.py       webhook events + bounce circuit breaker
       drip.py              advance due enrollments
       studio.py            AI produces blocks, never HTML
@@ -23,10 +23,10 @@ Layering, outermost first:
       system_templates.py  starter library seeded per org
       links.py             absolute URLs that go inside a sent email
 
-Template markup is produced here rather than in SendGrid. SendGrid caps an
-account at a few hundred dynamic templates and gives no tenant isolation, so
-agent-authored templates cannot live there. Owning the markup also means the
-compliance gate and the preview are ours.
+Templates live in our database. Campaigns and tests use the agent's connected
+Google mailbox, with no SendGrid fallback. Attribution still accepts events
+for earlier SendGrid emails. Gmail sends keep their message ID and sent status;
+they do not generate SendGrid delivery or bounce events.
 
 There is no launch path over MCP. External agents stage a draft; a human
 clicks Launch in AgentFlow.

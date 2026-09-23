@@ -277,6 +277,14 @@ def _require_campaign_template(template):
 WAIT_DAYS = {'week': 7, 'month': 30}
 
 
+def _sending_mailbox(org, user_id):
+    try:
+        integration = sending_config.gmail_for(user_id, org.id)
+        return {'sending_email': integration.connected_email, 'gmail_error': None}
+    except sending_config.GmailConnectionError as exc:
+        return {'sending_email': None, 'gmail_error': str(exc)}
+
+
 def _wizard_context(org, templates, groups, posted=None):
     mine, org_saved = tpl.split_saved(templates, current_user.id)
     posted = posted or {}
@@ -308,6 +316,7 @@ def _wizard_context(org, templates, groups, posted=None):
                 'wait': extra_waits[index] if index < len(extra_waits) else 'week',
             })
     return {
+        **_sending_mailbox(org, current_user.id),
         'templates': templates,
         'template_cards': _template_cards(org, templates),
         'mine_cards': _template_cards(org, mine),
@@ -415,6 +424,7 @@ def _render_studio(org, template, draft, prompt='', **extra):
     preview = _studio_preview(org, draft, samples, fill_samples=False)
     extra.setdefault('merge_groups', _merge_groups(samples, used))
     extra.setdefault('preview_filled_subject', '')
+    extra.update(_sending_mailbox(org, current_user.id))
     return render_template(
         'marketing/studio.html',
         template=template,
@@ -557,7 +567,7 @@ def _build_campaign_from_form(org) -> MarketingCampaign:
         timezone=request.form.get('timezone') or 'America/Chicago',
         created_via='web',
         from_name=request.form.get('from_name') or None,
-        reply_to=request.form.get('reply_to') or current_user.email,
+        reply_to=request.form.get('reply_to') or None,
     )
     scheduled = (request.form.get('scheduled_at') or '').strip()
     if scheduled:
@@ -617,6 +627,7 @@ def campaign_detail(campaign_id):
         sends=sends,
         steps=steps,
         nav='campaigns',
+        **_sending_mailbox(_org(), campaign.user_id),
     )
 
 
@@ -885,12 +896,10 @@ def api_send_test():
             sample_values=values,
             category=payload.get('category') or '',
         )
+        db.session.commit()
         return jsonify(result)
     except sendmod.SendError as exc:
-        message = str(exc)
-        if 'SENDGRID_API_KEY' in message:
-            message = 'Email sending is not configured yet.'
-        return jsonify({'error': message}), 400
+        return jsonify({'error': str(exc)}), 400
     except (TemplateError, ValueError) as exc:
         return jsonify({'error': str(exc)}), 400
 

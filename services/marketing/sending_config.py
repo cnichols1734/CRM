@@ -5,9 +5,8 @@ Two independent gates:
     readiness   the org's own disclosure fields. Every marketing email has to
                 carry the brokerage name, license number, and a physical
                 mailing address, so a campaign cannot launch without them.
-    quota       a monthly send cap. Not packaging — the sending domain is
-                shared, so one org blasting a purchased list degrades inbox
-                placement for every other tenant on it.
+    quota       the org's monthly marketing send cap. Gmail also applies
+                limits to each connected account.
 
 Both are read at launch and shown in the UI beforehand, because finding out
 about either one at the moment you press send is a bad way to find out.
@@ -21,7 +20,7 @@ from typing import Optional
 from sqlalchemy import func
 
 from config import Config
-from models import MarketingSend, db
+from models import MarketingSend, UserEmailIntegration, db
 from services.marketing import compliance
 from tier_config.tier_limits import get_tier_defaults
 
@@ -41,21 +40,50 @@ BILLABLE_STATUSES = ('queued', 'sending', 'sent', 'delivered', 'bounced',
 
 @dataclass(frozen=True)
 class Sender:
-    """The envelope. ``from_name`` carries the agent so the recipient sees a
-    person, while the address stays on our authenticated subdomain: mail from a
-    domain we do not sign fails DMARC and lands in spam.
-    """
+    """The agent's authenticated Gmail mailbox and message identity."""
     from_email: str
     from_name: str
     reply_to: Optional[str]
+    integration: UserEmailIntegration
 
 
-def sender_for(agent, org, *, reply_to: Optional[str] = None) -> Sender:
-    from_name = _display_name(agent, org)
+class GmailConnectionError(ValueError):
+    """The campaign owner must connect or reconnect Gmail."""
+
+
+def gmail_for(user_id, organization_id) -> UserEmailIntegration:
+    integration = UserEmailIntegration.query.filter_by(
+        user_id=user_id,
+        organization_id=organization_id,
+        provider='gmail',
+        sync_enabled=True,
+    ).first() if user_id and organization_id else None
+    if integration is None:
+        raise GmailConnectionError(
+            'The sending agent must connect their Google account in their profile '
+            'before sending marketing emails.'
+        )
+    if (
+        integration.needs_reauth
+        or not integration.connected_email
+        or not integration.access_token_encrypted
+        or not integration.refresh_token_encrypted
+    ):
+        raise GmailConnectionError(
+            'The sending agent must reconnect their Gmail account in their profile '
+            'before sending marketing emails.'
+        )
+    return integration
+
+
+def sender_for(agent, org, *, reply_to: Optional[str] = None,
+               from_name: Optional[str] = None) -> Sender:
+    integration = gmail_for(getattr(agent, 'id', None), getattr(org, 'id', None))
     return Sender(
-        from_email=Config.MARKETING_FROM_EMAIL,
-        from_name=from_name,
-        reply_to=reply_to or getattr(agent, 'email', None),
+        from_email=integration.connected_email,
+        from_name=from_name or _display_name(agent, org),
+        reply_to=reply_to or integration.connected_email,
+        integration=integration,
     )
 
 

@@ -1,5 +1,6 @@
 """Sender identity, org readiness, and the monthly send quota."""
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -37,21 +38,23 @@ class FakeAgent:
 # ---------------------------------------------------------------------------
 
 class TestSender:
-    def test_sends_from_the_marketing_subdomain(self, app):
-        # A campaign that draws complaints must not damage the domain that
-        # carries password resets.
+    @pytest.fixture(autouse=True)
+    def connected_mailbox(self, monkeypatch):
+        monkeypatch.setattr(sc, 'gmail_for', lambda *_: SimpleNamespace(
+            connected_email='suzie-google@example.com',
+        ))
+
+    def test_sends_from_the_connected_google_mailbox(self, app):
         sender = sc.sender_for(FakeAgent(), FakeOrg())
-        assert sender.from_email == app.config['MARKETING_FROM_EMAIL']
-        assert 'mail.' in sender.from_email
+        assert sender.from_email == 'suzie-google@example.com'
 
     def test_shows_the_agent_and_the_brokerage(self, app):
         sender = sc.sender_for(FakeAgent(), FakeOrg())
         assert sender.from_name == 'Suzie Harrington | Origen Realty'
 
     def test_replies_go_to_the_agent(self, app):
-        # The from address is unmonitored; a reply has to reach a person.
         sender = sc.sender_for(FakeAgent(), FakeOrg())
-        assert sender.reply_to == 'suzie@origenrealty.com'
+        assert sender.reply_to == 'suzie-google@example.com'
 
     def test_explicit_reply_to_wins(self, app):
         sender = sc.sender_for(FakeAgent(), FakeOrg(), reply_to='team@x.com')

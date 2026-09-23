@@ -68,12 +68,7 @@ class Config:
     # SendGrid configuration
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
-    # Marketing campaigns send from their own authenticated subdomain so a
-    # campaign that draws complaints cannot take password resets and org
-    # invites down with it. Same brand, separate DKIM signing domain.
-    MARKETING_FROM_EMAIL = os.getenv(
-        'MARKETING_FROM_EMAIL', 'agents@mail.origentechnolog.com'
-    )
+    # Marketing sends through each agent's connected Google mailbox.
     MARKETING_FROM_NAME = os.getenv('MARKETING_FROM_NAME', 'AgentFlow')
     # One-to-one transactional mail an agent sends to their own client, such as
     # an offer summary. It goes out under the brokerage rather than AgentFlow,

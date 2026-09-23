@@ -1,6 +1,6 @@
 # Email Marketing Plan
 
-Status: planning. Supersedes the earlier draft of this file, which assumed SendGrid-hosted templates and treated compliance as a "future consideration." Both assumptions are reversed here.
+Status: historical plan. Marketing campaigns and test emails now send through the campaign creator's connected Google account, with no SendGrid fallback. The SendGrid transport and shared sending domain described below are superseded. Gmail sends retain their message ID and sent status, but do not receive SendGrid delivery or bounce events. Unsubscribe links and headers remain in campaign emails. Missing or revoked Google connections block launch or pause queued campaigns until the agent reconnects and resumes them.
 
 ## What we're building
 
