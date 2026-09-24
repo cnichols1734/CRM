@@ -4904,3 +4904,25 @@ html[data-theme="dark"] .mkt-page {
 .mkt-campaign-entry { border-bottom: 1px solid var(--hairline); }
 .mkt-campaign-entry:last-child { border-bottom: 0; }
 .mkt-campaign-entry .mkt-campaign-summary { border-bottom: 0; }
+
+/* Campaign engagement uses the existing table and disclosure controls. */
+.mkt-engagement-filters { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.mkt-tracking-note { max-width:760px; }
+.mkt-tracking-note summary, .mkt-tracking-activity summary { cursor:pointer; }
+.mkt-tracking-note p { margin-top:8px; line-height:1.6; }
+.mkt-tracking-activity { margin-top:8px; min-width:180px; }
+.mkt-tracking-activity [data-activity-content] { max-height:320px; overflow:auto; max-width:380px; }
+.mkt-event-list { list-style:none; padding:0; margin:8px 0 0; }
+.mkt-event-list li { padding:8px 0; border-top:1px solid var(--hairline); white-space:normal; overflow-wrap:anywhere; }
+.mkt-event-list time, .mkt-event-list small { display:block; font-size:12px; margin-top:3px; }
+.crm-table.mkt-recipient-table td { vertical-align:top; }
+@media (max-width:640px) {
+  .crm-table.mkt-recipient-table { display:block; min-width:0; }
+  .mkt-recipient-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .mkt-recipient-table tbody { display:block; }
+  .mkt-recipient-table tr { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); padding:16px 0; gap:16px; border-bottom:1px solid var(--hairline); }
+  .crm-table.mkt-recipient-table td { padding:0; border:0; white-space:normal; overflow-wrap:anywhere; }
+  .mkt-recipient-table td::before { content:attr(data-label); display:block; color:var(--ink-3); font-size:11px; margin-bottom:4px; }
+  .mkt-recipient-table td:nth-child(1), .mkt-recipient-table td:nth-child(6), .mkt-recipient-table td:nth-child(7), .mkt-recipient-table td[colspan] { grid-column:1 / -1; }
+  .mkt-tracking-activity [data-activity-content] { max-width:100%; }
+}

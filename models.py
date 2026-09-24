@@ -4887,6 +4887,50 @@ class MarketingSend(db.Model):
         return f'<MarketingSend {self.id} {self.to_email} {self.status}>'
 
 
+class MarketingTracking(db.Model):
+    """Frozen tracked message, prepared before the provider accepts it."""
+    __tablename__ = 'marketing_tracking'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    send_id = db.Column(db.Integer, db.ForeignKey('marketing_sends.id', ondelete='CASCADE'), nullable=False, unique=True)
+    token = db.Column(db.String(100), nullable=False, unique=True)
+    subject = db.Column(db.String(300), nullable=False)
+    html_body = db.Column(db.Text, nullable=False)
+    text_body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    send = db.relationship('MarketingSend', backref=db.backref('tracking', uselist=False, cascade='all, delete-orphan'))
+
+
+class MarketingTrackingLink(db.Model):
+    __tablename__ = 'marketing_tracking_links'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    tracking_id = db.Column(db.Integer, db.ForeignKey('marketing_tracking.id', ondelete='CASCADE'), nullable=False, index=True)
+    token = db.Column(db.String(100), nullable=False, unique=True)
+    destination = db.Column(db.Text, nullable=False)
+    label = db.Column(db.String(300), nullable=False)
+    tracking = db.relationship('MarketingTracking', backref=db.backref('links', cascade='all, delete-orphan'))
+
+
+class MarketingTrackingEvent(db.Model):
+    __tablename__ = 'marketing_tracking_events'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    tracking_id = db.Column(db.Integer, db.ForeignKey('marketing_tracking.id', ondelete='CASCADE'), nullable=False)
+    link_id = db.Column(db.Integer, db.ForeignKey('marketing_tracking_links.id', ondelete='CASCADE'), nullable=True, index=True)
+    kind = db.Column(db.String(10), nullable=False)
+    classification = db.Column(db.String(20), nullable=False)
+    occurred_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    dedupe_key = db.Column(db.String(64), nullable=False, unique=True)
+    tracking = db.relationship('MarketingTracking', backref=db.backref('events', cascade='all, delete-orphan'))
+    link = db.relationship('MarketingTrackingLink')
+    __table_args__ = (
+        db.Index('ix_marketing_events_tracking_time', 'tracking_id', 'occurred_at', 'id'),
+        db.CheckConstraint("kind IN ('open', 'click')", name='ck_marketing_event_kind'),
+        db.CheckConstraint("classification IN ('observed', 'automated', 'sender')", name='ck_marketing_event_class'),
+    )
+
+
 class MarketingSuppression(db.Model):
     """An address we will not email again.
 

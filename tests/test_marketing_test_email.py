@@ -15,6 +15,7 @@ from config import Config
 from models import (
     MarketingAudience, MarketingCampaign, MarketingCampaignStep, MarketingEnrollment,
     MarketingSend, MarketingTemplate, MarketingTemplateVersion, UserEmailIntegration, db,
+    MarketingTracking, MarketingTrackingLink, MarketingTrackingEvent,
 )
 from services import gmail_service
 from services.marketing import send as sendmod
@@ -29,6 +30,7 @@ def cleanup_connections(app, seed):
     with app.app_context():
         # Other suites bulk-delete parents without SQLite foreign-key cascades.
         for model in (
+            MarketingTrackingEvent, MarketingTrackingLink, MarketingTracking,
             MarketingSend, MarketingEnrollment, MarketingCampaignStep,
             MarketingCampaign, MarketingAudience, MarketingTemplateVersion, MarketingTemplate,
         ):
@@ -116,6 +118,7 @@ def test_connected_gmail_sends_personalized_draft_from_connected_address(
         assert 'Hi Sarah.' in message.get_body(preferencelist=('plain',)).get_content()
         html = message.get_body(preferencelist=('html',)).get_content()
         assert 'Hi Sarah.' in html
+        assert '/email/track/' not in html
         assert 'Extra Gmail signature' not in html
     sendgrid.assert_not_called()
 

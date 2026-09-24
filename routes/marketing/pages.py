@@ -501,8 +501,10 @@ def sent_emails():
     ).options(joinedload(MarketingSend.campaign), joinedload(MarketingSend.step)).order_by(
         MarketingSend.sent_at.desc(), MarketingSend.id.desc(),
     ).paginate(page=request.args.get('page', 1, type=int), per_page=50, error_out=False)
+    from services.marketing import tracking
+    metrics = tracking.per_send([s.id for s in pagination.items], current_user.organization_id)
     return render_template('marketing/sent.html', pagination=pagination,
-                           local_time=activity.local_time, nav='sent')
+                           metrics=metrics, local_time=activity.local_time, nav='sent')
 
 
 @marketing.route('/marketing/campaigns/new', methods=['GET', 'POST'])
@@ -558,7 +560,13 @@ def _build_campaign_from_form(org, campaign=None):
 @feature_required('EMAIL_CAMPAIGNS')
 def campaign_detail(campaign_id):
     campaign = campaign_or_404(campaign_id)
+    from services.marketing import tracking
     details = activity.snapshot(campaign)
+    engagement = request.args.get('engagement', 'all')
+    if engagement not in tracking.FILTERS:
+        engagement = 'all'
+    metrics = tracking.campaign_summary(campaign)
+    details['engagement_revision'] = tracking.revision(campaign)
     step_id = request.args.get('step', type=int)
     selected = next((s for s in details['steps'] if s.id == step_id), None)
     if step_id is not None and selected is None:
@@ -567,10 +575,10 @@ def campaign_detail(campaign_id):
         selected = (details['next_card']['step'] if details['next_card']
                     else next(iter(details['steps']), None))
     people = activity.recipient_page(campaign, selected, details['steps'], _org(),
-                                    request.args.get('page', 1, type=int)) if selected else None
+                                    request.args.get('page', 1, type=int), engagement=engagement) if selected else None
     return render_template(
         'marketing/campaign_detail.html', campaign=campaign, details=details,
-        selected_step=selected, people=people, nav='campaigns',
+        selected_step=selected, people=people, metrics=metrics, engagement_filter=engagement, nav='campaigns',
         **_sending_mailbox(_org(), campaign.user_id),
     )
 
@@ -692,7 +700,9 @@ def campaign_cancel(campaign_id):
 def campaign_progress(campaign_id):
     campaign = campaign_or_404(campaign_id)
     details = activity.snapshot(campaign)
+    from services.marketing import tracking
     return jsonify({
+        'engagement_revision': tracking.revision(campaign),
         'revision': details['revision'],
         'status_label': details['status_label'],
         'status': campaign.status,
@@ -1108,3 +1118,25 @@ def release_suppression(suppression_id):
     db.session.commit()
     flash(f'{row.email} can receive marketing email again.', 'success')
     return redirect(url_for('marketing.settings'))
+
+
+@marketing.route('/marketing/campaigns/<int:campaign_id>/sends/<int:send_id>/activity')
+@login_required
+@feature_required('EMAIL_CAMPAIGNS')
+def send_activity(campaign_id, send_id):
+    from models import MarketingTracking, MarketingTrackingEvent
+    from sqlalchemy.orm import joinedload
+    campaign = campaign_or_404(campaign_id)
+    send = MarketingSend.query.filter_by(id=send_id, campaign_id=campaign.id,
+        organization_id=campaign.organization_id).first_or_404()
+    if not send.contact or send.contact.user_id != current_user.id:
+        abort(404)
+    tracked = MarketingTracking.query.filter_by(send_id=send.id,
+        organization_id=campaign.organization_id).first_or_404()
+    events = MarketingTrackingEvent.query.options(joinedload(MarketingTrackingEvent.link)).filter_by(
+        tracking_id=tracked.id, organization_id=campaign.organization_id,
+    ).order_by(MarketingTrackingEvent.occurred_at.desc(), MarketingTrackingEvent.id.desc()).limit(101).all()
+    response = current_app.make_response(render_template('marketing/_tracking_activity.html',
+        events=events[:100], more=len(events) > 100, campaign=campaign, local_time=activity.local_time))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response

@@ -120,7 +120,9 @@ def snapshot(campaign, *, steps=None, send_groups=None, enrollment_groups=None):
                 pending=sum(c['pending'] for c in cards) if running else 0)
 
 
-def recipient_page(campaign, step, steps, org, page=1, per_page=50):
+def recipient_page(campaign, step, steps, org, page=1, per_page=50, engagement='all'):
+    from services.marketing import tracking
+    from models import MarketingTracking, MarketingTrackingEvent
     query = db.session.query(MarketingEnrollment, MarketingSend).outerjoin(
         MarketingSend, and_(MarketingSend.enrollment_id == MarketingEnrollment.id,
                            MarketingSend.step_id == step.id,
@@ -130,6 +132,20 @@ def recipient_page(campaign, step, steps, org, page=1, per_page=50):
         MarketingEnrollment.organization_id == campaign.organization_id,
         MarketingEnrollment.contact.has(Contact.user_id == campaign.user_id),
     )
+    if engagement in ('opened', 'clicked', 'none'):
+        events = db.session.query(MarketingTrackingEvent.id).join(MarketingTracking).filter(
+            MarketingTracking.send_id == MarketingSend.id,
+            MarketingTracking.organization_id == campaign.organization_id,
+            MarketingTrackingEvent.organization_id == campaign.organization_id,
+            MarketingTrackingEvent.classification == 'observed',
+        )
+        if engagement != 'none':
+            events = events.filter(MarketingTrackingEvent.kind == ('open' if engagement == 'opened' else 'click'))
+        query = query.filter(MarketingSend.sent_at.isnot(None))
+        if engagement == 'none':
+            query = query.filter(~events.exists(), MarketingSend.tracking.has())
+        else:
+            query = query.filter(events.exists())
     total = query.count()
     pages = max(1, (total + per_page - 1) // per_page)
     page = min(max(1, page), pages)
@@ -163,7 +179,12 @@ def recipient_page(campaign, step, steps, org, page=1, per_page=50):
         rows.append(dict(contact=contact, email=send.to_email if send else getattr(contact, 'email', None),
                          status=label, when=local_time(when, campaign.timezone),
                          reason=reason.replace('_', ' '), subject=subject,
-                         is_sent=bool(send and send.sent_at)))
+                         is_sent=bool(send and send.sent_at), send_id=send.id if send else None))
+    metrics = tracking.per_send([r['send_id'] for r in rows if r['send_id'] and r['is_sent']], campaign.organization_id)
+    for row in rows:
+        row['engagement'] = metrics.get(row['send_id'])
+        if row['engagement']:
+            row['engagement']['last_local'] = local_time(row['engagement']['last_activity'], campaign.timezone)
     return dict(rows=rows, total=total, page=page, pages=pages)
 
 

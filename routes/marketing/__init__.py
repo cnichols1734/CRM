@@ -16,6 +16,7 @@ marketing = Blueprint('marketing', __name__)
 marketing_public = Blueprint('marketing_public', __name__)
 
 # Imported for their side effect of attaching routes to the blueprints above.
+from routes.marketing import tracking  # noqa: E402,F401
 from routes.marketing import public  # noqa: E402,F401
 from routes.marketing import sendgrid_templates  # noqa: E402,F401
 from routes.marketing import pages  # noqa: E402,F401
