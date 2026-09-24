@@ -10,6 +10,7 @@
      data-marketing-campaign-monitor-url-value="{{ url_for('marketing.campaign_progress', campaign_id=campaign.id) }}"
      data-marketing-campaign-monitor-status-value="{{ campaign.status }}"
      data-marketing-campaign-monitor-revision-value="{{ details.revision }}"
+     data-marketing-campaign-monitor-engagement-value="{{ details.engagement_revision }}"
      data-marketing-campaign-monitor-running-value="{{ 'true' if campaign.is_running or campaign.status == 'scheduled' else 'false' }}">
     <div class="crm-page__inner">
         <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-back mb-3">
@@ -44,23 +45,32 @@
 
         </p>
 
+        <div data-live-region="notices">
         {% if campaign.auto_paused_reason %}
         <div class="crm-callout crm-callout-warning mb-5">
             <p>Paused automatically: {{ campaign.auto_paused_reason }}</p>
         </div>
         {% endif %}
 
-        <dl class="mkt-results-summary">
+        </div>
+        <dl class="mkt-results-summary" data-live-region="summary">
             {% for key,label,value in [('sent','Sent',campaign.sent_count),('queued','Scheduled',details.pending),('failed','Failed',campaign.failed_count),('skipped','Skipped',campaign.skipped_count)] %}
             <div><dt>{{ label }}</dt><dd data-marketing-campaign-monitor-target="{{ key }}">{{ value }}</dd></div>
             {% endfor %}
+            <div><dt>Recipients opened</dt><dd>{{ metrics.summary.opened if metrics.summary.tracked else '—' }}</dd>{% if metrics.summary.tracked %}<small class="crm-muted">{{ metrics.summary.opens }} recorded opens</small>{% endif %}</div>
+            <div><dt>Recipients clicked</dt><dd>{{ metrics.summary.clicked if metrics.summary.tracked else '—' }}</dd>{% if metrics.summary.tracked %}<small class="crm-muted">{{ metrics.summary.clicks }} recorded clicks</small>{% endif %}</div>
             <div><dt>Status</dt><dd class="text-base" data-marketing-campaign-monitor-target="status">{{ details.status_label }}</dd></div>
         </dl>
+        <details class="mkt-tracking-note mb-5" id="tracking-help"><summary class="crm-link text-sm">About these counts</summary>
+            <p class="crm-muted text-sm">Opens and clicks are recorded activity, not proof someone read an email. Privacy features, image caching, security scanners, forwarded emails, and viewing your Sent copy can affect counts. Suspected automated activity and recognized sender activity are excluded. Each address is counted once in the campaign recipient totals.</p>
+            <p class="crm-muted text-sm" data-live-region="coverage">Tracking is available for {{ metrics.summary.tracked }} of {{ metrics.summary.sent }} sent emails. Earlier emails cannot be tracked. Identical requests are grouped into ten-second windows.</p>
+        </details>
+        <div data-live-region="steps">
         {% if details.next_card %}
         <p class="mkt-next-email"><strong>Next: {{ details.next_card.step.template.name }}</strong><span>{{ details.next_card.next_local }} · {{ details.next_card.pending }} recipient{{ 's' if details.next_card.pending != 1 else '' }}</span></p>
         {% endif %}
         <section class="crm-surface mkt-catalog mb-6">
-            <div class="mkt-section-heading"><h2 class="crm-section-title">Emails in this campaign</h2><span class="crm-muted text-sm">{{ campaign.total_recipients }} recipients</span></div>
+            <div class="mkt-section-heading"><h2 class="crm-section-title">Emails in this campaign</h2><span class="crm-muted text-sm">{{ campaign.total_recipients }} recipient{{ 's' if campaign.total_recipients != 1 else '' }}</span></div>
             <ol class="mkt-steps">
                 {% for item in details.cards %}{% set step = item.step %}
                 <li class="mkt-steps__item">
@@ -69,26 +79,37 @@
                         <div class="mkt-section-heading"><h3 class="mkt-steps__name">{{ step.template.name if step.template else 'Email unavailable' }}</h3>{{ badge(item.status) }}</div>
                         <p class="mkt-steps__time">{{ item.sent }} sent · {{ item.pending }} {{ 'remaining' if campaign.status in ['paused','cancelled'] else 'scheduled' }}{% if item.failed %} · {{ item.failed }} failed{% endif %}{% if item.skipped %} · {{ item.skipped }} skipped{% endif %}</p>
                         {% if item.next_local and item.pending %}<p class="mkt-steps__time">{{ 'Originally planned' if campaign.status in ['paused','cancelled'] else 'Next send' }}: {{ item.next_local }}</p>{% elif item.last_sent_local %}<p class="mkt-steps__time">Last sent {{ item.last_sent_local }}</p>{% elif not loop.first %}<p class="mkt-steps__time">Day {{ step.delay_days }} at {{ step.send_hour_local % 12 or 12 }}:00 {{ 'AM' if step.send_hour_local < 12 else 'PM' }}</p>{% endif %}
+                        {% set step_metric = metrics.steps.get(step.id) %}
+                        <p class="mkt-steps__time">{% if step_metric and step_metric.tracked %}{{ step_metric.opened }} recipient{{ 's' if step_metric.opened != 1 else '' }} opened · {{ step_metric.clicked }} recipient{{ 's' if step_metric.clicked != 1 else '' }} clicked{% if step_metric.tracked < step_metric.sent %} · {{ step_metric.tracked }} of {{ step_metric.sent }} sends tracked{% endif %}{% elif item.sent %}Tracking unavailable{% else %}Tracking starts after sending{% endif %}</p>
                         <a class="crm-link text-sm" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id, step=step.id) }}#recipients">View recipients{% if selected_step and selected_step.id == step.id %} ↓{% else %} →{% endif %}</a>
-                        <details class="mkt-email-preview"><summary class="crm-link">Preview email</summary><p class="crm-muted text-xs">Sample contact details. Open a recipient's preview below to see their email.</p><iframe title="Preview of {{ step.template.name if step.template else 'email' }}" loading="lazy" sandbox="" src="{{ url_for('marketing.campaign_step_preview', campaign_id=campaign.id, step_id=step.id) }}"></iframe></details>
+                        <details id="step-preview-{{ step.id }}" class="mkt-email-preview"><summary class="crm-link">Preview email</summary><p class="crm-muted text-xs">Sample contact details. Open a recipient's preview below to see their email.</p><iframe title="Preview of {{ step.template.name if step.template else 'email' }}" loading="lazy" sandbox="" src="{{ url_for('marketing.campaign_step_preview', campaign_id=campaign.id, step_id=step.id) }}"></iframe></details>
                     </div>
                 </li>{% endfor %}
             </ol>
             <p class="crm-muted text-xs mt-3">Sent means Google accepted the email. Times use {{ campaign.timezone }}. Emails may take a few minutes to send after their scheduled time. Unsubscribed contacts will not receive follow-ups.</p>
         </section>
+        </div>
+        <div data-live-region="recipients">
         {% if selected_step and people %}
         <section class="crm-surface mkt-catalog" id="recipients">
-            <div class="mkt-section-heading"><div><h2 class="crm-section-title">Recipients for {{ selected_step.template.name if selected_step.template else 'this email' }}</h2><p class="crm-muted text-sm">{{ people.total }} contacts in this campaign. {{ 'First email' if selected_step.step_index == 0 else 'Follow-up ' ~ selected_step.step_index }}.</p></div></div>
-            <div class="crm-table-wrap"><table class="crm-table mkt-recipient-table"><thead><tr><th>Recipient</th><th>Status</th><th>When</th><th>Email</th></tr></thead><tbody>
+            <div class="mkt-section-heading"><div><h2 class="crm-section-title">Recipients for {{ selected_step.template.name if selected_step.template else 'this email' }}</h2><p class="crm-muted text-sm">{{ people.total }} {{ 'matching recipient' if engagement_filter != 'all' else 'contact' }}{{ 's' if people.total != 1 else '' }}{{ ' in this campaign' if engagement_filter == 'all' else '' }}. {{ 'First email' if selected_step.step_index == 0 else 'Follow-up ' ~ selected_step.step_index }}.</p></div></div>
+            <nav class="mkt-engagement-filters" aria-label="Recipient activity filter">
+                {% for value, label in [('all','All'),('opened','Opened'),('clicked','Clicked'),('none','No activity recorded')] %}
+                <a class="crm-btn {{ 'crm-btn-accent' if engagement_filter == value else 'crm-btn-ghost' }}" {% if engagement_filter == value %}aria-current="true"{% endif %} href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id, step=selected_step.id, engagement=value) }}#recipients">{{ label }}</a>
+                {% endfor %}
+            </nav>
+            <div class="crm-table-wrap"><table class="crm-table mkt-recipient-table"><thead><tr><th>Recipient</th><th>Status</th><th>When</th><th>Opens</th><th>Clicks</th><th>Last activity</th><th>Email</th></tr></thead><tbody>
             {% for person in people.rows %}<tr>
-                <td>{{ person.contact.first_name }} {{ person.contact.last_name }}<small class="block crm-muted">{{ person.email or 'No email address' }}</small></td>
-                <td>{{ badge(person.status) }}{% if person.reason %}<small class="block crm-muted">{{ person.reason }}</small>{% endif %}</td>
-                <td>{% if person.when %}<small class="block crm-muted">{{ 'Sent' if person.is_sent else 'Planned' }}</small>{{ person.when }}{% else %}Not scheduled{% endif %}</td>
-                <td>{{ person.subject }}<details class="mkt-email-preview"><summary class="crm-link">Preview for {{ person.contact.first_name }}</summary><p class="crm-muted text-xs">Uses current contact details.</p><iframe title="Email for {{ person.contact.first_name }} {{ person.contact.last_name }}" loading="lazy" sandbox="" src="{{ url_for('marketing.campaign_step_preview', campaign_id=campaign.id, step_id=selected_step.id, contact=person.contact.id) }}"></iframe></details></td>
-            </tr>{% else %}<tr><td colspan="4">Recipients appear here after the campaign is launched.</td></tr>{% endfor %}
+                <td data-label="Recipient">{{ person.contact.first_name }} {{ person.contact.last_name }}<small class="block crm-muted">{{ person.email or 'No email address' }}</small></td>
+                <td data-label="Status">{{ badge(person.status) }}{% if person.reason %}<small class="block crm-muted">{{ person.reason }}</small>{% endif %}</td>
+                <td data-label="When">{% if person.when %}<small class="block crm-muted">{{ 'Sent' if person.is_sent else 'Planned' }}</small>{{ person.when }}{% else %}Not scheduled{% endif %}</td>
+                {% include 'marketing/_tracking_cells.html' %}
+                <td data-label="Email">{{ person.subject }}<details id="recipient-preview-{{ person.contact.id }}" class="mkt-email-preview"><summary class="crm-link">Preview for {{ person.contact.first_name }}</summary><p class="crm-muted text-xs">Uses current contact details.</p><iframe title="Email for {{ person.contact.first_name }} {{ person.contact.last_name }}" loading="lazy" sandbox="" src="{{ url_for('marketing.campaign_step_preview', campaign_id=campaign.id, step_id=selected_step.id, contact=person.contact.id) }}"></iframe></details></td>
+            </tr>{% else %}<tr><td colspan="7">{{ 'No recipients match this filter.' if engagement_filter != 'all' else 'Recipients appear here after the campaign is launched.' }}</td></tr>{% endfor %}
             </tbody></table></div>
-            {% if people.pages > 1 %}<nav class="mkt-pagination" aria-label="Recipient pages">{% if people.page > 1 %}<a class="crm-link" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id, step=selected_step.id, page=people.page-1) }}#recipients">Previous</a>{% endif %}<span>Page {{ people.page }} of {{ people.pages }}</span>{% if people.page < people.pages %}<a class="crm-link" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id, step=selected_step.id, page=people.page+1) }}#recipients">Next</a>{% endif %}</nav>{% endif %}
+            {% if people.pages > 1 %}<nav class="mkt-pagination" aria-label="Recipient pages">{% if people.page > 1 %}<a class="crm-link" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id, step=selected_step.id, page=people.page-1, engagement=engagement_filter) }}#recipients">Previous</a>{% endif %}<span>Page {{ people.page }} of {{ people.pages }}</span>{% if people.page < people.pages %}<a class="crm-link" href="{{ url_for('marketing.campaign_detail', campaign_id=campaign.id, step=selected_step.id, page=people.page+1, engagement=engagement_filter) }}#recipients">Next</a>{% endif %}</nav>{% endif %}
         </section>{% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

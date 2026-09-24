@@ -1,0 +1,11 @@
+{% set metric = person.engagement %}
+<td data-label="Opens">{% if metric %}<a class="crm-link" href="#activity-{{ person.send_id }}" data-action="marketing-campaign-monitor#showActivity" aria-label="{{ metric.opens }} recorded opens for {{ person.email }}">{{ metric.opens }}</a>{% else %}<span class="crm-muted">{{ 'Unavailable' if person.is_sent else 'Not sent' }}</span>{% endif %}</td>
+<td data-label="Clicks">{% if metric %}<a class="crm-link" href="#activity-{{ person.send_id }}" data-action="marketing-campaign-monitor#showActivity" aria-label="{{ metric.clicks }} recorded clicks for {{ person.email }}">{{ metric.clicks }}</a>{% else %}<span class="crm-muted">{{ 'Unavailable' if person.is_sent else 'Not sent' }}</span>{% endif %}</td>
+<td data-label="Last activity">{% if metric %}
+    <span>{{ metric.last_local or 'No activity recorded' }}</span>
+    {% if metric.excluded %}<small class="block crm-muted">{{ metric.excluded }} excluded event{{ 's' if metric.excluded != 1 else '' }}</small>{% endif %}
+    <details id="activity-{{ person.send_id }}" class="mkt-tracking-activity" data-action="toggle->marketing-campaign-monitor#loadActivity" data-activity-url="{{ url_for('marketing.send_activity', campaign_id=campaign.id, send_id=person.send_id) }}">
+        <summary class="crm-link">View activity</summary>
+        <div data-activity-content aria-live="polite"></div>
+    </details>
+{% elif person.is_sent %}<span class="crm-muted">Tracking unavailable</span>{% else %}<span class="crm-muted">Tracking starts after sending</span>{% endif %}</td>

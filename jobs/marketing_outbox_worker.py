@@ -11,7 +11,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -50,8 +50,23 @@ def run_marketing_outbox_worker(
     for current_org_id in org_ids:
         try:
             set_job_org_context(current_org_id)
-            sends = (
-                MarketingSend.query
+            # A process can exit after Gmail accepts a message but before the
+            # final commit. Surface that uncertainty instead of sending twice.
+            stale = MarketingSend.query.filter(
+                MarketingSend.organization_id == current_org_id,
+                MarketingSend.status == 'sending',
+                MarketingSend.last_attempt_at < now - timedelta(hours=1),
+                MarketingSend.tracking.has(),
+            ).with_for_update(skip_locked=True).limit(limit).all()
+            for abandoned in stale:
+                _mark_delivery_unknown(abandoned)
+                launchmod.maybe_complete(abandoned.campaign)
+                totals['failed'] += 1
+            if stale:
+                db.session.commit()
+                set_job_org_context(current_org_id)
+            send_ids = (
+                db.session.query(MarketingSend.id)
                 .join(MarketingCampaign, MarketingSend.campaign_id == MarketingCampaign.id)
                 .filter(
                     MarketingSend.organization_id == current_org_id,
@@ -63,12 +78,20 @@ def run_marketing_outbox_worker(
                 .limit(limit)
                 .all()
             )
-            for send in sends:
-                totals['processed'] += 1
+            for (send_id,) in send_ids:
                 try:
+                    # Recheck each row under a lock; another worker may have sent it.
+                    send = MarketingSend.query.filter_by(
+                        id=send_id, organization_id=current_org_id, status='queued',
+                    ).with_for_update(skip_locked=True).first()
+                    if send is None:
+                        db.session.rollback()
+                        set_job_org_context(current_org_id)
+                        continue
+                    totals['processed'] += 1
                     if send.campaign and send.campaign.status == 'scheduled':
                         send.campaign.status = 'sending'
-                    deliver(send, now=now)
+                    deliver(send, now=now, persist_tracking=True)
                     db.session.commit()
                     set_job_org_context(current_org_id)
                     send = db.session.get(MarketingSend, send.id)
@@ -89,9 +112,19 @@ def run_marketing_outbox_worker(
                     set_job_org_context(current_org_id)
                 except Exception:
                     totals['errors'] += 1
-                    logger.exception('Marketing send failed id=%s', send.id)
+                    logger.exception('Marketing send failed id=%s', send_id)
                     db.session.rollback()
                     set_job_org_context(current_org_id)
+                    # Once the payload is committed, a provider exception can leave
+                    # the delivery outcome unknown. Never retry that blindly.
+                    pending = MarketingSend.query.filter_by(
+                        id=send_id, organization_id=current_org_id, status='sending',
+                    ).first()
+                    if pending:
+                        _mark_delivery_unknown(pending)
+                        launchmod.maybe_complete(pending.campaign)
+                        db.session.commit()
+                        set_job_org_context(current_org_id)
             totals['orgs'] += 1
         except Exception:
             totals['errors'] += 1
@@ -106,6 +139,14 @@ def run_marketing_outbox_worker(
         totals['failed'], totals['errors'],
     )
     return totals
+
+
+def _mark_delivery_unknown(send):
+    send.status = 'failed'
+    send.error = 'Delivery outcome unknown. Check Gmail Sent before sending again.'
+    if send.campaign:
+        send.campaign.queued_count = max((send.campaign.queued_count or 1) - 1, 0)
+        send.campaign.failed_count = (send.campaign.failed_count or 0) + 1
 
 
 def main():

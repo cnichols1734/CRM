@@ -1,0 +1,11 @@
+{% if events %}
+<ol class="mkt-event-list">
+    {% for event in events %}
+    <li><span>{% if event.kind == 'click' %}Clicked {% if event.link %}<a class="crm-link" href="{{ event.link.destination }}" target="_blank" rel="noopener noreferrer">{{ event.link.label }}</a>{% else %}a link{% endif %}{% else %}Open recorded{% endif %}</span>
+        <time class="crm-muted">{{ local_time(event.occurred_at, campaign.timezone) }}</time>
+        {% if event.classification != 'observed' %}<small class="crm-muted">{{ 'Sender activity' if event.classification == 'sender' else 'Suspected automated activity' }} · excluded from counts</small>{% endif %}
+    </li>
+    {% endfor %}
+</ol>
+{% if more %}<p class="crm-muted text-xs">Showing the latest 100 events.</p>{% endif %}
+{% else %}<p class="crm-muted text-sm">No activity recorded.</p>{% endif %}

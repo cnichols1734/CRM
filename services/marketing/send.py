@@ -207,7 +207,7 @@ def send_test(
     return {'sent': sent, 'subject': filled_subject}
 
 
-def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> MarketingSend:
+def deliver(send: MarketingSend, *, now: Optional[datetime] = None, persist_tracking: bool = False) -> MarketingSend:
     """Attempt one queued row. Caller owns the surrounding transaction."""
     now = now or datetime.utcnow()
     campaign = send.campaign or db.session.get(MarketingCampaign, send.campaign_id)
@@ -264,7 +264,16 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None) -> Marketing
             return send
         raise
 
+    from services.marketing import tracking
+    tracked = tracking.prepare(send, subject, html, text)
+    subject, html, text = tracked.subject, tracked.html_body, tracked.text_body
     send.subject_rendered = subject[:300]
+    if persist_tracking:
+        # Publish links before Gmail can deliver. The worker owns this boundary.
+        org_id = send.organization_id
+        db.session.commit()
+        from jobs.base import set_job_org_context
+        set_job_org_context(org_id)
     try:
         message_id = _provider_send(
             to_email=send.to_email,
