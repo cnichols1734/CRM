@@ -1,0 +1,18 @@
+<article class="mkt-template-card">
+    <a class="mkt-cover" href="{{ url_for('marketing.studio', flow=flow if is_base else 'campaign', campaign=workspace_campaign_id, step=workspace_step, **{'from':card.template.id}) }}">
+        {% set html = card.html %}
+        {% include 'marketing/_cover.html' %}
+        <h3 class="mkt-cover__title crm-section-title">{{ card.template.name }}</h3>
+        <p class="mkt-cover__blurb">{{ card.template.description if is_base else card.subject or 'No subject yet' }}</p>
+        <span class="crm-link mkt-template-use">{{ 'Customize template' if flow == 'template' and is_base else 'Use template' }} →</span>
+    </a>
+    {% if not is_base and card.template.created_by_id == current_user.id %}
+    <div class="mkt-template-actions">
+        <a class="crm-link" href="{{ url_for('marketing.studio', template_id=card.template.id, flow='template') }}">Edit template</a>
+        <form method="post" action="{{ url_for('marketing.template_delete', template_id=card.template.id) }}" onsubmit="return confirm('Delete this saved template? Existing campaign emails will be kept.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+            <button class="crm-link" type="submit" aria-label="Delete template {{ card.template.name }}">Delete</button>
+        </form>
+    </div>
+    {% endif %}
+</article>

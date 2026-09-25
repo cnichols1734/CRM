@@ -3,11 +3,12 @@ import { DraftRecovery } from '../marketing_draft_recovery';
 
 export default class extends Controller {
   static values = {estimateUrl:String, contactsUrl:String, previewAsUrl:String, testUrl:String};
-  static targets = ['panel','step','count','breakdown','recipients','more','groups','contactQuery','contactResults','picked','selection','schedule','preview','testStatus','firstTime','sendSummary','error','launch','sender','replyTo','subject'];
+  static targets = ['panel','step','count','breakdown','recipients','more','groups','contactQuery','contactResults','picked','selection','schedule','preview','testStatus','firstTime','sendSummary','error','launch','sender','replyTo','subject','review','retry','groupEmpty','addEmail','previewSelect','previewSubject','editPreview'];
   connect() {
     this.form = this.element.querySelector('form');
     this.recovery = new DraftRecovery(this.element, this.form, null, {
       excluded: ['contact_id', 'step_template_id', 'step_wait'],
+      ignoreChange: event => event.target.type === 'search' || event.target === this.previewSelectTarget,
       capture: () => ({
         contacts: [...this.pickedTarget.children].map(chip => ({id: chip.querySelector('input').value, name: chip.dataset.name})),
         steps: [...this.form.querySelectorAll('[data-sequence-row]')].map(row => ({id: row.querySelector('[name=step_template_id]').value, wait: row.querySelector('[name=step_wait]').value})),
@@ -24,6 +25,13 @@ export default class extends Controller {
         this.renumberSteps();
       },
     });
+    this.restoreSubmission = () => {
+      this.submitting = false;
+      this.form.inert = false;
+      this.form.removeAttribute('aria-busy');
+      this.updateSummary();
+    };
+    window.addEventListener('pageshow', this.restoreSubmission);
     this.filterGroups();
     this.offset = 0;
     this.timingChanged();
@@ -34,6 +42,7 @@ export default class extends Controller {
   disconnect() {
     clearTimeout(this.timer); clearTimeout(this.searchTimer);
     this.estimateAbort?.abort(); this.searchAbort?.abort(); this.previewAbort?.abort();
+    window.removeEventListener('pageshow', this.restoreSubmission);
     this.recovery.disconnect();
   }
   headers() {return {'Content-Type':'application/json',Accept:'application/json','X-CSRFToken':this.form.elements.csrf_token.value};}
@@ -50,7 +59,7 @@ export default class extends Controller {
       whole_org:data.has('whole_org'),require_consent:data.has('require_consent')};
   }
   changed(event) {
-    if (event?.target?.type === 'search') return;
+    if (event?.target?.type === 'search' || (this.hasPreviewSelectTarget && event?.target === this.previewSelectTarget)) return;
     if (event?.target?.name === 'owners' && event.target.checked && this.form.elements.whole_org) this.form.elements.whole_org.checked = false;
     this.filterGroups();
     this.recovery.save();
@@ -60,6 +69,7 @@ export default class extends Controller {
     this.estimateGeneration = (this.estimateGeneration || 0) + 1;
     this.count = null;
     this.launchTarget.disabled = true;
+    if (this.hasReviewTarget) this.reviewTarget.disabled = true;
     this.countTargets.forEach(el=>el.textContent='Checking recipients…');
     clearTimeout(this.timer);
     this.timer = setTimeout(()=>this.estimate(),250);
@@ -68,6 +78,7 @@ export default class extends Controller {
     this.estimateAbort?.abort(); this.estimateAbort = new AbortController();
     const generation = this.estimateGeneration = (this.estimateGeneration || 0) + 1;
     if (!append) this.offset = 0;
+    if (this.hasRetryTarget) this.retryTarget.hidden = true;
     this.launchTarget.disabled = true;
     try {
       const data = await this.request(this.estimateUrlValue,{...this.filter(),offset:this.offset},this.estimateAbort.signal);
@@ -83,17 +94,22 @@ export default class extends Controller {
         const detail=document.createElement('small'); detail.textContent=`${row.email || 'No email'} · ${row.reason}`;
         item.append(name,detail);this.recipientsTarget.append(item);
       }
+      if (!data.recipients.length && !append) {
+        this.recipientsTarget.textContent = 'Choose contacts or groups to see recipients here.';
+      }
       this.moreTarget.hidden = !data.has_more;
       this.estimateError=''; this.updateSummary();
     } catch(error) {
       if (error.name === 'AbortError' || generation !== this.estimateGeneration) return;
       this.count=null;
       this.countTargets.forEach(el=>el.textContent='Recipient check unavailable');
-      this.breakdownTarget.textContent='Could not check recipients. Change your selection to retry.';
+      this.breakdownTarget.textContent='Could not check recipients. Please try again.';
+      if (this.hasRetryTarget) this.retryTarget.hidden = false;
       this.estimateError=error.message;this.updateSummary();
       this.recipientsTarget.replaceChildren();this.moreTarget.hidden=true;
     }
   }
+  retryEstimate() {this.estimate();}
   moreRecipients() {this.offset+=50;this.estimate(true);}
   scopeChanged(event) {
     if (event.currentTarget.checked) this.form.querySelectorAll('[name="owners"]').forEach(el=>el.checked=false);
@@ -103,8 +119,11 @@ export default class extends Controller {
   filterGroups(event) {
     if (event) this.groupQuery=event.currentTarget.value.toLowerCase();
     const org=this.form.elements.whole_org?.checked;
-    for (const row of this.groupsTarget.children) {
+    for (const row of this.groupsTarget.querySelectorAll('label')) {
       row.hidden=(!org && row.dataset.own === 'false' && !row.querySelector('input').checked) || !row.textContent.toLowerCase().includes(this.groupQuery||'');
+    }
+    if (this.hasGroupEmptyTarget) {
+      this.groupEmptyTarget.hidden = !this.groupQuery || [...this.groupsTarget.querySelectorAll('label')].some(row => !row.hidden);
     }
   }
   searchContacts() {
@@ -133,15 +152,32 @@ export default class extends Controller {
   removeContact(event){event.currentTarget.closest('.mkt-picked__chip').remove();this.changed();}
   removeStep(event){event.currentTarget.closest('[data-sequence-row]').remove();this.renumberSteps();this.changed();}
   renumberSteps(){
+    if (this.hasAddEmailTarget) this.addEmailTarget.disabled = this.form.querySelectorAll('[data-sequence-row]').length >= 9;
     [...this.form.querySelectorAll('[data-sequence-row]')].forEach((row,index)=>{
       row.querySelector('[name=action]').value=`edit_email:${index+1}`;
       row.querySelector('.mkt-sequence-number').textContent=index+2;
+      row.querySelector('[data-action*=removeStep]')?.setAttribute('aria-label', `Remove follow-up ${index+1}`);
     });
+    if (this.hasPreviewSelectTarget) {
+      const ids = [this.form.elements.template_id.value, ...[...this.form.querySelectorAll('[name=step_template_id]')].map(input => input.value)];
+      const selected = this.previewSelectTarget.value;
+      for (const option of [...this.previewSelectTarget.options]) {
+        const index = ids.indexOf(option.value);
+        if (index < 0) option.remove();
+        else {
+          option.dataset.step = index;
+          option.textContent = `${index + 1}. ${option.textContent.replace(/^\d+\. /, '')}`;
+        }
+      }
+      if (!ids.includes(selected)) this.previewSelectTarget.selectedIndex = 0;
+      this.preview();
+    }
   }
   showStep(event){
     this.setPanel(Number(event.currentTarget.dataset.step));
   }
   setPanel(n){
+    this.form.elements.panel.value = n === 3 ? 'review' : 'recipients';
     this.panelTargets.forEach(el=>el.hidden=Number(el.dataset.step)!==n);
     this.stepTargets.forEach(el=>el.setAttribute('aria-current',Number(el.dataset.step)===n?'step':'false'));
     this.panelTargets.find(el=>Number(el.dataset.step)===n)?.querySelector('h1')?.focus();
@@ -163,34 +199,54 @@ export default class extends Controller {
     for(const key of ['cities','states','zips'])if(f[key]?.value)parts.push(f[key].value);
     const selection=parts.join(' · ')||'No recipients selected';this.selectionTargets.forEach(el=>el.textContent=selection);
     const later=f.timing.value==='later';const zone=f.timezone.selectedOptions[0].textContent;
-    const at=later&&f.scheduled_at.value ? f.scheduled_at.value.replace('T',' at ') + ` · ${zone}` : later?'Choose a date and time':'As soon as the send queue runs';
+    const at=later&&f.scheduled_at.value ? f.scheduled_at.value.replace('T',' at ') + ` · ${zone}` : later?'Choose a date and time':'Within a few minutes';
     this.firstTimeTarget.textContent=at;
     const extra=this.form.querySelectorAll('[name="step_template_id"]').length;
-    this.sendSummaryTarget.textContent=`${later?'Scheduled':'Sending'} to ${this.count??'…'} recipients${extra?`, with ${extra} follow-up ${extra===1?'email':'emails'}`:''}. ${at}.`;
-    this.launchTarget.textContent=later?'Schedule email':`Send to ${this.count??'…'} contacts`;
+    this.sendSummaryTarget.textContent = `${extra + 1} ${extra ? 'emails' : 'email'} for ${this.count ?? '…'} ${this.count === 1 ? 'recipient' : 'recipients'}. ${later ? `First send: ${at}.` : 'The first email sends within a few minutes.'}`;
+    this.launchTarget.textContent = this.submitting ? 'Saving campaign…' : later ? 'Schedule campaign' : extra ? 'Start campaign' : `Send to ${this.count??'…'} ${this.count===1?'recipient':'recipients'}`;
     this.senderTarget.textContent=f.from_name.value.trim()||this.senderTarget.dataset.default;
     this.replyToTarget.textContent=f.reply_to.value.trim()||this.replyToTarget.dataset.default;
-    this.errorTarget.textContent=this.estimateError||this.previewError||'';
-    this.launchTarget.disabled=this.launchTarget.dataset.ready!=='true'||!this.count||!this.previewReady||(later&&!f.scheduled_at.value);
+    this.errorTarget.textContent=this.estimateError||this.previewError||(this.launchTarget.dataset.ready!=='true' ? 'Connect your Google account before sending.' : this.count===0 ? 'Choose at least one recipient with an eligible email address.' : later&&!f.scheduled_at.value ? 'Choose a date and time to schedule this campaign.' : '');
+    if (this.hasReviewTarget) this.reviewTarget.disabled = !this.count;
+    this.launchTarget.disabled=this.submitting||this.launchTarget.dataset.ready!=='true'||!this.count||!this.previewReady||(later&&!f.scheduled_at.value);
   }
   async preview(){
-    const id=this.form.elements.template_id.value;if(!id)return;
+    const id=this.hasPreviewSelectTarget ? this.previewSelectTarget.value : this.form.elements.template_id.value;if(!id)return;
+    if (this.hasEditPreviewTarget) this.editPreviewTarget.value = `edit_email:${this.previewSelectTarget.selectedOptions[0].dataset.step}`;
     this.previewAbort?.abort();this.previewAbort=new AbortController();
     this.previewReady=false;this.previewError='';this.updateSummary();
+    this.previewTarget.srcdoc = '';
+    if (this.hasPreviewSubjectTarget) this.previewSubjectTarget.textContent = 'Loading preview…';
     try{
       const data=await this.request(this.previewAsUrlValue,{template_id:id},this.previewAbort.signal);
-      this.previewTarget.srcdoc=data.html;this.subjectTarget.textContent=data.subject;this.previewReady=true;
-    }catch(error){if(error.name!=='AbortError')this.previewError='Could not load the email preview. Use Refresh preview to try again.';}
+      this.previewTarget.srcdoc=data.html;
+      if (id === this.form.elements.template_id.value) this.subjectTarget.textContent=data.subject;
+      if (this.hasPreviewSubjectTarget) this.previewSubjectTarget.textContent = data.subject;
+      this.previewReady=true;
+    }catch(error){
+      if(error.name!=='AbortError') {
+        this.previewError='Could not load the email preview. Use Refresh preview to try again.';
+        if (this.hasPreviewSubjectTarget) this.previewSubjectTarget.textContent = this.previewError;
+      }
+    }
     this.updateSummary();
   }
   async sendTest(event){
     const button=event.currentTarget;button.disabled=true;this.testStatusTarget.textContent='Sending your test…';
-    try{const data=await this.request(this.testUrlValue,{template_id:this.form.elements.template_id.value,from_name:this.form.elements.from_name.value,reply_to:this.form.elements.reply_to.value});this.testStatusTarget.textContent=`Test sent to ${data.sent.join(', ')}.`;}
+    try{const data=await this.request(this.testUrlValue,{template_id:this.hasPreviewSelectTarget ? this.previewSelectTarget.value : this.form.elements.template_id.value,from_name:this.form.elements.from_name.value,reply_to:this.form.elements.reply_to.value});this.testStatusTarget.textContent=`Test sent to ${data.sent.join(', ')}.`;}
     catch(error){this.testStatusTarget.textContent=error.message;}
     finally{button.disabled=false;}
   }
   submit(event){
+    if (this.submitting) {event.preventDefault(); return;}
     if(event.submitter?.value==='launch'&&this.launchTarget.disabled){event.preventDefault();return;}
-    if(!event.defaultPrevented)this.recovery.submitting();
+    if(!event.defaultPrevented) {
+      this.recovery.submitting();
+      this.submitting = true;
+      this.form.inert = true;
+      this.form.setAttribute('aria-busy', 'true');
+      // Keep the submitter enabled so its action reaches the native POST.
+      if (event.submitter?.value === 'launch') event.submitter.textContent = 'Starting campaign…';
+    }
   }
 }

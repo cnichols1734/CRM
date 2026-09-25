@@ -61,6 +61,62 @@ test('changing audience immediately invalidates an in-flight estimate',async()=>
 
 test('remaining follow-up edit actions are renumbered after removal',()=>{
   const wizard=new Wizard();const action={value:'edit_email:2'},number={textContent:'3'};
-  wizard.form={querySelectorAll:()=>[{querySelector:s=>s==='[name=action]'?action:number}]};
+  wizard.form={querySelectorAll:()=>[{querySelector:s=>s==='[name=action]'?action:s==='.mkt-sequence-number'?number:null}]};
   wizard.renumberSteps();assert.equal(action.value,'edit_email:1');assert.equal(number.textContent,2);
+});
+
+test('native submission keeps the action and prevents duplicate submissions',()=>{
+  const wizard=new Wizard();let saved=0;
+  wizard.form={inert:false,setAttribute(){}};wizard.recovery={submitting(){saved++;}};
+  wizard.launchTarget={disabled:false};
+  const submitter={value:'launch',disabled:false};
+  const event={submitter,defaultPrevented:false,preventDefault(){this.defaultPrevented=true;}};
+  wizard.submit(event);
+  assert.equal(saved,1);assert.equal(wizard.form.inert,true);
+  assert.equal(submitter.value,'launch');assert.equal(submitter.disabled,false);
+  wizard.submit(event);assert.equal(event.defaultPrevented,true);assert.equal(saved,1);
+});
+
+test('failed recipient check exposes retry and clears stale recipients',async()=>{
+  const wizard=new Wizard();let cleared=false;
+  wizard.launchTarget={disabled:false};wizard.hasRetryTarget=true;wizard.retryTarget={hidden:true};
+  wizard.countTargets=[];wizard.breakdownTarget={};wizard.moreTarget={};
+  wizard.recipientsTarget={replaceChildren(){cleared=true;}};
+  wizard.filter=()=>({});wizard.request=async()=>{throw new Error('Offline');};wizard.updateSummary=()=>{};
+  wizard.count=25;await wizard.estimate();
+  assert.equal(wizard.count,null);assert.equal(wizard.retryTarget.hidden,false);
+  assert.equal(cleared,true);assert.equal(wizard.launchTarget.disabled,true);
+  let retried=false;wizard.estimate=()=>{retried=true;};wizard.retryEstimate();assert.equal(retried,true);
+});
+
+test('previewing a follow-up keeps the first subject and edits the selected email',async()=>{
+  const wizard=new Wizard();wizard.form={elements:{template_id:{value:'first'}}};
+  wizard.hasPreviewSelectTarget=true;wizard.previewSelectTarget={value:'followup',selectedOptions:[{dataset:{step:'1'}}]};
+  wizard.hasEditPreviewTarget=true;wizard.editPreviewTarget={};
+  wizard.hasPreviewSubjectTarget=true;wizard.previewSubjectTarget={};wizard.previewTarget={};
+  wizard.subjectTarget={textContent:'First subject'};wizard.updateSummary=()=>{};
+  let requested;
+  wizard.request=async(url,payload)=>{requested=payload.template_id;return {html:'<p>Follow-up</p>',subject:'Follow-up subject'};};
+  await wizard.preview();
+  assert.equal(requested,'followup');assert.equal(wizard.previewReady,true);
+  assert.equal(wizard.editPreviewTarget.value,'edit_email:1');
+  assert.equal(wizard.subjectTarget.textContent,'First subject');
+  assert.equal(wizard.previewSubjectTarget.textContent,'Follow-up subject');
+});
+
+test('send test uses the email selected for preview',async()=>{
+  const wizard=new Wizard();wizard.form={elements:{template_id:{value:'first'},from_name:{value:'Alex'},reply_to:{value:'alex@example.com'}}};
+  wizard.hasPreviewSelectTarget=true;wizard.previewSelectTarget={value:'followup'};wizard.testStatusTarget={};
+  let requested;wizard.request=async(url,payload)=>{requested=payload.template_id;return {sent:['alex@example.com']};};
+  const button={disabled:false};await wizard.sendTest({currentTarget:button});
+  assert.equal(requested,'followup');assert.equal(button.disabled,false);
+  assert.match(wizard.testStatusTarget.textContent,/Test sent/);
+});
+
+test('preview and search controls can avoid marking a draft as edited',()=>{
+  const f=fixture();const recovery=new DraftRecovery(f.root,f.form,null,{ignoreChange:event=>event.target.type==='search'});
+  recovery.changed({target:{type:'search'}});
+  assert.equal(recovery.dirty,undefined);assert.equal(f.items.has('draft'),false);
+  f.field.value='Edited subject';recovery.changed({target:f.field});
+  assert.equal(recovery.dirty,true);assert.equal(JSON.parse(f.items.get('draft')).fields.subject[0],'Edited subject');
 });

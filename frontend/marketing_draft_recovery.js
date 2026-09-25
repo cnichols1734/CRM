@@ -40,7 +40,9 @@ export class DraftRecovery {
         localStorage.removeItem(this.key);
       }
     } catch { /* Storage can be disabled by the browser. */ }
-    this.changed = () => this.save();
+    this.changed = event => {
+      if (!this.structure.ignoreChange?.(event)) this.save();
+    };
     form.addEventListener('input', this.changed);
     form.addEventListener('change', this.changed);
     this.leaving = event => {

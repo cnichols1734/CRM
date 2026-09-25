@@ -133,3 +133,52 @@ def test_admin_recipient_search_and_preview_only_use_owned_contacts(app, seed, o
         'contact_ids': [seed['contact_a2']],
     }).get_json()
     assert result['sendable'] == 0
+
+
+@pytest.mark.parametrize('state', ['completed', 'cancelled'])
+def test_finished_campaign_keeps_emails_grouped_and_correct_navigation(app, seed, owner_a_client, state):
+    import re
+    from html import unescape
+    with app.app_context():
+        org, user = load_org_user(seed)
+        campaign, step = sequence(org, user, seed['contact_a'])
+        campaign.name = f'History grouping {state}'
+        campaign.status = state
+        cid, sid = campaign.id, step.id
+        db.session.commit()
+    page = owner_a_client.get('/marketing/campaigns?status=completed')
+    body = unescape(page.get_data(as_text=True))
+    entry = next(row for row in re.findall(r'<article class="mkt-campaign-entry">(.*?)</article>', body, re.S) if f'History grouping {state}' in row)
+    emails = re.findall(r'<li>(.*?)</li>', entry, re.S)
+    assert len(emails) == 2
+    assert 'First check-in' in emails[0]
+    assert 'Next day update' in emails[1]
+    assert f'/marketing/campaigns/{cid}?step={sid}#recipients' in emails[1]
+    assert 'aria-current="page">Finished campaigns</a>' in body
+    active = owner_a_client.get('/marketing/campaigns').get_data(as_text=True)
+    assert f'History grouping {state}' not in active
+    detail = owner_a_client.get(f'/marketing/campaigns/{cid}').get_data(as_text=True)
+    assert 'status=completed" class="crm-back' in detail
+    assert 'aria-current="page">Finished campaigns</a>' in detail
+
+
+def test_campaign_search_is_literal_and_private(app, seed, owner_a_client):
+    import re
+    from html import unescape
+    with app.app_context():
+        org, user = load_org_user(seed)
+        enable_campaigns(org)
+        for name in ['Polish 100% sent', 'Polish 1000 sent']:
+            campaign = _draft(org, user, ready_template(org, user))
+            campaign.name, campaign.status = name, 'completed'
+        _, other = load_org_user(seed, user_key='agent_a')
+        campaign = _draft(org, other, ready_template(org, other))
+        campaign.name, campaign.status = 'Private 100% sent', 'completed'
+        db.session.commit()
+    page = owner_a_client.get('/marketing/campaigns', query_string={'status':'completed', 'q':'100%'})
+    body = page.get_data(as_text=True)
+    entries = re.findall(r'<article class="mkt-campaign-entry">(.*?)</article>', body, re.S)
+    assert len(entries) == 1 and 'Polish 100% sent' in entries[0]
+    assert 'Private 100%' not in body
+    page = owner_a_client.get('/marketing/campaigns?status=invalid')
+    assert 'aria-current="page">Active campaigns</a>' in page.get_data(as_text=True)

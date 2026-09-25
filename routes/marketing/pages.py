@@ -417,7 +417,7 @@ def _studio_preview(org, draft, samples=None, fill_samples=False) -> dict:
 
 def _studio_chrome(**extra):
     extra.setdefault('merge_fields', MERGE_FIELDS)
-    extra.setdefault('nav', 'templates')
+    extra.setdefault('nav', 'templates' if request.values.get('flow') == 'template' else '')
     extra.setdefault('flow', 'campaign' if request.values.get('campaign', type=int) else request.values.get('flow') or 'campaign')
     extra.setdefault('workspace_campaign_id', request.values.get('campaign', type=int))
     extra.setdefault('workspace_step', request.values.get('step') or '0')
@@ -472,19 +472,26 @@ def overview():
 def campaigns_list():
     org = _enable_flag_seed()
     view = request.args.get('status', 'active')
+    if view not in ('active', 'draft', 'completed'):
+        view = 'active'
+    search = request.args.get('q', '').strip()[:200]
     states = {'draft': ('draft', 'pending_review'),
               'completed': ('completed', 'cancelled')}.get(
                   view, ('scheduled', 'sending', 'active', 'paused', 'failed'))
-    pagination = org_query(MarketingCampaign).filter(
+    query = org_query(MarketingCampaign).filter(
         MarketingCampaign.user_id == current_user.id,
         MarketingCampaign.status.in_(states),
-    ).order_by(MarketingCampaign.created_at.desc()).paginate(
+    )
+    if search:
+        query = query.filter(MarketingCampaign.name.icontains(search, autoescape=True))
+    pagination = query.order_by(MarketingCampaign.updated_at.desc(), MarketingCampaign.id.desc()).paginate(
         page=request.args.get('page', 1, type=int), per_page=20, error_out=False)
     campaigns = pagination.items
     return render_template(
         'marketing/campaigns.html', campaigns=campaigns,
         activity_by_id=activity.snapshots(campaigns), pagination=pagination,
-        status=view, nav='drafts' if view == 'draft' else 'campaigns',
+        status=view, search=search, local_time=activity.local_time,
+        nav={'draft': 'drafts', 'completed': 'finished'}.get(view, 'campaigns'),
         **_sending_mailbox(org, current_user.id),
     )
 
@@ -525,7 +532,7 @@ def campaign_new(campaign_id=None):
             if action == 'launch':
                 launchmod.launch(campaign, org, current_user)
                 _confirm_draft_save()
-                flash('Email scheduled.' if campaign.status == 'scheduled' else 'Your email is queued to send.', 'success')
+                flash('Campaign scheduled.' if campaign.status == 'scheduled' else 'Your campaign is queued to send.', 'success')
                 return redirect(url_for('marketing.campaign_detail', campaign_id=campaign.id))
             db.session.commit()
             _confirm_draft_save()
@@ -534,7 +541,8 @@ def campaign_new(campaign_id=None):
             if action.startswith('edit_email:'):
                 return redirect(url_for('marketing.studio', flow='campaign', campaign=campaign.id, step=action.split(':')[1]))
             flash('Draft saved. You can continue editing anytime.', 'success')
-            return redirect(url_for('marketing.campaign_new', campaign_id=campaign.id))
+            return redirect(url_for('marketing.campaign_new', campaign_id=campaign.id,
+                                    panel='review' if request.form.get('panel') == 'review' else None))
         except (launchmod.LaunchError, aud.AudienceError, TemplateError, ValueError) as exc:
             db.session.rollback()
             flash(str(exc), 'error')
@@ -578,7 +586,8 @@ def campaign_detail(campaign_id):
                                     request.args.get('page', 1, type=int), engagement=engagement) if selected else None
     return render_template(
         'marketing/campaign_detail.html', campaign=campaign, details=details,
-        selected_step=selected, people=people, metrics=metrics, engagement_filter=engagement, nav='campaigns',
+        selected_step=selected, people=people, metrics=metrics, engagement_filter=engagement,
+        nav='finished' if campaign.status in ('completed', 'cancelled') else 'drafts' if campaign.is_editable else 'campaigns',
         **_sending_mailbox(_org(), campaign.user_id),
     )
 
@@ -649,7 +658,7 @@ def campaign_launch(campaign_id):
     campaign = campaign_or_404(campaign_id)
     try:
         launchmod.launch(campaign, _org(), current_user)
-        flash('Email scheduled.' if campaign.status == 'scheduled' else 'Your email is queued to send.', 'success')
+        flash('Campaign scheduled.' if campaign.status == 'scheduled' else 'Your campaign is queued to send.', 'success')
     except launchmod.LaunchError as exc:
         flash(str(exc), 'error')
     return redirect(url_for('marketing.campaign_detail', campaign_id=campaign.id))
