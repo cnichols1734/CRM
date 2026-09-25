@@ -26,6 +26,7 @@ google-auth-oauthlib==1.4.1
 google-api-python-client==2.200.0
 
 # Database driver
+SQLAlchemy==2.0.54
 psycopg2-binary==2.9.13
 
 # Supabase Storage
