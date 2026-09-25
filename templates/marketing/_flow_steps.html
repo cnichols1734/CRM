@@ -1,0 +1,1 @@
+<ol class="mkt-flow" aria-label="Campaign steps">{% for label in ['Write', 'Recipients', 'Review and send'] %}<li{% if loop.index == flow_current %} aria-current="step"{% endif %}>{{ loop.index }} <span>{{ label }}</span></li>{% endfor %}</ol>

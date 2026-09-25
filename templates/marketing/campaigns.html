@@ -6,15 +6,17 @@
 {% block content %}
 {% include 'marketing/_recovery_receipt.html' %}
 <div class="crm-page mkt-page"><div class="crm-page__inner">
-    {% call page_header('Marketing', 'Write an email, choose your recipients, and plan your follow-ups.') %}
+    {% include 'marketing/_nav.html' %}
+    {% call page_header('Campaigns') %}
         <a class="crm-btn crm-btn-accent" href="{{ url_for('marketing.campaign_new') }}">Create campaign</a>
     {% endcall %}
-    {% include 'marketing/_nav.html' %}
     {% if status != 'completed' %}<div class="mkt-notices">{% include 'marketing/_readiness.html' %}</div>{% endif %}
-    <div class="mkt-section-heading">
-        <div><h2 class="crm-section-title">{{ view_title }}</h2>
-            <p class="crm-muted text-sm">{{ 'Pick up where you left off.' if status == 'draft' else 'Completed and cancelled campaigns, with every email kept together.' if status == 'completed' else 'Scheduled emails, follow-ups, and campaigns that need attention.' }}</p>
-        </div>
+    <div class="mkt-list-toolbar">
+        <nav class="mkt-status-tabs" aria-label="Campaign status">
+            {% for value, label in [('active', 'Active'), ('draft', 'Drafts'), ('completed', 'Finished')] %}
+            <a href="{{ url_for('marketing.campaigns_list', status=value, q=search) }}" {% if status == value %}aria-current="page"{% endif %}>{{ label }}</a>
+            {% endfor %}
+        </nav>
         <form method="get" class="mkt-campaign-search" role="search" aria-label="Search campaigns">
             <input type="hidden" name="status" value="{{ status }}">
             <label class="sr-only" for="campaign-search">Search {{ view_title|lower }}</label>
@@ -23,7 +25,7 @@
             {% if search %}<a class="crm-link" href="{{ url_for('marketing.campaigns_list', status=status) }}">Clear</a>{% endif %}
         </form>
     </div>
-    <div class="crm-surface overflow-hidden">
+    <div class="crm-surface overflow-hidden" aria-label="{{ view_title }}">
         {% for campaign in campaigns %}
         {% set info = activity_by_id[campaign.id] %}
         {% set destination = url_for('marketing.campaign_new' if campaign.is_editable else 'marketing.campaign_detail', campaign_id=campaign.id) %}
@@ -35,11 +37,11 @@
                 {% if not campaign.is_editable %}
                 {% if info.next_card %}<p class="mkt-next-email"><strong>Next: {{ info.next_card.step.template.name }}</strong><span>{{ info.next_card.next_local }}</span></p>{% elif campaign.status == 'paused' %}<p class="crm-muted mt-2">Sending is paused. Review the remaining emails before resuming.</p>{% endif %}
                 {% endif %}
-                <div class="mkt-campaign-footer"><span class="crm-link">{{ 'Continue editing' if campaign.is_editable else 'View campaign' }} →</span>{% if campaign.updated_at %}<span class="crm-muted">{{ 'Finished' if campaign.completed_at else 'Updated' }} {{ local_time(campaign.completed_at or campaign.updated_at, campaign.timezone) }}</span>{% endif %}</div>
+                <div class="mkt-campaign-footer">{% if campaign.updated_at %}<span class="crm-muted">{{ 'Finished' if campaign.completed_at else 'Updated' }} {{ local_time(campaign.completed_at or campaign.updated_at, campaign.timezone) }}</span>{% endif %}</div>
             </a>
             {% if info.cards %}
             <details class="mkt-campaign-emails">
-                <summary>Emails in this campaign <span class="crm-muted">{{ info.cards|length }}</span></summary>
+                <summary>{{ info.cards|length }} emails <span class="crm-muted">View sequence</span></summary>
                 <ol>
                     {% for item in info.cards %}
                     <li><span class="mkt-sequence-number" aria-hidden="true">{{ loop.index }}</span><div>
@@ -60,6 +62,7 @@
         </div>
         {% endfor %}
     </div>
+    <p class="mkt-history-link"><a class="crm-link" href="{{ url_for('marketing.sent_emails') }}">View individual email deliveries →</a></p>
     {% if pagination.pages > 1 %}<nav class="mkt-pagination" aria-label="Campaign pages">{% if pagination.has_prev %}<a class="crm-link" href="{{ url_for('marketing.campaigns_list', status=status, q=search, page=pagination.prev_num) }}">Previous</a>{% endif %}<span>Page {{ pagination.page }} of {{ pagination.pages }}</span>{% if pagination.has_next %}<a class="crm-link" href="{{ url_for('marketing.campaigns_list', status=status, q=search, page=pagination.next_num) }}">Next</a>{% endif %}</nav>{% endif %}
 </div></div>
 {% endblock %}

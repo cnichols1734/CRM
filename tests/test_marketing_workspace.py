@@ -56,7 +56,7 @@ def test_draft_can_save_without_audience_and_resume(owner_a_client, app, seed):
     assert response.status_code==302
     edit=response.headers['Location'];assert edit.endswith('/edit')
     body=owner_a_client.get(edit).get_data(as_text=True)
-    assert 'Who should receive this?' in body and 'Review your campaign' in body
+    assert 'Who should receive this?' in body and 'Review and send' in body
     with app.app_context():
         campaign=MarketingCampaign.query.filter_by(name='My check-in').order_by(MarketingCampaign.id.desc()).first()
         assert campaign.audience_id is None
@@ -159,17 +159,20 @@ def test_schedule_rejects_ambiguous_missing_or_past_times(value,zone):
     with pytest.raises(ValueError):local_schedule(value,zone,now=datetime(2030,1,1))
 
 
-def test_form_round_trips_selected_timezone(owner_a_client, app, seed):
+@pytest.mark.parametrize('local_time,utc_hour,minute,label', [('09:00',14,0,'9:00 AM'),('17:45',22,45,'5:45 PM'),('00:00',5,0,'12:00 AM'),('12:00',17,0,'12:00 PM')])
+def test_form_round_trips_selected_timezone(owner_a_client, app, seed, local_time, utc_hour, minute, label):
     enable(app,seed)
     owner_a_client.post('/marketing/studio',data=email_form())
     with app.app_context():
         campaign=MarketingCampaign.query.filter_by(name='My check-in').order_by(MarketingCampaign.id.desc()).first();cid=campaign.id
-        form=form_for(campaign);form.update({'scheduled_at':'2030-09-23T09:00','timezone':'America/Chicago','action':'save'})
+        form=form_for(campaign);form.update({'scheduled_at':f'2030-09-23T{local_time}','timezone':'America/Chicago','action':'save'})
     assert owner_a_client.post(f'/marketing/campaigns/{cid}/edit',data=form).status_code==302
     with app.app_context():
         campaign=db.session.get(MarketingCampaign,cid)
-        assert campaign.scheduled_at==datetime(2030,9,23,14)
-        assert form_for(campaign)['scheduled_at']=='2030-09-23T09:00'
+        assert campaign.scheduled_at==datetime(2030,9,23,utc_hour,minute)
+        assert form_for(campaign)['scheduled_at']==f'2030-09-23T{local_time}'
+    body=owner_a_client.get(f'/marketing/campaigns/{cid}/edit?panel=review').get_data(as_text=True)
+    assert f'value="{local_time}" selected>{label}</option>' in body
 
 
 def test_template_copy_keeps_campaign_and_email_brand(owner_a_client, app, seed):
@@ -249,11 +252,11 @@ def test_template_sections_have_previews_and_preserve_followup_context(owner_a_c
         cid = MarketingCampaign.query.filter_by(name='Preview campaign').one().id
     page = owner_a_client.get(f'/marketing/library?flow=campaign&campaign={cid}&step=new')
     body = unescape(page.get_data(as_text=True))
-    assert 'Add a follow-up email' in body
+    assert 'Choose a follow-up' in body
     assert f'/marketing/campaigns/{cid}/edit?panel=review' in body
     for section_id, name, tid in [('saved-templates', 'My reusable email', mine_id), ('shared-templates', 'Team reusable email', shared_id)]:
         section = re.search(r'<section[^>]*aria-labelledby="' + section_id + r'">(.*?)</section>', body, re.S).group(1)
-        card = next(card for card in re.findall(r'<article class="mkt-template-card">(.*?)</article>', section, re.S) if name in card)
+        card = next(card for card in re.findall(r'<article class="mkt-template-card"[^>]*>(.*?)</article>', section, re.S) if name in card)
         assert '<iframe' in card and 'srcdoc="<!' in card
         href = re.search(r'<a class="mkt-cover" href="([^"]+)"', card).group(1)
         assert f'from={tid}' in href and f'campaign={cid}' in href and 'step=new' in href

@@ -9,6 +9,7 @@ export default class extends Controller {
     "uploadStatus", "imageList", "imageSlot", "keepImages", "busy", "sample",
     "filledSubject", "testTo", "testButton", "testStatus",
     "links", "linkList", "linkStatus", "saveForm", "sampleToggle", "content",
+    "placeholderNotice",
   ];
 
   connect() {
@@ -425,6 +426,7 @@ export default class extends Controller {
     this.setLinkStatus(message);
     if (this.hasLinksTarget) {
       this.linksTarget.hidden = false;
+      this.linksTarget.open = true;
       this.linksTarget.scrollIntoView({ block: "nearest" });
     }
   }
@@ -436,6 +438,7 @@ export default class extends Controller {
     const blocks = this.readBlocks();
     if (!blocks || !blocks[index]) return;
     blocks[index][field] = input.value.trim();
+    input.setAttribute("aria-invalid", String(this.isPlaceholderUrl(input.value)));
     this.writeBlocks(blocks);
     this.setLinkStatus("");
     clearTimeout(this.linkTimer);
@@ -465,6 +468,7 @@ export default class extends Controller {
       }
     });
     this.linksTarget.hidden = rows.length === 0;
+    this.updatePlaceholderNotice();
     this.linkListTarget.innerHTML = rows.map((row) => `
       <label class="mkt-link-row">
         <span>${this.escapeHtml(row.caption)}</span>
@@ -474,6 +478,7 @@ export default class extends Controller {
                value="${this.escapeAttr(row.url)}"
                placeholder="https://"
                autocomplete="off"
+               aria-invalid="${this.isPlaceholderUrl(row.url)}"
                data-action="input->marketing-template-studio#linkChanged">
       </label>
     `).join("");
@@ -548,6 +553,26 @@ export default class extends Controller {
   writeBlocks(blocks) {
     this.blocksFieldTarget.value = JSON.stringify(blocks);
     this.recovery?.save();
+    this.updatePlaceholderNotice();
+  }
+
+  isPlaceholderUrl(value) {
+    return /^https?:\/\/(?:[a-z0-9-]+\.)*example\.com\b/i.test(String(value || "").trim());
+  }
+
+  placeholderLinkCount() {
+    const matches = (this.hasBlocksFieldTarget ? this.blocksFieldTarget.value : "")
+      .match(/https?:\/\/(?:[a-z0-9-]+\.)*example\.com\b/gi);
+    return matches ? matches.length : 0;
+  }
+
+  updatePlaceholderNotice() {
+    if (!this.hasPlaceholderNoticeTarget) return;
+    const count = this.placeholderLinkCount();
+    this.placeholderNoticeTarget.hidden = count === 0;
+    this.placeholderNoticeTarget.textContent = count === 1
+      ? "1 link still goes to example.com. Update it under Links."
+      : `${count} links still go to example.com. Update them under Links.`;
   }
 
   insertImage(blocks, image) {

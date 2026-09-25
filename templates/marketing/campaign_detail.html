@@ -43,7 +43,7 @@
 
         <p class="text-sm crm-muted mb-4">
             {% if sending_email %}Sending from {{ sending_email }}.
-            {% else %}{{ gmail_error }}{% endif %}
+            {% else %}Connect your Google account before sending. <a class="crm-link" href="{{ url_for('gmail.connect') }}">Click here to connect</a>{% endif %}
 
         </p>
 
