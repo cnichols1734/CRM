@@ -47,10 +47,10 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/library', follow_redirects=True)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Start with an idea' in body
+        assert 'Base templates' in body
         assert 'Write an email with AI' in body
         assert 'What would you like to say?' in body
-        assert 'Your words, in the' in body
+        assert 'Choose a starting point.' in body
         assert 'Start from scratch' in body
         assert 'Just checking in' in body
         assert 'data-controller="marketing-cover"' in body
@@ -498,7 +498,7 @@ class TestMarketingPages:
         assert 'class="mkt-busy" hidden role="status"' in body
         assert 'aria-busy="true"' not in body
         assert 'crm-btn-accent' in body
-        assert 'Start with an idea' in body
+        assert 'Base templates' in body
         assert 'Save template' not in body
 
     def test_create_from_library_saves_and_is_selectable(

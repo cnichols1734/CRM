@@ -13,9 +13,11 @@
      data-marketing-campaign-monitor-engagement-value="{{ details.engagement_revision }}"
      data-marketing-campaign-monitor-running-value="{{ 'true' if campaign.is_running or campaign.status == 'scheduled' else 'false' }}">
     <div class="crm-page__inner">
-        <a href="{{ url_for('marketing.campaigns_list') }}" class="crm-back mb-3">
-            <i class="fas fa-arrow-left text-xs"></i> Active campaigns
+        <div data-live-region="navigation">
+        <a href="{{ url_for('marketing.campaigns_list', status='completed' if nav == 'finished' else 'draft' if nav == 'drafts' else 'active') }}" class="crm-back mb-3">
+            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> {{ 'Finished campaigns' if nav == 'finished' else 'Drafts' if nav == 'drafts' else 'Active campaigns' }}
         </a>
+        </div>
         {% call page_header(campaign.name, 'Email with follow-ups' if campaign.kind == 'drip' else 'One email') %}
             {% if campaign.is_editable and campaign.user_id == current_user.id %}
             <a class="crm-btn crm-btn-accent" href="{{ url_for('marketing.campaign_new', campaign_id=campaign.id) }}">Continue editing</a>
@@ -33,11 +35,11 @@
             {% if campaign.status not in ('completed', 'cancelled') %}
             <form method="post" action="{{ url_for('marketing.campaign_cancel', campaign_id=campaign.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
-                <button type="submit" class="crm-btn">Cancel</button>
+                <button type="submit" class="crm-btn" onclick="return confirm('Cancel this campaign? Emails already sent will remain in its history. Remaining emails will not be sent.')">Cancel campaign</button>
             </form>
             {% endif %}
         {% endcall %}
-        {% include 'marketing/_nav.html' %}
+        <div data-live-region="tabs">{% include 'marketing/_nav.html' %}</div>
 
         <p class="text-sm crm-muted mb-4">
             {% if sending_email %}Sending from {{ sending_email }}.

@@ -56,7 +56,7 @@ def test_draft_can_save_without_audience_and_resume(owner_a_client, app, seed):
     assert response.status_code==302
     edit=response.headers['Location'];assert edit.endswith('/edit')
     body=owner_a_client.get(edit).get_data(as_text=True)
-    assert 'Who should receive this?' in body and 'Ready when you are.' in body
+    assert 'Who should receive this?' in body and 'Review your campaign' in body
     with app.app_context():
         campaign=MarketingCampaign.query.filter_by(name='My check-in').order_by(MarketingCampaign.id.desc()).first()
         assert campaign.audience_id is None
@@ -229,3 +229,52 @@ def test_test_email_uses_reviewed_sender_details(owner_a_client, app, seed, monk
     assert response.status_code == 200
     assert sent[0]['sender'].from_name == 'My display name'
     assert sent[0]['sender'].reply_to == 'replies@example.com'
+
+
+def test_template_sections_have_previews_and_preserve_followup_context(owner_a_client, app, seed):
+    import re
+    from html import unescape
+    enable(app, seed)
+    with app.app_context():
+        org, owner = load_org_user(seed)
+        mine = ready_template(org, owner, 'My reusable email')
+        _, colleague = load_org_user(seed, user_key='agent_a')
+        shared = ready_template(org, colleague, 'Team reusable email')
+        private = ready_template(org, colleague, 'Hidden colleague email')
+        private.visibility = 'private'
+        mine_id, shared_id = mine.id, shared.id
+        db.session.commit()
+    owner_a_client.post('/marketing/studio', data=email_form(name='Preview campaign'))
+    with app.app_context():
+        cid = MarketingCampaign.query.filter_by(name='Preview campaign').one().id
+    page = owner_a_client.get(f'/marketing/library?flow=campaign&campaign={cid}&step=new')
+    body = unescape(page.get_data(as_text=True))
+    assert 'Add a follow-up email' in body
+    assert f'/marketing/campaigns/{cid}/edit?panel=review' in body
+    for section_id, name, tid in [('saved-templates', 'My reusable email', mine_id), ('shared-templates', 'Team reusable email', shared_id)]:
+        section = re.search(r'<section[^>]*aria-labelledby="' + section_id + r'">(.*?)</section>', body, re.S).group(1)
+        card = next(card for card in re.findall(r'<article class="mkt-template-card">(.*?)</article>', section, re.S) if name in card)
+        assert '<iframe' in card and 'srcdoc="<!' in card
+        href = re.search(r'<a class="mkt-cover" href="([^"]+)"', card).group(1)
+        assert f'from={tid}' in href and f'campaign={cid}' in href and 'step=new' in href
+    assert 'Hidden colleague email' not in body
+    assert '<iframe' in re.search(r'<section[^>]*aria-labelledby="base-templates">(.*?)</section>', body, re.S).group(1)
+
+
+def test_save_review_returns_to_review_and_launch_error_keeps_it(owner_a_client, app, seed):
+    enable(app, seed)
+    owner_a_client.post('/marketing/studio', data=email_form(name='Keep review open'))
+    with app.app_context():
+        campaign = MarketingCampaign.query.filter_by(name='Keep review open').one()
+        cid = campaign.id
+        form = form_for(campaign)
+        form['panel'] = 'review'
+        form['action'] = 'save'
+    saved = owner_a_client.post(f'/marketing/campaigns/{cid}/edit', data=form)
+    assert 'panel=review' in saved.headers['Location']
+    form['action'] = 'launch'
+    failed = owner_a_client.post(f'/marketing/campaigns/{cid}/edit', data=form)
+    assert failed.status_code == 200
+    assert 'data-initial-panel="3"' in failed.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(MarketingCampaign, cid).status == 'draft'

@@ -4843,7 +4843,7 @@ html[data-theme="dark"] .mkt-page {
 .mkt-sequence-number { color:var(--ink-3); min-width:20px; font-variant-numeric:tabular-nums; }
 .mkt-wait { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; font-size:.75rem; color:var(--ink-3); }
 .mkt-wait .crm-input { width:64px; }
-.mkt-final-preview .mkt-frame { width:100%; height:900px; border:1px solid var(--hairline); border-radius:12px; background:#e8ebee; }
+.mkt-final-preview .mkt-frame { width:100%; height:640px; border:1px solid var(--hairline); border-radius:12px; background:#e8ebee; }
 .mkt-final-preview > button { margin-top:16px; }
 .mkt-results-summary { display:flex; flex-wrap:wrap; gap:40px; padding:24px 0; border-bottom:1px solid var(--hairline); margin-bottom:32px; }
 .mkt-results-summary dt { color:var(--ink-3); font-size:.8125rem; }
@@ -4925,4 +4925,57 @@ html[data-theme="dark"] .mkt-page {
   .mkt-recipient-table td::before { content:attr(data-label); display:block; color:var(--ink-3); font-size:11px; margin-bottom:4px; }
   .mkt-recipient-table td:nth-child(1), .mkt-recipient-table td:nth-child(6), .mkt-recipient-table td:nth-child(7), .mkt-recipient-table td[colspan] { grid-column:1 / -1; }
   .mkt-tracking-activity [data-activity-content] { max-width:100%; }
+}
+
+/* Campaign history and the shared template picker. */
+.mkt-campaign-search { display:flex; align-items:center; gap:8px; max-width:100%; }
+.mkt-campaign-search .crm-input { width:240px; min-width:0; }
+.mkt-campaign-summary .crm-section-title { overflow-wrap:anywhere; }
+.mkt-campaign-summary .mkt-section-heading { margin-bottom:8px; }
+.mkt-campaign-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-top:20px; font-size:.8125rem; }
+.mkt-campaign-emails { padding:0 24px 16px; }
+.mkt-campaign-emails > summary { cursor:pointer; padding:8px 0; font-size:.875rem; }
+.mkt-campaign-emails > summary > span { margin-left:8px; }
+.mkt-campaign-emails ol { list-style:none; padding:0; margin-top:8px; }
+.mkt-campaign-emails li { display:flex; align-items:start; gap:12px; padding:16px 0; border-top:1px solid var(--hairline); }
+.mkt-campaign-emails li > div { flex:1; min-width:0; overflow-wrap:anywhere; }
+.mkt-campaign-emails li p { font-size:.8125rem; margin-top:4px; }
+.mkt-campaign-delete { padding:0 24px 20px; }
+.mkt-template-section { padding-top:24px; border-top:1px solid var(--hairline); margin:32px 0; }
+.mkt-template-section .mkt-section-heading p { margin-top:6px; }
+.mkt-template-card { min-width:0; }
+.mkt-template-card .mkt-cover { display:block; height:auto; }
+.mkt-template-card .mkt-cover__title { overflow-wrap:anywhere; }
+.mkt-template-card .mkt-cover__blurb { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:3em; }
+.mkt-template-use { display:inline-block; margin-top:12px; font-size:.875rem; }
+.mkt-template-actions { display:flex; justify-content:space-between; gap:16px; padding:12px 0; border-top:1px solid var(--hairline); margin-top:12px; font-size:.8125rem; }
+.mkt-template-empty { padding:16px 0; }
+.mkt-cover__unavailable { position:static; transform:none; display:flex; align-items:center; justify-content:center; width:100%; height:100% !important; color:var(--ink-3); background:var(--paper-2); }
+.mkt-work-nav { overflow-x:auto; flex-wrap:nowrap; }
+.mkt-work-nav > a { flex-shrink:0; white-space:nowrap; }
+.mkt-flow button { min-height:44px; }
+.mkt-final-preview { min-width:0; }
+.mkt-page .mkt-frame { color-scheme:light; }
+.mkt-library-jumps { display:flex; flex-wrap:wrap; gap:8px 24px; margin:24px 0 0; font-size:.875rem; }
+.mkt-library-jumps a { padding:8px 0; }
+.mkt-template-section h2 { scroll-margin-top:88px; }
+.mkt-template-card .mkt-cover__stage { height:280px; }
+@media (max-width:767px) {
+  .mkt-page { font-size:14px; }
+  .mkt-campaign-search { width:100%; }
+  .mkt-campaign-search .crm-input { flex:1; width:0; }
+  .mkt-campaign-summary { padding:20px; }
+  .mkt-campaign-emails { padding:0 20px 16px; }
+  .mkt-campaign-emails li { flex-wrap:wrap; }
+  .mkt-template-card .mkt-cover__blurb, .mkt-template-actions { font-size:.875rem; }
+  .mkt-template-actions a, .mkt-template-actions button { display:inline-flex; align-items:center; min-height:44px; }
+  .mkt-editor-actions { flex-wrap:wrap; }
+  .mkt-library-jumps a { min-height:44px; }
+  .mkt-template-card .mkt-cover__stage { height:240px; }
+  .mkt-work-nav { display:flex; flex-wrap:wrap; width:100%; overflow:visible; }
+  html.am-skin .crm-segment.mkt-work-nav { border-radius:var(--radius-lg) !important; }
+  .mkt-work-nav > a { display:flex; justify-content:center; align-items:center; flex:1 1 auto; min-height:44px; }
+}
+@media (max-width:479px) {
+  .mkt-template-section .mkt-starter-grid { grid-template-columns:1fr; }
 }

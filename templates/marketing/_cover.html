@@ -2,11 +2,13 @@
     {% if html %}
     <div class="mkt-cover__viewport">
         <iframe data-marketing-cover-target="frame"
-                title=""
+                title="Email preview" loading="lazy"
                 tabindex="-1"
                 aria-hidden="true"
                 sandbox="allow-same-origin"
                 srcdoc="{{ html | e }}"></iframe>
     </div>
+    {% else %}
+    <div class="mkt-cover__viewport mkt-cover__unavailable"><span>Preview unavailable</span></div>
     {% endif %}
 </div>
