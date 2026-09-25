@@ -1,5 +1,8 @@
-<nav class="crm-segment mkt-work-nav" aria-label="Marketing">
-    {% for href, label, key in [(url_for('marketing.campaigns_list'), 'Active campaigns', 'campaigns'), (url_for('marketing.campaigns_list', status='completed'), 'Finished campaigns', 'finished'), (url_for('marketing.campaigns_list', status='draft'), 'Drafts', 'drafts'), (url_for('marketing.library', flow='template'), 'Templates', 'templates'), (url_for('marketing.sent_emails'), 'Sent emails', 'sent'), (url_for('marketing.settings'), 'Settings', 'settings')] %}
-    <a class="crm-segment__item {% if nav == key %}is-active{% endif %}" href="{{ href }}" {% if nav == key %}aria-current="page"{% endif %}>{{ label }}</a>
-    {% endfor %}
-</nav>
+<div class="mkt-navigation">
+    <nav class="crm-segment mkt-work-nav" aria-label="Marketing">
+        {% for href, label, active in [(url_for('marketing.campaigns_list'), 'Campaigns', nav in ('campaigns', 'finished', 'drafts', 'sent')), (url_for('marketing.library', flow='template'), 'Templates', nav == 'templates')] %}
+        <a class="crm-segment__item {% if active %}is-active{% endif %}" href="{{ href }}" {% if active %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+    </nav>
+    <a class="crm-link mkt-settings-link" href="{{ url_for('marketing.settings') }}" {% if nav == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+</div>

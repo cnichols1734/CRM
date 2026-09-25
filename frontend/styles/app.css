@@ -4827,7 +4827,7 @@ html[data-theme="dark"] .mkt-page {
 .mkt-action-bar { display:flex; gap:24px; align-items:center; justify-content:space-between; margin-top:32px; padding:24px 0; border-top:1px solid var(--hairline); }
 .mkt-action-bar > span { font-size:.875rem; max-width:65ch; }
 .mkt-action-bar .crm-btn { flex-shrink:0; }
-.mkt-review-layout { display:grid; grid-template-columns:minmax(320px,.85fr) minmax(0,1.15fr); gap:24px; }
+.mkt-review-layout { display:grid; grid-template-columns:minmax(320px,.85fr) minmax(0,1.15fr); gap:24px; align-items:start; }
 .mkt-summary { margin:0 0 32px; }
 .mkt-summary > div { display:grid; grid-template-columns:64px minmax(0,1fr); gap:16px; padding:14px 0; border-bottom:1px solid var(--hairline); }
 .mkt-summary dt { color:var(--ink-3); font-size:.8125rem; }
@@ -4979,3 +4979,145 @@ html[data-theme="dark"] .mkt-page {
 @media (max-width:479px) {
   .mkt-template-section .mkt-starter-grid { grid-template-columns:1fr; }
 }
+
+/* Campaign navigation separates work areas from status filters. */
+.mkt-navigation { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:28px; }
+.mkt-navigation .mkt-work-nav { margin:0; }
+.mkt-settings-link { font-size:.8125rem; }
+.mkt-list-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin:24px 0; }
+.mkt-status-tabs { display:flex; gap:24px; align-items:center; flex-wrap:wrap; }
+.mkt-status-tabs > a, .mkt-status-tabs > button { color:var(--ink-3); font-size:.875rem; padding:12px 0; border-bottom:2px solid transparent; background:none; cursor:pointer; }
+.mkt-status-tabs > [aria-current="page"], .mkt-status-tabs > [aria-pressed="true"] { color:var(--ink); border-bottom-color:var(--accent); font-weight:600; }
+.mkt-list-toolbar .crm-input { max-width:260px; }
+.mkt-template-section { margin:0 0 32px; border:0; padding:0; }
+.mkt-history-link { margin:20px 0; font-size:.8125rem; }
+.mkt-campaign-summary { padding:20px 24px 12px; }
+.mkt-campaign-footer { margin-top:8px; font-size:.75rem; }
+.mkt-campaign-summary .mkt-next-email { margin:8px 0 0; flex-direction:row; flex-wrap:wrap; gap:4px 12px; font-size:.8125rem; }
+.mkt-campaign-emails { padding-bottom:12px; }
+.mkt-campaign-emails > summary { font-size:.8125rem; }
+/* Review controls stay in the sheet. The email sits beside them. */
+.mkt-review-sheet { max-width:none; padding:8px 24px 24px; }
+.mkt-review-checklist { margin-bottom:24px; }
+.mkt-review-item { border-bottom:1px solid var(--hairline); font-size:.875rem; }
+.mkt-review-item > summary, .mkt-review-row { display:grid; grid-template-columns:20px 112px minmax(0,1fr) 32px; align-items:center; gap:16px; padding:20px 0; }
+.mkt-review-item > summary { cursor:pointer; list-style:none; }
+.mkt-review-item > summary::-webkit-details-marker { display:none; }
+.mkt-review-icon, .mkt-review-chevron { color:var(--ink-3); }
+.mkt-review-chevron { justify-self:end; }
+.mkt-review-item[open] > summary .mkt-review-chevron { transform:rotate(180deg); color:var(--accent-ink); }
+.mkt-review-item > summary:hover .mkt-review-chevron { color:var(--accent-ink); }
+.mkt-review-label { font-weight:500; }
+.mkt-review-value { min-width:0; overflow-wrap:anywhere; color:var(--ink-3); }
+.mkt-review-value small { display:block; font-size:.75rem; margin-top:4px; }
+.mkt-review-item .crm-link { font-size:.8125rem; font-weight:400; }
+.mkt-review-fields, .mkt-review-item .mkt-timing { display:grid; gap:16px; max-width:640px; padding:0 0 24px 36px; margin:0; }
+.mkt-schedule-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.mkt-schedule-fields > label { min-width:0; }
+.mkt-launch { display:flex; gap:24px; align-items:center; justify-content:space-between; font-size:.8125rem; }
+.mkt-launch > button { flex-shrink:0; }
+.mkt-launch small { display:block; color:var(--ink-3); margin-top:6px; font-size:.75rem; }
+.mkt-launch [data-marketing-campaign-wizard-target="error"]:empty, .mkt-draft-status:empty { display:none; }
+.mkt-review-layout .mkt-final-preview { position:sticky; top:88px; max-width:none; margin:0; padding:20px; }
+.mkt-preview-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.mkt-preview-head .mkt-review-value { display:block; margin-top:4px; }
+.mkt-preview-head .crm-link { flex-shrink:0; }
+.mkt-review-layout .mkt-final-preview .mkt-frame { height:min(760px, calc(100vh - 260px)); min-height:420px; }
+.mkt-preview-nav { display:flex; gap:6px; flex-shrink:0; }
+.mkt-preview-nav .crm-btn { width:32px; height:32px; padding:0; }
+.mkt-preview-nav svg { flex-shrink:0; }
+.mkt-review-recipients .mkt-recipient-list { max-height:360px; border-top:1px solid var(--hairline); }
+.mkt-preview-actions { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:16px; }
+.mkt-preview-actions .crm-link { font-size:.8125rem; }
+.mkt-final-preview [data-marketing-campaign-wizard-target="testStatus"]:empty { display:none; }
+.mkt-final-preview [data-marketing-campaign-wizard-target="testStatus"] { margin-top:8px; font-size:.8125rem; color:var(--ink-3); }
+/* The email list is the index for the preview beside it. */
+.mkt-sequence .mkt-review-row { grid-template-columns:20px 112px minmax(0,1fr); padding-bottom:12px; }
+.mkt-sequence h2.mkt-review-label { font-size:inherit; }
+.mkt-sequence-list { list-style:none; margin:0; padding:0 0 0 36px; }
+.mkt-sequence .mkt-sequence-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px; padding:0; border:0; }
+.mkt-sequence .mkt-sequence-row + .mkt-sequence-row { margin-top:4px; }
+.mkt-sequence-pick { display:flex; align-items:center; gap:12px; min-width:0; width:100%; min-height:52px; padding:8px 12px; margin-left:-12px; border-radius:10px; text-align:left; color:var(--ink); background:none; cursor:pointer; transition:background-color 150ms ease; }
+.mkt-sequence-pick:hover { background:var(--paper-2); }
+.mkt-sequence-pick[aria-current="true"] { background:var(--paper-2); }
+.mkt-sequence-pick[aria-current="true"] .mkt-sequence-number { color:var(--accent-ink); font-weight:600; }
+.mkt-sequence-copy { display:block; min-width:0; }
+.mkt-sequence-copy strong { display:block; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mkt-sequence-copy small { display:block; margin-top:2px; color:var(--ink-3); font-size:.75rem; }
+.mkt-sequence-actions { display:flex; gap:16px; }
+.mkt-sequence .mkt-wait { grid-column:1 / -1; margin:0 0 8px 32px; }
+.mkt-sequence-footer { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:16px 0 24px 36px; }
+.mkt-sequence-footer label { min-width:200px; }
+@media (prefers-reduced-motion: reduce) { .mkt-sequence-pick { transition:none; } }
+.mkt-work-panel > .mkt-section-heading .crm-page-title { font-size:1.5rem; }
+@media(max-width:767px) {
+  .mkt-navigation { gap:16px; margin-bottom:24px; }
+  .mkt-navigation .mkt-work-nav { width:auto; flex-wrap:nowrap; }
+  .mkt-status-tabs { gap:20px; }
+  .mkt-list-toolbar { gap:12px; }
+  .mkt-list-toolbar > label { width:100%; }
+  .mkt-list-toolbar > label .crm-input { max-width:none; width:100%; }
+  .mkt-review-sheet { padding:0 16px 20px; }
+  .mkt-review-item > summary, .mkt-review-row { grid-template-columns:18px minmax(0,1fr) 24px; gap:6px 12px; padding:16px 0; }
+  .mkt-review-value { grid-column:2; grid-row:2; font-size:.8125rem; }
+  .mkt-review-chevron, .mkt-recipient-edit { grid-column:3; grid-row:1 / 3; }
+  .mkt-review-fields, .mkt-review-item .mkt-timing { padding-left:0; }
+  .mkt-review-layout .mkt-final-preview { position:static; }
+  .mkt-launch { flex-direction:column; align-items:stretch; gap:16px; }
+  .mkt-sequence .mkt-review-row { grid-template-columns:18px minmax(0,1fr); }
+  .mkt-sequence-list, .mkt-sequence-footer { padding-left:0; }
+  .mkt-sequence-pick { margin-left:0; }
+  .mkt-sequence-actions .crm-link { min-height:44px; display:inline-flex; align-items:center; }
+  .mkt-sequence .mkt-wait { margin-left:44px; }
+  .mkt-sequence-footer label { width:100%; }
+  .mkt-editor-tools { order:6; }
+}
+
+/* Campaign flow chrome: same header on every step, Next pinned at the bottom. */
+.mkt-campaign-back { display:inline-flex; margin-bottom:4px; }
+.mkt-step-title { margin:8px 0 4px; }
+.mkt-action-bar--sticky { position:sticky; bottom:0; z-index:5; margin-top:24px; padding:16px 0; background:var(--canvas); }
+.mkt-action-bar--sticky > span { flex:1; }
+.mkt-action-bar--sticky > [data-marketing-template-studio-target="placeholderNotice"] { color:var(--warn); }
+.mkt-action-bar--sticky > span[hidden] + .crm-link, .mkt-action-bar--sticky > span[hidden] + .crm-btn { margin-left:auto; }
+.mkt-action-bar--sticky > .crm-link { font-size:.875rem; white-space:nowrap; }
+.mkt-connect { margin:20px 0 0; }
+.mkt-start-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+/* Email tools and AI start: titled sections with a one-line description. */
+.mkt-tool { border-top:1px solid var(--hairline); }
+.mkt-tool > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; cursor:pointer; list-style:none; }
+.mkt-tool > summary::-webkit-details-marker { display:none; }
+.mkt-tool > summary .mkt-review-chevron { flex-shrink:0; transition:transform 160ms ease; }
+.mkt-tool[open] > summary .mkt-review-chevron { transform:rotate(180deg); color:var(--accent-ink); }
+.mkt-tool > summary:hover .mkt-review-chevron { color:var(--accent-ink); }
+.mkt-tool-copy { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.mkt-tool-copy strong { font-size:.875rem; font-weight:600; color:var(--ink); }
+.mkt-tool-copy small { font-size:.8125rem; color:var(--ink-3); }
+.mkt-tool-body { padding:0 0 16px; }
+.mkt-tool-body label { display:block; margin:12px 0; }
+.mkt-tool-body .mkt-link-row { margin:0 0 12px; }
+.mkt-editor-tools > .crm-section-title { margin-bottom:8px; }
+.mkt-tool-alert { margin:8px 0 16px; }
+.mkt-tool-foot { display:flex; flex-direction:column; gap:4px; padding:16px 0 0; border-top:1px solid var(--hairline); }
+.mkt-tool-foot .crm-link { align-self:flex-start; font-size:.875rem; }
+.mkt-ai-start { margin:0 0 20px; border-bottom:1px solid var(--hairline); }
+.mkt-ai-start .mkt-ai-form { max-width:640px; }
+@media (prefers-reduced-motion: reduce) {
+  .mkt-tool > summary .mkt-review-chevron { transition:none; }
+}
+@media (max-width:767px) {
+  .mkt-action-bar--sticky { flex-direction:column; align-items:stretch; gap:12px; }
+  .mkt-action-bar--sticky > .crm-link { align-self:center; min-height:44px; display:inline-flex; align-items:center; }
+  .mkt-tool > summary { min-height:44px; }
+  .mkt-start-actions { width:100%; }
+  .mkt-start-actions > * { flex:1; justify-content:center; }
+}
+.mkt-link-row input[aria-invalid="true"] { border-color:var(--warn) !important; }
+.mkt-inline-details > summary, .mkt-disclosure > summary { display:inline-flex; align-items:center; gap:8px; list-style:none; }
+.mkt-inline-details > summary::-webkit-details-marker, .mkt-disclosure > summary::-webkit-details-marker { display:none; }
+.mkt-inline-details > summary::after, .mkt-disclosure > summary::after { content:""; width:6px; height:6px; margin-top:-3px; border-right:1.5px solid var(--ink-3); border-bottom:1.5px solid var(--ink-3); transform:rotate(45deg); transition:transform 160ms ease; }
+.mkt-inline-details[open] > summary::after, .mkt-disclosure[open] > summary::after { margin-top:3px; transform:rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) { .mkt-inline-details > summary::after, .mkt-disclosure > summary::after { transition:none; } }
+.mkt-page .crm-callout .crm-link { color:var(--accent-ink); font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+.mkt-connect { margin-bottom:16px; }

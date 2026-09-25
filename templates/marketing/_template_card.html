@@ -1,4 +1,4 @@
-<article class="mkt-template-card">
+<article class="mkt-template-card" data-template-name="{{ card.template.name|lower }}">
     <a class="mkt-cover" href="{{ url_for('marketing.studio', flow=flow if is_base else 'campaign', campaign=workspace_campaign_id, step=workspace_step, **{'from':card.template.id}) }}">
         {% set html = card.html %}
         {% include 'marketing/_cover.html' %}

@@ -48,9 +48,9 @@ class TestMarketingPages:
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
         assert 'Base templates' in body
-        assert 'Write an email with AI' in body
+        assert 'Write with AI' in body
         assert 'What would you like to say?' in body
-        assert 'Choose a starting point.' in body
+        assert 'aria-label="Template categories"' in body
         assert 'Start from scratch' in body
         assert 'Just checking in' in body
         assert 'data-controller="marketing-cover"' in body
@@ -67,7 +67,7 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/campaigns/new', follow_redirects=True)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Start your campaign' in body
+        assert 'Choose a template' in body
         assert 'Studio preview' in body
         assert 'Just checking in' in body
         assert 'Create Template' not in body
@@ -96,7 +96,7 @@ class TestMarketingPages:
         resp = owner_a_client.get('/marketing/studio', follow_redirects=False)
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'Choose recipients' in body
+        assert 'Next: Recipients' in body
         assert 'Save draft' in body
         assert 'Rewrite with AI' in body
         assert 'Saving your email' in body
@@ -118,7 +118,7 @@ class TestMarketingPages:
         body = resp.get_data(as_text=True)
         assert 'Click the words in your email to edit.' in body
         assert 'data-mkt-edit' in body
-        assert 'Sample contact details' in body
+        assert 'Change the sample contact' in body
         assert 'Preview with a name' in body
         assert 'data-marketing-template-studio-target="sampleToggle"' in body
         assert 'data-marketing-template-studio-target="sample"' in body
@@ -126,9 +126,7 @@ class TestMarketingPages:
         assert 'mkt-sample-row is-used' in body
         assert 'placeholder="John"' in body
         assert 'value="John"' not in body
-        assert 'Send yourself a test' in body
-        assert 'Sends from owner-google@example.com' in body
-        assert 'owner_a@test.com' in body
+        assert 'Send yourself a test' not in body
         assert f'/marketing/studio/{starter_id}' not in resp.request.path
 
     def test_send_test_posts_to_listed_addresses(self, owner_a_client, app, seed, monkeypatch):
@@ -259,7 +257,7 @@ class TestMarketingPages:
         assert 'crm-btn-accent' in body
         assert 'value="Edited subject after agent tweaks"' in body
         assert 'Edited body that must survive a bad rewrite.' in body
-        assert 'Choose recipients' in body or 'Save template' in body
+        assert 'Next: Recipients' in body or 'Save template' in body
 
     def test_failed_rewrite_keeps_edited_draft_on_saved_template(
         self, owner_a_client, app, seed,
@@ -375,7 +373,7 @@ class TestMarketingPages:
         assert 'I reviewed these wording warnings' in body
         assert 'name="acknowledge"' in body
         assert 'safe neighborhood' in body.lower()
-        assert 'Before you send' in body
+        assert 'Check before sending' in body
 
         saved = owner_a_client.post(
             '/marketing/studio',

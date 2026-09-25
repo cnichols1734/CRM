@@ -584,7 +584,7 @@ html.am-skin .crm-select:focus,
 html.am-skin .crm-textarea:focus,
 html.am-skin .crm-search:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.35) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(249, 115, 22, 0.14)) !important;
 }
 html.am-skin input::placeholder,
 html.am-skin textarea::placeholder {

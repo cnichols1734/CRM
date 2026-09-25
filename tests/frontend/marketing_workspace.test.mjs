@@ -80,8 +80,8 @@ test('native submission keeps the action and prevents duplicate submissions',()=
 test('failed recipient check exposes retry and clears stale recipients',async()=>{
   const wizard=new Wizard();let cleared=false;
   wizard.launchTarget={disabled:false};wizard.hasRetryTarget=true;wizard.retryTarget={hidden:true};
-  wizard.countTargets=[];wizard.breakdownTarget={};wizard.moreTarget={};
-  wizard.recipientsTarget={replaceChildren(){cleared=true;}};
+  wizard.countTargets=[];wizard.breakdownTargets=[{}];wizard.moreTargets=[{}];
+  wizard.recipientsTargets=[{replaceChildren(){cleared=true;}}];
   wizard.filter=()=>({});wizard.request=async()=>{throw new Error('Offline');};wizard.updateSummary=()=>{};
   wizard.count=25;await wizard.estimate();
   assert.equal(wizard.count,null);assert.equal(wizard.retryTarget.hidden,false);
@@ -91,22 +91,28 @@ test('failed recipient check exposes retry and clears stale recipients',async()=
 
 test('previewing a follow-up keeps the first subject and edits the selected email',async()=>{
   const wizard=new Wizard();wizard.form={elements:{template_id:{value:'first'}}};
-  wizard.hasPreviewSelectTarget=true;wizard.previewSelectTarget={value:'followup',selectedOptions:[{dataset:{step:'1'}}]};
+  const items=[0,1].map(step=>({dataset:{step:String(step),templateId:step?'followup':'first'},attrs:{},setAttribute(k,v){this.attrs[k]=v;}}));
+  wizard.hasPreviewItemTarget=true;wizard.previewItemTargets=items;
   wizard.hasEditPreviewTarget=true;wizard.editPreviewTarget={};
+  wizard.hasPreviewPositionTarget=true;wizard.previewPositionTarget={};
   wizard.hasPreviewSubjectTarget=true;wizard.previewSubjectTarget={};wizard.previewTarget={};
   wizard.subjectTarget={textContent:'First subject'};wizard.updateSummary=()=>{};
   let requested;
   wizard.request=async(url,payload)=>{requested=payload.template_id;return {html:'<p>Follow-up</p>',subject:'Follow-up subject'};};
-  await wizard.preview();
+  globalThis.window={matchMedia:()=>({matches:false})};
+  wizard.selectPreview({currentTarget:items[1]});await wizard.previewAbort&&new Promise(r=>setTimeout(r));
   assert.equal(requested,'followup');assert.equal(wizard.previewReady,true);
   assert.equal(wizard.editPreviewTarget.value,'edit_email:1');
+  assert.equal(wizard.previewPositionTarget.textContent,'Email 2 of 2');
+  assert.equal(items[1].attrs['aria-current'],'true');assert.equal(items[0].attrs['aria-current'],'false');
   assert.equal(wizard.subjectTarget.textContent,'First subject');
   assert.equal(wizard.previewSubjectTarget.textContent,'Follow-up subject');
 });
 
 test('send test uses the email selected for preview',async()=>{
   const wizard=new Wizard();wizard.form={elements:{template_id:{value:'first'},from_name:{value:'Alex'},reply_to:{value:'alex@example.com'}}};
-  wizard.hasPreviewSelectTarget=true;wizard.previewSelectTarget={value:'followup'};wizard.testStatusTarget={};
+  wizard.hasPreviewItemTarget=true;wizard.previewItemTargets=[{dataset:{templateId:'first'}},{dataset:{templateId:'followup'}}];
+  wizard.currentStep=1;wizard.testStatusTarget={};
   let requested;wizard.request=async(url,payload)=>{requested=payload.template_id;return {sent:['alex@example.com']};};
   const button={disabled:false};await wizard.sendTest({currentTarget:button});
   assert.equal(requested,'followup');assert.equal(button.disabled,false);
@@ -119,4 +125,53 @@ test('preview and search controls can avoid marking a draft as edited',()=>{
   assert.equal(recovery.dirty,undefined);assert.equal(f.items.has('draft'),false);
   f.field.value='Edited subject';recovery.changed({target:f.field});
   assert.equal(recovery.dirty,true);assert.equal(JSON.parse(f.items.get('draft')).fields.subject[0],'Edited subject');
+});
+
+test('a failed preview offers retry and keeps sending disabled', async()=>{
+  const wizard=new Wizard();wizard.form={elements:{template_id:{value:'first'}}};
+  wizard.hasPreviewRetryTarget=true;wizard.previewRetryTarget={hidden:true};
+  wizard.hasPreviewSubjectTarget=true;wizard.previewSubjectTarget={};wizard.previewTarget={};
+  wizard.request=async()=>{throw new Error('Offline');};wizard.updateSummary=()=>{};
+  await wizard.preview();
+  assert.equal(wizard.previewReady,false);assert.equal(wizard.previewRetryTarget.hidden,false);
+  wizard.subjectTarget={};wizard.request=async()=>({html:'<p>Ready</p>',subject:'Ready'});
+  await wizard.preview();
+  assert.equal(wizard.previewReady,true);assert.equal(wizard.previewRetryTarget.hidden,true);
+});
+
+const librarySource = await readFile(new URL('../../frontend/controllers/marketing_template_library_controller.js', import.meta.url), 'utf8');
+const {default: Library} = await import('data:text/javascript;base64,' + Buffer.from(librarySource.replace(/^import .*;$/gm, '').replace('export default class extends Controller', 'export default class')).toString('base64'));
+
+test('template filtering shows one collection and restores cards after clearing search',()=>{
+  const library=new Library();
+  const collection=(category,names)=>{
+    const cards=names.map(name=>({dataset:{templateName:name},hidden:false}));
+    const empty={hidden:true};
+    return {dataset:{category},cards,empty,querySelectorAll:()=>cards,querySelector:()=>empty};
+  };
+  const base=collection('base-templates',['open house','just sold']);
+  const saved=collection('saved-templates',['my newsletter']);
+  library.collectionTargets=[base,saved];library.categoryTargets=[];
+  library.searchTarget={value:'newsletter'};library.selectedCategory='saved-templates';
+  library.filter();assert.equal(base.hidden,true);assert.equal(saved.hidden,false);
+  assert.equal(saved.cards[0].hidden,false);assert.equal(saved.empty.hidden,true);
+  library.searchTarget.value='missing';library.filter();assert.equal(saved.empty.hidden,false);
+  library.searchTarget.value='';library.filter();assert.equal(saved.cards[0].hidden,false);
+  assert.equal(saved.empty.hidden,true);
+});
+
+
+test('scheduled times use AM/PM including noon and midnight',()=>{
+  const wizard=new Wizard();
+  assert.match(wizard.scheduleLabel('2026-10-01T00:00','Central time'), /12:00 AM · Central time/);
+  assert.match(wizard.scheduleLabel('2026-10-01T12:00','Central time'), /12:00 PM · Central time/);
+  assert.match(wizard.scheduleLabel('2026-10-01T17:45','Pacific time'), /5:45 PM · Pacific time/);
+});
+
+test('date and AM/PM time controls preserve the scheduled local wall time',()=>{
+  const wizard=new Wizard();wizard.updateSummary=()=>{};
+  wizard.form={elements:{schedule_date:{value:'2026-10-01'},schedule_time:{value:'17:30'},scheduled_at:{value:''}}};
+  wizard.scheduleChanged();assert.equal(wizard.form.elements.scheduled_at.value,'2026-10-01T17:30');
+  wizard.form.elements.schedule_date.value='';wizard.scheduleChanged();
+  assert.equal(wizard.form.elements.scheduled_at.value,'');
 });

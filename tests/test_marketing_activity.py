@@ -154,12 +154,12 @@ def test_finished_campaign_keeps_emails_grouped_and_correct_navigation(app, seed
     assert 'First check-in' in emails[0]
     assert 'Next day update' in emails[1]
     assert f'/marketing/campaigns/{cid}?step={sid}#recipients' in emails[1]
-    assert 'aria-current="page">Finished campaigns</a>' in body
+    assert 'aria-current="page">Finished</a>' in body
     active = owner_a_client.get('/marketing/campaigns').get_data(as_text=True)
     assert f'History grouping {state}' not in active
     detail = owner_a_client.get(f'/marketing/campaigns/{cid}').get_data(as_text=True)
     assert 'status=completed" class="crm-back' in detail
-    assert 'aria-current="page">Finished campaigns</a>' in detail
+    assert 'aria-current="page">Campaigns</a>' in detail
 
 
 def test_campaign_search_is_literal_and_private(app, seed, owner_a_client):
@@ -181,4 +181,4 @@ def test_campaign_search_is_literal_and_private(app, seed, owner_a_client):
     assert len(entries) == 1 and 'Polish 100% sent' in entries[0]
     assert 'Private 100%' not in body
     page = owner_a_client.get('/marketing/campaigns?status=invalid')
-    assert 'aria-current="page">Active campaigns</a>' in page.get_data(as_text=True)
+    assert 'aria-current="page">Active</a>' in page.get_data(as_text=True)
