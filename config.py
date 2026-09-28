@@ -140,6 +140,7 @@ class Config:
 
     # RentCast API configuration
     RENTCAST_API_KEY = os.getenv('RENTCAST_API_KEY')
+    REPLIERS_API_KEY = os.getenv('REPLIERS_API_KEY')
     RENTCAST_REFRESH_HOURS = int(os.getenv('RENTCAST_REFRESH_HOURS', 48))  # Hours before allowing re-fetch
     # Market Insights cache TTL. RentCast /markets data updates monthly upstream
     # and the free tier is 50 calls/month, so we default to 7 days. With ~5 ZIPs

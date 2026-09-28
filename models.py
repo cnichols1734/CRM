@@ -5016,6 +5016,7 @@ class ClientBrowseInquiry(db.Model):
     request_id = db.Column(db.String(36), nullable=False)
     kind = db.Column(db.String(20), nullable=False)
     listing_id = db.Column(db.String(80), nullable=True)
+    listing_snapshot = db.Column(db.JSON, nullable=True)
     body = db.Column(db.Text, nullable=False)
     reply = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
