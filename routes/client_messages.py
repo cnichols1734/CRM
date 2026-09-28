@@ -5,7 +5,7 @@ from datetime import datetime
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import case, func
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import joinedload
 
 from feature_flags import can_access_transactions
@@ -42,13 +42,18 @@ def _threads():
             txs = Transaction.query.filter_by(organization_id=org_id)
         activity = db.session.query(
             PortalMessage.participant_id.label('participant_id'),
-            func.max(PortalMessage.id).label('latest_id'),
+            PortalMessage.id.label('latest_id'),
+            func.row_number().over(partition_by=PortalMessage.participant_id,
+                order_by=(PortalMessage.created_at.desc(), PortalMessage.id.desc())).label('position'),
             func.sum(case(((PortalMessage.sender == 'client') &
-                           PortalMessage.read_by_agent_at.is_(None), 1), else_=0)).label('unread'),
-        ).filter(PortalMessage.organization_id == org_id).group_by(PortalMessage.participant_id).subquery()
+                           PortalMessage.read_by_agent_at.is_(None), 1), else_=0)).over(
+                               partition_by=PortalMessage.participant_id).label('unread'),
+        ).filter(PortalMessage.organization_id == org_id,
+                 PortalMessage.transaction_id.in_(txs.with_entities(Transaction.id))).subquery()
         conversations = db.session.query(TransactionParticipant, Transaction, PortalMessage, activity.c.unread).join(
             Transaction, Transaction.id == TransactionParticipant.transaction_id,
-        ).outerjoin(activity, activity.c.participant_id == TransactionParticipant.id).outerjoin(
+        ).outerjoin(activity, and_(activity.c.participant_id == TransactionParticipant.id,
+                                 activity.c.position == 1)).outerjoin(
             PortalMessage, PortalMessage.id == activity.c.latest_id,
         ).filter(TransactionParticipant.organization_id == org_id,
                  TransactionParticipant.role.in_(tuple(CLIENT_PORTAL_ROLES)),

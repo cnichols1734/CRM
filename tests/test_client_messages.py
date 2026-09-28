@@ -97,3 +97,15 @@ def test_read_only_collaborator_cannot_reply(app, seed, agent_a_client, threads)
     path = f"/messages?thread=deal-{threads['participant']}"
     assert agent_a_client.get(path).status_code == 200
     assert agent_a_client.post(path, data={'body': 'Blocked', 'csrf_token': _csrf(agent_a_client)}).status_code == 403
+
+
+def test_backfilled_message_does_not_replace_current_preview(app, seed, owner_a_client, threads):
+    with app.app_context():
+        db.session.add(PortalMessage(organization_id=seed['org_a'],
+            transaction_id=threads['tx'], participant_id=threads['participant'],
+            sender='agent', kind='message', body='Old backfilled message',
+            created_at=datetime.utcnow() - timedelta(days=7)))
+        db.session.commit()
+    page = owner_a_client.get('/messages')
+    assert page.status_code == 200
+    assert b'Old backfilled message' not in page.data
