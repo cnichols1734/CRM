@@ -108,7 +108,7 @@ def normalize(record):
     point = record.get('map') or {}
     try:
         latitude, longitude = float(point['latitude']), float(point['longitude'])
-        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180) or permissions.get('displayOnMap') != 'Y':
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180) or permissions.get('displayOnMap', 'Y') != 'Y':
             latitude = longitude = None
     except (KeyError, ValueError, TypeError):
         latitude = longitude = None
