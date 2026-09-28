@@ -5142,7 +5142,8 @@ html[data-theme="dark"] .mkt-page {
   .crm-message-back { display: none; margin-bottom: .75rem; }
   @media (max-width: 767px) {
     .crm-message-workspace { display: block; }
-    .crm-message-rows, .crm-message-history { max-height: none; }
+    .crm-message-rows { max-height: none; }
+    .crm-message-history { max-height: 50svh; }
     .crm-message-workspace:not(.has-conversation) .crm-message-conversation,
     .crm-message-workspace.has-conversation .crm-message-list { display: none; }
     .crm-message-back { display: inline-block; }
