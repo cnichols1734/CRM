@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from feature_flags import can_access_transactions
 from models import db, ClientBrowseAccount, ClientBrowseInquiry, PortalMessage, Transaction, TransactionParticipant
+from routes.client_discovery import org_context
 from services.device_push import enqueue_portal_push
 from services.portal_service import CLIENT_PORTAL_ROLES
 from services.transaction_auth import CAP_SEND_COMMS, has_capability, transactions_visible_query
@@ -59,19 +60,23 @@ def _threads():
                              email=participant.display_email or '', subject=tx.street_address or 'Transaction',
                              label='Transaction', preview=last.body if last else 'Start a conversation',
                              at=last.created_at if last else None, attention=bool(unread),
-                             row=participant, transaction=tx,
-                             can_reply=has_capability(tx, CAP_SEND_COMMS, current_user).allowed))
+                             row=participant, transaction=tx))
     return sorted(rows, key=lambda row: row['at'] or datetime.min, reverse=True)
 
 
 @client_messages_bp.route('/messages', methods=['GET', 'POST'])
 @login_required
 def inbox():
+    # Request hooks can commit, which clears PostgreSQL's transaction-local context.
+    org_context(current_user.organization_id)
     threads = _threads()
     key = request.args.get('thread', '')
     selected = next((row for row in threads if row['key'] == key), None)
     if key and selected is None:
         abort(404)
+    if selected and selected['kind'] == 'deal':
+        selected['can_reply'] = has_capability(
+            selected['transaction'], CAP_SEND_COMMS, current_user).allowed
     csrf_token = session.setdefault('client_inquiry_csrf', secrets.token_urlsafe(32))
     draft = ''
     error = None
@@ -120,6 +125,7 @@ def inbox():
                     changed = True
             if changed:
                 db.session.commit()
+                org_context(current_user.organization_id)
             selected['attention'] = False
     attention_count = sum(row['attention'] for row in threads)
     search = request.args.get('q', '').strip()[:200]
