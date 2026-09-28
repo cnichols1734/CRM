@@ -5150,3 +5150,12 @@ html[data-theme="dark"] .mkt-page {
     .crm-message-conversation .crm-surface-header { align-items: start; flex-wrap: wrap; gap: .75rem; }
   }
 }
+
+/* Property context shared by client inquiry conversations. */
+.crm-message-property { display: flex; align-items: center; gap: 1rem; padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--hairline); }
+.crm-message-property img { width: 8rem; height: 6rem; object-fit: cover; border-radius: .5rem; flex-shrink: 0; }
+.crm-message-property > div { min-width: 0; overflow-wrap: anywhere; }
+.crm-message-assignment { border-bottom: 1px solid var(--hairline); display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.crm-message-assignment > p:first-child { flex: 1; min-width: 12rem; }
+.crm-message-assignment-help { flex-basis: 100%; }
+@media (max-width: 480px) { .crm-message-property { align-items: flex-start; } .crm-message-property img { width: 5rem; height: 5rem; } }

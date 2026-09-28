@@ -412,25 +412,29 @@ def usage():
 @org_bp.route('/client-inquiries', methods=['GET', 'POST'])
 @login_required
 def client_inquiries():
-    from models import ClientBrowseInquiry
+    from models import ClientBrowseInquiry, ClientBrowseAccount
     from flask import session
     import hmac
+    import uuid
     from routes.client_discovery import org_context
+    from services.client_conversations import inbox_admin, append_reply
     org_context(current_user.organization_id)
-    query = ClientBrowseInquiry.query.filter_by(organization_id=current_user.organization_id)
-    if current_user.org_role not in ('owner', 'admin'):
-        query = query.filter_by(agent_id=current_user.id)
     if request.method == 'POST':
-        row = query.filter_by(id=request.form.get('inquiry_id', type=int)).first_or_404()
+        row = ClientBrowseInquiry.query.filter_by(organization_id=current_user.organization_id,
+            id=request.form.get('inquiry_id', type=int)).first_or_404()
+        ClientBrowseAccount.query.filter_by(id=row.account_id, organization_id=current_user.organization_id).with_for_update().populate_existing().one()
+        row = ClientBrowseInquiry.query.filter_by(id=row.id, organization_id=current_user.organization_id).populate_existing().one()
+        if not inbox_admin(current_user) and row.agent_id != current_user.id:
+            abort(404)
         expected = session.get('client_inquiry_csrf', '')
         if not expected or not hmac.compare_digest(expected, request.form.get('csrf_token', '')):
             abort(400)
+        if row.agent_id is None:
+            abort(409, 'Accept the client in Messages before replying.')
         reply = request.form.get('reply', '').strip()
         if not reply or len(reply) > 4000:
-            flash('Write a reply of up to 4,000 characters.', 'error')
-        else:
-            row.reply = reply
-            db.session.commit()
-            flash('Reply saved to the client app.', 'success')
+            abort(400)
+        append_reply(row, reply, current_user, str(uuid.uuid4()))
+        db.session.commit()
         return redirect(url_for('client_messages.inbox', thread=f'inquiry-{row.id}'))
     return redirect(url_for('client_messages.inbox'))

@@ -1,6 +1,7 @@
 """Agent workspace for client inquiries and transaction conversations."""
 import hmac
 import secrets
+import uuid
 from datetime import datetime
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
@@ -9,9 +10,10 @@ from sqlalchemy import and_, case, func
 from sqlalchemy.orm import joinedload
 
 from feature_flags import can_access_transactions
-from models import db, ClientBrowseAccount, ClientBrowseInquiry, PortalMessage, Transaction, TransactionParticipant
+from models import db, User, Organization, ClientBrowseAccount, ClientBrowseInquiry, PortalMessage, Transaction, TransactionParticipant
 from routes.client_discovery import org_context
 from services.device_push import enqueue_portal_push
+from services.client_conversations import inbox_admin, agent_name, events, assign_client, append_reply
 from services.portal_service import CLIENT_PORTAL_ROLES
 from services.transaction_auth import CAP_SEND_COMMS, has_capability, transactions_visible_query
 
@@ -25,21 +27,25 @@ def _threads():
         ClientBrowseAccount, ClientBrowseAccount.id == ClientBrowseInquiry.account_id,
     ).filter(ClientBrowseInquiry.organization_id == org_id,
              ClientBrowseAccount.organization_id == org_id)
-    if current_user.org_role not in ('owner', 'admin'):
-        inquiries = inquiries.filter(ClientBrowseInquiry.agent_id == current_user.id)
+    if not inbox_admin(current_user):
+        inquiries = inquiries.filter((ClientBrowseInquiry.agent_id == current_user.id) | ClientBrowseInquiry.agent_id.is_(None))
     rows = []
     for inquiry, account in inquiries.all():
         snapshot = inquiry.listing_snapshot or {}
+        history = events(inquiry)
+        last = history[-1]
+        assigned = User.query.filter_by(id=inquiry.agent_id, organization_id=org_id).first() if inquiry.agent_id else None
         rows.append(dict(key=f'inquiry-{inquiry.id}', kind='inquiry', name=account.name,
                          email=account.email, subject=(f"{snapshot['street']}, {snapshot.get('city', '')} · Repliers sample" if snapshot.get('street') else f'Sample home {inquiry.listing_id}'
                          if inquiry.listing_id else 'General inquiry'),
                          label='Showing request' if inquiry.kind == 'showing' else 'Home inquiry',
-                         preview=inquiry.reply or inquiry.body, at=inquiry.created_at,
-                         attention=not bool(inquiry.reply), row=inquiry, account=account,
-                         can_reply=True))
+                         preview=last['body'], at=last['created_at'] or inquiry.created_at,
+                         attention=last['sender'] == 'client', row=inquiry, account=account,
+                         agent_name=agent_name(assigned), unassigned=inquiry.agent_id is None,
+                         can_reply=inquiry.agent_id is not None and (inbox_admin(current_user) or inquiry.agent_id == current_user.id)))
     if can_access_transactions(current_user):
         txs = transactions_visible_query(current_user)
-        if current_user.org_role in ('owner', 'admin'):
+        if inbox_admin(current_user):
             txs = Transaction.query.filter_by(organization_id=org_id)
         activity = db.session.query(
             PortalMessage.participant_id.label('participant_id'),
@@ -92,6 +98,34 @@ def inbox():
             abort(404)
         if not hmac.compare_digest(csrf_token, request.form.get('csrf_token', '')):
             abort(400)
+        if selected['kind'] == 'inquiry':
+            account = ClientBrowseAccount.query.filter_by(id=selected['account'].id,
+                organization_id=current_user.organization_id).with_for_update().populate_existing().one()
+            row = ClientBrowseInquiry.query.filter_by(id=selected['row'].id,
+                organization_id=current_user.organization_id).populate_existing().one()
+            action = request.form.get('action', 'reply')
+            if action in ('claim', 'assign'):
+                if action == 'assign' and not inbox_admin(current_user):
+                    abort(403)
+                if action == 'claim' and (account.agent_id is not None or row.agent_id is not None):
+                    abort(409, 'This client has already been assigned. Refresh the inbox.')
+                if action == 'assign' and str(account.agent_id or '') != request.form.get('expected_agent', ''):
+                    abort(409, 'The assignment changed. Refresh before assigning again.')
+                target_id = current_user.id if action == 'claim' else request.form.get('agent_id', type=int)
+                target = User.query.filter_by(id=target_id, organization_id=current_user.organization_id).first() if target_id else None
+                if target_id and not target:
+                    abort(400)
+                try:
+                    assign_client(account, db.session.get(Organization, current_user.organization_id), target, current_user)
+                except ValueError as exc:
+                    db.session.rollback()
+                    flash(str(exc), 'error')
+                    return redirect(url_for('.inbox', thread=key))
+                db.session.commit()
+                flash('Client assigned.' if target else 'Client returned to the general inbox.', 'success')
+                return redirect(url_for('.inbox', thread=key, view='mine' if target_id == current_user.id else 'all'))
+            if action != 'reply' or row.agent_id is None or (row.agent_id != current_user.id and not inbox_admin(current_user)):
+                abort(403)
         if not selected['can_reply']:
             abort(403)
         draft = request.form.get('body', '').strip()
@@ -100,7 +134,12 @@ def inbox():
             status = 400
         else:
             if selected['kind'] == 'inquiry':
-                selected['row'].reply = draft
+                request_id = request.form.get('request_id', str(uuid.uuid4()))
+                try:
+                    uuid.UUID(request_id)
+                except ValueError:
+                    abort(400)
+                append_reply(selected['row'], draft, current_user, request_id)
                 message = None
             else:
                 message = PortalMessage(organization_id=current_user.organization_id,
@@ -116,7 +155,7 @@ def inbox():
                     current_app.logger.exception('Could not enqueue client message push')
             flash('Reply sent to the client app.', 'success')
             return redirect(url_for('.inbox', thread=key))
-    messages = []
+    messages = events(selected['row']) if selected and selected['kind'] == 'inquiry' else []
     if selected and selected['kind'] == 'deal':
         messages = PortalMessage.query.filter_by(organization_id=current_user.organization_id,
             transaction_id=selected['transaction'].id, participant_id=selected['row'].id).options(
@@ -139,10 +178,16 @@ def inbox():
     if search:
         threads = [row for row in threads if search.casefold() in
                    ' '.join((row['name'], row['email'], row['subject'], row['preview'])).casefold()]
-    if view == 'attention':
+    if view == 'general':
+        threads = [row for row in threads if row.get('unassigned')]
+    elif view == 'mine':
+        threads = [row for row in threads if row['kind'] == 'deal' or row['row'].agent_id == current_user.id]
+    elif view == 'attention':
         threads = [row for row in threads if row['attention']]
     elif view in ('inquiry', 'deal'):
         threads = [row for row in threads if row['kind'] == view]
     return render_template('client_messages/inbox.html', threads=threads, selected=selected,
                            messages=messages, csrf_token=csrf_token, search=search, view=view,
-                           attention_count=attention_count, draft=draft, error=error), status
+                           attention_count=attention_count, draft=draft, error=error,
+                           is_inbox_admin=inbox_admin(current_user), request_id=str(uuid.uuid4()),
+                           agents=User.query.filter_by(organization_id=current_user.organization_id).order_by(User.first_name, User.id).all()), status

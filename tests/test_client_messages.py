@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from models import db, ClientBrowseAccount, ClientBrowseInquiry, PortalMessage, TransactionAssignment
+from models import db, ClientBrowseAccount, ClientBrowseInquiry, ClientInquiryMessage, PortalMessage, TransactionAssignment
 from tests.test_agent_api import _seller_thread
 from tests.test_client_portal_api import _auth_headers, _open_session
 
@@ -62,7 +62,7 @@ def test_inquiry_reply_csrf_validation_and_attention(app, owner_a_client, thread
     sent = owner_a_client.post(path, data={'body': 'Saturday works.', 'csrf_token': csrf})
     assert sent.status_code == 302
     with app.app_context():
-        assert db.session.get(ClientBrowseInquiry, threads['inquiry']).reply == 'Saturday works.'
+        assert ClientInquiryMessage.query.filter_by(inquiry_id=threads['inquiry']).one().body == 'Saturday works.'
     assert f"thread=inquiry-{threads['inquiry']}&".encode() not in owner_a_client.get('/messages?view=attention').data
 
 
