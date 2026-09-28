@@ -119,7 +119,7 @@
                                 <input class="crm-input" id="agent-link-{{ agent.id }}" readonly value="agentflow://brokerage/{{ org.slug }}?agent={{ agent.id }}">
                                 {% endfor %}
                             </details>
-                            <a class="crm-btn crm-btn-secondary mt-3" href="{{ url_for('org.client_inquiries') }}">Client app inquiries</a>
+                            <a class="crm-btn crm-btn-secondary mt-3" href="{{ url_for('client_messages.inbox') }}">Messages</a>
                         </div>
                         {% endif %}
 

@@ -110,12 +110,12 @@ def test_owner_reply_visible_only_to_requesting_account(client, owner_a_client, 
     row = client.post(BASE + '/inquiries', headers=auth(registered), json=inquiry_body()).json
     assert owner_b_client.post('/org/client-inquiries', data={'inquiry_id': row['id'], 'reply': 'Wrong tenant'}).status_code == 404
     assert owner_a_client.post('/org/client-inquiries', data={'inquiry_id': row['id'], 'reply': 'Forged'}).status_code == 400
-    owner_a_client.get('/org/client-inquiries')
+    owner_a_client.get('/org/client-inquiries', follow_redirects=True)
     with owner_a_client.session_transaction() as session:
         csrf_token = session['client_inquiry_csrf']
     assert owner_a_client.post('/org/client-inquiries', data={'inquiry_id': row['id'], 'reply': 'We can help.', 'csrf_token': csrf_token}).status_code == 302
     assert client.get(BASE + '/inquiries', headers=auth(registered)).json['inquiries'][0]['reply'] == 'We can help.'
-    assert owner_a_client.get('/org/client-inquiries').status_code == 200
+    assert owner_a_client.get('/org/client-inquiries', follow_redirects=True).status_code == 200
 
 
 def test_sign_out_revokes_token_and_delete_requires_password(client):

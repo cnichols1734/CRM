@@ -412,9 +412,8 @@ def usage():
 @org_bp.route('/client-inquiries', methods=['GET', 'POST'])
 @login_required
 def client_inquiries():
-    from models import ClientBrowseAccount, ClientBrowseInquiry
+    from models import ClientBrowseInquiry
     from flask import session
-    import secrets
     import hmac
     from routes.client_discovery import org_context
     org_context(current_user.organization_id)
@@ -433,10 +432,5 @@ def client_inquiries():
             row.reply = reply
             db.session.commit()
             flash('Reply saved to the client app.', 'success')
-        return redirect(url_for('org.client_inquiries'))
-    rows = query.order_by(ClientBrowseInquiry.id.desc()).limit(100).all()
-    accounts = {a.id: a for a in ClientBrowseAccount.query.filter(
-        ClientBrowseAccount.organization_id == current_user.organization_id,
-        ClientBrowseAccount.id.in_([r.account_id for r in rows])).all()}
-    csrf_token = session.setdefault('client_inquiry_csrf', secrets.token_urlsafe(32))
-    return render_template('organization/client_inquiries.html', inquiries=rows, accounts=accounts, csrf_token=csrf_token)
+        return redirect(url_for('client_messages.inbox', thread=f'inquiry-{row.id}'))
+    return redirect(url_for('client_messages.inbox'))

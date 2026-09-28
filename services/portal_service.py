@@ -929,12 +929,12 @@ def list_client_messages(access, limit=50):
             transaction_id=access.transaction_id,
             participant_id=access.participant_id,
         )
-        .order_by(PortalMessage.created_at.asc())
+        .order_by(PortalMessage.created_at.desc(), PortalMessage.id.desc())
         .limit(limit)
         .all()
     )
     out = []
-    for m in msgs:
+    for m in reversed(msgs):
         author = getattr(m, 'author', None)
         if m.sender == 'client':
             author_name = _participant_first_name(access.participant)
