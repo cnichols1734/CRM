@@ -76,6 +76,9 @@ def test_public_permissions_and_missing_map_are_respected(record):
     for flag in ('displayPublic', 'displayInternetEntireListing', 'displayAddressOnInternet'):
         private = deepcopy(record); private['permissions'][flag] = 'N'
         assert listings.normalize(private) is None
+    # Texas sandbox records omit the optional map flag but explicitly allow address display.
+    record['permissions'].pop('displayOnMap')
+    assert listings.normalize(record)['map_longitude'] == -97.743
     record['permissions']['displayOnMap'] = 'N'
     assert listings.normalize(record)['map_latitude'] is None
     record['images'] = ['live/listing.jpg']; record['details']['description'] = 'Live listing'
