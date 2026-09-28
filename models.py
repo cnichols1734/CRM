@@ -35,6 +35,8 @@ class Organization(db.Model):
     # Client iPhone app accent. Unset uses the product orange.
     brand_accent = db.Column(db.String(7))
     
+    client_app_settings = db.Column(db.JSON, nullable=True)
+
     # Subscription tier
     subscription_tier = db.Column(db.String(50), default='free')  # free, pro, enterprise
     
@@ -4981,3 +4983,40 @@ class MarketingSuppression(db.Model):
 
     def __repr__(self):
         return f'<MarketingSuppression {self.email} {self.scope}/{self.reason}>'
+
+
+class ClientBrowseAccount(db.Model):
+    __tablename__ = 'client_browse_accounts'
+    __table_args__ = (db.UniqueConstraint('organization_id', 'email'),)
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False, index=True)
+    email = db.Column(db.String(120), nullable=False)
+    name = db.Column(db.String(160), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    session_version = db.Column(db.Integer, nullable=False, default=1)
+    saved_ids = db.Column(db.JSON, nullable=False, default=list)
+    agent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ClientBrowseInquiry(db.Model):
+    __tablename__ = 'client_browse_inquiries'
+    __table_args__ = (db.UniqueConstraint('account_id', 'request_id'),)
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('client_browse_accounts.id'), nullable=False)
+    agent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    request_id = db.Column(db.String(36), nullable=False)
+    kind = db.Column(db.String(20), nullable=False)
+    listing_id = db.Column(db.String(80), nullable=True)
+    body = db.Column(db.Text, nullable=False)
+    reply = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ClientBrowseRateLimit(db.Model):
+    __tablename__ = 'client_browse_rate_limits'
+    key = db.Column(db.String(64), primary_key=True)
+    hits = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(db.Integer, nullable=False)

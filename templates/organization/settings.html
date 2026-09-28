@@ -86,6 +86,43 @@
                         </div>
                         {% endif %}
 
+                        {% if client_app_branding|default(false) %}
+                        {% set app_settings = org.client_app_settings or {} %}
+                        <input type="hidden" name="client_app_present" value="1">
+                        <div>
+                            <label class="crm-form-label" for="client-app-enabled">
+                                <input id="client-app-enabled" type="checkbox" name="client_app_enabled" value="1"
+                                    {% if app_settings.get('enabled', org.slug == 'origen-realty') %}checked{% endif %}
+                                    {% if current_user.org_role != 'owner' %}disabled{% endif %}>
+                                Enable brokerage in the client app
+                            </label>
+                            <p class="crm-form-help">Publishes your brokerage name, logo, color, and contact agent.</p>
+                        </div>
+                        <div>
+                            <label class="crm-form-label" for="client-app-agent">New client inquiries go to</label>
+                            <select class="crm-input" id="client-app-agent" name="client_app_agent"
+                                {% if current_user.org_role != 'owner' %}disabled{% endif %}>
+                                <option value="">Brokerage owner</option>
+                                {% for agent in app_agents %}
+                                <option value="{{ agent.id }}" {% if app_settings.get('agent_id') == agent.id %}selected{% endif %}>{{ agent.first_name }} {{ agent.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="crm-form-label" for="client-app-link">Brokerage app link</label>
+                            <input class="crm-input" id="client-app-link" readonly value="agentflow://brokerage/{{ org.slug }}">
+                            <p class="crm-form-help">Opens AgentFlow with your brokerage branding when the app is installed.</p>
+                            <details class="mt-3">
+                                <summary class="crm-form-label">Agent referral links</summary>
+                                {% for agent in app_agents %}
+                                <label class="crm-form-label mt-3" for="agent-link-{{ agent.id }}">{{ agent.first_name }} {{ agent.last_name }}</label>
+                                <input class="crm-input" id="agent-link-{{ agent.id }}" readonly value="agentflow://brokerage/{{ org.slug }}?agent={{ agent.id }}">
+                                {% endfor %}
+                            </details>
+                            <a class="crm-btn crm-btn-secondary mt-3" href="{{ url_for('org.client_inquiries') }}">Client app inquiries</a>
+                        </div>
+                        {% endif %}
+
                         {% if current_user.org_role == 'owner' %}
                         <div class="flex items-center justify-end pt-2">
                             <button type="submit" class="crm-btn crm-btn-primary t-save" data-t-save>

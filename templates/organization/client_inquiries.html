@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+{% block title %}Client app inquiries - AgentFlow{% endblock %}
+{% block content %}
+<div class="crm-page"><div class="crm-page__inner max-w-[1100px]">
+{% call page_header('Client app inquiries', 'Questions and showing requests from your clients.', 'Clients') %}{% endcall %}
+<div class="space-y-5">
+{% for inquiry in inquiries %}
+{% set person = accounts.get(inquiry.account_id) %}
+<section class="crm-surface">
+<header class="crm-surface-header"><div>
+<h2 class="crm-section-title">{{ person.name if person else 'Client' }}</h2>
+<p class="crm-section-description">{{ inquiry.kind|capitalize }}{% if inquiry.listing_id %} · Sample home {{ inquiry.listing_id }}{% endif %} · {{ inquiry.created_at.strftime('%b %d, %Y') }}</p>
+</div></header>
+<div class="crm-surface-body space-y-4">
+<p class="whitespace-pre-wrap">{{ inquiry.body }}</p>
+{% if person %}<p class="text-sm">{{ person.email }}{% if person.contact_id %} · <a href="{{ url_for('contacts.view_contact', contact_id=person.contact_id) }}">Open contact</a>{% endif %}</p>{% endif %}
+<form method="post" class="space-y-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="inquiry_id" value="{{ inquiry.id }}">
+<label class="crm-form-label" for="reply-{{ inquiry.id }}">Reply in the client app</label>
+<textarea class="crm-input" id="reply-{{ inquiry.id }}" name="reply" maxlength="4000" required rows="3">{{ inquiry.reply or '' }}</textarea>
+<button class="crm-btn crm-btn-primary" type="submit">Save reply</button>
+</form>
+</div></section>
+{% else %}<p class="crm-section-description">No client app inquiries yet.</p>{% endfor %}
+</div></div></div>
+{% endblock %}

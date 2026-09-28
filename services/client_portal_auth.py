@@ -52,6 +52,8 @@ def org_branding(org):
     else:
         accent_ink = _darken_hex(accent)
     return {
+        'id': str(org.id),
+        'slug': org.slug,
         'name': org.name,
         'logo_url': org.logo_url or None,
         'accent': accent,

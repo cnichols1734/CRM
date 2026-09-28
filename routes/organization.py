@@ -32,6 +32,7 @@ def settings():
         org=org,
         mcp_enabled=org_has_feature('MCP_CONNECTOR', org),
         client_app_branding=org_has_feature('TRANSACTIONS', org),
+        app_agents=User.query.filter_by(organization_id=org.id).order_by(User.first_name).all(),
     )
 
 
@@ -61,6 +62,14 @@ def update_settings():
             flash('Accent color must be a 6-digit hex like #f97316.', 'error')
             return redirect(url_for('org.settings'))
         org.brand_accent = accent
+        if 'client_app_present' in request.form:
+            agent_id = request.form.get('client_app_agent', type=int)
+            if agent_id and not User.query.filter_by(id=agent_id, organization_id=org.id).first():
+                abort(400)
+            org.client_app_settings = {
+                'enabled': request.form.get('client_app_enabled') == '1',
+                'agent_id': agent_id,
+            }
     
     db.session.commit()
     flash('Organization settings updated.', 'success')
@@ -398,3 +407,36 @@ def usage():
     org = current_user.organization
     
     return render_template('organization/usage.html', org=org)
+
+
+@org_bp.route('/client-inquiries', methods=['GET', 'POST'])
+@login_required
+def client_inquiries():
+    from models import ClientBrowseAccount, ClientBrowseInquiry
+    from flask import session
+    import secrets
+    import hmac
+    from routes.client_discovery import org_context
+    org_context(current_user.organization_id)
+    query = ClientBrowseInquiry.query.filter_by(organization_id=current_user.organization_id)
+    if current_user.org_role not in ('owner', 'admin'):
+        query = query.filter_by(agent_id=current_user.id)
+    if request.method == 'POST':
+        row = query.filter_by(id=request.form.get('inquiry_id', type=int)).first_or_404()
+        expected = session.get('client_inquiry_csrf', '')
+        if not expected or not hmac.compare_digest(expected, request.form.get('csrf_token', '')):
+            abort(400)
+        reply = request.form.get('reply', '').strip()
+        if not reply or len(reply) > 4000:
+            flash('Write a reply of up to 4,000 characters.', 'error')
+        else:
+            row.reply = reply
+            db.session.commit()
+            flash('Reply saved to the client app.', 'success')
+        return redirect(url_for('org.client_inquiries'))
+    rows = query.order_by(ClientBrowseInquiry.id.desc()).limit(100).all()
+    accounts = {a.id: a for a in ClientBrowseAccount.query.filter(
+        ClientBrowseAccount.organization_id == current_user.organization_id,
+        ClientBrowseAccount.id.in_([r.account_id for r in rows])).all()}
+    csrf_token = session.setdefault('client_inquiry_csrf', secrets.token_urlsafe(32))
+    return render_template('organization/client_inquiries.html', inquiries=rows, accounts=accounts, csrf_token=csrf_token)
