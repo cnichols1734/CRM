@@ -5121,3 +5121,31 @@ html[data-theme="dark"] .mkt-page {
 @media (prefers-reduced-motion: reduce) { .mkt-inline-details > summary::after, .mkt-disclosure > summary::after { transition:none; } }
 .mkt-page .crm-callout .crm-link { color:var(--accent-ink); font-weight:600; text-decoration:underline; text-underline-offset:2px; }
 .mkt-connect { margin-bottom:16px; }
+
+
+/* Client conversation workspace. */
+@layer components {
+  .crm-message-workspace { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+  .crm-message-list, .crm-message-conversation { min-width: 0; overflow: hidden; }
+  .crm-message-rows { max-height: 65vh; overflow-y: auto; }
+  .crm-message-row { display: block; padding: 1rem 1.25rem; border-top: 1px solid var(--hairline); color: var(--ink); }
+  .crm-message-row:hover, .crm-message-row.is-active { background: var(--paper-3); }
+  .crm-message-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .crm-message-preview { margin-top: .4rem; font-size: .875rem; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crm-message-time, .crm-message-meta { font-size: .75rem; color: var(--ink-3); }
+  .crm-message-time { display: block; margin-top: .4rem; }
+  .crm-message-history { display: flex; flex-direction: column; gap: 1.5rem; max-height: 55vh; overflow-y: auto; }
+  .crm-message-entry { max-width: 90%; overflow-wrap: anywhere; }
+  .crm-message-entry.is-agent { margin-left: auto; background: var(--paper-2); padding: .75rem 1rem; border-radius: .75rem; }
+  .crm-message-entry p { white-space: pre-wrap; margin-top: .35rem; }
+  .crm-message-compose { border-top: 1px solid var(--hairline); }
+  .crm-message-back { display: none; margin-bottom: .75rem; }
+  @media (max-width: 767px) {
+    .crm-message-workspace { display: block; }
+    .crm-message-rows, .crm-message-history { max-height: none; }
+    .crm-message-workspace:not(.has-conversation) .crm-message-conversation,
+    .crm-message-workspace.has-conversation .crm-message-list { display: none; }
+    .crm-message-back { display: inline-block; }
+    .crm-message-conversation .crm-surface-header { align-items: start; flex-wrap: wrap; gap: .75rem; }
+  }
+}

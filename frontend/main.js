@@ -1,4 +1,5 @@
 import { Application } from "@hotwired/stimulus";
+import ClientMessagesController from "./controllers/client_messages_controller";
 import DashboardPageController from "./controllers/dashboard_page_controller";
 import ContactsPageController from "./controllers/contacts_page_controller";
 import MarketInsightsController from "./controllers/market_insights_controller";
@@ -25,6 +26,7 @@ import "./styles/app.css";
 const application = Application.start();
 
 application.register("dashboard-page", DashboardPageController);
+application.register("client-messages", ClientMessagesController);
 application.register("copy-field", CopyFieldController);
 application.register("contacts-page", ContactsPageController);
 application.register("market-insights", MarketInsightsController);
