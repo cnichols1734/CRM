@@ -94,7 +94,7 @@ def _secret() -> bytes:
     return str(key).encode('utf-8')
 
 
-def issue_client_jwt(access, now=None, ttl_seconds=JWT_TTL_SECONDS):
+def issue_client_jwt(access, now=None, ttl_seconds=JWT_TTL_SECONDS, *, browse_account=None, link_mode=None):
     """Return a compact HS256 JWT bound to this grant and session_version."""
     now = int(now if now is not None else time.time())
     payload = {
@@ -108,6 +108,8 @@ def issue_client_jwt(access, now=None, ttl_seconds=JWT_TTL_SECONDS):
         'exp': now + int(ttl_seconds),
         'iss': 'agentflow-client',
     }
+    if browse_account is not None:
+        payload.update(bid=browse_account.id, bsv=browse_account.session_version, blm=link_mode)
     header = {'alg': 'HS256', 'typ': 'JWT'}
     header_b64 = _b64url_encode(json.dumps(header, separators=(',', ':')).encode())
     body_b64 = _b64url_encode(json.dumps(payload, separators=(',', ':')).encode())
@@ -179,4 +181,19 @@ def load_access_from_jwt(token, now=None):
         or access.participant_id != claims.get('pid')
     ):
         return None, 'Sign in with your invite code first.'
+    if 'bid' in claims:
+        from models import ClientBrowseAccount, db
+        from routes.client_discovery import org_context, public_org
+        org_context(access.organization_id)
+        account = ClientBrowseAccount.query.filter_by(id=claims['bid'], organization_id=access.organization_id).first()
+        org = db.session.get(Organization, access.organization_id)
+        if not account or account.session_version != claims.get('bsv') or not org or not public_org(org.slug):
+            return None, 'Sign in to your account again.'
+        if claims.get('blm') == 'email':
+            participant = access.participant
+            if (not account.email_verified_at or not participant
+                    or (participant.display_email or '').strip().lower() != account.email):
+                return None, 'This email is no longer connected to the deal.'
+        elif claims.get('blm') != 'invite' or access.id not in (account.linked_access_ids or []):
+            return None, 'This deal is no longer connected to your account.'
     return access, None

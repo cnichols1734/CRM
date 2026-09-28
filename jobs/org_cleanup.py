@@ -68,6 +68,8 @@ def hard_delete_organization(org_id: int, org_name: str):
     db.session.execute(text("SET LOCAL app.current_org_id = :oid"), {'oid': org_id})
     
     p = {'oid': org_id}
+    _safe_delete(db, 'DELETE FROM client_browse_inquiries WHERE organization_id = :oid', p)
+    _safe_delete(db, 'DELETE FROM client_browse_accounts WHERE organization_id = :oid', p)
     
     # Delete in dependency order (children before parents)
     # Each step uses a SAVEPOINT so a missing/renamed table won't break the rest

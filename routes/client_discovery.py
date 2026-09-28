@@ -4,17 +4,19 @@ from functools import wraps
 import hashlib
 import hmac
 import re
+import secrets
+from html import escape
 import time
 import uuid
 
 from flask import Blueprint, current_app, jsonify, request
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from sqlalchemy import text
+from sqlalchemy import text, func
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import (db, Organization, User, Contact, Interaction, UserTodo,
-                    ClientBrowseAccount, ClientBrowseInquiry, ClientBrowseRateLimit)
+                    ClientBrowseAccount, ClientBrowseInquiry, ClientBrowseRateLimit, TransactionParticipant, ClientPortalAccess, Transaction)
 from services.client_portal_auth import org_branding
 
 client_discovery_bp = Blueprint('client_discovery', __name__, url_prefix='/api/client/v1/discovery')
@@ -92,7 +94,7 @@ def field(data, name, maximum):
 
 def account_payload(account):
     return {'id': account.id, 'name': account.name, 'email': account.email, 'saved_ids': account.saved_ids,
-            'agent_id': account.agent_id}
+            'agent_id': account.agent_id, 'email_verified': account.email_verified_at is not None}
 
 
 def authenticated(view):
@@ -276,16 +278,22 @@ def send_inquiry(account, org):
         return error('Your agent is unavailable. Contact your brokerage.', 409)
     # Never attach an existing CRM contact by a self-entered email address.
     contact = Contact.query.filter_by(id=account.contact_id, organization_id=org.id).first() if account.contact_id else None
+    if contact and contact.user_id != agent.id:
+        if account.owns_contact:
+            contact.user_id = agent.id
+        else:
+            contact = None
     if not contact:
         if org.is_at_contact_limit:
             return error('The brokerage cannot receive new inquiries right now.', 409)
         parts = account.name.split(' ', 1)
         contact = Contact(organization_id=org.id, user_id=agent.id, created_by_id=agent.id,
-            first_name=parts[0], last_name=parts[1] if len(parts) > 1 else '', email=account.email,
+            first_name=parts[0][:80], last_name=(parts[1] if len(parts) > 1 else '')[:80], email=account.email,
             phone=phone, notes='AgentFlow app inquiry. Email provided by client, not verified.')
         db.session.add(contact)
         db.session.flush()
         account.contact_id = contact.id
+        account.owns_contact = True
     elif phone:
         contact.phone = phone
     notes = f'AgentFlow {kind} inquiry' + (f' about SAMPLE home {listing_id}' if listing_id else '') + f'\n{body}'
@@ -326,6 +334,133 @@ def connect_deal(account, org):
     if not agent:
         return error('This agent is unavailable.', 409)
     account.agent_id = agent.id
+    if account.contact_id and account.owns_contact:
+        contact = Contact.query.filter_by(id=account.contact_id, organization_id=org.id).first()
+        if contact:
+            contact.user_id = agent.id
+    account.linked_access_ids = list(set((account.linked_access_ids or []) + [access.id]))
     result = {'account': account_payload(account), **profile(org, agent)}
+    db.session.commit()
+    return jsonify(result)
+
+
+def verification_digest(account, code):
+    return hmac.new(str(current_app.config['SECRET_KEY']).encode(),
+                    f'client-email:{account.id}:{account.email}:{code}'.encode(), hashlib.sha256).hexdigest()
+
+
+def send_verification_email(account, code, org):
+    from services.sendgrid_outbound import _send_html
+    return _send_html(account.email, 'Verify your AgentFlow email',
+        f'<p>Verify your email for {escape(org.name)} in AgentFlow.</p>'
+        f'<p style="font-size:28px;letter-spacing:6px"><strong>{code}</strong></p>'
+        '<p>This code expires in 15 minutes. Enter it in the app to connect your deals.</p>'
+        '<p>If you did not request this code, you can ignore this email.</p>')
+
+
+@client_discovery_bp.post('/email/verification')
+@authenticated
+def request_verification(account, org):
+    if account.email_verified_at:
+        return jsonify(account=account_payload(account))
+    aid, oid = account.id, org.id
+    if limited('verification', 5, 3600, str(aid)):
+        return error('Too many codes requested. Try again in an hour.', 429)
+    org_context(oid)
+    account = ClientBrowseAccount.query.filter_by(id=aid, organization_id=oid).with_for_update().populate_existing().one()
+    code = f'{secrets.randbelow(1000000):06d}'
+    account.verification_hash = verification_digest(account, code)
+    account.verification_expires_at = int(time.time()) + 900
+    account.verification_attempts = 0
+    if not send_verification_email(account, code, org):
+        db.session.rollback()
+        return error('We could not send your verification email. Try again shortly.', 503)
+    db.session.commit()
+    return jsonify(ok=True)
+
+
+@client_discovery_bp.post('/email/verify')
+@authenticated
+def verify_email(account, org):
+    account = ClientBrowseAccount.query.filter_by(id=account.id, organization_id=org.id).with_for_update().populate_existing().one()
+    code = field(payload(), 'code', 6)
+    if account.email_verified_at:
+        return jsonify(account=account_payload(account))
+    if (not account.verification_hash or (account.verification_expires_at or 0) <= int(time.time())
+            or account.verification_attempts >= 5):
+        return error('Request a new verification code.', 422)
+    account.verification_attempts += 1
+    if not hmac.compare_digest(account.verification_hash, verification_digest(account, code)):
+        db.session.commit()
+        return error('That code is incorrect. Check the email and try again.', 422)
+    account.email_verified_at = datetime.utcnow()
+    account.verification_hash = None
+    account.verification_expires_at = None
+    contacts = Contact.query.filter(Contact.organization_id == org.id,
+        func.lower(func.trim(Contact.email)) == account.email).limit(2).all()
+    if len(contacts) == 1:
+        account.contact_id = contacts[0].id
+        account.owns_contact = False
+        if agent_for(org, contacts[0].user_id):
+            account.agent_id = contacts[0].user_id
+    result = {'account': account_payload(account), **profile(org, agent_for(org, account.agent_id))}
+    db.session.commit()
+    return jsonify(result)
+
+
+def eligible_deals(account, org):
+    from services.portal_service import CLIENT_PORTAL_ROLES
+    participants = {}
+    explicit = ClientPortalAccess.query.filter(ClientPortalAccess.organization_id == org.id,
+        ClientPortalAccess.id.in_(account.linked_access_ids or []), ClientPortalAccess.is_active.is_(True)).all()
+    for access in explicit:
+        participants[access.participant_id] = (access.participant, access, 'invite')
+    if account.email_verified_at:
+        matches = TransactionParticipant.query.outerjoin(Contact, TransactionParticipant.contact_id == Contact.id).filter(
+            TransactionParticipant.organization_id == org.id,
+            TransactionParticipant.role.in_(CLIENT_PORTAL_ROLES), TransactionParticipant.user_id.is_(None),
+            (TransactionParticipant.contact_id.is_(None)) | (Contact.organization_id == org.id),
+            func.lower(func.trim(func.coalesce(func.nullif(Contact.email, ''), TransactionParticipant.email))) == account.email).all()
+        for participant in matches:
+            if participant.id in participants:
+                continue
+            access = ClientPortalAccess.query.filter_by(organization_id=org.id, participant_id=participant.id,
+                transaction_id=participant.transaction_id).order_by(ClientPortalAccess.id.desc()).first()
+            # A revoked grant stays revoked even when the email still matches.
+            if access and not access.is_active:
+                continue
+            participants[participant.id] = (participant, access, 'email')
+    return [(p, a, mode) for p, a, mode in participants.values()
+        if p and p.organization_id == org.id and p.role in CLIENT_PORTAL_ROLES
+        and p.transaction and p.transaction.organization_id == org.id
+        and (not a or a.transaction_id == p.transaction_id)]
+
+
+@client_discovery_bp.get('/deals')
+@authenticated
+def matched_deals(account, org):
+    return jsonify(deals=[{'id': p.id, 'address': p.transaction.street_address,
+        'city': p.transaction.city or '', 'status': p.transaction.status, 'role': p.role}
+        for p, _, _ in eligible_deals(account, org)])
+
+
+@client_discovery_bp.post('/deals/<int:participant_id>/session')
+@authenticated
+def open_matched_deal(account, org, participant_id):
+    from services.client_portal_auth import issue_client_jwt
+    account = ClientBrowseAccount.query.filter_by(id=account.id, organization_id=org.id).with_for_update().populate_existing().one()
+    match = next((row for row in eligible_deals(account, org) if row[0].id == participant_id), None)
+    if not match:
+        return error('This deal is no longer connected to your account.', 404)
+    participant, access, mode = match
+    if not access:
+        access = ClientPortalAccess(organization_id=org.id, transaction_id=participant.transaction_id,
+            participant_id=participant.id, token=ClientPortalAccess.generate_token())
+        db.session.add(access)
+        db.session.flush()
+    token = issue_client_jwt(access, browse_account=account, link_mode=mode)
+    result = {'deal_session': {'token': token,
+        'participant_first_name': participant.display_name.split(' ')[0],
+        'role': 'buyer' if participant.role in ('buyer', 'co_buyer') else 'seller'}}
     db.session.commit()
     return jsonify(result)
