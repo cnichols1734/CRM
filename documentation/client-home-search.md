@@ -23,3 +23,7 @@ Configure `REPLIERS_API_KEY` on the Railway web service, deploy the CRM, then in
 Backend checks: `pytest tests/test_repliers_listings.py tests/test_client_discovery.py tests/test_client_messages.py`. The iOS repository also includes an isolated Flask fixture and a native URLSession contract check. Neither test sends email or needs a Repliers key.
 
 Repliers MCP uses its own OAuth connection and Developer Portal key link. The CRM REST integration does not depend on that MCP connection or an OpenAI key.
+
+## Brokerage identity
+
+Origen's default app identity uses the marketing email `CLIENT_EMAIL_BRAND_MARK` and `CLIENT_EMAIL_BRAND_WORDMARK` assets. Its branding response includes `brand_style: origen` and the wordmark URL. The iOS app bundles transparent versions of these PNGs for its initial and offline presentation. An uploaded organization logo takes precedence and clears the built-in style and wordmark. Other brokerages never receive the Origen defaults. No database migration is needed for these response fields.

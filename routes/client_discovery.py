@@ -86,8 +86,6 @@ def agent_for(org, supplied=None):
 
 def profile(org, agent):
     brand = org_branding(org)
-    if org.slug == 'origen-realty' and not org.brand_accent:
-        brand['accent'] = '#14807b'
     brand.update(id=str(org.id), slug=org.slug)
     return {'branding': brand, 'agent': {
         'id': agent.id, 'name': f'{agent.first_name} {agent.last_name}'.strip(),

@@ -35,7 +35,7 @@ def normalize_brand_accent(value):
 
 
 def org_branding(org):
-    """Name, logo, and accent for THIS app. Defaults to product orange."""
+    """Brokerage app branding, with the Origen email identity as its default."""
     if org is None:
         return {
             'name': 'Your brokerage',
@@ -43,10 +43,15 @@ def org_branding(org):
             'accent': DEFAULT_ACCENT,
             'accent_ink': DEFAULT_ACCENT_INK,
         }
+    from config import Config
+
+    is_origen = org.slug == 'origen-realty'
+    own_logo = (org.logo_url or '').strip()
+    use_origen_assets = is_origen and not own_logo
     accent = (getattr(org, 'brand_accent', None) or '').strip().lower()
     if not _HEX_COLOR.match(accent or ''):
-        accent = DEFAULT_ACCENT
-        accent_ink = DEFAULT_ACCENT_INK
+        accent = '#14807b' if is_origen else DEFAULT_ACCENT
+        accent_ink = _darken_hex(accent) if is_origen else DEFAULT_ACCENT_INK
     elif accent == DEFAULT_ACCENT:
         accent_ink = DEFAULT_ACCENT_INK
     else:
@@ -55,7 +60,9 @@ def org_branding(org):
         'id': str(org.id),
         'slug': org.slug,
         'name': org.name,
-        'logo_url': org.logo_url or None,
+        'logo_url': own_logo or (current_app.config.get('CLIENT_EMAIL_BRAND_MARK', Config.CLIENT_EMAIL_BRAND_MARK) if use_origen_assets else None),
+        'wordmark_url': current_app.config.get('CLIENT_EMAIL_BRAND_WORDMARK', Config.CLIENT_EMAIL_BRAND_WORDMARK) if use_origen_assets else None,
+        'brand_style': 'origen' if use_origen_assets else None,
         'accent': accent,
         'accent_ink': accent_ink,
     }
