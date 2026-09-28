@@ -29,8 +29,9 @@ def _threads():
         inquiries = inquiries.filter(ClientBrowseInquiry.agent_id == current_user.id)
     rows = []
     for inquiry, account in inquiries.all():
+        snapshot = inquiry.listing_snapshot or {}
         rows.append(dict(key=f'inquiry-{inquiry.id}', kind='inquiry', name=account.name,
-                         email=account.email, subject=(f'Sample home {inquiry.listing_id}'
+                         email=account.email, subject=(f"{snapshot['street']}, {snapshot.get('city', '')} · Repliers sample" if snapshot.get('street') else f'Sample home {inquiry.listing_id}'
                          if inquiry.listing_id else 'General inquiry'),
                          label='Showing request' if inquiry.kind == 'showing' else 'Home inquiry',
                          preview=inquiry.reply or inquiry.body, at=inquiry.created_at,

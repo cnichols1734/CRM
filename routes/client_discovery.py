@@ -20,6 +20,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import (db, Organization, User, Contact, Interaction, UserTodo,
                     ClientBrowseAccount, ClientBrowseInquiry, ClientBrowseRateLimit, TransactionParticipant, ClientPortalAccess, Transaction)
 from services.client_portal_auth import org_branding
+from services import repliers_listings
 
 client_discovery_bp = Blueprint('client_discovery', __name__, url_prefix='/api/client/v1/discovery')
 TTL = 30 * 24 * 60 * 60
@@ -233,16 +234,18 @@ def save_homes(account, org):
     data = payload()
     changes = data.get('changes')
     if not isinstance(changes, dict) or len(changes) > 500 or any(
-        not isinstance(i, str) or not re.fullmatch(r'h(?:0[1-9]|1[0-5])', i) or type(wanted) is not bool
+        not isinstance(i, str) or not (repliers_listings.valid_id(i) or re.fullmatch(r'h(?:0[1-9]|1[0-5])', i)) or type(wanted) is not bool
         for i, wanted in changes.items()
     ):
-        return error('Choose homes from the sample collection.')
+        return error('Choose valid homes from the app.')
     account = ClientBrowseAccount.query.filter_by(id=account.id, organization_id=org.id).with_for_update().populate_existing().one()
     ids = list(account.saved_ids or [])
     for listing_id, wanted in changes.items():
         ids = [i for i in ids if i != listing_id]
         if wanted:
             ids.insert(0, listing_id)
+    if len(ids) > 500:
+        return error('Your saved collection can hold up to 500 homes.')
     account.saved_ids = ids
     result = account_payload(account)
     db.session.commit()
@@ -254,7 +257,8 @@ def save_homes(account, org):
 def inquiries(account, org):
     rows = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).order_by(ClientBrowseInquiry.id.desc()).limit(100).all()
     return jsonify(inquiries=[{'id': r.id, 'kind': r.kind, 'body': r.body, 'reply': r.reply,
-        'listing_id': r.listing_id, 'created_at': r.created_at.isoformat() + 'Z'} for r in rows])
+        'listing_id': r.listing_id, 'listing_snapshot': r.listing_snapshot,
+        'created_at': r.created_at.isoformat() + 'Z'} for r in rows])
 
 
 @client_discovery_bp.post('/inquiries')
@@ -283,8 +287,15 @@ def send_inquiry(account, org):
     phone = field(data, 'phone', 20)
     if kind not in ('question', 'showing', 'contact') or not body or data.get('consent') is not True:
         return error('Add a message and confirm the brokerage may contact you.')
-    if listing_id and not re.fullmatch(r'h(?:0[1-9]|1[0-5])', listing_id):
-        return error('Choose a sample home from the app.')
+    listing_snapshot = None
+    if listing_id and repliers_listings.valid_id(listing_id):
+        try:
+            listing = repliers_listings.get_listing(listing_id)
+        except repliers_listings.ListingError as exc:
+            return error(str(exc), exc.status)
+        listing_snapshot = {key: listing[key] for key in ('id', 'street', 'city', 'state', 'zip', 'price', 'mls_number', 'source')}
+    elif listing_id and not re.fullmatch(r'h(?:0[1-9]|1[0-5])', listing_id):
+        return error('Choose a home from the app.')
     agent = agent_for(org, account.agent_id)
     if not agent:
         return error('Your agent is unavailable. Contact your brokerage.', 409)
@@ -308,9 +319,11 @@ def send_inquiry(account, org):
         account.owns_contact = True
     elif phone:
         contact.phone = phone
-    notes = f'AgentFlow {kind} inquiry' + (f' about SAMPLE home {listing_id}' if listing_id else '') + f'\n{body}'
+    context = (f"Repliers sample: {listing_snapshot['street']}, {listing_snapshot['city']}, {listing_snapshot['state']} · {listing_id}"
+               if listing_snapshot else f'SAMPLE home {listing_id}')
+    notes = f'AgentFlow {kind} inquiry' + (f' about {context}' if listing_id else '') + f'\n{body}'
     inquiry = ClientBrowseInquiry(organization_id=org.id, account_id=account.id, agent_id=agent.id,
-        request_id=request_id, kind=kind, listing_id=listing_id, body=body)
+        request_id=request_id, kind=kind, listing_id=listing_id, listing_snapshot=listing_snapshot, body=body)
     db.session.add(inquiry)
     db.session.add(Interaction(organization_id=org.id, contact_id=contact.id, user_id=agent.id,
         type='Note', notes=notes, date=datetime.utcnow()))
@@ -476,3 +489,30 @@ def open_matched_deal(account, org, participant_id):
         'role': 'buyer' if participant.role in ('buyer', 'co_buyer') else 'seller'}}
     db.session.commit()
     return jsonify(result)
+
+
+@client_discovery_bp.get('/brokerages/<slug>/listings')
+def search_listings(slug):
+    if not public_org(slug):
+        return error('Brokerage not found.', 404)
+    if limited('listing-search', 90, 60):
+        return error('Please wait a moment before searching again.', 429)
+    try:
+        ids = request.args.get('ids')
+        if ids is not None:
+            return jsonify(listings=repliers_listings.get_many(ids.split(',')))
+        return jsonify(repliers_listings.search(request.args))
+    except repliers_listings.ListingError as exc:
+        return error(str(exc), exc.status)
+
+
+@client_discovery_bp.get('/brokerages/<slug>/listings/<listing_id>')
+def listing_detail(slug, listing_id):
+    if not public_org(slug):
+        return error('Brokerage not found.', 404)
+    if limited('listing-detail', 90, 60):
+        return error('Please wait a moment before loading another home.', 429)
+    try:
+        return jsonify(listing=repliers_listings.get_listing(listing_id))
+    except repliers_listings.ListingError as exc:
+        return error(str(exc), exc.status)
