@@ -18,9 +18,10 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import (db, Organization, User, Contact, Interaction, UserTodo,
-                    ClientBrowseAccount, ClientBrowseInquiry, ClientBrowseRateLimit, TransactionParticipant, ClientPortalAccess, Transaction)
+                    ClientBrowseAccount, ClientBrowseInquiry, ClientInquiryMessage, ClientBrowseRateLimit, TransactionParticipant, ClientPortalAccess, Transaction)
 from services.client_portal_auth import org_branding
 from services import repliers_listings
+from services.client_conversations import inquiry_payload, ensure_contact, record_inquiry, assign_client
 
 client_discovery_bp = Blueprint('client_discovery', __name__, url_prefix='/api/client/v1/discovery')
 TTL = 30 * 24 * 60 * 60
@@ -76,12 +77,9 @@ def public_org(slug):
 
 
 def agent_for(org, supplied=None):
-    settings = org.client_app_settings or {}
-    selected = supplied or settings.get('agent_id')
-    query = User.query.filter_by(organization_id=org.id)
-    if selected:
-        return query.filter_by(id=selected).first()
-    return query.filter_by(org_role='owner').order_by(User.id).first()
+    if not supplied:
+        return None
+    return User.query.filter_by(organization_id=org.id, id=supplied).first()
 
 
 def profile(org, agent):
@@ -153,7 +151,7 @@ def brokerage(slug):
     if 'agent' in request.args and (not agent_id or agent_id < 1):
         return error('This agent link is invalid.')
     agent = agent_for(org, agent_id)
-    if not agent:
+    if agent_id and not agent:
         return error('This agent link is unavailable.', 404)
     return jsonify(profile(org, agent))
 
@@ -182,10 +180,10 @@ def sign_in():
         if agent_id is not None and (type(agent_id) is not int or agent_id < 1):
             return error('Choose a valid agent link.')
         agent = agent_for(org, agent_id)
-        if not name or not agent:
+        if not name or (agent_id and not agent):
             return error('Enter your name and use a valid brokerage link.')
         account = ClientBrowseAccount(organization_id=org.id, email=email, name=name,
-            password_hash=generate_password_hash(password), agent_id=agent.id)
+            password_hash=generate_password_hash(password), agent_id=agent.id if agent else None)
         db.session.add(account)
         try:
             db.session.flush()
@@ -220,6 +218,9 @@ def delete_account(account, org):
     password = payload().get('password', '')
     if not isinstance(password, str) or len(password) > 128 or not check_password_hash(account.password_hash, password):
         return error('Password is incorrect.', 403)
+    inquiry_ids = db.session.query(ClientBrowseInquiry.id).filter_by(organization_id=org.id, account_id=account.id)
+    ClientInquiryMessage.query.filter(ClientInquiryMessage.organization_id == org.id,
+        ClientInquiryMessage.inquiry_id.in_(inquiry_ids)).delete(synchronize_session=False)
     ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).delete()
     db.session.delete(account)
     db.session.commit()
@@ -253,10 +254,12 @@ def save_homes(account, org):
 @client_discovery_bp.get('/inquiries')
 @authenticated
 def inquiries(account, org):
-    rows = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).order_by(ClientBrowseInquiry.id.desc()).limit(100).all()
-    return jsonify(inquiries=[{'id': r.id, 'kind': r.kind, 'body': r.body, 'reply': r.reply,
-        'listing_id': r.listing_id, 'listing_snapshot': r.listing_snapshot,
-        'created_at': r.created_at.isoformat() + 'Z'} for r in rows])
+    latest = db.session.query(func.max(ClientInquiryMessage.created_at)).filter(
+        ClientInquiryMessage.organization_id == org.id,
+        ClientInquiryMessage.inquiry_id == ClientBrowseInquiry.id).correlate(ClientBrowseInquiry).scalar_subquery()
+    rows = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).order_by(
+        func.coalesce(latest, ClientBrowseInquiry.created_at).desc(), ClientBrowseInquiry.id.desc()).limit(100).all()
+    return jsonify(inquiries=[inquiry_payload(r) for r in rows])
 
 
 @client_discovery_bp.post('/inquiries')
@@ -291,42 +294,22 @@ def send_inquiry(account, org):
             listing = repliers_listings.get_listing(listing_id)
         except repliers_listings.ListingError as exc:
             return error(str(exc), exc.status)
-        listing_snapshot = {key: listing[key] for key in ('id', 'street', 'city', 'state', 'zip', 'price', 'mls_number', 'source')}
+        listing_snapshot = {key: listing[key] for key in ('id', 'street', 'city', 'state', 'zip', 'price', 'mls_number', 'source', 'photo_names', 'beds', 'baths', 'sqft')}
     elif listing_id and not re.fullmatch(r'h(?:0[1-9]|1[0-5])', listing_id):
         return error('Choose a home from the app.')
     agent = agent_for(org, account.agent_id)
-    if not agent:
-        return error('Your agent is unavailable. Contact your brokerage.', 409)
-    # Never attach an existing CRM contact by a self-entered email address.
-    contact = Contact.query.filter_by(id=account.contact_id, organization_id=org.id).first() if account.contact_id else None
-    if contact and contact.user_id != agent.id:
-        if account.owns_contact:
-            contact.user_id = agent.id
-        else:
-            contact = None
-    if not contact:
-        if org.is_at_contact_limit:
-            return error('The brokerage cannot receive new inquiries right now.', 409)
-        parts = account.name.split(' ', 1)
-        contact = Contact(organization_id=org.id, user_id=agent.id, created_by_id=agent.id,
-            first_name=parts[0][:80], last_name=(parts[1] if len(parts) > 1 else '')[:80], email=account.email,
-            phone=phone, notes='AgentFlow app inquiry. Email provided by client, not verified.')
-        db.session.add(contact)
-        db.session.flush()
-        account.contact_id = contact.id
-        account.owns_contact = True
-    elif phone:
-        contact.phone = phone
-    context = (f"Repliers sample: {listing_snapshot['street']}, {listing_snapshot['city']}, {listing_snapshot['state']} · {listing_id}"
-               if listing_snapshot else f'SAMPLE home {listing_id}')
-    notes = f'AgentFlow {kind} inquiry' + (f' about {context}' if listing_id else '') + f'\n{body}'
-    inquiry = ClientBrowseInquiry(organization_id=org.id, account_id=account.id, agent_id=agent.id,
+    contact = None
+    if agent:
+        try:
+            contact = ensure_contact(account, org, agent, phone)
+        except ValueError as exc:
+            return error(str(exc), 409)
+    inquiry = ClientBrowseInquiry(organization_id=org.id, account_id=account.id,
+        agent_id=agent.id if agent else None, phone=phone,
         request_id=request_id, kind=kind, listing_id=listing_id, listing_snapshot=listing_snapshot, body=body)
     db.session.add(inquiry)
-    db.session.add(Interaction(organization_id=org.id, contact_id=contact.id, user_id=agent.id,
-        type='Note', notes=notes, date=datetime.utcnow()))
-    db.session.add(UserTodo(organization_id=org.id, user_id=agent.id,
-        text=f'Follow up with {account.name}: {kind} inquiry from AgentFlow. Contact #{contact.id}.'[:500]))
+    if contact:
+        record_inquiry(inquiry, account, contact)
     try:
         db.session.flush()
         inquiry_id = inquiry.id
@@ -341,9 +324,43 @@ def send_inquiry(account, org):
     return jsonify(id=inquiry_id), 201
 
 
+@client_discovery_bp.post('/inquiries/<int:inquiry_id>/messages')
+@authenticated
+def send_inquiry_message(account, org, inquiry_id):
+    data = payload()
+    request_id = field(data, 'request_id', 36)
+    body = field(data, 'body', 4000)
+    try:
+        uuid.UUID(request_id)
+    except ValueError:
+        return error('A request ID is required.')
+    if not body:
+        return error('Write a message of up to 4,000 characters.')
+    aid, oid = account.id, org.id
+    # Authorize before rate limiting, which commits the current transaction.
+    row = ClientBrowseInquiry.query.filter_by(id=inquiry_id, account_id=aid, organization_id=oid).first()
+    if not row:
+        return error('Conversation not found.', 404)
+    if limited('inquiry-message', 100, 86400, str(aid)):
+        return error("You have reached today's message limit. Try again tomorrow.", 429)
+    org_context(oid)
+    ClientBrowseAccount.query.filter_by(id=aid, organization_id=oid).with_for_update().populate_existing().one()
+    row = ClientBrowseInquiry.query.filter_by(id=inquiry_id, account_id=aid, organization_id=oid).first()
+    if not row:
+        return error('Conversation not found.', 404)
+    prior = ClientInquiryMessage.query.filter_by(organization_id=oid, inquiry_id=inquiry_id,
+        sender='client', request_id=request_id).first()
+    if not prior:
+        db.session.add(ClientInquiryMessage(organization_id=oid, inquiry_id=inquiry_id,
+            sender='client', body=body, request_id=request_id))
+    db.session.commit()
+    return jsonify(ok=True)
+
+
 @client_discovery_bp.post('/connection')
 @authenticated
 def connect_deal(account, org):
+    account = ClientBrowseAccount.query.filter_by(id=account.id, organization_id=org.id).with_for_update().populate_existing().one()
     from services.client_portal_auth import load_access_from_jwt
     from services.portal_service import CLIENT_PORTAL_ROLES
     access, failure = load_access_from_jwt(field(payload(), 'deal_token', 4096))
@@ -356,11 +373,10 @@ def connect_deal(account, org):
     agent = agent_for(org, tx.created_by_id)
     if not agent:
         return error('This agent is unavailable.', 409)
-    account.agent_id = agent.id
-    if account.contact_id and account.owns_contact:
-        contact = Contact.query.filter_by(id=account.contact_id, organization_id=org.id).first()
-        if contact:
-            contact.user_id = agent.id
+    try:
+        assign_client(account, org, agent, None)
+    except ValueError as exc:
+        return error(str(exc), 409)
     account.linked_access_ids = list(set((account.linked_access_ids or []) + [access.id]))
     result = {'account': account_payload(account), **profile(org, agent)}
     db.session.commit()
@@ -422,10 +438,10 @@ def verify_email(account, org):
     contacts = Contact.query.filter(Contact.organization_id == org.id,
         func.lower(func.trim(Contact.email)) == account.email).limit(2).all()
     if len(contacts) == 1:
+        account.owns_contact = account.owns_contact and account.contact_id == contacts[0].id
         account.contact_id = contacts[0].id
-        account.owns_contact = False
         if agent_for(org, contacts[0].user_id):
-            account.agent_id = contacts[0].user_id
+            assign_client(account, org, agent_for(org, contacts[0].user_id), None)
     result = {'account': account_payload(account), **profile(org, agent_for(org, account.agent_id))}
     db.session.commit()
     return jsonify(result)

@@ -27,3 +27,13 @@ Repliers MCP uses its own OAuth connection and Developer Portal key link. The CR
 ## Brokerage identity
 
 Origen's default app identity uses the marketing email `CLIENT_EMAIL_BRAND_MARK` and `CLIENT_EMAIL_BRAND_WORDMARK` assets. Its branding response includes `brand_style: origen` and the wordmark URL. The iOS app bundles transparent versions of these PNGs for its initial and offline presentation. An uploaded organization logo takes precedence and clears the built-in style and wordmark. Other brokerages never receive the Origen defaults. No database migration is needed for these response fields.
+
+## Inquiry conversations and assignment
+
+New app accounts without an explicit agent referral enter the brokerage's General inbox in Messages. A deal or invite code is not required. An agent selects Accept client to claim all that account's home inquiries; future inquiries go to the same agent. Account row locks serialize claims, messages and assignment changes. Admins, owners and platform superadmins can see and reassign all inquiries within their current brokerage. Transaction permissions remain separate.
+
+Existing assignments are preserved. An admin can return a client to General inbox or choose another agent. Connecting an invite or matching a verified email synchronizes existing inquiry ownership with the linked agent. A client's saved homes and conversation history remain with their app account.
+
+Apply Alembic revision `add_client_inquiry_messages` before deploying. It adds tenant-protected, append-only follow-up messages and inquiry contact/task bookkeeping. Existing initial messages and legacy replies remain readable. Direct Supabase anon/authenticated access is revoked. Account deletion removes app inquiry messages while retaining CRM contact records. Reassignment moves a linked pending follow-up task; returning to General removes that generated pending task without replaying old contact notes.
+
+Property snapshots include photos, address, price, beds, baths and area from the server's Repliers result. Older app versions can still read the latest agent reply through the legacy response field. New messages appear when the app refreshes; push notifications for these pre-deal conversations are not part of this change.

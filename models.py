@@ -5017,9 +5017,33 @@ class ClientBrowseInquiry(db.Model):
     kind = db.Column(db.String(20), nullable=False)
     listing_id = db.Column(db.String(80), nullable=True)
     listing_snapshot = db.Column(db.JSON, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    crm_recorded_at = db.Column(db.DateTime, nullable=True)
+    followup_todo_id = db.Column(db.Integer, db.ForeignKey('user_todos.id', ondelete='SET NULL'), nullable=True)
     body = db.Column(db.Text, nullable=False)
     reply = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    messages = db.relationship('ClientInquiryMessage', order_by='ClientInquiryMessage.id',
+        cascade='all, delete-orphan', passive_deletes=True, lazy='selectin')
+
+
+class ClientInquiryMessage(db.Model):
+    __tablename__ = 'client_inquiry_messages'
+    __table_args__ = (
+        db.UniqueConstraint('inquiry_id', 'sender', 'request_id'),
+        db.CheckConstraint("sender IN ('client', 'agent')", name='ck_inquiry_message_sender'),
+        db.Index('ix_inquiry_messages_thread', 'organization_id', 'inquiry_id', 'id'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+    inquiry_id = db.Column(db.Integer, db.ForeignKey('client_browse_inquiries.id', ondelete='CASCADE'), nullable=False)
+    sender = db.Column(db.String(10), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    request_id = db.Column(db.String(36), nullable=False)
+    author_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    author = db.relationship('User', lazy='joined')
 
 
 class ClientBrowseRateLimit(db.Model):

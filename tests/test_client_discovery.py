@@ -33,8 +33,10 @@ def test_public_brand_and_agent_are_tenant_scoped(app, seed, client):
     response = client.get(BASE + '/brokerages/test-realty-a')
     assert response.status_code == 200
     assert response.json['branding']['slug'] == 'test-realty-a'
-    assert response.json['agent']['id'] == seed['owner_a']
-    assert 'email' not in response.json['agent']
+    assert response.json['agent'] is None
+    linked = client.get(BASE + f"/brokerages/test-realty-a?agent={seed['agent_a']}")
+    assert linked.json['agent']['id'] == seed['agent_a']
+    assert 'email' not in linked.json['agent']
     assert client.get(BASE + f"/brokerages/test-realty-a?agent={seed['owner_b']}").status_code == 404
     with app.app_context():
         db.session.get(Organization, seed['org_b']).client_app_settings = {'enabled': False}
@@ -105,8 +107,8 @@ def test_cannot_choose_agent_from_other_tenant(seed, client):
     assert signup(client, agent_id=seed['owner_b']).status_code == 400
 
 
-def test_owner_reply_visible_only_to_requesting_account(client, owner_a_client, owner_b_client):
-    registered = signup(client)
+def test_owner_reply_visible_only_to_requesting_account(client, owner_a_client, owner_b_client, seed):
+    registered = signup(client, agent_id=seed['owner_a'])
     row = client.post(BASE + '/inquiries', headers=auth(registered), json=inquiry_body()).json
     assert owner_b_client.post('/org/client-inquiries', data={'inquiry_id': row['id'], 'reply': 'Wrong tenant'}).status_code == 404
     assert owner_a_client.post('/org/client-inquiries', data={'inquiry_id': row['id'], 'reply': 'Forged'}).status_code == 400
@@ -271,7 +273,7 @@ def test_code_fallback_persists_different_email_connection(app, seed, client):
 
 def test_long_names_fit_contact_columns_and_deal_moves_app_contact(app, seed, client):
     from test_client_portal_api import _seller_tx, _participant, _grant, _open_session
-    response = client.post(BASE + '/accounts', json={'brokerage': 'test-realty-a', 'email': f'{uuid.uuid4()}@example.com', 'password': 'test-password-123', 'name': 'N' * 160})
+    response = client.post(BASE + '/accounts', json={'brokerage': 'test-realty-a', 'email': f'{uuid.uuid4()}@example.com', 'password': 'test-password-123', 'name': 'N' * 160, 'agent_id': seed['owner_a']})
     headers = auth(response)
     assert client.post(BASE + '/inquiries', headers=headers, json=inquiry_body()).status_code == 201
     with app.app_context():
@@ -295,14 +297,14 @@ def test_discovery_foreign_key_lifecycle_enforced():
     from models import ClientBrowseAccount, ClientBrowseInquiry
     engine = create_engine('sqlite://')
     metadata = MetaData()
-    for name in ('organizations', 'user', 'contact'):
+    for name in ('organizations', 'user', 'contact', 'user_todos'):
         Table(name, metadata, Column('id', Integer, primary_key=True))
     ClientBrowseAccount.__table__.to_metadata(metadata)
     ClientBrowseInquiry.__table__.to_metadata(metadata)
     metadata.create_all(engine)
     with engine.begin() as conn:
         conn.execute(text('PRAGMA foreign_keys=ON'))
-        for name in ('organizations', 'user', 'contact'):
+        for name in ('organizations', 'user', 'contact', 'user_todos'):
             conn.execute(text(f'INSERT INTO "{name}" (id) VALUES (1)'))
         conn.execute(text("INSERT INTO client_browse_accounts (id,organization_id,email,name,password_hash,session_version,saved_ids,linked_access_ids,owns_contact,verification_attempts,agent_id,contact_id,created_at) VALUES (1,1,'a@b.com','Test','hash',1,'[]','[]',0,0,1,1,CURRENT_TIMESTAMP)"))
         conn.execute(text("INSERT INTO client_browse_inquiries (id,organization_id,account_id,agent_id,request_id,kind,body,created_at) VALUES (1,1,1,1,'uuid','question','test',CURRENT_TIMESTAMP)"))

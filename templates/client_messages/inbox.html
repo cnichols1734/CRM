@@ -16,7 +16,7 @@
 <button class="crm-btn crm-btn-secondary" type="submit" aria-label="Search conversations"><i class="fas fa-search" aria-hidden="true"></i></button>
 </form>
 <nav class="flex flex-wrap gap-2" aria-label="Filter conversations">
-{% for value, label in [('all', 'All'), ('attention', 'Needs attention'), ('inquiry', 'Inquiries'), ('deal', 'Transactions')] %}
+{% for value, label in [('all', 'All'), ('general', 'General inbox'), ('mine', 'My queue'), ('attention', 'Needs reply'), ('deal', 'Transactions')] %}
 <a class="crm-pill-tab {% if view == value %}is-active{% endif %}" href="{{ url_for('client_messages.inbox', view=value, q=search) }}" {% if view == value %}aria-current="page"{% endif %}>{{ label }}{% if value == 'attention' and attention_count %} ({{ attention_count }}){% endif %}</a>
 {% endfor %}
 </nav>
@@ -27,6 +27,7 @@
 <div class="flex items-start justify-between gap-3"><span class="font-semibold break-words">{{ thread.name }}</span>{% if thread.attention %}{{ badge('New' if thread.kind == 'deal' else 'Needs reply', 'accent') }}{% endif %}</div>
 <div class="crm-section-description mt-1">{{ thread.label }} · {{ thread.subject }}</div>
 <p class="crm-message-preview">{{ thread.preview }}</p>
+{% if thread.kind == 'inquiry' %}<p class="crm-section-description">{{ thread.agent_name or 'Waiting for an agent' }}</p>{% endif %}
 {% if thread.at %}<time class="crm-message-time" datetime="{{ thread.at.isoformat() }}">{{ thread.at|timeago }}</time>{% endif %}
 </a>
 {% else %}
@@ -40,12 +41,34 @@
 <a class="crm-message-back crm-section-description" href="{{ url_for('client_messages.inbox', view=view, q=search) }}"><i class="fas fa-chevron-left" aria-hidden="true"></i> All messages</a>
 <h2 class="crm-section-title break-words">{{ selected.name }}</h2>
 <p class="crm-section-description">{{ selected.label }} · {{ selected.subject }}</p>
-{% if selected.email %}<p class="crm-section-description break-all">{{ selected.email }}</p>{% endif %}
+{% if selected.email %}<p class="crm-section-description break-all">{{ selected.email }}{% if selected.kind == 'inquiry' and selected.row.phone %} · {{ selected.row.phone }}{% endif %}</p>{% endif %}
 </div>{% if selected.kind == 'deal' %}<a class="crm-btn crm-btn-secondary" href="{{ url_for('transactions.view_transaction', id=selected.transaction.id) }}">Open transaction</a>{% endif %}</header>
+{% if selected.kind == 'inquiry' %}
+<div class="crm-surface-body crm-message-assignment">
+<p class="crm-section-description">{{ 'Assigned to ' ~ selected.agent_name if selected.agent_name else 'In the general inbox. Accept this client to reply.' }}</p>
+{% if selected.unassigned %}<form method="post" action="{{ url_for('client_messages.inbox', thread=selected.key) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="claim">
+<button type="submit" class="crm-btn crm-btn-primary">Accept client</button>
+</form>{% endif %}
+{% if is_inbox_admin %}<form method="post" action="{{ url_for('client_messages.inbox', thread=selected.key) }}" class="flex flex-wrap items-end gap-2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="assign">
+<input type="hidden" name="expected_agent" value="{{ selected.account.agent_id or '' }}">
+<div><label class="crm-form-label" for="assigned-agent">Client assignment</label><select class="crm-select" name="agent_id" id="assigned-agent">
+<option value="">General inbox</option>{% for agent in agents %}<option value="{{ agent.id }}" {% if selected.account.agent_id == agent.id %}selected{% endif %}>{{ agent.first_name }} {{ agent.last_name }}</option>{% endfor %}
+</select></div><button class="crm-btn crm-btn-secondary" type="submit">Assign</button></form>{% endif %}
+{% if selected.unassigned %}<p class="crm-section-description crm-message-assignment-help">Accepting assigns all this client's home inquiries to you.</p>{% endif %}
+</div>{% endif %}
 <div class="crm-surface-body crm-message-history" data-client-messages-target="history">
 {% if selected.kind == 'inquiry' %}
-<article class="crm-message-entry"><div class="crm-message-meta">{{ selected.name }} · {{ selected.at|timeago }}</div><p>{{ selected.row.body }}</p></article>
-{% if selected.row.reply %}<article class="crm-message-entry is-agent"><div class="crm-message-meta">Agent reply</div><p>{{ selected.row.reply }}</p></article>{% endif %}
+{% set home = selected.row.listing_snapshot or {} %}
+{% if home %}<div class="crm-message-property">
+{% if home.photo_names %}<img src="{{ home.photo_names[0] }}" alt="{{ home.street }}" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+<div>{% if home.price %}<strong>${{ '{:,.0f}'.format(home.price) }}</strong>{% endif %}
+<p>{{ home.street }}</p><p class="crm-section-description">{{ home.city }}, {{ home.state }} {{ home.zip or '' }}</p>
+{% if home.beds or home.baths or home.sqft %}<p class="crm-section-description">{{ home.beds or '—' }} beds · {{ home.baths or '—' }} baths{% if home.sqft %} · {{ '{:,}'.format(home.sqft) }} sq ft{% endif %}</p>{% endif %}
+<p class="crm-section-description">Repliers sample home · {{ 'Showing request' if selected.row.kind == 'showing' else 'Home question' }}</p></div>
+</div>{% endif %}
+{% for message in messages %}<article class="crm-message-entry {% if message.sender == 'agent' %}is-agent{% endif %}"><div class="crm-message-meta">{{ (message.author_name or 'Brokerage') if message.sender == 'agent' else selected.name }}{% if message.created_at %} · {{ message.created_at|timeago }}{% endif %}</div><p>{{ message.body }}</p></article>{% endfor %}
 {% else %}
 {% for message in messages %}
 <article class="crm-message-entry {% if message.sender == 'agent' %}is-agent{% endif %}">
@@ -60,12 +83,13 @@
 {% if selected.can_reply %}
 <form method="post" action="{{ url_for('client_messages.inbox', thread=selected.key) }}" class="space-y-3">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-<label class="crm-form-label" for="message-body">{{ 'Update your reply' if selected.kind == 'inquiry' and selected.row.reply else 'Reply in the client app' }}</label>
+<input type="hidden" name="request_id" value="{{ request_id }}">
+<label class="crm-form-label" for="message-body">Reply in the client app</label>
 {% if error %}<p class="crm-section-description" role="alert">{{ error }}</p>{% endif %}
-<textarea id="message-body" name="body" class="crm-textarea" required maxlength="4000" rows="3" placeholder="Write a reply…">{{ draft or (selected.row.reply if selected.kind == 'inquiry' and selected.row.reply else '') }}</textarea>
-<button class="crm-btn crm-btn-primary" type="submit">{{ 'Update reply' if selected.kind == 'inquiry' and selected.row.reply else 'Send reply' }}</button>
+<textarea id="message-body" name="body" class="crm-textarea" required maxlength="4000" rows="3" placeholder="Write a reply…">{{ draft }}</textarea>
+<button class="crm-btn crm-btn-primary" type="submit">Send reply</button>
 </form>
-{% else %}<p class="crm-section-description">You can read this conversation. Ask the lead agent for permission to send messages.</p>{% endif %}
+{% elif selected.kind == 'deal' %}<p class="crm-section-description">You can read this conversation. Ask the lead agent for permission to send messages.</p>{% endif %}
 </div>
 {% else %}
 {% call empty_state('Select a conversation', 'Read and reply to clients here.', 'fa-comment-dots') %}{% endcall %}
