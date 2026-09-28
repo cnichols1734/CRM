@@ -1,6 +1,8 @@
 """Public brokerage profiles and browsing accounts, independent of deal grants."""
 from datetime import datetime
 from functools import wraps
+import os
+from ipaddress import ip_address
 import hashlib
 import hmac
 import re
@@ -37,9 +39,19 @@ def serializer():
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='client-browse-v1')
 
 
+def client_ip():
+    # Railway overwrites X-Real-IP at its HTTP edge. Trust it only there.
+    if os.environ.get('RAILWAY_ENVIRONMENT_ID'):
+        try:
+            return str(ip_address(request.headers.get('X-Real-IP', '')))
+        except ValueError:
+            pass
+    return request.remote_addr
+
+
 def limited(scope, limit, seconds, identity=None):
     now = int(time.time())
-    raw = f'{scope}:{identity or request.remote_addr}:{now // seconds}'
+    raw = f'{scope}:{identity or client_ip()}:{now // seconds}'
     key = hmac.new(str(current_app.config['SECRET_KEY']).encode(), raw.encode(), hashlib.sha256).hexdigest()
     # Database counters apply across workers. Store no raw IP or email.
     db.session.query(ClientBrowseRateLimit).filter(ClientBrowseRateLimit.expires_at < now).delete()

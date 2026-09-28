@@ -313,3 +313,21 @@ def test_discovery_foreign_key_lifecycle_enforced():
         conn.execute(text('DELETE FROM organizations WHERE id=1'))
         assert conn.execute(text('SELECT count(*) FROM client_browse_accounts')).scalar() == 0
         assert conn.execute(text('SELECT count(*) FROM client_browse_inquiries')).scalar() == 0
+
+
+def test_auth_rate_limits_use_railway_client_ip_not_shared_proxy(client, monkeypatch):
+    monkeypatch.setenv('RAILWAY_ENVIRONMENT_ID', 'test-production')
+    for _ in range(30):
+        assert client.post(BASE + '/session', json={}, headers={'X-Real-IP': '192.0.2.1'}).status_code == 404
+    assert client.post(BASE + '/session', json={}, headers={'X-Real-IP': '192.0.2.1'}).status_code == 429
+    assert client.post(BASE + '/session', json={}, headers={'X-Real-IP': '192.0.2.2'}).status_code == 404
+
+
+def test_forwarded_ip_is_ignored_off_railway(app, monkeypatch):
+    from routes.client_discovery import client_ip
+    monkeypatch.delenv('RAILWAY_ENVIRONMENT_ID', raising=False)
+    with app.test_request_context(headers={'X-Real-IP': '192.0.2.1'}, environ_base={'REMOTE_ADDR': '127.0.0.1'}):
+        assert client_ip() == '127.0.0.1'
+    monkeypatch.setenv('RAILWAY_ENVIRONMENT_ID', 'test-production')
+    with app.test_request_context(headers={'X-Real-IP': 'invalid'}, environ_base={'REMOTE_ADDR': '127.0.0.1'}):
+        assert client_ip() == '127.0.0.1'
