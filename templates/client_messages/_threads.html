@@ -1,0 +1,14 @@
+{% from 'client_messages/_macros.html' import initials %}
+{% for thread in threads %}
+<a class="messages-thread {% if selected and selected.key == thread.key %}is-active{% endif %} {% if thread.attention %}needs-reply{% endif %}" href="{{ url_for('client_messages.inbox', thread=thread.key, view=view, q=search) }}" data-thread-key="{{ thread.key }}" data-action="click->client-messages#navigate" {% if selected and selected.key == thread.key %}aria-current="page"{% endif %}>
+  <span class="messages-avatar messages-avatar--{{ 'deal' if thread.kind == 'deal' else 'inquiry' }}" aria-hidden="true">{{ initials(thread.name) }}</span>
+  <span class="messages-thread__content">
+    <span class="messages-thread__top"><span class="messages-thread__name">{{ thread.name }}</span>{% if thread.at %}<time datetime="{{ thread.at.isoformat() }}Z" title="{{ (thread.at|to_central).strftime('%b %d, %Y at %I:%M %p %Z') }}">{{ thread.at|timeago }}</time>{% endif %}</span>
+    <span class="messages-thread__subject"><i class="fas {{ 'fa-house' if thread.kind == 'inquiry' else 'fa-file-lines' }}" aria-hidden="true"></i>{{ thread.subject }}</span>
+    <span class="messages-thread__preview">{% if thread.last_sender == 'agent' %}<span class="messages-thread__you">Agent: </span>{% endif %}{{ thread.preview }}</span>
+    {% if thread.attention or (thread.kind == 'inquiry' and thread.unassigned) %}<span class="messages-thread__status">{% if thread.attention %}<span class="messages-unread-dot" aria-hidden="true"></span>Needs reply{% endif %}{% if thread.kind == 'inquiry' and thread.unassigned %}<span class="messages-unassigned">General inbox</span>{% endif %}</span>{% endif %}
+  </span>
+</a>
+{% else %}
+<div class="messages-list-empty"><i class="far fa-comments" aria-hidden="true"></i><h2>{{ 'No matching conversations' if search or view != 'all' else 'Your inbox starts here' }}</h2><p>{{ 'Try a different name or filter.' if search or view != 'all' else 'Home inquiries and messages from your clients will appear here.' }}</p>{% if search or view != 'all' %}<a href="{{ url_for('client_messages.inbox') }}" data-action="click->client-messages#navigate">Show all messages <i class="fas fa-arrow-right" aria-hidden="true"></i></a>{% endif %}</div>
+{% endfor %}

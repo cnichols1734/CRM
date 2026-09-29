@@ -1,0 +1,4 @@
+{% macro initials(name) -%}
+  {%- set parts = (name or 'Client').split() or ['Client'] -%}
+  {{- parts[0][0]|upper -}}{% if parts|length > 1 %}{{ parts[-1][0]|upper }}{% endif %}
+{%- endmacro %}

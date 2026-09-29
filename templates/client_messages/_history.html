@@ -1,0 +1,18 @@
+{% if selected %}
+{% set dates = namespace(previous='') %}
+{% for message in messages %}
+  {% set local_time = message.created_at|to_central if message.created_at else none %}
+  {% set day = local_time.strftime('%B %-d, %Y') if local_time else '' %}
+  {% if day and day != dates.previous %}<div class="messages-day"><span>{{ day }}</span></div>{% set dates.previous = day %}{% endif %}
+  <article class="messages-entry {% if message.sender == 'agent' %}is-agent{% endif %}" data-message-id="{{ message.id }}">
+    <div class="messages-entry__meta">
+      <span>{% if message.sender == 'agent' %}{{ (message.author_name or 'Brokerage') if selected.kind == 'inquiry' else (message.author.first_name if message.author else 'Agent') }}{% else %}{{ selected.name }}{% endif %}</span>
+      {% if message.created_at %}<time datetime="{{ message.created_at.isoformat() }}Z" title="{{ local_time.strftime('%b %d, %Y at %I:%M %p %Z') }}">{{ message.created_at|timeago }}</time>{% endif %}
+      {% if message.kind == 'update' %}<span class="messages-entry__update">Update</span>{% endif %}
+    </div>
+    <div class="messages-entry__bubble"><p>{{ message.body }}</p>{% if message.attachment_name %}<p class="messages-entry__attachment"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ message.attachment_name }}</p>{% endif %}</div>
+  </article>
+{% else %}
+  <div class="messages-history-empty"><p>You're ready to connect.</p><span>Send {{ selected.name.split()[0] if selected.name else 'this client' }} a message to start the conversation.</span></div>
+{% endfor %}
+{% endif %}
