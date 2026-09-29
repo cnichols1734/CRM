@@ -1,0 +1,61 @@
+{% from 'client_messages/_macros.html' import initials %}
+{% if selected %}
+{% set home = (selected.row.listing_snapshot or {}) if selected.kind == 'inquiry' else {} %}
+<div class="messages-conversation-inner" data-thread-key="{{ selected.key }}">
+  <header class="messages-conversation-header" data-client-messages-part="header">
+    <a class="messages-back messages-icon-button" href="{{ url_for('client_messages.inbox', view=view, q=search) }}" data-action="click->client-messages#navigate" aria-label="Back to messages"><i class="fas fa-arrow-left" aria-hidden="true"></i></a>
+    <span class="messages-avatar messages-avatar--{{ 'deal' if selected.kind == 'deal' else 'inquiry' }}" aria-hidden="true">{{ initials(selected.name) }}</span>
+    <div class="messages-conversation-heading"><h2>{{ selected.name }}</h2><p>{{ selected.label }}{% if selected.subject %}<span aria-hidden="true"> · </span><span>{{ home.street or selected.subject }}</span>{% endif %}</p></div>
+    <button type="button" class="messages-details-toggle messages-icon-button" data-action="click->client-messages#toggleDetails" data-client-messages-details-toggle aria-expanded="false" aria-controls="message-details" aria-label="Show client and property details"><i class="fas fa-circle-info" aria-hidden="true"></i></button>
+    {% if selected.kind == 'deal' %}<a class="messages-transaction-link" href="{{ url_for('transactions.view_transaction', id=selected.transaction.id) }}">Open transaction <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a>{% endif %}
+  </header>
+  <div class="messages-conversation-body">
+    <div class="messages-chat">
+      <div class="messages-history" data-client-messages-target="history" data-action="scroll->client-messages#historyScrolled" tabindex="0" aria-label="Message history">{% include 'client_messages/_history.html' %}</div>
+      <div class="messages-new-wrap"><button type="button" class="messages-new" data-client-messages-target="newMessages" data-action="click->client-messages#jumpLatest" hidden>New messages<i class="fas fa-arrow-down" aria-hidden="true"></i></button></div>
+      <div class="messages-composer" data-client-messages-target="composer" data-can-reply="{{ 'true' if selected.can_reply else 'false' }}">
+        {% if selected.can_reply %}
+        <form data-no-progress method="post" action="{{ url_for('client_messages.inbox', thread=selected.key, view=view, q=search) }}" data-action="submit->client-messages#submit">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ request_id }}"><input type="hidden" name="action" value="reply">
+          <div class="messages-composer__field">
+            <label for="message-body">Reply to {{ selected.name.split()[0] if selected.name else 'client' }} <span>in the client app</span></label>
+            <textarea id="message-body" name="body" required maxlength="4000" rows="2" placeholder="Write a message…" data-client-messages-target="body" data-action="input->client-messages#draftChanged keydown->client-messages#composerKeydown">{{ draft }}</textarea>
+            <div class="messages-composer__actions"><span class="messages-composer__hint">⌘ / Ctrl + Enter to send</span><button class="messages-send" type="submit" data-client-messages-target="send"><span>Send message</span><i class="fas fa-arrow-up" aria-hidden="true"></i></button></div>
+          </div>
+        </form>
+        {% else %}
+        <div class="messages-reply-locked"><i class="fas {{ 'fa-user-plus' if selected.kind == 'inquiry' and selected.unassigned else 'fa-lock' }}" aria-hidden="true"></i><div><strong>{{ 'Accept this client to reply' if selected.kind == 'inquiry' and selected.unassigned else 'You can read this conversation' }}</strong><p>{{ 'Their home inquiries will move into your queue.' if selected.kind == 'inquiry' and selected.unassigned else 'The assigned agent can send messages.' if selected.kind == 'inquiry' else 'Ask the lead agent for permission to send messages.' }}</p></div>{% if selected.kind == 'inquiry' and selected.unassigned %}<form data-no-progress method="post" action="{{ url_for('client_messages.inbox', thread=selected.key, view=view, q=search) }}" data-action="submit->client-messages#submit"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="claim"><button class="messages-send" type="submit">Accept client<i class="fas fa-arrow-right" aria-hidden="true"></i></button></form>{% endif %}</div>
+        {% endif %}
+      </div>
+    </div>
+    <aside class="messages-context" id="message-details" aria-label="Client and property details" data-client-messages-part="context">
+      <div class="messages-context__top"><h3>Conversation details</h3><button type="button" class="messages-context__close messages-icon-button" data-action="click->client-messages#toggleDetails" aria-label="Close details"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>
+      {% if home %}
+      <section class="messages-property" aria-label="Home inquiry property">
+        {% if home.photo_names %}<img class="messages-property__photo" src="{{ home.photo_names[0] }}" alt="{{ home.street or 'Home' }}" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        <div class="messages-property__type">{{ 'Showing request' if selected.row.kind == 'showing' else 'Home inquiry' }}</div>
+        {% if home.price %}<div class="messages-property__price">${{ '{:,.0f}'.format(home.price) }}</div>{% endif %}
+        <h4>{{ home.street or selected.subject }}</h4><p class="messages-property__location">{{ home.city or '' }}{% if home.city and home.state %}, {% endif %}{{ home.state or '' }} {{ home.zip or '' }}</p>
+        {% if home.beds or home.baths or home.sqft %}<div class="messages-property__facts">{% if home.beds %}<span><strong>{{ home.beds }}</strong> beds</span>{% endif %}{% if home.baths %}<span><strong>{{ home.baths }}</strong> baths</span>{% endif %}{% if home.sqft %}<span><strong>{{ '{:,}'.format(home.sqft) }}</strong> sq ft</span>{% endif %}</div>{% endif %}
+        <p class="messages-property__source">Repliers sample home</p>
+      </section>
+      {% elif selected.kind == 'deal' %}
+      <section class="messages-property"><div class="messages-property__type">Transaction</div><h4>{{ selected.subject }}</h4><a class="messages-text-link" href="{{ url_for('transactions.view_transaction', id=selected.transaction.id) }}">View transaction<i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a></section>
+      {% endif %}
+      <section class="messages-client"><h3>Client</h3><div class="messages-client__name">{{ selected.name }}</div>{% if selected.email %}<a href="mailto:{{ selected.email }}" class="messages-client__contact"><i class="far fa-envelope" aria-hidden="true"></i><span>{{ selected.email }}</span></a>{% endif %}{% if selected.kind == 'inquiry' and selected.row.phone %}<a href="tel:{{ selected.row.phone }}" class="messages-client__contact"><i class="fas fa-phone" aria-hidden="true"></i><span>{{ selected.row.phone }}</span></a>{% endif %}</section>
+      {% if selected.kind == 'inquiry' %}
+      <section class="messages-assignment" data-client-messages-part="assignment"><h3>Assigned to</h3>
+        {% if is_inbox_admin %}<form data-no-progress method="post" action="{{ url_for('client_messages.inbox', thread=selected.key, view=view, q=search) }}" data-action="submit->client-messages#submit"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="assign"><input type="hidden" name="expected_agent" value="{{ selected.account.agent_id or '' }}"><label class="sr-only" for="assigned-agent">Assigned agent</label><select name="agent_id" id="assigned-agent"><option value="">General inbox</option>{% for agent in agents %}<option value="{{ agent.id }}" {% if selected.account.agent_id == agent.id %}selected{% endif %}>{{ agent.first_name }} {{ agent.last_name }}</option>{% endfor %}</select><button type="submit" class="messages-assignment__save">Save assignment<i class="fas fa-arrow-right" aria-hidden="true"></i></button></form>
+        {% else %}<p class="messages-assignment__name"><span class="messages-agent-dot" aria-hidden="true"></span>{{ selected.agent_name or 'General inbox' }}</p>{% endif %}
+        <p class="messages-assignment__help">{{ 'Accept this client to take their inquiries out of the general inbox.' if selected.unassigned else 'All home inquiries from this client go to the assigned agent.' }}</p>
+      </section>{% endif %}
+    </aside>
+  </div>
+</div>
+{% else %}
+<div class="messages-welcome">
+  <svg width="100" height="80" viewBox="0 0 100 80" fill="none" aria-hidden="true"><path d="M16 14h51a9 9 0 0 1 9 9v27a9 9 0 0 1-9 9H38L23 70V59h-7a9 9 0 0 1-9-9V23a9 9 0 0 1 9-9Z" stroke="currentColor" stroke-width="1.5"/><path d="M29 8h53a9 9 0 0 1 9 9v27" stroke="currentColor" stroke-width="1.5"/><path d="M25 30h34M25 42h21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  <h2>Choose a conversation.</h2><p>Read client messages, answer a home question or arrange a showing.</p>
+  {% if attention_count %}<a class="messages-welcome__action" href="{{ url_for('client_messages.inbox', view='attention') }}" data-action="click->client-messages#navigate">{{ attention_count }} {{ 'conversation needs' if attention_count == 1 else 'conversations need' }} a reply<i class="fas fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+</div>
+{% endif %}
