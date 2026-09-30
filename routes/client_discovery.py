@@ -373,12 +373,10 @@ def connect_deal(account, org):
     agent = agent_for(org, tx.created_by_id)
     if not agent:
         return error('This agent is unavailable.', 409)
-    try:
-        assign_client(account, org, agent, None)
-    except ValueError as exc:
-        return error(str(exc), 409)
+    # A deal grant adds access, not a brokerage reassignment. Keep the referral,
+    # existing inquiry history, contact and followups with their current owner.
     account.linked_access_ids = list(set((account.linked_access_ids or []) + [access.id]))
-    result = {'account': account_payload(account), **profile(org, agent)}
+    result = {'account': account_payload(account), **profile(org, agent_for(org, account.agent_id))}
     db.session.commit()
     return jsonify(result)
 

@@ -164,7 +164,7 @@ def test_deal_connection_requires_explicit_same_tenant_grant(app, seed, client):
     assert client.post(BASE + '/connection', headers=auth(a), json={'deal_token': a.json['token']}).status_code == 403
     connected = client.post(BASE + '/connection', headers=auth(a), json={'deal_token': token})
     assert connected.status_code == 200
-    assert connected.json['agent']['id'] == seed['agent_a']
+    assert connected.json['agent'] is None
     assert client.get('/api/client/v1/deal', headers=auth(a)).status_code == 401
 
 
@@ -271,7 +271,7 @@ def test_code_fallback_persists_different_email_connection(app, seed, client):
     assert client.get('/api/client/v1/deal', headers={'Authorization': 'Bearer ' + token}).status_code == 401
 
 
-def test_long_names_fit_contact_columns_and_deal_moves_app_contact(app, seed, client):
+def test_long_names_fit_contact_columns_and_deal_preserves_app_contact(app, seed, client):
     from test_client_portal_api import _seller_tx, _participant, _grant, _open_session
     response = client.post(BASE + '/accounts', json={'brokerage': 'test-realty-a', 'email': f'{uuid.uuid4()}@example.com', 'password': 'test-password-123', 'name': 'N' * 160, 'agent_id': seed['owner_a']})
     headers = auth(response)
@@ -289,7 +289,7 @@ def test_long_names_fit_contact_columns_and_deal_moves_app_contact(app, seed, cl
     token = _open_session(client, code).json['token']
     assert client.post(BASE + '/connection', headers=headers, json={'deal_token': token}).status_code == 200
     with app.app_context():
-        assert db.session.get(Contact, cid).user_id == seed['agent_a']
+        assert db.session.get(Contact, cid).user_id == seed['owner_a']
 
 
 def test_discovery_foreign_key_lifecycle_enforced():
