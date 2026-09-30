@@ -17,13 +17,17 @@ def _signer():
 def calendar_token(access):
     return _signer().dumps({'aid': access.id, 'oid': access.organization_id,
                           'pid': access.participant_id, 'tid': access.transaction_id,
-                          'sv': access.session_version or 1})
+                          'sv': access.session_version or 1,
+                          'cv': access.calendar_version or 1})
 
 
 def calendar_claims(token):
     try:
         claims = _signer().loads(token)
         if not isinstance(claims, dict) or not all(type(claims.get(k)) is int for k in ('aid', 'oid', 'pid', 'tid', 'sv')):
+            return None
+        claims.setdefault('cv', 1)
+        if type(claims['cv']) is not int or claims['cv'] < 1:
             return None
         return claims
     except (BadSignature, TypeError, ValueError):
@@ -35,14 +39,28 @@ def calendar_access(claims):
         transaction_id=claims['tid'], participant_id=claims['pid'], is_active=True).first()
     if not access or (access.session_version or 1) != claims['sv']:
         return None
+    if access.calendar_disabled_at or (access.calendar_version or 1) != claims['cv']:
+        return None
+    return access if calendar_grant_is_active(access) else None
+
+
+def calendar_grant_is_active(access):
+    if not access or not access.is_active:
+        return False
     organization = db.session.get(Organization, access.organization_id)
     if not organization or organization.status != 'active':
-        return None
+        return False
     from services.portal_service import CLIENT_PORTAL_ROLES
     participant, tx = access.participant, access.transaction
     if not participant or not tx or participant.transaction_id != tx.id or participant.organization_id != access.organization_id or tx.organization_id != access.organization_id:
-        return None
-    return access if participant.role in CLIENT_PORTAL_ROLES else None
+        return False
+    return participant.role in CLIENT_PORTAL_ROLES
+
+
+def calendar_subscription_status(access):
+    if access.calendar_disabled_at:
+        return 'disabled'
+    return 'link_enabled' if access.calendar_issued_at else 'not_started'
 
 
 def calendar_rows(session, org_id, transaction_id):

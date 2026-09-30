@@ -312,15 +312,62 @@ def decline_showing(access, showing_id):
     })
 
 
-@client_api_bp.route('/calendar-subscription', methods=['POST'])
+@client_api_bp.route('/calendar-subscription', methods=['GET', 'POST', 'DELETE'])
 @client_jwt_required
 def create_calendar_subscription(access):
-    from services.client_calendar import calendar_token
+    from datetime import datetime
+    from models import ClientPortalAccess
+    from services.client_calendar import (
+        calendar_token, calendar_grant_is_active, calendar_subscription_status,
+    )
     from config import Config
     from flask import url_for
-    base = current_app.config.get('APP_BASE_URL', Config.APP_BASE_URL).rstrip('/')
-    path = url_for('client_api.calendar_feed', token=calendar_token(access))
-    response = jsonify({'url': base + path})
+
+    expected_version = None
+    if request.method == 'POST':
+        data = request.get_json(silent=True)
+        if request.get_data() and not isinstance(data, dict):
+            return _json_error('Send calendar setup options as a JSON object.', 422)
+        if isinstance(data, dict) and 'expected_version' in data:
+            expected_version = data['expected_version']
+            if type(expected_version) is not int or expected_version < 1:
+                return _json_error('A positive calendar version is required.', 422)
+    if request.method != 'GET':
+        session_version = access.session_version or 1
+        access = ClientPortalAccess.query.filter_by(
+            id=access.id, organization_id=access.organization_id,
+        ).populate_existing().with_for_update().first()
+        if access is None or (access.session_version or 1) != session_version:
+            return _json_error('This invite is no longer active.', 401)
+    if not calendar_grant_is_active(access):
+        return _json_error('This invite is no longer active.', 401)
+    if expected_version is not None and (
+        (access.calendar_version or 1) != expected_version
+        or access.calendar_disabled_at is not None
+    ):
+        return _json_error('Calendar sync changed. Connect again to finish setup.', 409)
+
+    if request.method == 'POST':
+        access.calendar_issued_at = access.calendar_issued_at or datetime.utcnow()
+        access.calendar_disabled_at = None
+    elif request.method == 'DELETE':
+        if access.calendar_disabled_at is None:
+            access.calendar_disabled_at = datetime.utcnow()
+            access.calendar_version = (access.calendar_version or 1) + 1
+
+    url = None
+    if request.method == 'POST':
+        base = current_app.config.get('APP_BASE_URL', Config.APP_BASE_URL).rstrip('/')
+        path = url_for('client_api.calendar_feed', token=calendar_token(access))
+        url = base + path
+    payload = {
+        'status': calendar_subscription_status(access),
+        'version': access.calendar_version or 1,
+        'url': url,
+    }
+    if request.method != 'GET':
+        db.session.commit()
+    response = jsonify(payload)
     response.headers['Cache-Control'] = 'no-store'
     return response
 
