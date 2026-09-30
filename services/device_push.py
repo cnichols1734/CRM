@@ -97,3 +97,21 @@ def enqueue_portal_push(message):
             message.id,
         )
         return {'ok': False, 'reason': 'enqueue_failed'}
+
+
+def enqueue_date_push(*, org_id, transaction_id, added, changed):
+    from jobs.apns_push import apns_configured
+    if not apns_configured():
+        return {'ok': False, 'reason': 'apns_unconfigured'}
+    try:
+        from redis import Redis
+        from rq import Queue, Retry
+        from config import Config
+        conn = Redis.from_url(Config.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+        Queue(QUEUE_NAME, connection=conn).enqueue(
+            'jobs.apns_push.send_date_push', org_id=org_id, transaction_id=transaction_id,
+            added=added, changed=changed, job_timeout=120, retry=Retry(max=3, interval=[30, 120, 300]))
+        return {'ok': True, 'queued': True}
+    except Exception:
+        logger.exception('Could not queue date alert for transaction %s', transaction_id)
+        return {'ok': False, 'reason': 'enqueue_failed'}

@@ -1,0 +1,171 @@
+from datetime import datetime
+from urllib.parse import urlsplit
+
+from models import db, SellerAcceptedContract, SellerContractMilestone, ClientPortalAccess
+from services.client_calendar import calendar_token, render_calendar
+from tests.test_client_portal_api import _seller_tx, _participant, _grant, _open_session, _auth_headers
+
+
+def _setup(seed):
+    tx = _seller_tx(seed)
+    person = _participant(seed, tx, contact_id=seed['contact_a'])
+    access = _grant(seed, tx, person)
+    contract = SellerAcceptedContract(organization_id=seed['org_a'], transaction_id=tx.id,
+        created_by_id=seed['owner_a'], position='primary', status='active', accepted_price=400000)
+    db.session.add(contract)
+    db.session.flush()
+    milestone = SellerContractMilestone(organization_id=seed['org_a'], transaction_id=tx.id,
+        accepted_contract_id=contract.id, milestone_key='closing', source='calculated',
+        title='Closing', due_at=datetime(2026, 10, 7), status='not_started')
+    db.session.add(milestone)
+    db.session.commit()
+    return access, milestone
+
+
+def test_subscription_auth_live_updates_and_revocation(app, seed):
+    client = app.test_client()
+    with app.app_context():
+        access, milestone = _setup(seed)
+        code, aid, mid = access.invite_code, access.id, milestone.id
+    assert client.post('/api/client/v1/calendar-subscription').status_code == 401
+    token = _open_session(client, code).get_json()['token']
+    response = client.post('/api/client/v1/calendar-subscription', headers=_auth_headers(token))
+    assert response.status_code == 200
+    assert response.headers['Cache-Control'] == 'no-store'
+    path = urlsplit(response.json['url']).path
+    first = client.get(path)
+    assert first.status_code == 200
+    assert first.mimetype == 'text/calendar'
+    assert 'DTSTART;VALUE=DATE:20261007' in first.text
+    uid = next(line for line in first.text.splitlines() if line.startswith('UID:'))
+    with app.app_context():
+        db.session.get(SellerContractMilestone, mid).due_at = datetime(2026, 10, 9)
+        db.session.commit()
+    second = client.get(path)
+    assert uid in second.text and 'DTSTART;VALUE=DATE:20261009' in second.text
+    assert '20261007' not in second.text
+    assert client.get(path.replace('/calendar/', '/calendar/tampered')).status_code == 404
+    # Calendar credentials never authorize the broader client API.
+    feed_token = path.split('/calendar/')[1].split('/')[0]
+    assert client.get('/api/client/v1/deal', headers=_auth_headers(feed_token)).status_code == 401
+    with app.app_context():
+        db.session.get(ClientPortalAccess, aid).session_version += 1
+        db.session.commit()
+    assert client.get(path).status_code == 404
+
+
+def test_feed_scope_escaping_and_regenerated_identity(app, seed):
+    with app.app_context():
+        access, milestone = _setup(seed)
+        original = render_calendar(access)
+        uid = next(line for line in original.splitlines() if line.startswith('UID:'))
+        contract_id = milestone.accepted_contract_id
+        db.session.delete(milestone)
+        db.session.flush()
+        db.session.add(SellerContractMilestone(organization_id=access.organization_id,
+            transaction_id=access.transaction_id, accepted_contract_id=contract_id,
+            milestone_key='closing', source='calculated', title='é' * 100 + ', Title\nBEGIN:VEVENT',
+            due_at=datetime(2026, 10, 11), status='not_started', notes='PRIVATE AGENT NOTE'))
+        db.session.flush()
+        feed = render_calendar(access)
+        assert uid in feed and 'PRIVATE AGENT NOTE' not in feed
+        assert all(len(line.encode()) <= 75 for line in feed.split('\r\n'))
+        assert feed.count('\r\nBEGIN:VEVENT\r\n') == 1
+        other, _ = _setup(seed)
+        assert uid not in render_calendar(other)
+        access.is_active = False
+        db.session.commit()
+        path = '/api/client/v1/calendar/' + calendar_token(access) + '/dates.ics'
+    assert app.test_client().get(path).status_code == 404
+
+
+def test_dates_notify_only_after_commit_and_ignore_noop(app, seed, monkeypatch):
+    calls = []
+    monkeypatch.setattr('services.device_push.enqueue_date_push', lambda **kw: calls.append(kw))
+    with app.app_context():
+        access, milestone = _setup(seed)
+        assert len(calls) == 1 and calls[0]['added'] == 1
+        calls.clear()
+        milestone.due_at = datetime(2026, 10, 12)
+        db.session.flush()
+        assert calls == []
+        db.session.rollback()
+        assert calls == []
+        milestone = db.session.get(SellerContractMilestone, milestone.id)
+        milestone.notes = 'Internal note'
+        db.session.commit()
+        assert calls == []
+        milestone.due_at = datetime(2026, 10, 13)
+        db.session.flush()
+        milestone.due_at = datetime(2026, 10, 14)
+        db.session.commit()
+        assert len(calls) == 1 and calls[0]['changed'] == 1
+        assert calls[0]['org_id'] == access.organization_id
+
+
+def test_date_push_scopes_recipients(app, seed, monkeypatch):
+    from models import DeviceToken
+    from jobs.apns_push import send_date_push
+    import app as app_module
+    monkeypatch.setattr(app_module, 'app', app)
+    monkeypatch.setattr('jobs.apns_push.apns_configured', lambda: True)
+    monkeypatch.setattr('services.device_push.enqueue_date_push', lambda **kw: None)
+    sent = []
+    monkeypatch.setattr('services.apns_client.send_payload', lambda token, payload, audience: sent.append((token, payload, audience)) or True)
+    with app.app_context():
+        access, _ = _setup(seed)
+        other, _ = _setup(seed)
+        org, tx = access.organization_id, access.transaction_id
+        for grant, token in [(access, 'right-device'), (other, 'wrong-deal')]:
+            db.session.add(DeviceToken(organization_id=org, audience='client', token=token,
+                                      platform='ios', participant_id=grant.participant_id))
+        db.session.commit()
+    result = send_date_push(org_id=org, transaction_id=tx, added=1, changed=0)
+    assert result['sent'] == 1
+    assert sent[0][0] == 'right-device' and sent[0][1]['kind'] == 'milestones'
+    assert sent[0][2] == 'client'
+
+
+def test_no_alert_before_outer_commit_or_after_nested_rollback(app, seed, monkeypatch):
+    calls = []
+    monkeypatch.setattr('services.device_push.enqueue_date_push', lambda **kw: calls.append(kw))
+    with app.app_context():
+        access, milestone = _setup(seed)
+        calls.clear()
+        with db.session.begin_nested():
+            milestone.due_at = datetime(2026, 11, 1)
+        assert calls == []
+        db.session.rollback()
+        assert calls == []
+        milestone.due_at = datetime(2026, 11, 2)
+        db.session.flush()
+        nested = db.session.begin_nested()
+        milestone.due_at = datetime(2026, 11, 3)
+        db.session.flush()
+        nested.rollback()
+        assert calls == []
+        db.session.commit()
+        assert len(calls) == 1 and calls[0]['changed'] == 1
+
+
+def test_recalculation_keeps_uid_and_does_not_notify_unchanged_dates(app, seed, monkeypatch):
+    calls = []
+    monkeypatch.setattr('services.device_push.enqueue_date_push', lambda **kw: calls.append(kw))
+    with app.app_context():
+        access, milestone = _setup(seed)
+        from services.client_calendar import event_key
+        original = render_calendar(access)
+        uid = next(line for line in original.splitlines() if line.startswith('UID:'))
+        milestone.source = 'manual'
+        db.session.commit()
+        assert uid in render_calendar(access)
+        calls.clear()
+        contract = milestone.accepted_contract_id
+        db.session.delete(milestone)
+        db.session.flush()
+        db.session.add(SellerContractMilestone(organization_id=access.organization_id,
+            transaction_id=access.transaction_id, accepted_contract_id=contract,
+            milestone_key='closing', source='calculated', title='Closing',
+            due_at=datetime(2026, 10, 7), status='not_started'))
+        db.session.commit()
+        assert calls == [] and uid in render_calendar(access)

@@ -300,6 +300,8 @@ def create_app():
     app.register_blueprint(partner_directory_bp)
     app.register_blueprint(portal_bp)
     app.register_blueprint(client_api_bp)
+    from services.client_calendar import register_date_change_listeners
+    register_date_change_listeners()
     app.register_blueprint(client_discovery_bp)
     app.register_blueprint(client_messages_bp)
     app.register_blueprint(agent_api_bp)

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from functools import wraps
 
-from flask import Blueprint, g, jsonify, redirect, request
+from flask import Blueprint, current_app, g, jsonify, redirect, request
 from sqlalchemy import text
 
 from models import DeviceToken, db, PortalMessage, SellerShowing
@@ -309,4 +309,34 @@ def decline_showing(access, showing_id):
         'ok': True,
         'showing_id': showing.id,
         'status': showing.status,
+    })
+
+
+@client_api_bp.route('/calendar-subscription', methods=['POST'])
+@client_jwt_required
+def create_calendar_subscription(access):
+    from services.client_calendar import calendar_token
+    from config import Config
+    from flask import url_for
+    base = current_app.config.get('APP_BASE_URL', Config.APP_BASE_URL).rstrip('/')
+    path = url_for('client_api.calendar_feed', token=calendar_token(access))
+    response = jsonify({'url': base + path})
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@client_api_bp.route('/calendar/<token>/dates.ics', methods=['GET'])
+def calendar_feed(token):
+    from flask import Response
+    from services.client_calendar import calendar_claims, calendar_access, render_calendar
+    claims = calendar_claims(token)
+    if not claims:
+        return Response(status=404, headers={'Cache-Control': 'no-store'})
+    _set_org_context(claims['oid'])
+    access = calendar_access(claims)
+    if not access:
+        return Response(status=404, headers={'Cache-Control': 'no-store'})
+    return Response(render_calendar(access), mimetype='text/calendar', headers={
+        'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer',
+        'X-Content-Type-Options': 'nosniff',
     })

@@ -744,6 +744,8 @@ def _milestones_block(tx):
             elif delta <= 5:
                 derived = 'due_soon'
         item = {
+            'id': str(m.id),
+            'due_at': due.isoformat() if due else None,
             'title': m.title,
             'due': _full_day(m.due_at),
             'due_short': _day(m.due_at),

@@ -70,3 +70,48 @@ def _send_one(device_token: str, msg, audience) -> bool:
     except Exception:
         logger.exception('APNs send failed for token suffix %s', device_token[-8:])
         return False
+
+
+def send_date_push(*, org_id, transaction_id, added, changed):
+    if not apns_configured():
+        return {'ok': False, 'reason': 'apns_unconfigured'}
+    from app import app
+    from models import ClientPortalAccess, DeviceToken, TransactionParticipant
+    from services.apns_client import send_payload
+    from services.portal_service import CLIENT_PORTAL_ROLES
+    with app.app_context():
+        set_job_org_context(org_id)
+        participants = ClientPortalAccess.query.join(
+            TransactionParticipant, ClientPortalAccess.participant_id == TransactionParticipant.id
+        ).filter(ClientPortalAccess.organization_id == org_id,
+                 ClientPortalAccess.transaction_id == transaction_id,
+                 ClientPortalAccess.is_active.is_(True),
+                 TransactionParticipant.organization_id == org_id,
+                 TransactionParticipant.transaction_id == transaction_id,
+                 TransactionParticipant.role.in_(CLIENT_PORTAL_ROLES)).all()
+        ids = [p.participant_id for p in participants]
+        tokens = DeviceToken.query.filter(DeviceToken.organization_id == org_id,
+            DeviceToken.audience == DeviceToken.AUDIENCE_CLIENT,
+            DeviceToken.platform == 'ios', DeviceToken.participant_id.in_(ids)).all() if ids else []
+        title = 'New transaction dates' if added and not changed else 'Transaction dates updated'
+        from rq import get_current_job
+        job = get_current_job()
+        delivered = set(job.meta.get('delivered_devices', [])) if job else set()
+        sent, failed = 0, 0
+        for row in tokens:
+            if row.id in delivered:
+                continue
+            payload = {'aps': {'alert': {'title': title, 'body': 'Open Next steps to review your dates.'},
+                               'sound': 'default'}, 'kind': 'milestones',
+                       'transaction_id': transaction_id, 'participant_id': row.participant_id}
+            if send_payload(row.token, payload, audience='client'):
+                sent += 1
+                if job:
+                    delivered.add(row.id)
+                    job.meta['delivered_devices'] = sorted(delivered)
+                    job.save_meta()
+            else:
+                failed += 1
+        if failed:
+            raise RuntimeError(f'Date alert delivery failed for {failed} devices')
+        return {'ok': True, 'sent': sent}
