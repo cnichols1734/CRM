@@ -74,7 +74,8 @@ def send_payload(device_token, payload, audience=None):
         headers['apns-expiration'] = str(int(time.time()) + 86400)
         headers['apns-collapse-id'] = f"dates-{payload['transaction_id']}"
     try:
-        response = httpx.post(url, headers=headers, content=json.dumps(payload), timeout=10.0)
+        with httpx.Client(http2=True, http1=False, timeout=10.0) as client:
+            response = client.post(url, headers=headers, content=json.dumps(payload))
     except Exception:
         logger.exception('APNs HTTP request failed')
         return False

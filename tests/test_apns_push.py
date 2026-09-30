@@ -70,7 +70,16 @@ def _capture_httpx(monkeypatch):
         })
         return _OkResponse()
 
-    monkeypatch.setattr(httpx, 'post', post)
+    class HTTP2Client:
+        def __init__(self, *, http2, http1, timeout):
+            assert http2 is True and http1 is False and timeout == 10.0
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            pass
+        def post(self, *args, **kwargs):
+            return post(*args, **kwargs)
+    monkeypatch.setattr(httpx, 'Client', HTTP2Client)
     return calls
 
 
@@ -291,3 +300,16 @@ def test_production_host_when_environment_unset(monkeypatch):
         'https://api.push.apple.com/3/device/default-host-token'
     )
     assert calls[0]['headers']['apns-topic'] == 'com.agentflow.client'
+
+
+def test_date_alert_has_expiry_and_collapse_id(monkeypatch):
+    from services.apns_client import send_payload
+    import json
+    _set_apns_keys(monkeypatch)
+    calls = _capture_httpx(monkeypatch)
+    payload = {'kind': 'milestones', 'transaction_id': 77,
+               'aps': {'alert': {'title': 'Transaction dates updated', 'body': 'Open Next steps'}}}
+    assert send_payload('test-token', payload, audience='client')
+    assert int(calls[0]['headers']['apns-expiration']) > 0
+    assert calls[0]['headers']['apns-collapse-id'] == 'dates-77'
+    assert json.loads(calls[0]['content'])['kind'] == 'milestones'
