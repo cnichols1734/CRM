@@ -4132,6 +4132,9 @@ class ClientPortalAccess(db.Model):
     invite_expires_at = db.Column(db.DateTime, nullable=True)
     # Bumped on rotate and on session leave so existing JWTs stop working.
     session_version = db.Column(db.Integer, nullable=False, default=1)
+    calendar_version = db.Column(db.Integer, nullable=False, default=1, server_default='1')
+    calendar_issued_at = db.Column(db.DateTime, nullable=True)
+    calendar_disabled_at = db.Column(db.DateTime, nullable=True)
 
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -4196,7 +4199,7 @@ class ClientPortalAccess(db.Model):
         """Issue a fresh invite code and web token. Existing JWTs die."""
         self.token = self.generate_token()
         self.invite_code = self.generate_invite_code()
-        self.session_version = (self.session_version or 1) + 1
+        self.bump_session()
         self.is_active = True
         self.revoked_at = None
         self.invite_expires_at = None
@@ -4206,11 +4209,13 @@ class ClientPortalAccess(db.Model):
     def revoke(self):
         self.is_active = False
         self.revoked_at = datetime.utcnow()
-        self.session_version = (self.session_version or 1) + 1
+        self.bump_session()
 
     def bump_session(self):
         """Invalidate issued JWTs. The invite code still works."""
         self.session_version = (self.session_version or 1) + 1
+        self.calendar_version = (self.calendar_version or 1) + 1
+        self.calendar_issued_at = None
 
     def invite_is_expired(self, now=None):
         if not self.invite_expires_at:
