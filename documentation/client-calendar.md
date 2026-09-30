@@ -1,0 +1,19 @@
+# Client calendar subscriptions and date alerts
+
+The iOS client requests a private subscription URL with authenticated `POST /api/client/v1/calendar-subscription`. The URL opens Apple Calendar's subscription flow. `GET /api/client/v1/calendar/<signed-calendar-token>/dates.ics` serves the current controlling contract's dated milestones.
+
+The feed uses a separate signing salt. Its credential cannot authenticate other APIs. Each fetch verifies the signature before establishing organization context, then checks the active organization, grant, participant, role, transaction and session version. Revoking or rotating the grant, or leaving the client session, invalidates its subscription. Clients then need to remove the old subscription and subscribe again. Calendar links contain a read credential and must not be shared or logged. Application and Gunicorn log formatters redact the credential path. Any proxy access-log export must also redact `/api/client/v1/calendar/*/dates.ics`.
+
+Only titles and calendar days are exported. Internal notes, other participants, property details, client messages and agent information are excluded. Dates are all-day events. Event UIDs remain stable across date edits and regenerated calculated milestones. Manual milestones use their row ID. Not-applicable, undated and deleted milestones leave the feed. Completed dated events remain in the calendar. Apple controls polling; the feed requests hourly refresh but cannot guarantee that interval.
+
+SQLAlchemy session listeners compare committed client-visible dates. Web edits, agent API edits and contract recalculation use the same path. One alert per changed transaction is queued after the outer commit. Rollbacks, internal note edits and unchanged recalculations do not notify. Direct SQL or bulk updates bypass ORM listeners and must explicitly arrange notification if introduced later.
+
+The APNs sender uses HTTP/2 with explicit HTTPX and ES256 dependencies. The existing `apns` RQ queue delivers to iOS client tokens whose participant has an active grant on that transaction, with organization and role filters. Payloads contain a generic date-update message and routing IDs, not private contract details. Date alerts expire after 24 hours and use a transaction collapse ID. Failed delivery retries three times; successful devices are recorded in job metadata to avoid resending during those retries. A worker crash after Apple accepts a push but before metadata is saved can still duplicate an alert. Queue insertion is best effort, matching existing message pushes; a Redis outage logs the failure rather than rolling back an agent's saved date. Calendar updates do not depend on the queue.
+
+## Release and validation
+
+No database migration is required. Deploy the web service and the worker consuming `apns` together. Existing `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY`, the client bundle topic and APNs environment must be configured. The distributed iOS build needs the push entitlement and client notification permission. Personal-team Xcode installs cannot test remote push.
+
+Run `pytest tests/test_client_calendar.py tests/test_client_portal_api.py tests/test_apns_push.py` against the test fixtures. They use isolated SQLite and mocked push delivery. They cover scope, tampering, revocation, live date edits, stable UIDs, escaping, transaction commit/rollback, regeneration and recipient selection.
+
+Before release, subscribe on an iPhone, edit a date in the CRM, then verify the same calendar event moves after Apple's refresh. Add and remove a date, test completed and not-applicable status, revoke a grant, and confirm an unrelated client's feed and device remain unchanged. Verify remote delivery and tap routing with a provisioned device. Previously copied individual events are not migrated automatically; the app tells clients to remove those copies after subscribing.

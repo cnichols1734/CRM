@@ -23,17 +23,6 @@ def topic_for_audience(audience=None) -> str:
 
 
 def send_alert(device_token: str, msg, audience=None) -> bool:
-    key_id = (os.environ.get('APNS_KEY_ID') or '').strip()
-    team_id = (os.environ.get('APNS_TEAM_ID') or '').strip()
-    key_pem = (os.environ.get('APNS_KEY') or '').strip()
-    topic = topic_for_audience(audience)
-    if not (key_id and team_id and key_pem and topic and device_token):
-        return False
-
-    host = 'api.push.apple.com'
-    if (os.environ.get('APNS_ENVIRONMENT') or '').strip().lower() == 'sandbox':
-        host = 'api.sandbox.push.apple.com'
-
     preview = (msg.body or '').strip()
     if len(preview) > 120:
         preview = preview[:117] + '...'
@@ -47,6 +36,21 @@ def send_alert(device_token: str, msg, audience=None) -> bool:
         'participant_id': msg.participant_id,
         'message_id': msg.id,
     }
+
+    return send_payload(device_token, payload, audience)
+
+
+def send_payload(device_token, payload, audience=None):
+    key_id = (os.environ.get('APNS_KEY_ID') or '').strip()
+    team_id = (os.environ.get('APNS_TEAM_ID') or '').strip()
+    key_pem = (os.environ.get('APNS_KEY') or '').strip()
+    topic = topic_for_audience(audience)
+    if not (key_id and team_id and key_pem and topic and device_token):
+        return False
+
+    host = 'api.push.apple.com'
+    if (os.environ.get('APNS_ENVIRONMENT') or '').strip().lower() == 'sandbox':
+        host = 'api.sandbox.push.apple.com'
 
     token = _apns_jwt(key_id, team_id, key_pem)
     if not token:
@@ -66,8 +70,12 @@ def send_alert(device_token: str, msg, audience=None) -> bool:
         'apns-priority': '10',
         'apns-expiration': '0',
     }
+    if payload.get('kind') == 'milestones':
+        headers['apns-expiration'] = str(int(time.time()) + 86400)
+        headers['apns-collapse-id'] = f"dates-{payload['transaction_id']}"
     try:
-        response = httpx.post(url, headers=headers, content=json.dumps(payload), timeout=10.0)
+        with httpx.Client(http2=True, http1=False, timeout=10.0) as client:
+            response = client.post(url, headers=headers, content=json.dumps(payload))
     except Exception:
         logger.exception('APNs HTTP request failed')
         return False

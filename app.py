@@ -7,6 +7,7 @@ import warnings
 import html
 import time
 import logging
+import re
 import sys
 import pytz
 from datetime import datetime
@@ -86,13 +87,28 @@ class _MaxLevelFilter(logging.Filter):
         return record.levelno < self.exclusive_upper_bound
 
 
+class _PrivateCalendarFormatter(logging.Formatter):
+    def __init__(self, original):
+        super().__init__()
+        self.original = original
+
+    def format(self, record):
+        return re.sub(
+            r'(/api/client/v1/calendar/)[^/\s?\#"\']+',
+            r'\1[redacted]',
+            self.original.format(record),
+        )
+
+
 def configure_application_logging():
     """Send non-error app logs to stdout so Railway reserves red for real errors."""
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.setLevel(logging.INFO)
 
-    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    formatter = _PrivateCalendarFormatter(
+        logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    )
 
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.INFO)
@@ -105,6 +121,12 @@ def configure_application_logging():
 
     root_logger.addHandler(stdout_handler)
     root_logger.addHandler(stderr_handler)
+    for name in ('gunicorn.access', 'gunicorn.error'):
+        for handler in logging.getLogger(name).handlers:
+            if not isinstance(handler.formatter, _PrivateCalendarFormatter):
+                handler.setFormatter(_PrivateCalendarFormatter(
+                    handler.formatter or logging.Formatter('%(message)s')
+                ))
     logging.captureWarnings(True)
 
 
@@ -300,6 +322,8 @@ def create_app():
     app.register_blueprint(partner_directory_bp)
     app.register_blueprint(portal_bp)
     app.register_blueprint(client_api_bp)
+    from services.client_calendar import register_date_change_listeners
+    register_date_change_listeners()
     app.register_blueprint(client_discovery_bp)
     app.register_blueprint(client_messages_bp)
     app.register_blueprint(agent_api_bp)
