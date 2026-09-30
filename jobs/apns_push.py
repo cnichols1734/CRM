@@ -76,11 +76,14 @@ def send_date_push(*, org_id, transaction_id, added, changed):
     if not apns_configured():
         return {'ok': False, 'reason': 'apns_unconfigured'}
     from app import app
-    from models import ClientPortalAccess, DeviceToken, TransactionParticipant
+    from models import ClientPortalAccess, DeviceToken, Organization, TransactionParticipant, db
     from services.apns_client import send_payload
     from services.portal_service import CLIENT_PORTAL_ROLES
     with app.app_context():
         set_job_org_context(org_id)
+        organization = db.session.get(Organization, org_id)
+        if not organization or organization.status != 'active':
+            return {'ok': False, 'reason': 'organization_inactive'}
         participants = ClientPortalAccess.query.join(
             TransactionParticipant, ClientPortalAccess.participant_id == TransactionParticipant.id
         ).filter(ClientPortalAccess.organization_id == org_id,

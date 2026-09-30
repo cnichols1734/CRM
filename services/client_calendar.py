@@ -7,7 +7,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
-from models import ClientPortalAccess, SellerAcceptedContract, SellerContractMilestone, db
+from models import ClientPortalAccess, Organization, SellerAcceptedContract, SellerContractMilestone, db
 
 
 def _signer():
@@ -34,6 +34,9 @@ def calendar_access(claims):
     access = ClientPortalAccess.query.filter_by(id=claims['aid'], organization_id=claims['oid'],
         transaction_id=claims['tid'], participant_id=claims['pid'], is_active=True).first()
     if not access or (access.session_version or 1) != claims['sv']:
+        return None
+    organization = db.session.get(Organization, access.organization_id)
+    if not organization or organization.status != 'active':
         return None
     from services.portal_service import CLIENT_PORTAL_ROLES
     participant, tx = access.participant, access.transaction

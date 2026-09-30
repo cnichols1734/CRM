@@ -169,3 +169,62 @@ def test_recalculation_keeps_uid_and_does_not_notify_unchanged_dates(app, seed, 
             due_at=datetime(2026, 10, 7), status='not_started'))
         db.session.commit()
         assert calls == [] and uid in render_calendar(access)
+
+
+def test_suspended_organization_cannot_read_feed_or_receive_date_push(app, seed, monkeypatch):
+    from models import Organization
+    from jobs.apns_push import send_date_push
+    import app as app_module
+
+    monkeypatch.setattr(app_module, 'app', app)
+    monkeypatch.setattr('jobs.apns_push.apns_configured', lambda: True)
+    monkeypatch.setattr('services.device_push.enqueue_date_push', lambda **kw: None)
+    with app.app_context():
+        access, _ = _setup(seed)
+        path = '/api/client/v1/calendar/' + calendar_token(access) + '/dates.ics'
+        org_id, transaction_id = access.organization_id, access.transaction_id
+        organization = db.session.get(Organization, org_id)
+        organization.status = 'suspended'
+        db.session.commit()
+    try:
+        assert app.test_client().get(path).status_code == 404
+        assert send_date_push(org_id=org_id, transaction_id=transaction_id, added=1, changed=0) == {
+            'ok': False, 'reason': 'organization_inactive',
+        }
+    finally:
+        with app.app_context():
+            db.session.get(Organization, org_id).status = 'active'
+            db.session.commit()
+
+
+def test_calendar_credentials_are_redacted_from_app_and_access_log_formats():
+    import logging
+    from app import _PrivateCalendarFormatter
+
+    token = 'private-calendar-credential'
+    path = f'/api/client/v1/calendar/{token}/dates.ics'
+    formatter = _PrivateCalendarFormatter(logging.Formatter('%(levelname)s:%(message)s'))
+    app_record = logging.LogRecord('app', logging.WARNING, __file__, 1,
+        'request_summary path=%s status=%s', (path, 500), None)
+    access_record = logging.LogRecord('gunicorn.access', logging.INFO, __file__, 1,
+        '%(r)s %(s)s', ({'r': f'GET {path} HTTP/1.1', 's': 200},), None)
+    for record in (app_record, access_record):
+        line = formatter.format(record)
+        assert token not in line
+        assert '/api/client/v1/calendar/[redacted]/dates.ics' in line
+
+
+def test_calendar_credentials_are_redacted_from_exception_text():
+    import logging
+    import sys
+    from app import _PrivateCalendarFormatter
+
+    token = 'private-calendar-credential'
+    try:
+        raise RuntimeError(f'Unable to load /api/client/v1/calendar/{token}/dates.ics')
+    except RuntimeError:
+        record = logging.LogRecord('app', logging.ERROR, __file__, 1,
+            'Calendar request failed', (), sys.exc_info())
+    line = _PrivateCalendarFormatter(logging.Formatter('%(message)s')).format(record)
+    assert token not in line
+    assert '/api/client/v1/calendar/[redacted]/dates.ics' in line
