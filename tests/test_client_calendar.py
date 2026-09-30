@@ -295,7 +295,7 @@ def test_legacy_calendar_links_survive_migration_until_disabled(app, seed):
         assert db.session.get(ClientPortalAccess, aid).calendar_issued_at is None
     headers = _auth_headers(_open_session(client, code).json['token'])
     endpoint = '/api/client/v1/calendar-subscription'
-    assert client.post(endpoint, headers=headers).json['version'] == 1
+    assert client.post(endpoint, headers=headers, json={'expected_version': 1}).json['version'] == 1
     assert client.get(path).status_code == 200
     client.delete(endpoint, headers=headers)
     assert client.get(path).status_code == 404
@@ -365,3 +365,40 @@ def test_calendar_controls_reject_revoked_session(app, seed, method):
         db.session.get(ClientPortalAccess, aid).revoke()
         db.session.commit()
     assert client.open('/api/client/v1/calendar-subscription', method=method, headers=headers).status_code == 401
+
+
+def test_calendar_confirmation_cannot_undo_another_devices_disable(app, seed):
+    client = app.test_client()
+    with app.app_context():
+        access, _ = _setup(seed)
+        code = access.invite_code
+    headers = _auth_headers(_open_session(client, code).json['token'])
+    endpoint = '/api/client/v1/calendar-subscription'
+    enabled = client.post(endpoint, headers=headers).json
+    path = urlsplit(enabled['url']).path
+    assert client.post(endpoint, headers=headers, json={'expected_version': enabled['version']}).status_code == 200
+    disabled = client.delete(endpoint, headers=headers).json
+    for version in (enabled['version'], disabled['version']):
+        result = client.post(endpoint, headers=headers, json={'expected_version': version})
+        assert result.status_code == 409
+        assert result.json['error'] == 'Calendar sync changed. Connect again to finish setup.'
+        assert client.get(endpoint, headers=headers).json == disabled
+        assert client.get(path).status_code == 404
+    assert client.post(endpoint, headers=headers).json['status'] == 'link_enabled'
+    assert client.post(endpoint, headers=headers, json={'expected_version': enabled['version']}).status_code == 409
+
+
+@pytest.mark.parametrize('body', [None, [], {'expected_version': None},
+    {'expected_version': True}, {'expected_version': '1'}, {'expected_version': 0},
+    {'expected_version': -1}, {'expected_version': 1.5}])
+def test_calendar_confirmation_rejects_invalid_options(app, seed, body):
+    import json
+    client = app.test_client()
+    with app.app_context():
+        access, _ = _setup(seed)
+        code = access.invite_code
+    headers = _auth_headers(_open_session(client, code).json['token'])
+    endpoint = '/api/client/v1/calendar-subscription'
+    result = client.post(endpoint, headers=headers, data=json.dumps(body), content_type='application/json')
+    assert result.status_code == 422
+    assert client.get(endpoint, headers=headers).json['status'] == 'not_started'

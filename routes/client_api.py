@@ -323,6 +323,15 @@ def create_calendar_subscription(access):
     from config import Config
     from flask import url_for
 
+    expected_version = None
+    if request.method == 'POST':
+        data = request.get_json(silent=True)
+        if request.get_data() and not isinstance(data, dict):
+            return _json_error('Send calendar setup options as a JSON object.', 422)
+        if isinstance(data, dict) and 'expected_version' in data:
+            expected_version = data['expected_version']
+            if type(expected_version) is not int or expected_version < 1:
+                return _json_error('A positive calendar version is required.', 422)
     if request.method != 'GET':
         session_version = access.session_version or 1
         access = ClientPortalAccess.query.filter_by(
@@ -332,6 +341,11 @@ def create_calendar_subscription(access):
             return _json_error('This invite is no longer active.', 401)
     if not calendar_grant_is_active(access):
         return _json_error('This invite is no longer active.', 401)
+    if expected_version is not None and (
+        (access.calendar_version or 1) != expected_version
+        or access.calendar_disabled_at is not None
+    ):
+        return _json_error('Calendar sync changed. Connect again to finish setup.', 409)
 
     if request.method == 'POST':
         access.calendar_issued_at = access.calendar_issued_at or datetime.utcnow()
