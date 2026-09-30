@@ -4,10 +4,11 @@ import hashlib
 
 from flask import current_app
 from itsdangerous import BadSignature, URLSafeSerializer
-from sqlalchemy import event, select
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from models import ClientPortalAccess, Organization, SellerAcceptedContract, SellerContractMilestone, db
+from models import (ClientPortalAccess, Organization, SellerAcceptedContract, SellerContractMilestone,
+                    SellerListingProfile, Transaction, TransactionDocument, db)
 
 
 def _signer():
@@ -64,21 +65,8 @@ def calendar_subscription_status(access):
 
 
 def calendar_rows(session, org_id, transaction_id):
-    # Read persisted columns, not dirty identity-map objects, for change detection.
-    connection = session.connection()
-    contracts = connection.execute(select(SellerAcceptedContract.__table__).where(
-        SellerAcceptedContract.organization_id == org_id,
-        SellerAcceptedContract.transaction_id == transaction_id)).mappings().all()
-    if not contracts:
-        return []
-    contract = min(contracts, key=lambda c: (
-        0 if c['position'] == 'primary' and c['status'] == 'active' else 1 if c['position'] == 'primary' else 2,
-        c['id']))
-    rows = connection.execute(select(SellerContractMilestone.__table__).where(
-        SellerContractMilestone.organization_id == org_id,
-        SellerContractMilestone.transaction_id == transaction_id,
-        SellerContractMilestone.accepted_contract_id == contract['id'])).mappings().all()
-    return [r for r in rows if r['due_at'] and r['status'] != 'not_applicable']
+    from services.transaction_dates import transaction_date_rows
+    return [r for r in transaction_date_rows(session, org_id, transaction_id) if r['due_at']]
 
 
 def event_key(row):
@@ -128,8 +116,11 @@ def _snapshot(session, key):
 def _before_flush(session, *_):
     pending = session.info.setdefault('client_date_changes', {})
     for row in list(session.new) + list(session.dirty) + list(session.deleted):
-        if isinstance(row, (SellerContractMilestone, SellerAcceptedContract)) and row.organization_id and row.transaction_id:
-            key = (row.organization_id, row.transaction_id)
+        if not isinstance(row, (SellerContractMilestone, SellerAcceptedContract, SellerListingProfile, Transaction, TransactionDocument)):
+            continue
+        tx_id = row.id if isinstance(row, Transaction) else row.transaction_id
+        if row.organization_id and tx_id:
+            key = (row.organization_id, tx_id)
             if key not in pending:
                 pending[key] = [_snapshot(session, key), None]
 

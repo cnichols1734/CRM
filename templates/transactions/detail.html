@@ -256,7 +256,7 @@
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Closing</dt>
                         <dd class="mt-1 text-sm font-semibold text-slate-900">
-                            {{ transaction.expected_close_date.strftime('%b %d, %Y') if transaction.expected_close_date else 'Not set' }}
+                            {% set shown_close = primary_seller_contract.closing_date if primary_seller_contract else transaction.expected_close_date %}{{ shown_close.strftime('%b %d, %Y') if shown_close else 'Not set' }}
                         </dd>
                     </div>
                     <div>
@@ -298,12 +298,12 @@
                 {% set show_deadline_nav = checklist and tx_type_name != 'seller' %}
                 {% set show_seller_deadline_nav = tx_type_name == 'seller' and transaction.status != 'preparing_to_list' and (checklist|selectattr('due_at')|list) %}
                 {% if show_listing_prep_nav or show_deadline_nav or show_seller_deadline_nav %}
-                <a href="#transaction-checklist" class="shrink-0 font-semibold text-slate-950 hover:text-orange-700">Checklist</a>
+                <a href="{{ '#contract-requirements' if stage.key in ('under_contract', 'closing') and tx_type_name == 'seller' else '#transaction-checklist' }}" class="shrink-0 font-semibold text-slate-950 hover:text-orange-700">Checklist</a>
                 {% endif %}
                 <a href="{{ documents_nav_href }}" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Documents</a>
                 <a href="#people-and-work" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">People &amp; work</a>
                 {% if show_listing_workspace_nav %}
-                <a href="#seller-workspace" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Listing workspace</a>
+                <a href="#seller-workspace" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Seller workspace</a>
                 {% elif tx_type_name == 'buyer' %}
                 <a href="#transaction-offers" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Offers</a>
                 <a href="#buyer-contract-packages" class="shrink-0 font-medium text-slate-500 hover:text-orange-700">Contract</a>
@@ -1142,7 +1142,7 @@
                 </div>{# /content-intelligence #}
                 {% endif %}
 
-                {% include 'transactions/_checklist.html' %}
+                {% if transaction.transaction_type.name != 'seller' %}{% include 'transactions/_checklist.html' %}{% endif %}
             </div>
 
             {# ===== Right column ===== #}
@@ -1218,7 +1218,7 @@
                     'intake': 'from questionnaire',
                     'override': 'edited'
                 } %}
-                <section class="crm-surface" id="listing-info-card"
+                <section class="crm-surface" id="listing-info-card" data-seller-listing-tab-content
                          data-transaction-id="{{ transaction.id }}"
                          data-extraction-status="{{ listing_extraction_status or '' }}">
                     <div class="crm-surface-header">

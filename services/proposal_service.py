@@ -194,7 +194,7 @@ class ProposalService:
         """
         Apply an approved proposal to transaction / accepted-contract data.
 
-        Does NOT call create_contract_milestones(replace=True).
+        Recalculates automatic dates in place, preserving manual dates and history.
         Idempotent when already applied.
         """
         proposal = TransactionChangeProposal.query.get(proposal_id)
@@ -333,9 +333,9 @@ class ProposalService:
             else:
                 terms[key] = value
 
-        # Update canonical columns via apply_contract_terms — never recreate milestones.
-        from services.seller_workflow import apply_contract_terms
+        from services.seller_workflow import apply_contract_terms, create_contract_milestones
         apply_contract_terms(contract, terms)
+        create_contract_milestones(contract, replace=True)
         flag_modified(contract, 'frozen_terms')
         flag_modified(contract, 'addenda_data')
         flag_modified(contract, 'extra_data')

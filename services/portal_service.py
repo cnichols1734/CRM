@@ -313,6 +313,14 @@ def _agent_block(tx):
     }
 
 
+def _listing_go_live_date(tx, profile):
+    from services.transaction_dates import listing_date
+    overrides = (tx.extra_data or {}).get('listing_info_overrides') or {}
+    if 'go_live_date' in overrides:
+        return listing_date(overrides['go_live_date'])
+    return _as_date(profile.go_live_date) if profile else None
+
+
 def _headline_block(tx, profile, *, is_buyer=False):
     list_price = None
     if profile and profile.current_list_price and not is_buyer:
@@ -321,12 +329,14 @@ def _headline_block(tx, profile, *, is_buyer=False):
 
     # Days on market: prefer go_live_date, else listing start, else first-active.
     dom_start = None
-    if profile and profile.go_live_date and not is_buyer:
-        dom_start = _as_date(profile.go_live_date)
+    if not is_buyer:
+        dom_start = _listing_go_live_date(tx, profile)
     days_on_market = None
     if dom_start and tx.status in ('active', 'under_contract', 'closed'):
         days_on_market = max((date.today() - dom_start).days, 0)
 
+    contract = _primary_contract(tx)
+    expected_close = contract.closing_date if contract else getattr(tx, 'expected_close_date', None)
     return {
         'list_price': _money(list_price),
         'list_price_raw': float(list_price) if list_price else None,
@@ -337,7 +347,7 @@ def _headline_block(tx, profile, *, is_buyer=False):
         'mls_listing_url': public_mls_listing_url(getattr(tx, 'mls_listing_url', None)),
         'status': tx.status,
         'status_label': _status_label(tx.status, is_buyer=is_buyer),
-        'expected_close': _full_day(getattr(tx, 'expected_close_date', None)),
+        'expected_close': _full_day(expected_close),
     }
 
 
@@ -420,7 +430,7 @@ def _build_stages(tx, profile):
     # Resolve the current stage index from the macro status + signals.
     if status == 'closed':
         current = 6
-    elif status == 'under_contract':
+    elif primary_contract or status in ('under_contract', 'pending'):
         current = 5 if _in_closing_window(primary_contract) else 4
     elif status == 'active':
         if has_offers:
@@ -435,7 +445,7 @@ def _build_stages(tx, profile):
         current = 0
 
     # Dates for each stage where we have them.
-    go_live = _as_date(profile.go_live_date) if profile else None
+    go_live = _listing_go_live_date(tx, profile)
     first_showing = _first_showing_date(tx)
     first_offer = _first_offer_date(tx)
     effective = _as_date(primary_contract.effective_date) if primary_contract else None
@@ -546,11 +556,12 @@ def _in_closing_window(contract):
 
 
 def _primary_contract(tx):
+    if tx.status == 'cancelled':
+        return None
     try:
         return tx.seller_accepted_contracts.filter_by(
             position='primary', status='active').first() \
-            or tx.seller_accepted_contracts.filter_by(position='primary').first() \
-            or tx.seller_accepted_contracts.first()
+            or (tx.seller_accepted_contracts.filter_by(position='primary', status='closed').first() if tx.status == 'closed' else None)
     except Exception:
         return None
 
@@ -715,17 +726,11 @@ def _offer_status_label(status):
 # --------------------------------------------------------------------------
 
 def _milestones_block(tx):
-    contract = _primary_contract(tx)
-    if not contract:
-        return {'items': [], 'next': None}
-    try:
-        milestones = contract.milestones.order_by('due_at').all()
-    except Exception:
-        try:
-            milestones = sorted(contract.milestones.all(),
-                                key=lambda m: (m.due_at or datetime.max))
-        except Exception:
-            milestones = []
+    from types import SimpleNamespace
+    from models import db
+    from services.transaction_dates import transaction_date_rows
+    milestones = [SimpleNamespace(**r) for r in transaction_date_rows(db.session, tx.organization_id, tx.id)]
+    milestones.sort(key=lambda m: (m.due_at is None, m.due_at or datetime.max, str(m.id)))
 
     today = date.today()
     items = []
@@ -752,6 +757,8 @@ def _milestones_block(tx):
             'status': derived,
             'done': done,
             'not_applicable': na,
+            'scope': m.scope,
+            'source_label': m.source_label,
         }
         items.append(item)
         if next_item is None and not done and not na and due and due >= today:

@@ -344,6 +344,11 @@ def apply_listing_info_overrides(listing_info, overrides):
                 if 'listing_side_commission' not in sources:
                     sources['listing_side_commission'] = sources.get('total_commission') or sources.get('buyer_commission') or 'override'
 
+    for key in ('go_live_date', 'listing_start_date', 'listing_end_date'):
+        if key in overrides and not overrides[key]:
+            data[key] = None
+            sources[key] = 'override'
+
     return _attach_listing_meta(data, sources)
 
 

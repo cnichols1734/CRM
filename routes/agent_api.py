@@ -314,7 +314,7 @@ def _serialize_transaction(tx, *, detail=False, participants=None):
             _serialize_milestone(m)
             for m in tx.seller_contract_milestones.order_by(
                 SellerContractMilestone.due_at.asc().nullslast(),
-            ).all()
+            ).all() if not m.is_removed
         ]
         payload['documents'] = [
             _serialize_document(doc)
@@ -1003,7 +1003,7 @@ def list_milestones(user, transaction_id):
         transaction_id=tx.id,
         organization_id=user.organization_id,
     ).order_by(SellerContractMilestone.due_at.asc().nullslast()).all()
-    return jsonify({'milestones': [_serialize_milestone(m) for m in rows]})
+    return jsonify({'milestones': [_serialize_milestone(m) for m in rows if not m.is_removed]})
 
 
 @agent_api_bp.route('/transactions/<int:transaction_id>/milestones', methods=['POST'])

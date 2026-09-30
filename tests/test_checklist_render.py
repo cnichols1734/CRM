@@ -304,9 +304,10 @@ def test_seller_under_contract_shows_dated_deadlines_not_listing_prep(app, seed,
         response = owner_a_client.get(f'/transactions/{tx_id}')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert 'id="transaction-checklist"' in html
-        checklist = html.split('id="transaction-checklist"', 1)[1].split('</section>', 1)[0]
-        assert 'Deadlines' in checklist
+        assert 'id="contract-requirements"' in html
+        checklist = html.split('id="contract-requirements"', 1)[1].split('</section>', 1)[0]
+        assert 'Contract requirements' in checklist
+        assert 'data-requirement-date-form' in checklist
         assert 'Survey Completed' in checklist
         assert 'Sign Listing Agreement' not in checklist
         assert 'Add Property Description' not in checklist
