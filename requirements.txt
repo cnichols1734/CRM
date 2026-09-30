@@ -69,4 +69,4 @@ email_validator
 
 # APNs HTTP/2 transport and ES256 provider tokens
 httpx[http2]==0.28.1
-PyJWT[crypto]==2.12.0
+PyJWT[crypto]==2.14.0
