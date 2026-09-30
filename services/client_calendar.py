@@ -4,7 +4,7 @@ import hashlib
 
 from flask import current_app
 from itsdangerous import BadSignature, URLSafeSerializer
-from sqlalchemy import event, select
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from models import (ClientPortalAccess, Organization, SellerAcceptedContract, SellerContractMilestone,

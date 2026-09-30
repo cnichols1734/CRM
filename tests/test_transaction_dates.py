@@ -214,3 +214,30 @@ def test_accepted_amendment_updates_client_schedule(app, seed, owner_a_client):
     with app.app_context():
         rows = transaction_date_rows(db.session, seed['org_a'], tid)
         assert next(r for r in rows if r['id'] == mid)['due_at'].date() == date(2026, 11, 15)
+
+
+def test_portal_stage_and_headline_respect_go_live_override_and_clear(app, seed):
+    from models import SellerListingProfile
+    from services.portal_service import build_portal_context
+    with app.app_context():
+        tx, access, _ = _file(seed)
+        db.session.add(SellerListingProfile(organization_id=tx.organization_id, transaction_id=tx.id,
+            created_by_id=seed['owner_a'], go_live_date=date(2026, 1, 1)))
+        tx.extra_data = {'listing_info_overrides': {'go_live_date': '2026-02-01'}}
+        db.session.commit()
+        ctx = build_portal_context(access)
+        assert next(s for s in ctx['stages'] if s['key'] == 'active')['date'] == 'Feb 1'
+        assert ctx['headline']['days_on_market'] == max((date.today() - date(2026, 2, 1)).days, 0)
+        tx.extra_data = {'listing_info_overrides': {'go_live_date': ''}}
+        db.session.commit()
+        ctx = build_portal_context(access)
+        assert next(s for s in ctx['stages'] if s['key'] == 'active')['date'] is None
+        assert ctx['headline']['days_on_market'] is None
+        contract = _contract(tx)
+        tx.expected_close_date = date(2026, 10, 1)
+        db.session.commit()
+        assert build_portal_context(access)['headline']['expected_close'] == 'Sunday, November 1, 2026'
+        tx.status = 'cancelled'
+        db.session.commit()
+        ctx = build_portal_context(access)
+        assert ctx['milestones']['items'] == [] and ctx['current_stage']['key'] != 'under_contract'
