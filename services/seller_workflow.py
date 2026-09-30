@@ -2287,15 +2287,37 @@ def build_contract_milestones(contract):
 
 def create_contract_milestones(contract, replace=False):
     """Persist calculated milestones for an accepted contract."""
+    existing_rows = contract.milestones.order_by(SellerContractMilestone.id).all()
+    by_key = {}
+    for row in existing_rows:
+        if row.milestone_key != 'manual':
+            by_key.setdefault(row.milestone_key, []).append(row)
+    result = []
+    generated = build_contract_milestones(contract)
+    for item in generated:
+        matches = by_key.get(item.milestone_key, [])
+        # Keep the edited/history row if an older recalculation made duplicates.
+        existing = next((m for m in matches if m.source == 'manual'
+                         or m.status in ('completed', 'not_applicable')
+                         or (m.source_data or {}).get('removed_at')), matches[0] if matches else None)
+        if existing is None:
+            db.session.add(item)
+            result.append(item)
+            continue
+        for duplicate in matches:
+            if duplicate is not existing:
+                duplicate.source_data = {**(duplicate.source_data or {}), 'duplicate_of': existing.id}
+        if replace and existing.source != 'manual' and existing.status not in ('completed', 'not_applicable'):
+            existing.due_at = item.due_at
+            existing.source = item.source
+            existing.source_data = {**(existing.source_data or {}), **(item.source_data or {})}
+        result.append(existing)
+    generated_keys = {item.milestone_key for item in generated}
     if replace:
-        for existing in contract.milestones.all():
-            if existing.milestone_key != 'manual' and existing.source != 'manual':
-                db.session.delete(existing)
-
-    milestones = build_contract_milestones(contract)
-    for item in milestones:
-        db.session.add(item)
-    return milestones
+        for row in existing_rows:
+            if row.milestone_key != 'manual' and row.milestone_key not in generated_keys and row.source != 'manual' and row.status != 'completed':
+                row.due_at = None
+    return result
 
 
 def seed_ctc_requirements_from_accepted_contract(

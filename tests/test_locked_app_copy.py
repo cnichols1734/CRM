@@ -154,8 +154,7 @@ class TestLockedCopyPairs831:
     def test_seller_workspace_helper(self):
         text = _read("templates", "transactions", "_seller_workspace.html")
         assert (
-            "All documents for this file live here: listing paperwork, "
-            "offers, and the contract."
+            "Manage the listing, review offers, then track the accepted contract."
         ) in text
         assert (
             "All documents for this file live here — listing paperwork, "
@@ -200,8 +199,7 @@ class TestLockedCopyPairs831Rendered:
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
         assert (
-            "All documents for this file live here: listing paperwork, "
-            "offers, and the contract."
+            "Manage the listing, review offers, then track the accepted contract."
         ) in html
         assert (
             "All documents for this file live here — listing paperwork, "

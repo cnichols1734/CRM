@@ -25,13 +25,18 @@
 {%- endmacro %}
 
 {% set deadline_items = checklist|selectattr('kind', 'equalto', 'requirement')|list %}
+{% if checklist_scope|default('') == 'listing' %}
+{% set deadline_items = deadline_items|selectattr('package_key', 'equalto', 'listing')|list %}
+{% elif checklist_scope|default('') == 'contract' %}
+{% set deadline_items = deadline_items|rejectattr('package_key', 'equalto', 'listing')|list %}
+{% endif %}
 {% set dated_deadline_items = deadline_items|selectattr('due_at')|list %}
-{% set show_listing_prep = listing_prep_groups and transaction.transaction_type.name == 'seller' and transaction.status == 'preparing_to_list' %}
+{% set show_listing_prep = checklist_scope|default('') != 'contract' and listing_prep_groups and transaction.transaction_type.name == 'seller' and transaction.status == 'preparing_to_list' %}
 {% set show_other_deadlines = deadline_items and transaction.transaction_type.name != 'seller' %}
-{% set show_seller_deadlines = dated_deadline_items and transaction.transaction_type.name == 'seller' and transaction.status != 'preparing_to_list' %}
+{% set show_seller_deadlines = deadline_items and transaction.transaction_type.name == 'seller' and transaction.status != 'preparing_to_list' %}
 
 {% if show_listing_prep %}
-<section id="transaction-checklist" class="crm-surface scroll-mt-28">
+<section id="{{ 'contract-requirements' if checklist_scope|default('') == 'contract' else 'transaction-checklist' }}" class="{{ 'border-t border-slate-200 scroll-mt-28' if checklist_scope|default('') else 'crm-surface scroll-mt-28' }}">
     <div class="crm-surface-header">
         <div>
             {{ section_header('Checklist') }}
@@ -185,11 +190,12 @@
     </div>
 </section>
 {% elif show_other_deadlines or show_seller_deadlines %}
-{% set list_items = deadline_items if show_other_deadlines else dated_deadline_items %}
-<section id="transaction-checklist" class="crm-surface scroll-mt-28">
+{% set list_items = deadline_items %}
+<section id="{{ 'contract-requirements' if checklist_scope|default('') == 'contract' else 'transaction-checklist' }}" class="{{ 'border-t border-slate-200 scroll-mt-28' if checklist_scope|default('') else 'crm-surface scroll-mt-28' }}">
     <div class="crm-surface-header">
         <div>
-            {{ section_header('Deadlines') }}
+            {{ section_header('Contract requirements' if checklist_scope|default('') == 'contract' else 'Listing tasks' if checklist_scope|default('') == 'listing' else 'Deadlines') }}
+            <p class="mt-1 text-xs text-slate-500">Internal work deadlines. Manual dates stay fixed through recalculation. Clearing a date allows future recalculation. Client dates are managed in the stage schedule above.</p>
         </div>
         {% if control_tower_summary.overdue %}
         <span class="crm-badge crm-badge-danger">{{ control_tower_summary.overdue }} overdue</span>
@@ -198,11 +204,15 @@
     <ul class="divide-y divide-slate-100 px-5 py-2">
         {% for item in list_items %}
         {% set is_done = item.work_status in ('completed', 'not_applicable', 'superseded') %}
-        <li class="flex items-center justify-between gap-3 py-2.5 text-sm">
-            <span class="min-w-0 truncate font-medium {% if is_done %}text-slate-400 line-through{% else %}text-slate-900{% endif %}">{{ item.title }}</span>
-            <span class="shrink-0 text-xs tabular-nums text-slate-500">
-                {% if item.due_at %}{{ item.due_at.strftime('%b %d') }}{% else %}—{% endif %}
-            </span>
+        <li class="py-3 text-sm">
+            <form data-requirement-date-form data-requirement-id="{{ item.requirement_id }}" class="flex flex-wrap items-end gap-3">
+                <label class="min-w-48 flex-1">
+                    <span class="block font-medium {% if is_done %}text-slate-400 line-through{% else %}text-slate-900{% endif %}">{{ item.title }}</span>
+                    <span class="mt-1 block text-xs text-slate-500">{{ 'Manual date' if item.manual_date else 'From milestone' if item.date_source == 'milestone_bridge' else item.date_basis or 'No automatic rule' }}{% if item.phase_label %} · {{ item.phase_label }}{% endif %}</span>
+                    <input type="date" class="crm-input mt-2" name="due_date" value="{{ item.due_at.strftime('%Y-%m-%d') if item.due_at else '' }}" aria-label="Due date for {{ item.title }}">
+                </label>
+                <button type="submit" class="crm-btn crm-btn-secondary">Save date</button>
+            </form>
         </li>
         {% endfor %}
     </ul>

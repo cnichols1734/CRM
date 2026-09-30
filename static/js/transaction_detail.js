@@ -1641,7 +1641,7 @@ document.querySelectorAll('.seller-milestone').forEach(row => {
             closeRow();
         }
     });
-    if (cancelBtn) cancelBtn.addEventListener('click', closeRow);
+    if (cancelBtn) cancelBtn.addEventListener('click', () => { form.reset(); closeRow(); });
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1651,11 +1651,9 @@ document.querySelectorAll('.seller-milestone').forEach(row => {
             showToast('Unable to find milestone.', 'error');
             return;
         }
-        sellerPost(
+        saveTransactionDate(this.querySelector('[type="submit"]'),
             `/transactions/${transactionId}/seller/contracts/${contractId}/milestones/${milestoneId}`,
-            sellerFormData(this),
-            'Milestone updated.'
-        );
+            sellerFormData(this));
     });
 });
 
@@ -1720,3 +1718,60 @@ function downloadContactFileFromTx(contactId, fileId) {
         console.error('Download error:', error);
     });
 }
+
+
+async function saveTransactionDate(button, url, payload) {
+    const form = button.closest('form');
+    const buttons = form ? [...form.querySelectorAll('button')] : [button];
+    if (button.disabled) return;
+    buttons.forEach(item => { item.disabled = true; });
+    try {
+        const response = await fetch(url, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Could not save. Try again.');
+        setSellerWorkspaceReloadTab(getActiveSellerWorkspaceTab());
+        location.reload();
+    } catch (error) {
+        showToast(error.message || 'Could not save. Try again.', 'error');
+        buttons.forEach(item => { item.disabled = false; });
+    }
+}
+
+document.querySelectorAll('[data-listing-date-form]').forEach(form => {
+    const save = action => saveTransactionDate(form.querySelector('button'),
+        `/transactions/${transactionId}/listing-dates`,
+        {field: form.dataset.field, value: form.elements.value.value, action});
+    form.addEventListener('submit', event => { event.preventDefault(); save('set'); });
+    form.querySelector('[data-listing-date-reset]')?.addEventListener('click', () => save('reset'));
+});
+document.querySelectorAll('[data-requirement-date-form]').forEach(form => {
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        saveTransactionDate(form.querySelector('button'),
+            `/transactions/${transactionId}/requirements/${form.dataset.requirementId}/due-date`,
+            {due_date: form.elements.due_date.value});
+    });
+});
+document.querySelectorAll('[data-milestone-action], [data-milestone-restore]').forEach(button => {
+    button.addEventListener('click', () => {
+        const form = button.closest('form');
+        const ids = form ? form.dataset : button.dataset;
+        const action = button.dataset.milestoneAction || 'restore';
+        if (action === 'remove' && !confirm('Remove this milestone from the agent and client schedule? Contract terms and requirements stay on file. You can restore it later.')) return;
+        saveTransactionDate(button,
+            `/transactions/${transactionId}/seller/contracts/${ids.contractId}/milestones/${ids.milestoneId}`,
+            {action});
+    });
+});
+
+
+document.querySelectorAll('a[href="#transaction-checklist"], a[href="#contract-requirements"]').forEach(link => {
+    link.addEventListener('click', () => {
+        if (document.getElementById('seller-workspace')) {
+            sellerWorkspaceTab(link.hash === '#contract-requirements' ? 'contract' : 'listing', {instant: true});
+        }
+    });
+});

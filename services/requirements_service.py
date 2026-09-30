@@ -493,6 +493,8 @@ class RequirementsService:
         skipped = 0
         bridged: List[TransactionRequirement] = []
         for milestone in milestones:
+            if milestone.is_removed:
+                continue
             already = TransactionRequirement.query.filter(
                 TransactionRequirement.organization_id == org_id,
                 TransactionRequirement.transaction_id == transaction_id,

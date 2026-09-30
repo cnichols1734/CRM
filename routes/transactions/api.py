@@ -565,3 +565,34 @@ def transaction_live(id):
             'pending_extraction_count': int(offers_pending),
         },
     })
+
+
+@transactions_bp.route('/<int:id>/listing-dates', methods=['POST'])
+@login_required
+@transactions_required
+def update_listing_dates(id):
+    """Change one listing date without replacing unrelated listing overrides."""
+    from services.transaction_dates import LISTING_DATE_LABELS
+    transaction = _require_tx(id, CAP_EDIT)
+    if transaction.transaction_type.name != 'seller':
+        return jsonify(success=False, error='Listing dates are only available for seller files.'), 400
+    data = request.get_json(silent=True) or {}
+    field = data.get('field')
+    if field not in LISTING_DATE_LABELS or data.get('action', 'set') not in ('set', 'reset'):
+        return jsonify(success=False, error='Choose a listing date to update.'), 400
+    value = str(data.get('value') or '').strip()
+    if value and data.get('action') != 'reset':
+        try:
+            value = datetime.strptime(value, '%Y-%m-%d').date().isoformat()
+        except ValueError:
+            return jsonify(success=False, error='Enter the date as YYYY-MM-DD.'), 400
+    extra = dict(transaction.extra_data or {})
+    overrides = dict(extra.get('listing_info_overrides') or {})
+    if data.get('action') == 'reset':
+        overrides.pop(field, None)
+    else:
+        overrides[field] = value
+    extra['listing_info_overrides'] = overrides
+    transaction.extra_data = extra
+    db.session.commit()
+    return jsonify(success=True)

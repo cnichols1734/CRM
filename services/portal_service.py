@@ -420,7 +420,7 @@ def _build_stages(tx, profile):
     # Resolve the current stage index from the macro status + signals.
     if status == 'closed':
         current = 6
-    elif status == 'under_contract':
+    elif primary_contract or status in ('under_contract', 'pending'):
         current = 5 if _in_closing_window(primary_contract) else 4
     elif status == 'active':
         if has_offers:
@@ -435,7 +435,12 @@ def _build_stages(tx, profile):
         current = 0
 
     # Dates for each stage where we have them.
-    go_live = _as_date(profile.go_live_date) if profile else None
+    from models import db
+    from services.transaction_dates import transaction_date_rows
+    listing_dates = transaction_date_rows(db.session, tx.organization_id, tx.id)
+    go_live = next((_as_date(r['due_at']) for r in listing_dates if r['milestone_key'] == 'go_live_date'), None)
+    if not go_live and profile:
+        go_live = _as_date(profile.go_live_date)
     first_showing = _first_showing_date(tx)
     first_offer = _first_offer_date(tx)
     effective = _as_date(primary_contract.effective_date) if primary_contract else None
@@ -549,8 +554,7 @@ def _primary_contract(tx):
     try:
         return tx.seller_accepted_contracts.filter_by(
             position='primary', status='active').first() \
-            or tx.seller_accepted_contracts.filter_by(position='primary').first() \
-            or tx.seller_accepted_contracts.first()
+            or (tx.seller_accepted_contracts.filter_by(position='primary', status='closed').first() if tx.status == 'closed' else None)
     except Exception:
         return None
 
@@ -715,17 +719,11 @@ def _offer_status_label(status):
 # --------------------------------------------------------------------------
 
 def _milestones_block(tx):
-    contract = _primary_contract(tx)
-    if not contract:
-        return {'items': [], 'next': None}
-    try:
-        milestones = contract.milestones.order_by('due_at').all()
-    except Exception:
-        try:
-            milestones = sorted(contract.milestones.all(),
-                                key=lambda m: (m.due_at or datetime.max))
-        except Exception:
-            milestones = []
+    from types import SimpleNamespace
+    from models import db
+    from services.transaction_dates import transaction_date_rows
+    milestones = [SimpleNamespace(**r) for r in transaction_date_rows(db.session, tx.organization_id, tx.id)]
+    milestones.sort(key=lambda m: (m.due_at is None, m.due_at or datetime.max, str(m.id)))
 
     today = date.today()
     items = []
@@ -752,6 +750,8 @@ def _milestones_block(tx):
             'status': derived,
             'done': done,
             'not_applicable': na,
+            'scope': m.scope,
+            'source_label': m.source_label,
         }
         items.append(item)
         if next_item is None and not done and not na and due and due >= today:

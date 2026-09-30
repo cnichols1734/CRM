@@ -1771,6 +1771,10 @@ class SellerContractMilestone(db.Model):
 
     created_by = db.relationship('User', foreign_keys=[created_by_id])
 
+    @property
+    def is_removed(self):
+        return bool((self.source_data or {}).get('removed_at') or (self.source_data or {}).get('duplicate_of'))
+
     def __repr__(self):
         return f'<SellerContractMilestone {self.milestone_key} tx={self.transaction_id}>'
 

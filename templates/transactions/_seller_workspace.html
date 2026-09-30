@@ -1,14 +1,14 @@
                 {# ----- Seller command workspace ----- #}
                 {# Always expose Listing / Offers / Contract so the lifecycle is discoverable. #}
                 {% set default_seller_tab = (
-                    'contract' if stage.key in ('under_contract', 'closing') and primary_seller_contract
-                    else 'listing'
+                    'contract' if stage.key in ('under_contract', 'closing')
+                    else 'offers' if stage.key == 'offers' else 'listing'
                 ) %}
                 <section class="crm-surface" id="seller-workspace" data-default-seller-tab="{{ default_seller_tab }}">
                     <div class="crm-surface-header">
                         <div>
                             {{ section_header('Seller workspace') }}
-                            <p class="mt-1 text-xs text-slate-500">All documents for this file live here: listing paperwork, offers, and the contract.</p>
+                            <p class="mt-1 text-xs text-slate-500">Manage the listing, review offers, then track the accepted contract.</p>
                             {% if urgent_seller_offer and urgent_seller_offer.response_deadline_at %}
                             {% set urgent_state = offer_urgency(urgent_seller_offer) %}
                             <p class="mt-1 text-xs font-medium {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% else %}text-orange-700{% endif %}">
@@ -31,6 +31,9 @@
                         </div>
 
                         <div id="seller-panel-listing" class="seller-tab-panel t-panel-slide space-y-4{% if default_seller_tab != 'listing' %} hidden{% endif %}" data-open="{{ 'true' if default_seller_tab == 'listing' else 'false' }}">
+                            {% include 'transactions/_listing_dates.html' %}
+                            {% with checklist_scope='listing' %}{% include 'transactions/_checklist.html' %}{% endwith %}
+                            <p class="text-sm text-slate-500">Listing paperwork and preparation stay with the listing. Each offer has its own response deadline.</p>
                             <div {% if document_packages %}id="listing-documents" class="scroll-mt-28 space-y-4"{% else %}class="space-y-4"{% endif %}>
                                 {% if has_intake_schema %}
                                 <div class="flex flex-wrap items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3.5">
@@ -101,6 +104,148 @@
                                     </div>
                                 </div>
                             </div>
+                            {% set milestone_status_styles = {
+                                'completed': {'dot': 'bg-emerald-500', 'badge': 'border-emerald-200 bg-emerald-50 text-emerald-700', 'label': 'Completed'},
+                                'overdue': {'dot': 'bg-red-500', 'badge': 'border-red-200 bg-red-50 text-red-700', 'label': 'Overdue'},
+                                'due_soon': {'dot': 'bg-amber-500', 'badge': 'border-amber-200 bg-amber-50 text-amber-700', 'label': 'Due soon'},
+                                'waiting': {'dot': 'bg-sky-500', 'badge': 'border-sky-200 bg-sky-50 text-sky-700', 'label': 'Waiting'},
+                                'not_started': {'dot': 'bg-slate-300', 'badge': 'border-slate-200 bg-slate-100 text-slate-600', 'label': 'Not started'},
+                                'not_applicable': {'dot': 'bg-slate-200', 'badge': 'border-slate-200 bg-slate-50 text-slate-500', 'label': 'N/A'}
+                            } %}
+                            {% set milestone_status_options = [('not_started', 'Not started'), ('waiting', 'Waiting'), ('due_soon', 'Due soon'), ('overdue', 'Overdue'), ('completed', 'Completed'), ('not_applicable', 'Not applicable')] %}
+                            <div class="rounded-md border border-slate-200">
+                                <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                    <div class="min-w-48 flex-1">
+                                        <h3 class="text-sm font-semibold text-slate-900">Milestones</h3>
+                                        <p class="mt-0.5 text-xs text-slate-500">Dates shared with the client. Open a row to edit or remove it. Check calculated dates against the signed contract.</p>
+                                    </div>
+                                    <button type="button" class="crm-btn crm-btn-secondary shrink-0" data-toggle="seller-manual-milestone">
+                                        <i class="fas fa-plus text-xs"></i>
+                                        <span>Add milestone</span>
+                                    </button>
+                                </div>
+                                <form id="sellerManualMilestoneForm" class="hidden border-b border-slate-200 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}">
+                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Milestone</span>
+                                            <input name="title" class="crm-input mt-1" placeholder="e.g. HOA resale certificate ordered" required>
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Due</span>
+                                            <input type="datetime-local" name="due_at" class="crm-input mt-1">
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Status</span>
+                                            <select name="status" class="crm-select mt-1">
+                                                {% for value, label in milestone_status_options %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <label class="mt-3 block">
+                                        <span class="text-xs font-medium text-slate-600">Notes</span>
+                                        <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Optional"></textarea>
+                                    </label>
+                                    <div class="mt-3 flex items-center justify-end gap-2">
+                                        <button type="button" class="crm-btn crm-btn-secondary" data-toggle-cancel="seller-manual-milestone">Cancel</button>
+                                        <button type="submit" class="crm-btn crm-btn-primary">Add milestone</button>
+                                    </div>
+                                </form>
+                                <div class="divide-y divide-slate-100">
+                                    {% for milestone in seller_contract_milestones if not milestone.is_removed %}
+                                    {% set status_key = milestone.status if milestone.status in milestone_status_styles else 'not_started' %}
+                                    {% set status_style = milestone_status_styles[status_key] %}
+                                    <div class="seller-milestone" data-milestone-id="{{ milestone.id }}">
+                                        <button type="button" class="seller-milestone-toggle group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
+                                            <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full {{ status_style.dot }}"></span>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <span class="text-sm font-medium text-slate-900">{{ milestone.title }}</span>
+                                                    <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium {{ status_style.badge }}">{{ status_style.label }}</span>
+                                                    {% if milestone.source and milestone.source != 'manual' %}
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">{{ 'From documents' if milestone.source == 'ai_extracted' else 'Calculated' }}</span>
+                                                    {% elif milestone.source == 'manual' %}
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Manual</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                                                    {% if milestone.due_at %}
+                                                    <span class="inline-flex items-center gap-1">
+                                                        <i class="far fa-calendar text-[10px] text-slate-400"></i>
+                                                        {{ milestone.due_at.strftime('%a, %b %d') }}
+                                                        {% if milestone.due_at.hour or milestone.due_at.minute %}<span class="text-slate-400">{{ milestone.due_at.strftime('%I:%M %p').lstrip('0') }}</span>{% endif %}
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-slate-400">No date set</span>
+                                                    {% endif %}
+                                                    {% if milestone.completed_at %}
+                                                    <span class="text-slate-300">&middot;</span>
+                                                    <span>Completed {{ milestone.completed_at.strftime('%b %d') }}</span>
+                                                    {% endif %}
+                                                    {% if milestone.notes %}
+                                                    <span class="text-slate-300">&middot;</span>
+                                                    <span class="truncate text-slate-500" title="{{ milestone.notes }}">{{ milestone.notes }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform seller-milestone-chevron"></i>
+                                        </button>
+                                        <form class="seller-milestone-form hidden border-t border-slate-100 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}" data-milestone-id="{{ milestone.id }}">
+                                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Milestone</span>
+                                                    <input name="title" class="crm-input mt-1" value="{{ milestone.title }}" required>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Due</span>
+                                                    <input type="datetime-local" name="due_at" class="crm-input mt-1" value="{% if milestone.due_at %}{{ milestone.due_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Status</span>
+                                                    <select name="status" class="crm-select mt-1">
+                                                        {% for value, label in milestone_status_options %}
+                                                        <option value="{{ value }}" {% if status_key == value %}selected{% endif %}>{{ label }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </label>
+                                            </div>
+                                            <label class="mt-3 block">
+                                                <span class="text-xs font-medium text-slate-600">Notes</span>
+                                                <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Internal notes, vendor follow-up, document reference">{{ milestone.notes or '' }}</textarea>
+                                            </label>
+                                            <p class="mt-3 text-xs text-slate-500">{{ 'This date is manual and stays fixed when terms change.' if milestone.source == 'manual' else 'This date recalculates when the contract terms change.' }} Editing a tracking date does not amend the contract. Removing it keeps contract terms and requirements on file.</p>
+                                            <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
+                                                <button type="button" class="crm-btn crm-btn-ghost" data-milestone-action="remove">Remove milestone</button>
+                                                {% if milestone.source == 'manual' and milestone.milestone_key != 'manual' %}<button type="button" class="crm-btn crm-btn-secondary" data-milestone-action="automatic">Use calculated date</button>{% endif %}
+                                                <button type="button" class="crm-btn crm-btn-secondary seller-milestone-cancel">Cancel</button>
+                                                <button type="submit" class="crm-btn crm-btn-primary">Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                    <div class="px-4 py-10 text-center">
+                                        <div class="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                            <i class="far fa-calendar-check"></i>
+                                        </div>
+                                        <p class="mt-2 text-sm font-medium text-slate-700">No milestones yet</p>
+                                        <p class="mt-1 text-xs text-slate-500">Milestones populate automatically when an offer is accepted, or you can add one manually.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% set removed_milestones = seller_contract_milestones|selectattr('is_removed')|list %}
+                            {% if removed_milestones %}
+                            <details class="text-sm">
+                                <summary class="cursor-pointer text-slate-500">Removed milestones, {{ removed_milestones|length }}</summary>
+                                {% for milestone in removed_milestones if not (milestone.source_data or {}).get('duplicate_of') %}
+                                <div class="flex items-center justify-between gap-3 py-2">
+                                    <span>{{ milestone.title }}</span>
+                                    <button type="button" class="crm-btn crm-btn-secondary" data-milestone-restore data-contract-id="{{ primary_seller_contract.id }}" data-milestone-id="{{ milestone.id }}">Restore</button>
+                                </div>
+                                {% endfor %}
+                            </details>
+                            {% endif %}
                             {% set primary_contract_docs = seller_contract_documents_by_contract.get(primary_seller_contract.id, []) if seller_contract_documents_by_contract else [] %}
                             {% set contract_supporting = primary_seller_contract.extra_data.get('supporting_documents', {}) if primary_seller_contract.extra_data else {} %}
                             {% set raw_contract_financing_addendum = primary_seller_contract.addenda_data.get('third_party_financing_addendum', {}) if primary_seller_contract.addenda_data is mapping else {} %}
@@ -335,133 +480,6 @@
                                 </div>
                             </div>
                             {% endif %}
-                            {% set milestone_status_styles = {
-                                'completed': {'dot': 'bg-emerald-500', 'badge': 'border-emerald-200 bg-emerald-50 text-emerald-700', 'label': 'Completed'},
-                                'overdue': {'dot': 'bg-red-500', 'badge': 'border-red-200 bg-red-50 text-red-700', 'label': 'Overdue'},
-                                'due_soon': {'dot': 'bg-amber-500', 'badge': 'border-amber-200 bg-amber-50 text-amber-700', 'label': 'Due soon'},
-                                'waiting': {'dot': 'bg-sky-500', 'badge': 'border-sky-200 bg-sky-50 text-sky-700', 'label': 'Waiting'},
-                                'not_started': {'dot': 'bg-slate-300', 'badge': 'border-slate-200 bg-slate-100 text-slate-600', 'label': 'Not started'},
-                                'not_applicable': {'dot': 'bg-slate-200', 'badge': 'border-slate-200 bg-slate-50 text-slate-500', 'label': 'N/A'}
-                            } %}
-                            {% set milestone_status_options = [('not_started', 'Not started'), ('waiting', 'Waiting'), ('due_soon', 'Due soon'), ('overdue', 'Overdue'), ('completed', 'Completed'), ('not_applicable', 'Not applicable')] %}
-                            <div class="rounded-md border border-slate-200">
-                                <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                                    <div class="min-w-0">
-                                        <h3 class="text-sm font-semibold text-slate-900">Milestones</h3>
-                                        <p class="mt-0.5 text-xs text-slate-500">Auto-built from contract terms. Click a row to edit, or add your own.</p>
-                                    </div>
-                                    <button type="button" class="crm-btn crm-btn-secondary shrink-0" data-toggle="seller-manual-milestone">
-                                        <i class="fas fa-plus text-xs"></i>
-                                        <span>Add milestone</span>
-                                    </button>
-                                </div>
-                                <form id="sellerManualMilestoneForm" class="hidden border-b border-slate-200 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}">
-                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
-                                        <label class="block">
-                                            <span class="text-xs font-medium text-slate-600">Milestone</span>
-                                            <input name="title" class="crm-input mt-1" placeholder="e.g. HOA resale certificate ordered" required>
-                                        </label>
-                                        <label class="block">
-                                            <span class="text-xs font-medium text-slate-600">Due</span>
-                                            <input type="datetime-local" name="due_at" class="crm-input mt-1">
-                                        </label>
-                                        <label class="block">
-                                            <span class="text-xs font-medium text-slate-600">Status</span>
-                                            <select name="status" class="crm-select mt-1">
-                                                {% for value, label in milestone_status_options %}
-                                                <option value="{{ value }}">{{ label }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </label>
-                                    </div>
-                                    <label class="mt-3 block">
-                                        <span class="text-xs font-medium text-slate-600">Notes</span>
-                                        <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Optional"></textarea>
-                                    </label>
-                                    <div class="mt-3 flex items-center justify-end gap-2">
-                                        <button type="button" class="crm-btn crm-btn-secondary" data-toggle-cancel="seller-manual-milestone">Cancel</button>
-                                        <button type="submit" class="crm-btn crm-btn-primary">Add milestone</button>
-                                    </div>
-                                </form>
-                                <div class="divide-y divide-slate-100">
-                                    {% for milestone in seller_contract_milestones %}
-                                    {% set status_key = milestone.status if milestone.status in milestone_status_styles else 'not_started' %}
-                                    {% set status_style = milestone_status_styles[status_key] %}
-                                    <div class="seller-milestone" data-milestone-id="{{ milestone.id }}">
-                                        <button type="button" class="seller-milestone-toggle group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
-                                            <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full {{ status_style.dot }}"></span>
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                    <span class="text-sm font-medium text-slate-900">{{ milestone.title }}</span>
-                                                    <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium {{ status_style.badge }}">{{ status_style.label }}</span>
-                                                    {% if milestone.source and milestone.source != 'manual' %}
-                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Auto</span>
-                                                    {% elif milestone.source == 'manual' %}
-                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Manual</span>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-                                                    {% if milestone.due_at %}
-                                                    <span class="inline-flex items-center gap-1">
-                                                        <i class="far fa-calendar text-[10px] text-slate-400"></i>
-                                                        {{ milestone.due_at.strftime('%a, %b %d') }}
-                                                        <span class="text-slate-400">{{ milestone.due_at.strftime('%I:%M %p').lstrip('0') }}</span>
-                                                    </span>
-                                                    {% else %}
-                                                    <span class="text-slate-400">No date set</span>
-                                                    {% endif %}
-                                                    {% if milestone.completed_at %}
-                                                    <span class="text-slate-300">&middot;</span>
-                                                    <span>Completed {{ milestone.completed_at.strftime('%b %d') }}</span>
-                                                    {% endif %}
-                                                    {% if milestone.notes %}
-                                                    <span class="text-slate-300">&middot;</span>
-                                                    <span class="truncate text-slate-500" title="{{ milestone.notes }}">{{ milestone.notes }}</span>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform seller-milestone-chevron"></i>
-                                        </button>
-                                        <form class="seller-milestone-form hidden border-t border-slate-100 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}" data-milestone-id="{{ milestone.id }}">
-                                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Milestone</span>
-                                                    <input name="title" class="crm-input mt-1" value="{{ milestone.title }}" required>
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Due</span>
-                                                    <input type="datetime-local" name="due_at" class="crm-input mt-1" value="{% if milestone.due_at %}{{ milestone.due_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
-                                                </label>
-                                                <label class="block">
-                                                    <span class="text-xs font-medium text-slate-600">Status</span>
-                                                    <select name="status" class="crm-select mt-1">
-                                                        {% for value, label in milestone_status_options %}
-                                                        <option value="{{ value }}" {% if status_key == value %}selected{% endif %}>{{ label }}</option>
-                                                        {% endfor %}
-                                                    </select>
-                                                </label>
-                                            </div>
-                                            <label class="mt-3 block">
-                                                <span class="text-xs font-medium text-slate-600">Notes</span>
-                                                <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Internal notes, vendor follow-up, document reference">{{ milestone.notes or '' }}</textarea>
-                                            </label>
-                                            <div class="mt-3 flex items-center justify-end gap-2">
-                                                <button type="button" class="crm-btn crm-btn-secondary seller-milestone-cancel">Cancel</button>
-                                                <button type="submit" class="crm-btn crm-btn-primary">Save</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                    {% else %}
-                                    <div class="px-4 py-10 text-center">
-                                        <div class="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                                            <i class="far fa-calendar-check"></i>
-                                        </div>
-                                        <p class="mt-2 text-sm font-medium text-slate-700">No milestones yet</p>
-                                        <p class="mt-1 text-xs text-slate-500">Milestones populate automatically when an offer is accepted, or you can add one manually.</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
                             <div id="terminateContractForm" class="fixed inset-0 z-50 hidden">
                                 <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeTerminateContractModal()" aria-label="Close"></button>
                                 <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(560px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
@@ -559,6 +577,8 @@
                                 </div>
                             </div>
                             {% endif %}
+                            {% with checklist_scope='contract' %}{% include 'transactions/_checklist.html' %}{% endwith %}
+
                         </div>
                     </div>
                 </section>

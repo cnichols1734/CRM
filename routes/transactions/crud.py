@@ -684,7 +684,7 @@ def view_transaction(id):
             seller_contract_milestones = SellerContractMilestone.query.filter_by(
                 accepted_contract_id=primary_seller_contract.id,
                 organization_id=current_user.organization_id
-            ).order_by(SellerContractMilestone.due_at.asc()).all()
+            ).order_by(SellerContractMilestone.due_at.asc().nullslast()).all()
         seller_commission_terms = SellerCommissionTerms.query.filter_by(
             transaction_id=transaction.id,
             organization_id=current_user.organization_id
@@ -703,6 +703,16 @@ def view_transaction(id):
         accepted_contract=primary_seller_contract,
         documents=documents,
     )
+    from services.transaction_dates import LISTING_DATE_LABELS, SOURCE_LABELS, listing_date
+    listing_date_fields = []
+    for key, label in LISTING_DATE_LABELS.items():
+        value = listing_date((listing_info or {}).get(key))
+        source = (listing_info or {}).get('_sources', {}).get(key)
+        listing_date_fields.append({'key': key, 'label': label,
+            'value': value.isoformat() if value else '',
+            'source': SOURCE_LABELS.get(source, 'No date on file'),
+            'manual': source == 'override'})
+
     header_price = resolve_header_price_display(
         transaction,
         listing_info=listing_info,
@@ -1128,6 +1138,7 @@ def view_transaction(id):
         backup_seller_contracts=backup_seller_contracts,
         seller_contract_documents_by_contract=seller_contract_documents_by_contract,
         seller_contract_milestones=seller_contract_milestones,
+        listing_date_fields=listing_date_fields,
         seller_commission_terms=seller_commission_terms,
         seller_price_changes=seller_price_changes,
         offer_urgency=offer_urgency,

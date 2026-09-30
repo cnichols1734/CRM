@@ -354,6 +354,12 @@ def build_checklist(
             else:
                 document_state = 'missing'
 
+        rule = ((req_pack or {}).get('requirements', {}).get(req.requirement_key, {}).get('deadline_rule') or {})
+        date_basis = None
+        if rule.get('anchor'):
+            offset = int(rule.get('offset_days') or 0)
+            anchor = rule['anchor'].replace('_', ' ')
+            date_basis = anchor.capitalize() if offset == 0 else f"{abs(offset)} {rule.get('unit', 'calendar')} days {'after' if offset > 0 else 'before'} {anchor}"
         phase_key = req.phase_key
         items.append({
             'kind': 'requirement',
@@ -362,6 +368,10 @@ def build_checklist(
             'phase_key': phase_key,
             'phase_label': _phase_label(req_pack, phase_key),
             'due_at': req.due_at,
+            'manual_date': bool(req.due_at_manual_override),
+            'date_basis': date_basis,
+            'date_source': req.source,
+            'package_key': req.package_key,
             'work_status': req.work_status,
             'timing_state': req.timing_state,
             'responsible_party_label': req.responsible_party_label,

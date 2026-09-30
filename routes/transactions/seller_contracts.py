@@ -37,12 +37,10 @@ def _can_manage_transaction(transaction):
 
 
 def _get_seller_transaction(id):
-    transaction = Transaction.query.filter_by(
-        id=id,
-        organization_id=current_user.organization_id,
-    ).first_or_404()
-    if not _can_manage_transaction(transaction):
-        abort(403)
+    from services.transaction_auth import CAP_EDIT, get_transaction_for_user
+    transaction, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not transaction:
+        abort(404 if decision.reason == 'not_found' else 403)
     if transaction.transaction_type and transaction.transaction_type.name != 'seller':
         return None
     return transaction
@@ -297,11 +295,16 @@ def _apply_milestone_data(milestone, data):
         raise ValueError('Invalid milestone status')
 
     milestone.title = title
-    milestone.due_at = _parse_datetime(data.get('due_at'))
+    if 'due_at' in data:
+        due_at = _parse_datetime(data.get('due_at'))
+        if data.get('due_at') and due_at is None:
+            raise ValueError('Enter a valid milestone date')
+        if due_at != milestone.due_at:
+            milestone.source = 'manual'
+        milestone.due_at = due_at
     milestone.status = status
     milestone.responsible_party = data.get('responsible_party') or None
     milestone.notes = data.get('notes') or None
-    milestone.source = 'manual'
     if status == 'completed':
         milestone.completed_at = milestone.completed_at or datetime.utcnow()
     else:
@@ -322,6 +325,11 @@ def update_seller_contract_details(id, contract_id):
     data = request.get_json(silent=True) or request.form
 
     try:
+        for field in ('effective_date', 'closing_date', 'financing_approval_deadline'):
+            if data.get(field) and _parse_date(data[field]) is None:
+                raise ValueError('Enter a valid date for ' + field.replace('_', ' '))
+        if data.get('option_period_days') and int(data['option_period_days']) < 0:
+            raise ValueError('Option period days cannot be negative')
         if 'accepted_price' in data:
             contract.accepted_price = _decimal(data.get('accepted_price'))
         if 'effective_date' in data:
@@ -353,7 +361,7 @@ def update_seller_contract_details(id, contract_id):
 
         if 'financing_approval_deadline' in data and data.get('financing_approval_deadline'):
             contract.financing_approval_deadline = _parse_date(data.get('financing_approval_deadline'))
-        else:
+        elif 'financing_approval_deadline' in data or 'effective_date' in data:
             contract.financing_approval_deadline = derive_financing_approval_deadline(
                 contract.frozen_terms or {},
                 contract.effective_date,
@@ -361,6 +369,8 @@ def update_seller_contract_details(id, contract_id):
 
         _sync_contract_frozen_terms(contract)
         create_contract_milestones(contract, replace=True)
+        from services.deadline_recompute import recompute_from_changes
+        recompute_from_changes(transaction, dict(data), actor_id=current_user.id, source='contract_details')
         db.session.commit()
         return jsonify({'success': True, 'accepted_contract_id': contract.id})
     except ValueError as e:
@@ -424,7 +434,28 @@ def update_seller_contract_milestone(id, contract_id, milestone_id):
     data = request.get_json(silent=True) or request.form
 
     try:
-        _apply_milestone_data(milestone, data)
+        action = data.get('action')
+        if action in ('remove', 'restore'):
+            metadata = dict(milestone.source_data or {})
+            if action == 'remove':
+                metadata.setdefault('removed_at', datetime.utcnow().isoformat())
+                metadata['removed_by_id'] = current_user.id
+            else:
+                metadata.pop('removed_at', None)
+                metadata.pop('removed_by_id', None)
+            milestone.source_data = metadata
+        elif action == 'automatic':
+            from services.seller_workflow import build_contract_milestones
+            generated = next((m for m in build_contract_milestones(contract)
+                              if m.milestone_key == milestone.milestone_key), None)
+            if generated is None or milestone.milestone_key == 'manual':
+                raise ValueError('No automatic date is available for this milestone')
+            milestone.due_at = generated.due_at
+            milestone.source = generated.source
+        elif action:
+            raise ValueError('Unknown milestone action')
+        else:
+            _apply_milestone_data(milestone, data)
         db.session.commit()
         return jsonify({'success': True, 'milestone': _milestone_payload(milestone)})
     except ValueError as e:

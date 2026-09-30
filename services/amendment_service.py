@@ -427,6 +427,8 @@ def accept(
         for key, value in applied_terms.items():
             terms[key] = value
         apply_contract_terms(contract, terms)
+        from services.seller_workflow import create_contract_milestones
+        create_contract_milestones(contract, replace=True)
         flag_modified(contract, 'frozen_terms')
         flag_modified(contract, 'addenda_data')
         flag_modified(contract, 'extra_data')
