@@ -427,6 +427,7 @@ def test_documents_only_that_participant(app, seed, client, monkeypatch):
             template_name='Listing Agreement',
             status='signed',
             signed_file_path='org/tx/listing-signed.pdf',
+            signed_at=datetime(2026, 10, 3, 14, 25, 36, 123456),
         )
         theirs = TransactionDocument(
             organization_id=seed['org_a'],
@@ -469,6 +470,8 @@ def test_documents_only_that_participant(app, seed, client, monkeypatch):
     listing = next(row for row in docs['completed'] if row['name'] == 'Listing Agreement')
     assert listing['view_url'].startswith('https://signed.example/')
     assert listing['doc_id'] == mine_id
+    assert listing['signed_on'] == 'Oct 3'
+    assert listing['signed_at'] == '2026-10-03T14:25:36.123456Z'
 
     file_resp = client.get(
         f'/api/client/v1/documents/{mine_id}/file',
