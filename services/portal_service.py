@@ -12,7 +12,7 @@ Design rules:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,15 @@ def _as_date(value):
 def _day(value):
     d = _as_date(value)
     return d.strftime('%b %-d') if d else None
+
+
+def _signed_timestamp(value):
+    if not isinstance(value, datetime):
+        return None
+    # Document signing writes naive UTC datetimes to the database.
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
 def _full_day(value):
@@ -796,6 +805,7 @@ def _documents_block(tx, participant):
                     'name': name,
                     'doc_id': doc.id,
                     'signed_on': _day(getattr(doc, 'signed_at', None)),
+                    'signed_at': _signed_timestamp(getattr(doc, 'signed_at', None)),
                     'can_view': bool(getattr(doc, 'signed_file_path', None)),
                 })
         elif doc.status == 'sent' and mine:
