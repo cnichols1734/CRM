@@ -12,10 +12,22 @@ from models import Contact, db
 from services.contact_lead_sources import LEAD_SOURCES
 
 
-def _contact(app, seed, source=None, other=None):
+@pytest.fixture(autouse=True)
+def _clean_up_contacts(app, seed):
+    with app.app_context():
+        existing_ids = {row.id for row in Contact.query.with_entities(Contact.id)}
+    yield
+    with app.app_context():
+        db.session.rollback()
+        for contact in Contact.query.filter(~Contact.id.in_(existing_ids)).all():
+            db.session.delete(contact)
+        db.session.commit()
+
+
+def _contact(app, seed, source=None, other=None, *, owner='owner_a', org='org_a'):
     with app.app_context():
         contact = Contact(
-            organization_id=seed['org_a'], user_id=seed['owner_a'],
+            organization_id=seed[org], user_id=seed[owner],
             first_name='Lead', last_name='Source',
             lead_source=source, lead_source_other=other,
         )
@@ -164,14 +176,16 @@ def test_other_maximum_length_and_json_readback(owner_a_client, app, seed):
 
 def test_all_tiers_and_tenant_access(owner_b_client, agent_a_client, owner_a_client, app, seed):
     contact_id = _contact(app, seed)
+    contact_b_id = _contact(app, seed, owner='owner_b', org='org_b')
+    agent_contact_id = _contact(app, seed, owner='agent_a')
     assert _edit(owner_b_client, contact_id, lead_source='Zillow').status_code == 404
     assert _edit(agent_a_client, contact_id, lead_source='Zillow').status_code == 403
-    assert _edit(owner_a_client, seed['contact_b'], lead_source='Zillow').status_code == 404
-    assert _edit(owner_b_client, seed['contact_b'], lead_source='Zillow').status_code == 200
-    assert _edit(agent_a_client, seed['contact_a2'], lead_source='TikTok').status_code == 200
+    assert _edit(owner_a_client, contact_b_id, lead_source='Zillow').status_code == 404
+    assert _edit(owner_b_client, contact_b_id, lead_source='Zillow').status_code == 200
+    assert _edit(agent_a_client, agent_contact_id, lead_source='TikTok').status_code == 200
     with app.app_context():
         assert db.session.get(Contact, contact_id).lead_source is None
-        assert db.session.get(Contact, seed['contact_b']).lead_source == 'Zillow'
+        assert db.session.get(Contact, contact_b_id).lead_source == 'Zillow'
 
 
 def _migration():

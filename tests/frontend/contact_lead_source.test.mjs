@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { runInNewContext } from 'node:vm';
 
-const script = readFileSync(new URL('../static/js/contact-lead-source.js', import.meta.url), 'utf8');
+const script = readFileSync(new URL('../../static/js/contact-lead-source.js', import.meta.url), 'utf8');
 
 function setup(value, text = '') {
     const select = new EventTarget();
