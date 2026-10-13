@@ -2,14 +2,9 @@
 
 Does not rewrite robots.txt, sitemap.xml, marketing copy, or gold FAQ/H1s.
 """
-from pathlib import Path
 
 from app import NOINDEX_UTILITY_PATHS, X_ROBOTS_TAG_NOINDEX
 
-
-ROOT = Path(__file__).resolve().parents[1]
-ROBOTS = ROOT / "static" / "robots.txt"
-SITEMAP = ROOT / "static" / "sitemap.xml"
 
 ROBOTS_META = '<meta name="robots" content="noindex, nofollow">'
 
@@ -110,19 +105,19 @@ class TestUtilityNoindexHeaders:
 
 
 class TestRobotsAndSitemapUntouched:
-    def test_robots_txt_file_matches_pin(self):
-        assert ROBOTS.read_text() == PINNED_ROBOTS
 
     def test_served_robots_txt_matches_pin(self, client):
         resp = client.get("/robots.txt")
         assert resp.status_code == 200
         assert resp.get_data(as_text=True) == PINNED_ROBOTS
 
-    def test_sitemap_file_lastmods_and_locs_unchanged(self):
+    def test_served_sitemap_preserves_lastmods_and_locs(self, client):
         from xml.etree import ElementTree as ET
 
         ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-        urls = ET.parse(SITEMAP).getroot().findall("sm:url", ns)
+        response = client.get("/sitemap.xml")
+        assert response.status_code == 200
+        urls = ET.fromstring(response.data).findall("sm:url", ns)
         found = {}
         for url in urls:
             loc = (url.findtext("sm:loc", default="", namespaces=ns) or "").strip()
@@ -131,8 +126,3 @@ class TestRobotsAndSitemapUntouched:
         assert found == PINNED_SITEMAP_LASTMODS
         for path in NOINDEX_PATHS:
             assert all(path not in loc for loc in found), path
-
-    def test_served_sitemap_matches_static_file(self, client):
-        resp = client.get("/sitemap.xml")
-        assert resp.status_code == 200
-        assert resp.get_data(as_text=True) == SITEMAP.read_text()

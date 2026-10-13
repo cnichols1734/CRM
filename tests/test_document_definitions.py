@@ -96,24 +96,12 @@ def create_mock_context():
 
 
 class TestDocumentLoader:
-    """Test document loading and validation."""
-    
-    def test_load_all_succeeds(self):
-        """All YAML files should load without errors."""
-        # This will raise ConfigurationError if any document is invalid
+    def test_all_shipped_definitions_load(self):
+        from services.documents.loader import DOCUMENTS_DIR
+        files = list(DOCUMENTS_DIR.glob('*.yml')) + list(DOCUMENTS_DIR.glob('*.yaml'))
+        assert files
         DocumentLoader.load_all()
-        assert DocumentLoader.is_loaded()
-    
-    def test_at_least_one_document_loaded(self):
-        """At least one document definition should be loaded."""
-        DocumentLoader.load_all()
-        assert len(DocumentLoader.all()) >= 1
-    
-    def test_all_slugs_are_unique(self):
-        """All document slugs should be unique."""
-        DocumentLoader.load_all()
-        slugs = DocumentLoader.all_slugs()
-        assert len(slugs) == len(set(slugs))
+        assert len(DocumentLoader.all()) == len(files)
 
 
 class TestDocumentDefinitions:
@@ -288,4 +276,3 @@ class TestTransforms:
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
-

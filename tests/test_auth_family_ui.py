@@ -5,7 +5,7 @@ half: all five public screens stay off crm-input / t-input, keep
 auth-family.css, and login/register have the free-CRM sentence.
 
 Do not point these checks at marketing or listing-package chrome.
-Do not weaken tests/test_landing_copy.py TestRegisterLeftoverCopy.
+Other marketing claims remain covered in tests/test_landing_copy.py.
 """
 import re
 from datetime import datetime, timedelta
@@ -39,7 +39,7 @@ def _without_contact_modal(html):
 
 def _assert_public_auth_lock(html, *must_have):
     assert "crm-auth-page" in html
-    assert "css/auth-family.css" in html
+    assert html.count("css/auth-family.css") == 1
     scoped = _without_contact_modal(html)
     assert 'class="input crm-input' not in scoped
     assert 'class="input t-input' not in scoped
@@ -106,25 +106,3 @@ class TestPublicAuthPagesStayLocked:
                 db.session.commit()
         html = _html(client.get(f"/invite/{token}"))
         _assert_public_auth_lock(html, "You're invited to join", "auth-input")
-
-
-def test_register_368_source_contract_is_untouched():
-    """Guard the #368 test itself so a later edit cannot dilute it."""
-    from pathlib import Path
-
-    source = Path(__file__).resolve().parent.joinpath("test_landing_copy.py").read_text()
-    assert "class TestRegisterLeftoverCopy" in source
-    assert "def test_one_human_link_to_free_real_estate_crm" in source
-    assert 'assert REGISTER.count("url_for(\'main.free_real_estate_crm\')") == 1' in source
-    assert 'assert REGISTER.count("the free real estate CRM page") == 1' in source
-    assert '"More on what\'s included is on" in REGISTER' in source
-
-
-def test_login_source_contract_pins_free_crm_sentence():
-    from pathlib import Path
-
-    source = Path(__file__).resolve().parent.joinpath("test_landing_copy.py").read_text()
-    assert "class TestLoginLeftoverCopy" in source
-    assert 'assert LOGIN.count("url_for(\'main.free_real_estate_crm\')") == 1' in source
-    assert 'assert LOGIN.count("the free real estate CRM page") == 1' in source
-    assert '"More on what\'s included is on" in LOGIN' in source

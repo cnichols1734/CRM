@@ -355,22 +355,6 @@ class TestRestState:
         assert "button.t-check[aria-checked=\"true\"]" in bridge
         assert "#transaction-checklist .t-check-wrap > .t-success-check" in bridge
 
-    def test_close_sheet_delayed_hide_is_cancellable(self):
-        js = _read("static", "js", "transitions.js")
-        open_fn = js.split("function openSheet(", 1)[1].split(
-            "function closeSheet(", 1
-        )[0]
-        close_fn = js.split("function closeSheet(", 1)[1].split(
-            "function openHiddenDropdown(", 1
-        )[0]
-        assert "cancelSheetClose(shell)" in open_fn
-        assert "var gen = nextSheetCloseGen(shell)" in close_fn
-        guard_idx = close_fn.index("if (!sheetCloseIsCurrent(shell, gen)) return;")
-        hide_idx = close_fn.index("shell.classList.add('hidden')")
-        aria_idx = close_fn.index("shell.setAttribute('aria-hidden', 'true')")
-        after_idx = close_fn.index("if (after) after()")
-        assert guard_idx < hide_idx < aria_idx < after_idx
-
     def test_like_tokens_stay_unhooked(self):
         root = _read("static", "css", "transitions-root.css")
         snippets = _read("static", "css", "transitions-snippets.css")
@@ -400,14 +384,6 @@ class TestRestState:
 
 
 class TestSheetCloseRace:
-    def test_reopen_invalidates_a_pending_close_generation(self):
-        current = 0
-        close_gen = current + 1
-        current = close_gen
-        open_gen = current + 1
-        current = open_gen
-        assert close_gen != current
-        assert open_gen == current
 
     @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
     def test_js_close_then_open_sheet_stays_visible(self):

@@ -9,10 +9,12 @@ from alembic.operations import Operations
 from sqlalchemy import create_engine, inspect, text
 
 from models import Contact, db
+from forms import ContactLeadSourceForm
+from werkzeug.datastructures import MultiDict
 from services.contact_lead_sources import LEAD_SOURCES
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _clean_up_contacts(app, seed):
     with app.app_context():
         existing_ids = {row.id for row in Contact.query.with_entities(Contact.id)}
@@ -42,8 +44,9 @@ def _edit(client, contact_id, **fields):
     })
 
 
-@pytest.mark.parametrize('source', LEAD_SOURCES)
-def test_create_each_source(owner_a_client, app, source):
+@pytest.mark.usefixtures('_clean_up_contacts')
+@pytest.mark.parametrize('source', ['Zillow', 'Other'])
+def test_create_source(owner_a_client, app, source):
     response = owner_a_client.post('/contacts/create', data={
         'first_name': 'New', 'last_name': 'Source',
         'potential_commission': '5000',
@@ -56,8 +59,9 @@ def test_create_each_source(owner_a_client, app, source):
         assert contact.lead_source_other == ('Local podcast' if source == 'Other' else None)
 
 
-@pytest.mark.parametrize('source', LEAD_SOURCES)
-def test_edit_each_source(owner_a_client, app, seed, source):
+@pytest.mark.usefixtures('_clean_up_contacts')
+@pytest.mark.parametrize('source', ['Zillow', 'Other'])
+def test_edit_source(owner_a_client, app, seed, source):
     contact_id = _contact(app, seed)
     response = _edit(owner_a_client, contact_id, lead_source=source,
                      lead_source_other='  Local podcast  ')
@@ -68,6 +72,7 @@ def test_edit_each_source(owner_a_client, app, seed, source):
         assert contact.lead_source_other == ('Local podcast' if source == 'Other' else None)
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 @pytest.mark.parametrize('fields, error', [
     ({'lead_source': 'Not a valid source'}, 'lead_source'),
     ({'lead_source': 'Other', 'lead_source_other': '   '}, 'lead_source_other'),
@@ -84,6 +89,7 @@ def test_invalid_edits_do_not_change_contact(owner_a_client, app, seed, fields, 
         assert contact.first_name == 'Lead'
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 @pytest.mark.parametrize('fields', [
     {'lead_source': 'Invalid'},
     {'lead_source': 'Other', 'lead_source_other': ''},
@@ -101,6 +107,7 @@ def test_invalid_create(owner_a_client, app, fields):
         assert Contact.query.count() == before
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 def test_optional_create_and_edit_legacy_contact(owner_a_client, app, seed):
     response = owner_a_client.post('/contacts/create', data={
         'first_name': 'No', 'last_name': 'Source', 'potential_commission': '5000',
@@ -118,6 +125,7 @@ def test_optional_create_and_edit_legacy_contact(owner_a_client, app, seed):
         assert db.session.get(Contact, contact_id).lead_source == 'Open House'
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 @pytest.mark.parametrize('source', ['', 'Instagram Ad'])
 def test_changing_other_clears_text(owner_a_client, app, seed, source):
     contact_id = _contact(app, seed, 'Other', 'Old source')
@@ -129,6 +137,7 @@ def test_changing_other_clears_text(owner_a_client, app, seed, source):
         assert contact.lead_source_other is None
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 def test_display_and_edit_escape_other_text(owner_a_client, app, seed):
     contact_id = _contact(app, seed, 'Other', '<script>alert(1)</script>')
     for path in (f'/contact/{contact_id}', f'/contact/{contact_id}/preview'):
@@ -141,6 +150,7 @@ def test_display_and_edit_escape_other_text(owner_a_client, app, seed):
         f'/contact/{contact_id}').get_data(as_text=True)
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 def test_null_display_and_create_options(owner_a_client, app, seed):
     contact_id = _contact(app, seed)
     assert b'Not set' in owner_a_client.get(f'/contact/{contact_id}').data
@@ -150,6 +160,7 @@ def test_null_display_and_create_options(owner_a_client, app, seed):
     assert 'data-lead-source-other hidden' in html
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 def test_other_validation_preserves_create_input(owner_a_client):
     response = owner_a_client.post('/contacts/create', data={
         'first_name': 'Draft', 'last_name': 'Contact',
@@ -162,6 +173,7 @@ def test_other_validation_preserves_create_input(owner_a_client):
     assert 'data-lead-source-other hidden' not in html
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 def test_other_maximum_length_and_json_readback(owner_a_client, app, seed):
     contact_id = _contact(app, seed)
     other = 'x' * 255
@@ -174,6 +186,7 @@ def test_other_maximum_length_and_json_readback(owner_a_client, app, seed):
     assert response.json['lead_source_other'] == other
 
 
+@pytest.mark.usefixtures('_clean_up_contacts')
 def test_all_tiers_and_tenant_access(owner_b_client, agent_a_client, owner_a_client, app, seed):
     contact_id = _contact(app, seed)
     contact_b_id = _contact(app, seed, owner='owner_b', org='org_b')
@@ -225,3 +238,14 @@ def test_postgres_migration_is_additive_and_idempotent():
         '',
         'ALTER TABLE contact ADD COLUMN IF NOT EXISTS lead_source_other VARCHAR(255);',
     ]
+
+
+@pytest.mark.parametrize('source', LEAD_SOURCES)
+def test_source_catalog_validates_and_normalizes(app, source):
+    with app.test_request_context():
+        form = ContactLeadSourceForm(MultiDict({
+            'lead_source': source, 'lead_source_other': '  Local podcast  ',
+        }), meta={'csrf': False})
+        assert form.validate(), form.errors
+        assert form.lead_source.data == source
+        assert form.lead_source_other.data == ('Local podcast' if source == 'Other' else None)

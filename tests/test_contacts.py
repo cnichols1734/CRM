@@ -5,35 +5,47 @@ Covers: CRUD, search/filtering, interactions, import/export,
 group assignment, file operations, and cross-org isolation.
 """
 import pytest
-from conftest import login
-from models import Contact, db
+from models import Contact, ContactGroup, Interaction, db
+
+
+@pytest.fixture(autouse=True)
+def cleanup_contacts(app, seed):
+    with app.app_context():
+        before = {row.id for row in Contact.query.with_entities(Contact.id)}
+    yield
+    with app.app_context():
+        db.session.rollback()
+        for contact in Contact.query.filter(~Contact.id.in_(before)).all():
+            Interaction.query.filter_by(contact_id=contact.id).delete(synchronize_session=False)
+            db.session.delete(contact)
+        db.session.commit()
+
+
+@pytest.fixture
+def contact_records(app, seed):
+    with app.app_context():
+        contacts = []
+        for first, group in [('AuditSelected', 'group_a1'), ('AuditExcluded', 'group_a2')]:
+            contact = Contact(organization_id=seed['org_a'], user_id=seed['owner_a'],
+                              created_by_id=seed['owner_a'], first_name=first,
+                              last_name='Contact', email=f'{first}@test.com')
+            contact.groups = [db.session.get(ContactGroup, seed[group])]
+            contacts.append(contact)
+        db.session.add_all(contacts)
+        db.session.commit()
+        return [contact.id for contact in contacts]
 
 
 class TestContactList:
-    """Contact listing, search, and filtering."""
-
-    def test_contacts_page_loads(self, owner_a_client, seed):
-        resp = owner_a_client.get('/contacts')
-        assert resp.status_code == 200
-        assert b'Jane' in resp.data or b'Contact' in resp.data
-
-    def test_contacts_search(self, owner_a_client, seed):
-        resp = owner_a_client.get('/contacts?q=Jane')
-        assert resp.status_code == 200
-        assert b'Jane' in resp.data
-
-    def test_contacts_search_no_results(self, owner_a_client, seed):
-        resp = owner_a_client.get('/contacts?q=NonExistentXYZ')
-        assert resp.status_code == 200
-
-    def test_contacts_group_filter(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/contacts?groups={seed["group_a1"]}')
-        assert resp.status_code == 200
-        assert b'Jane' in resp.data
-
-    def test_contacts_pagination(self, owner_a_client, seed):
-        resp = owner_a_client.get('/contacts?page=1')
-        assert resp.status_code == 200
+    @pytest.mark.parametrize('filter_kind', ['search', 'group', 'no_match'])
+    def test_filter_includes_matches_and_excludes_other_contacts(self, owner_a_client, seed, contact_records, filter_kind):
+        query = {'search': '?q=AuditSelected', 'group': f'?groups={seed["group_a1"]}',
+                 'no_match': '?q=NoMatchingAuditContact'}[filter_kind]
+        response = owner_a_client.get('/contacts' + query)
+        assert response.status_code == 200
+        assert (b'AuditSelected' in response.data) is (filter_kind != 'no_match')
+        assert b'AuditExcluded' not in response.data
+        assert b'bc@test.com' not in response.data
 
 
 class TestContactView:
@@ -178,48 +190,47 @@ class TestContactPreview:
 class TestContactCreate:
     """Contact creation."""
 
-    def test_create_page_loads(self, owner_a_client, seed):
-        resp = owner_a_client.get('/contacts/create')
-        assert resp.status_code == 200
+    @pytest.mark.parametrize('user, group', [('owner_a', 'group_a1'), ('agent_a', 'group_agent_a1')])
+    def test_create_contact_persists_details_and_ownership(self, request, seed, app, user, group):
+        client = request.getfixturevalue(f'{user}_client')
+        response = client.post('/contacts/create', data={
+            'first_name': 'NewContact', 'last_name': 'Test',
+            'email': 'newcontact@test.com', 'phone': '5553334444',
+            'potential_commission': '5000', 'group_ids': str(seed[group]),
+        }, headers={'X-Requested-With': 'XMLHttpRequest'})
+        assert response.status_code == 200
+        with app.app_context():
+            contact = db.session.get(Contact, response.json['contact']['id'])
+            assert (contact.first_name, contact.last_name, contact.email) == ('NewContact', 'Test', 'newcontact@test.com')
+            assert contact.phone == '(555) 333-4444'
+            assert (contact.organization_id, contact.user_id, contact.created_by_id) == (seed['org_a'], seed[user], seed[user])
+            assert [group.id for group in contact.groups] == [seed[group]]
 
-    def test_create_contact_success(self, owner_a_client, seed):
-        resp = owner_a_client.post('/contacts/create', data={
-            'first_name': 'NewContact',
-            'last_name': 'Test',
-            'email': 'newcontact@test.com',
-            'phone': '5553334444',
-            'group_ids': str(seed['group_a1']),
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-
-    def test_create_contact_missing_name(self, owner_a_client, seed):
-        resp = owner_a_client.post('/contacts/create', data={
-            'first_name': '',
-            'last_name': '',
-            'email': 'empty@test.com',
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-
-    def test_create_contact_agent_can(self, agent_a_client, seed):
-        resp = agent_a_client.post('/contacts/create', data={
-            'first_name': 'AgentCreated',
-            'last_name': 'Contact',
-            'email': 'agentcreated@test.com',
-            'group_ids': str(seed['group_agent_a1']),
-        }, follow_redirects=True)
-        assert resp.status_code == 200
+    def test_create_contact_missing_name_does_not_persist(self, owner_a_client, app):
+        response = owner_a_client.post('/contacts/create', data={
+            'first_name': '', 'last_name': '', 'email': 'empty@test.com',
+            'potential_commission': '5000',
+        }, headers={'X-Requested-With': 'XMLHttpRequest'})
+        assert response.status_code == 400
+        assert {'first_name', 'last_name'} <= response.json['errors'].keys()
+        with app.app_context():
+            assert Contact.query.filter_by(email='empty@test.com').first() is None
 
 
 class TestContactEdit:
     """Contact editing."""
 
-    def test_edit_contact(self, owner_a_client, seed):
-        resp = owner_a_client.post(f'/contacts/{seed["contact_a"]}/edit', data={
-            'first_name': 'JaneEdited',
-            'last_name': 'Doe',
-            'email': 'jane@test.com',
-        }, follow_redirects=True)
-        assert resp.status_code == 200
+    def test_edit_contact(self, owner_a_client, seed, app, contact_records):
+        contact_id = contact_records[0]
+        response = owner_a_client.post(f'/contacts/{contact_id}/edit', data={
+            'first_name': 'Revised', 'last_name': 'Contact', 'email': 'revised@test.com',
+            'group_ids': str(seed['group_a2']),
+        })
+        assert response.status_code == 200
+        with app.app_context():
+            contact = db.session.get(Contact, contact_id)
+            assert (contact.first_name, contact.email) == ('Revised', 'revised@test.com')
+            assert [group.id for group in contact.groups] == [seed['group_a2']]
 
     def test_edit_cross_org_blocked(self, owner_a_client, seed):
         resp = owner_a_client.post(f'/contacts/{seed["contact_b"]}/edit', data={
@@ -245,17 +256,24 @@ class TestContactDelete:
 class TestContactInteractions:
     """Interaction logging on contacts."""
 
-    def test_log_activity(self, owner_a_client, seed):
-        resp = owner_a_client.post(f'/contact/{seed["contact_a"]}/log-activity', data={
-            'activity_type': 'call',
-            'notes': 'Called about listing',
+    def test_logged_activity_is_readable_and_updates_last_contact(self, owner_a_client, app, contact_records):
+        from datetime import date
+        contact_id = contact_records[0]
+        response = owner_a_client.post(f'/contact/{contact_id}/log-activity', data={
+            'activity_type': 'call', 'notes': 'Called about listing',
             'activity_date': '2026-02-27',
-        }, follow_redirects=True)
-        assert resp.status_code in (200, 302)
-
-    def test_get_interactions(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/contact/{seed["contact_a"]}/interactions')
-        assert resp.status_code == 200
+        })
+        assert response.status_code == 200
+        interaction_id = response.json['interaction']['id']
+        readback = owner_a_client.get(f'/contact/{contact_id}/interactions')
+        assert readback.status_code == 200
+        assert [(row['id'], row['type'], row['notes'], row['date'])
+                for row in readback.json['interactions']] == [
+                    (interaction_id, 'call', 'Called about listing', 'Feb 27, 2026')]
+        with app.app_context():
+            contact = db.session.get(Contact, contact_id)
+            assert contact.last_phone_call_date == date(2026, 2, 27)
+            assert contact.last_contact_date == date(2026, 2, 27)
 
     def test_log_activity_cross_org_blocked(self, owner_a_client, seed):
         resp = owner_a_client.post(f'/contact/{seed["contact_b"]}/log-activity', data={

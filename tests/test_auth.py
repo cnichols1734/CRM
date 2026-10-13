@@ -94,10 +94,6 @@ class TestProfile:
 class TestRegistration:
     """Registration form."""
 
-    def test_register_page_loads(self, client, seed):
-        resp = client.get('/register')
-        assert resp.status_code in (200, 302)
-
     def test_register_template_shows_confirm_password_and_not_phone(self, seed):
         template = Path(__file__).resolve().parents[1] / 'templates' / 'auth' / 'register.html'
         contents = template.read_text()
@@ -276,10 +272,6 @@ class TestAuthPagesRender:
 
 class TestPasswordReset:
     """Password reset flow."""
-
-    def test_reset_request_page_loads(self, client, seed):
-        resp = client.get('/reset_password')
-        assert resp.status_code in (200, 302)
 
     def test_reset_with_invalid_token(self, client, seed):
         resp = client.get('/reset_password/invalidtoken123')

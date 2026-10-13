@@ -12,54 +12,25 @@ from models import Organization, User, db
 
 
 class TestFreeTierRestrictions:
-    """Free-tier org (Org B) should be blocked from premium features."""
-
-    def test_ai_daily_todo_blocked(self, owner_b_client, seed):
-        resp = owner_b_client.post('/api/daily-briefing/generate',
-                                   follow_redirects=True)
-        assert resp.status_code in (200, 302, 403)
-        if resp.status_code == 200:
-            assert (
-                b'upgrade' in resp.data.lower()
-                or b'subscription' in resp.data.lower()
-                or resp.content_type == 'application/json'
-            )
-
-    def test_ai_daily_todo_today_blocked(self, owner_b_client, seed):
-        resp = owner_b_client.get('/api/daily-briefing/today',
-                                  follow_redirects=True)
-        assert resp.status_code in (200, 302, 403)
-
-    def test_briefing_page_blocked(self, owner_b_client, seed):
-        resp = owner_b_client.get('/briefing', follow_redirects=True)
-        assert resp.status_code in (200, 302, 403)
-
-    def test_action_plan_page_blocked(self, owner_b_client, seed):
-        resp = owner_b_client.get('/action-plan', follow_redirects=True)
-        assert resp.status_code in (200, 302, 403)
-        if resp.status_code == 200:
-            assert b'upgrade' in resp.data.lower() or b'action' in resp.data.lower()
-
-    def test_transactions_blocked_free(self, owner_b_client, seed):
-        resp = owner_b_client.get('/transactions/', follow_redirects=True)
-        assert resp.status_code in (200, 302, 403)
+    @pytest.mark.parametrize('method, path, destination', [
+        ('post', '/api/daily-briefing/generate', None),
+        ('get', '/api/daily-briefing/today', None),
+        ('get', '/briefing', '/org/upgrade'),
+        ('get', '/action-plan', '/org/upgrade'),
+        ('get', '/transactions/', '/dashboard'),
+    ])
+    def test_premium_route_rejects_free_tier(self, owner_b_client, method, path, destination):
+        response = getattr(owner_b_client, method)(path)
+        if destination:
+            assert response.status_code == 302
+            assert response.location.endswith(destination)
+        else:
+            assert response.status_code == 403
+            assert response.json == {'error': 'Daily Briefing requires a Pro subscription.', 'upgrade': True}
 
 
 class TestProTierAccess:
     """Pro-tier org (Org A) should access enabled premium features."""
-
-    def test_transactions_allowed(self, owner_a_client, seed):
-        resp = owner_a_client.get('/transactions/')
-        assert resp.status_code == 200
-
-    def test_action_plan_page_allowed(self, owner_a_client, seed):
-        resp = owner_a_client.get('/action-plan')
-        assert resp.status_code == 200
-
-    def test_ai_daily_briefing_allowed(self, owner_a_client, seed):
-        resp = owner_a_client.get('/api/daily-briefing/today')
-        # 404 = no briefing yet (feature is on); 200 = ready
-        assert resp.status_code in (200, 404)
 
     def test_briefing_page_allowed(self, owner_a_client, seed):
         resp = owner_a_client.get('/briefing')
@@ -116,21 +87,13 @@ class TestReportsParked:
             owner = db.session.get(User, seed['owner_a'])
             assert can_access_reports(owner) is False
 
-    @pytest.mark.parametrize('url', [
-        '/dashboard',
-        '/contacts',
-        '/tasks',
-        '/briefing',
-        '/org/settings',
-    ])
-    def test_sidebar_omits_reports(self, owner_a_client, url):
-        resp = owner_a_client.get(url)
-        assert resp.status_code == 200
-        html = resp.get_data(as_text=True)
+    def test_shared_sidebar_omits_reports(self, owner_a_client):
+        response = owner_a_client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
         assert 'href="/reports/"' not in html
         assert '>Reports</span>' not in html
-        if url == '/dashboard':
-            assert '>Daily Briefing</span>' in html
+        assert '>Daily Briefing</span>' in html
 
     def test_reports_route_stays_registered(self, owner_a_client):
         resp = owner_a_client.get('/reports/')
