@@ -435,19 +435,17 @@ class TestSettingsPages:
         assert 'DA7756' not in html
         assert 'Do not send email or SMS' in html
 
-    def test_user_profile_has_cowork_setup(self, owner_a_client):
+    def test_profile_keeps_claude_link_in_integrations_without_setup_guide(self, owner_a_client):
         resp = owner_a_client.get('/profile')
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
-        assert 'Claude Cowork' in html
-        assert 'I want to connect a custom MCP' in html
-        assert 'Hosted MCP server' in html
-        assert 'OAuth' in html
-        assert '/integrations/mcp' in html
-        assert html.count('id="claude-cowork"') == 1
-        assert 'DA7756' not in html
-        assert 'Do not send email or SMS' in html
-        assert 'href="#claude-cowork"' not in html
+        integrations = html.split('<h2 class="crm-section-title">Integrations</h2>', 1)[1].split('</section>', 1)[0]
+        assert 'Claude Cowork' in integrations
+        assert 'href="/integrations/mcp"' in integrations
+        assert 'Set up' in integrations
+        assert 'id="claude-cowork"' not in html
+        assert 'I want to connect a custom MCP' not in html
+        assert 'Hosted MCP server' not in html
 
     def test_org_owner_can_save_mcp_controls(self, owner_a_client, app, seed):
         resp = owner_a_client.post('/org/settings/mcp', data={
