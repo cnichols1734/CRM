@@ -20,9 +20,9 @@ TIER_FEATURES = {
         'TASKS': True,
         'USER_TODOS': True,
         'DASHBOARD': True,
-        'TEAM_UPDATES': True,
         
         # Premium features - limited on free tier
+        'TEAM_UPDATES': False,
         'AI_CHAT': True,  # Enabled with daily message limit (see tier_limits.py)
         'AI_DAILY_TODO': False,
         'AI_ACTION_PLAN': False,

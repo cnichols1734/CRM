@@ -127,6 +127,34 @@ class TestCoreFeatures:
         resp = owner_b_client.get('/user_todo')
         assert resp.status_code == 200
 
-    def test_updates_available_free(self, owner_b_client, seed):
-        resp = owner_b_client.get('/updates')
-        assert resp.status_code == 200
+    @pytest.mark.parametrize('tier, overrides, platform_admin, available', [
+        ('free', {}, False, False),
+        ('pro', {}, False, True),
+        ('enterprise', {}, False, True),
+        ('free', {'TEAM_UPDATES': True}, False, True),
+        ('free', {}, True, True),
+    ])
+    def test_updates_shows_upgrade_only_without_access(
+        self, owner_b_client, seed, app, tier, overrides, platform_admin, available
+    ):
+        with app.app_context():
+            org = db.session.get(Organization, seed['org_b'])
+            original = org.subscription_tier, org.feature_flags, org.is_platform_admin
+            org.subscription_tier, org.feature_flags, org.is_platform_admin = tier, overrides, platform_admin
+            db.session.commit()
+        try:
+            resp = owner_b_client.get('/updates')
+            assert resp.status_code == 200
+            html = resp.get_data(as_text=True)
+            assert ('Company Updates is available on paid plans.' in html) is not available
+            assert ('href="/updates/new"' in html) is available
+            if not available:
+                assert 'href="/org/upgrade"' in html
+                assert 'Explore Pro' in html
+                assert 'No updates yet' not in html
+                assert owner_b_client.get('/org/upgrade').status_code == 200
+        finally:
+            with app.app_context():
+                org = db.session.get(Organization, seed['org_b'])
+                org.subscription_tier, org.feature_flags, org.is_platform_admin = original
+                db.session.commit()

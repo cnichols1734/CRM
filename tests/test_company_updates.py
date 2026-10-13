@@ -1,6 +1,6 @@
 """Company update persistence, engagement, and access boundaries."""
 import pytest
-from models import CompanyUpdate, CompanyUpdateComment, CompanyUpdateReaction
+from models import CompanyUpdate, CompanyUpdateComment, CompanyUpdateReaction, Organization
 
 
 @pytest.fixture
@@ -71,14 +71,69 @@ def test_agent_cannot_manage_updates(agent_a_client, update_id, app, method, pat
     ('post', '/api/updates/{id}/reactions'),
     ('post', '/api/updates/{id}/comments'),
 ])
-def test_other_org_cannot_read_or_engage(owner_b_client, update_id, app, method, path):
-    response = getattr(owner_b_client, method)(path.format(id=update_id), json={
-        'reaction_type': 'thumbs_up', 'content': 'Unauthorized comment',
-    })
-    assert response.status_code == 404
+def test_other_org_cannot_read_or_engage(owner_b_client, update_id, app, db, seed, method, path):
+    with app.app_context():
+        org = db.session.get(Organization, seed['org_b'])
+        original = org.subscription_tier
+        org.subscription_tier = 'pro'
+        db.session.commit()
+    try:
+        response = getattr(owner_b_client, method)(path.format(id=update_id), json={
+            'reaction_type': 'thumbs_up', 'content': 'Unauthorized comment',
+        })
+        assert response.status_code == 404
+    finally:
+        with app.app_context():
+            db.session.get(Organization, seed['org_b']).subscription_tier = original
+            db.session.commit()
     with app.app_context():
         assert CompanyUpdateComment.query.filter_by(update_id=update_id).count() == 0
         assert CompanyUpdateReaction.query.filter_by(update_id=update_id).count() == 0
+
+
+def test_free_account_cannot_bypass_upgrade_via_saved_links_or_api(owner_b_client, seed, app, db):
+    with app.app_context():
+        update = CompanyUpdate(organization_id=seed['org_b'], author_id=seed['owner_b'],
+                               title='Announcement before downgrade', content='Saved content')
+        db.session.add(update)
+        db.session.flush()
+        comment = CompanyUpdateComment(update_id=update.id, user_id=seed['owner_b'],
+                                       organization_id=seed['org_b'], content='Saved comment')
+        db.session.add(comment)
+        db.session.commit()
+        identifier, comment_id = update.id, comment.id
+    try:
+        assert b'Announcement before downgrade' not in owner_b_client.get('/updates').data
+        assert owner_b_client.get('/api/updates/latest').json is None
+        for method, path in [
+            ('get', '/updates/new'), ('post', '/updates/new'),
+            ('get', f'/updates/{identifier}'),
+            ('get', f'/updates/{identifier}/edit'), ('post', f'/updates/{identifier}/edit'),
+            ('post', f'/updates/{identifier}/delete'),
+        ]:
+            response = getattr(owner_b_client, method)(path, data={'title': 'Changed', 'content': 'Changed'})
+            assert response.status_code == 302
+            assert response.location.endswith('/updates')
+        for method, path in [
+            ('get', f'/api/updates/{identifier}/reactions'),
+            ('post', f'/api/updates/{identifier}/reactions'),
+            ('get', f'/api/updates/{identifier}/comments'),
+            ('post', f'/api/updates/{identifier}/comments'),
+            ('delete', f'/api/updates/comments/{comment_id}'),
+        ]:
+            response = getattr(owner_b_client, method)(path, json={'reaction_type': 'thumbs_up', 'content': 'Changed'})
+            assert response.status_code == 403
+            assert response.json['upgrade'] is True
+        with app.app_context():
+            assert db.session.get(CompanyUpdate, identifier).content == 'Saved content'
+            assert db.session.get(CompanyUpdateComment, comment_id).content == 'Saved comment'
+            assert CompanyUpdate.query.filter_by(organization_id=seed['org_b']).count() == 1
+            assert CompanyUpdateComment.query.filter_by(update_id=identifier).count() == 1
+            assert CompanyUpdateReaction.query.filter_by(update_id=identifier).count() == 0
+    finally:
+        with app.app_context():
+            db.session.delete(db.session.get(CompanyUpdate, identifier))
+            db.session.commit()
 
 
 def test_reaction_toggle_is_visible_and_reversible(owner_a_client, update_id, seed):

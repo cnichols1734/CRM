@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Company Updates - AgentFlow{% endblock %}
+{% block mobile_title %}Company Updates{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner max-w-5xl">
+        {{ page_header('Company <em>Updates</em>', 'News and announcements for your team.', 'Workspace · News') }}
+
+        <section class="crm-surface" aria-labelledby="company-updates-upgrade-title">
+            <div class="crm-surface-body">
+                <span class="crm-badge crm-badge-accent mb-4">Included with Pro and Enterprise</span>
+                <h2 id="company-updates-upgrade-title" class="crm-section-title">Share updates with your team</h2>
+                <p class="crm-section-description mt-3 max-w-2xl">
+                    Company Updates is available on paid plans. Share brokerage announcements in one place,
+                    with comments and reactions to keep the conversation with each post.
+                </p>
+                <p class="crm-section-description mt-3 max-w-2xl">
+                    Your current account doesn't include Company Updates. Explore Pro to learn about
+                    team access and the other paid features.
+                </p>
+                <a href="{{ url_for('org.upgrade') }}" class="crm-btn crm-btn-accent mt-6">Explore Pro</a>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

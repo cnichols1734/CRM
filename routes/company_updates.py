@@ -12,8 +12,23 @@ from datetime import datetime
 import re
 import html
 from services import supabase_storage
+from feature_flags import org_has_feature
 
 company_updates_bp = Blueprint('company_updates', __name__)
+
+
+@company_updates_bp.before_request
+def require_company_updates_access():
+    if not current_user.is_authenticated or org_has_feature('TEAM_UPDATES'):
+        return None
+    if request.endpoint == 'company_updates.list_updates':
+        return render_template('company_updates/upgrade.html')
+    if request.endpoint == 'company_updates.get_latest_update':
+        return jsonify(None)
+    if request.path.startswith('/api/'):
+        return jsonify(error='Company Updates requires a paid plan.', upgrade=True), 403
+    return redirect(url_for('company_updates.list_updates'))
+
 
 # File upload configuration
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
