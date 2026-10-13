@@ -51,8 +51,8 @@ class NormalizedInbound:
 
     `cleaned_text` is everything textual concatenated together (body + vcf +
     csv + txt attachments). `image_blocks` are base64-encoded JPEGs sized for
-    the AI vision endpoint. `source_kind` is for analytics only — the AI path
-    is identical regardless of value.
+    the AI vision endpoint. `source_kind` describes the attachment mix and
+    distinguishes unreadable photo messages from text imports.
     """
     cleaned_text: str = ''
     image_blocks: list[str] = field(default_factory=list)
@@ -60,6 +60,7 @@ class NormalizedInbound:
     plus_alias: str | None = None
     truncated_text: bool = False
     skipped_images: int = 0
+    image_decode_failures: int = 0
     skipped_csv_rows: int = 0
     over_limit_csv: bool = False
     attachment_summary: list[dict] = field(default_factory=list)
@@ -93,6 +94,7 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
     text_chunks: list[str] = []
     image_blocks: list[str] = []
     skipped_images = 0
+    image_decode_failures = 0
     skipped_csv_rows = 0
     over_limit_csv = False
     attachment_kinds: set[str] = set()
@@ -104,8 +106,6 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
         text_chunks.append(f'SUBJECT: {subject}')
 
     sender = (form.get('from') or '').strip()
-    if sender:
-        text_chunks.append(f'FROM: {sender}')
 
     body_text = (form.get('text') or '').strip()
     body_html = (form.get('html') or '').strip()
@@ -175,12 +175,18 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
                 image_blocks.append(block)
             else:
                 skipped_images += 1
+                image_decode_failures += 1
 
         else:
             # Unknown attachment type — skip silently. The AI gets the body
             # and any other recognized attachments; we don't want to feed
             # binary garbage to it.
             continue
+
+    # A photo's contact details must come from the image, not its forwarder.
+    # Keep sender provenance on InboundMessage, outside the extraction input.
+    if sender and 'image' not in attachment_kinds:
+        text_chunks.insert(1 if subject else 0, f'FROM: {sender}')
 
     cleaned_text = '\n\n'.join(t for t in text_chunks if t)
     truncated = False
@@ -196,6 +202,7 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
         plus_alias=plus_alias,
         truncated_text=truncated,
         skipped_images=skipped_images,
+        image_decode_failures=image_decode_failures,
         skipped_csv_rows=skipped_csv_rows,
         over_limit_csv=over_limit_csv,
         attachment_summary=attachment_summary,
@@ -372,7 +379,7 @@ def image_to_base64_jpeg(data: bytes) -> str | None:
     Public so Telegram B.O.B. can reuse the same prep as Magic Inbox.
     """
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
     except ImportError:
         logger.warning('Pillow not installed — skipping image attachment.')
         return None
@@ -380,6 +387,9 @@ def image_to_base64_jpeg(data: bytes) -> str | None:
     try:
         img = Image.open(io.BytesIO(data))
         img.load()
+        # Phone photos often store portrait orientation only in EXIF. Apply
+        # it to the pixels before JPEG encoding discards that metadata.
+        img = ImageOps.exif_transpose(img)
     except Exception as e:
         logger.info('Could not decode inbound image (%s) — skipping.', e)
         return None

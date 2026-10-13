@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import io
 import json
+import base64
 from email.message import EmailMessage
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -380,7 +382,76 @@ class _FakeFile:
         return self._data
 
 
+def _phone_photo():
+    """A landscape JPEG whose EXIF tag tells viewers to rotate it upright."""
+    from PIL import Image
+
+    img = Image.new('RGB', (80, 40), 'red')
+    img.paste('blue', (40, 0, 80, 40))
+    exif = img.getexif()
+    exif[274] = 6
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', exif=exif)
+    return buf.getvalue()
+
+
+def _photo_form(recipient, *, raw_mime, photo=None):
+    form = {
+        'to': recipient,
+        'from': 'Photo Sender <photo.sender@example.com>',
+        'subject': 'Contact note',
+        'text': 'Sent from my iPhone',
+        'spam_score': '0',
+    }
+    photo = _phone_photo() if photo is None else photo
+    if raw_mime:
+        msg = EmailMessage()
+        msg['From'] = form['from']
+        msg['To'] = recipient
+        msg.set_content(form.pop('text'))
+        msg.add_attachment(photo, maintype='image', subtype='jpeg',
+                           filename='note.jpg')
+        form['email'] = msg.as_string()
+    else:
+        form['attachment1'] = (io.BytesIO(photo), 'note.jpg', 'image/jpeg')
+    return form
+
+
 class TestNormalizer:
+    def test_photo_orientation_applied_before_exif_is_removed(self):
+        from PIL import Image
+
+        bundle = normalize_sendgrid_payload(
+            {'from': 'Photo Sender <photo.sender@example.com>'},
+            {'attachment1': _FakeFile('note.jpg', 'image/jpeg', _phone_photo())},
+        )
+        image = Image.open(io.BytesIO(base64.b64decode(bundle.image_blocks[0])))
+        assert image.size == (40, 80)
+        assert image.getexif().get(274, 1) == 1
+        assert image.getpixel((20, 10))[0] > 230
+        assert image.getpixel((20, 70))[2] > 230
+        assert 'photo.sender@example.com' not in bundle.cleaned_text
+
+    def test_broken_photo_does_not_supply_sender_as_contact_material(self):
+        bundle = normalize_sendgrid_payload(
+            {'from': 'Photo Sender <photo.sender@example.com>'},
+            {'attachment1': _FakeFile('note.jpg', 'image/jpeg', b'broken')},
+        )
+        assert bundle.source_kind == 'image'
+        assert bundle.image_blocks == []
+        assert bundle.image_decode_failures == 1
+        assert bundle.skipped_images == 1
+        assert bundle.cleaned_text == ''
+
+    def test_broken_photo_does_not_discard_text_attachment(self):
+        bundle = normalize_sendgrid_payload({}, {
+            'attachment1': _FakeFile('note.jpg', 'image/jpeg', b'broken'),
+            'attachment2': _FakeFile('contact.txt', 'text/plain',
+                                     b'John Doe john@example.com'),
+        })
+        assert bundle.source_kind == 'mixed'
+        assert 'John Doe john@example.com' in bundle.cleaned_text
+
     def test_empty_payload(self):
         bundle = normalize_sendgrid_payload({}, {})
         assert isinstance(bundle, NormalizedInbound)
@@ -519,6 +590,37 @@ class TestNormalizer:
 # ---------------------------------------------------------------------------
 # Orchestrator (process_inbound) — AI is mocked
 # ---------------------------------------------------------------------------
+
+class TestExtractionModels:
+    @pytest.mark.parametrize('with_image', [False, True])
+    def test_model_selection_and_fallback_preserve_material(self, with_image):
+        from services.ai_service import (
+            INBOX_PRIMARY_MODEL, INBOX_FALLBACK_MODEL,
+            INBOX_VISION_MODEL, INBOX_VISION_FALLBACK_MODEL,
+            generate_contact_extraction,
+        )
+
+        images = ['encoded-photo'] if with_image else []
+        primary = INBOX_VISION_MODEL if with_image else INBOX_PRIMARY_MODEL
+        fallback = (INBOX_VISION_FALLBACK_MODEL if with_image
+                    else INBOX_FALLBACK_MODEL)
+        usage = SimpleNamespace(prompt_tokens=123, completion_tokens=45)
+        with patch('services.ai_service.openai.OpenAI'), \
+                patch('services.ai_service._call_inbox_extraction') as extract:
+            extract.side_effect = [
+                json.JSONDecodeError('Invalid response', '', 0),
+                ({'contacts': []}, usage),
+            ]
+            result = generate_contact_extraction(
+                'Contact material', images, api_key='test-key')
+
+        assert [call.args[1] for call in extract.call_args_list] == [primary, fallback]
+        for call in extract.call_args_list:
+            assert call.args[2:] == ('Contact material', images)
+        assert result['_meta'] == {
+            'model': fallback, 'tokens_in': 123, 'tokens_out': 45,
+        }
+
 
 @pytest.mark.usefixtures('app')
 class TestOrchestrator:
@@ -982,6 +1084,88 @@ class TestWebhook:
         }
         form.update(extra)
         return client.post('/webhooks/sendgrid/inbound-parse', data=form)
+
+    @pytest.mark.parametrize('raw_mime', [False, True])
+    def test_photo_reaches_vision_and_saves_extracted_contact(
+            self, app, seed, client, raw_mime, caplog):
+        from PIL import Image
+        from services.ai_service import INBOX_VISION_MODEL
+
+        with app.app_context():
+            recipient = _ensure_inbox(seed, 'agent_a').inbox_address
+        response = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+                'contacts': [{
+                    'first_name': 'John', 'last_name': 'Doe',
+                    'email': 'John@google.com', 'phone': '8329999999',
+                    'confidence': 'high',
+                }],
+            })))],
+            usage=SimpleNamespace(prompt_tokens=100, completion_tokens=40),
+        )
+        with patch('services.ai_service.Config.OPENAI_API_KEY', 'test-key'), \
+                patch('services.ai_service.openai.OpenAI') as openai_client, \
+                patch('services.contact_extraction.send_inbox_receipt'), \
+                caplog.at_level('INFO'):
+            completion = openai_client.return_value.chat.completions.create
+            completion.return_value = response
+            rv = client.post('/webhooks/sendgrid/inbound-parse', data=_photo_form(
+                recipient, raw_mime=raw_mime))
+
+        assert rv.status_code == 200
+        completion.assert_called_once()
+        call = completion.call_args.kwargs
+        assert call['model'] == INBOX_VISION_MODEL
+        content = call['messages'][1]['content']
+        assert 'photo.sender@example.com' not in content[0]['text']
+        assert len(content) == 2
+        assert content[1]['image_url']['detail'] == 'high'
+        image_bytes = base64.b64decode(content[1]['image_url']['url'].split(',')[1])
+        assert Image.open(io.BytesIO(image_bytes)).size == (40, 80)
+        with app.app_context():
+            contact = Contact.query.filter_by(email='john@google.com').one()
+            assert (contact.first_name, contact.last_name) == ('John', 'Doe')
+            assert contact.phone == '(832) 999-9999'
+            assert contact.user_id == seed['agent_a']
+            assert contact.organization_id == _user(seed, 'agent_a').organization_id
+            assert Contact.query.filter_by(email='photo.sender@example.com').count() == 0
+            inbound = InboundMessage.query.filter_by(user_id=seed['agent_a']).one()
+            assert inbound.sender_email == 'photo.sender@example.com'
+            assert inbound.created_contact_ids == [contact.id]
+            assert inbound.ai_model == INBOX_VISION_MODEL
+        assert 'images=1 image_decode_failures=0' in caplog.text
+        assert 'contacts=1 with_email=1 with_phone=1' in caplog.text
+
+    @pytest.mark.parametrize('raw_mime', [False, True])
+    def test_unreadable_photo_fails_without_creating_sender(
+            self, app, seed, client, raw_mime):
+        with app.app_context():
+            recipient = _ensure_inbox(seed, 'agent_a').inbox_address
+        with patch('services.contact_extraction.generate_contact_extraction') as ai:
+            rv = client.post('/webhooks/sendgrid/inbound-parse', data=_photo_form(
+                recipient, raw_mime=raw_mime, photo=b'broken image'))
+        assert rv.status_code == 200
+        ai.assert_not_called()
+        with app.app_context():
+            inbound = InboundMessage.query.filter_by(user_id=seed['agent_a']).one()
+            assert inbound.status == 'failed'
+            assert 'Could not read the photo attachment' in inbound.error_message
+            assert not inbound.created_contact_ids
+            assert Contact.query.filter_by(email='photo.sender@example.com').count() == 0
+
+    def test_no_contact_in_photo_does_not_fall_back_to_sender(self, app, seed, client):
+        with app.app_context():
+            recipient = _ensure_inbox(seed, 'agent_a').inbox_address
+        with patch('services.contact_extraction.generate_contact_extraction',
+                   return_value={'contacts': []}):
+            rv = client.post('/webhooks/sendgrid/inbound-parse',
+                             data=_photo_form(recipient, raw_mime=True))
+        assert rv.status_code == 200
+        with app.app_context():
+            inbound = InboundMessage.query.filter_by(user_id=seed['agent_a']).one()
+            assert inbound.status == 'rejected'
+            assert not inbound.created_contact_ids
+            assert Contact.query.filter_by(email='photo.sender@example.com').count() == 0
 
     def test_unknown_recipient_returns_200(self, client):
         rv = self._post(

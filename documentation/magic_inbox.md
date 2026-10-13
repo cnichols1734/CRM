@@ -16,7 +16,7 @@ SendGrid Inbound Parse posts each forwarded message to
 parameter or header, look the user up by their token (the `<slug>-<token>` part of the
 recipient), persist a row in `inbound_messages`, archive the raw payload to
 Supabase Storage, normalize the body and attachments, send the bundle to
-`gpt-5.4-nano` (vision-capable) with a strict `json_schema`, dedupe
+`gpt-5-mini` for photos or `gpt-5.4-nano` for text with a strict `json_schema`, dedupe
 candidates against the user's existing contacts, create new `Contact` rows,
 emit an in-app notification, and reply by email with a 24-hour signed undo
 link. The webhook always returns `200 OK` so SendGrid never retries — even
@@ -59,8 +59,10 @@ without SendGrid.
 | `SENDGRID_INBOX_WELCOME_TEMPLATE_ID` | SendGrid Dynamic Template for the Magic Inbox welcome email. | `d-d89070c074554464a728867471e173e1` |
 | `SENDGRID_INBOX_RECEIPT_TEMPLATE_ID` | SendGrid Dynamic Template for the "contacts added" receipt email. | `d-f3ef49fcfb80406ab22ec2d0bf87c0e7` |
 | `INBOUND_RAW_BUCKET` | Supabase Storage bucket name for raw payload archives. | `inbound-email-raw` |
-| `INBOX_EXTRACTION_MODEL` | Primary OpenAI model. | `gpt-5.4-nano` |
-| `INBOX_EXTRACTION_FALLBACK_MODEL` | Fallback if primary returns auth/rate/parse error. | `gpt-5-mini` |
+| `INBOX_EXTRACTION_MODEL` | Primary model for text imports. | `gpt-5.4-nano` |
+| `INBOX_EXTRACTION_FALLBACK_MODEL` | Fallback for text extraction errors. | `gpt-5-mini` |
+| `INBOX_VISION_MODEL` | Primary model when decoded photos are present. | `gpt-5-mini` |
+| `INBOX_VISION_FALLBACK_MODEL` | Fallback for photo extraction errors. | `gpt-5.1` |
 
 Reused secrets: `SENDGRID_API_KEY` (outbound replies), `OPENAI_API_KEY`
 (extraction), `SUPABASE_URL` + `SUPABASE_KEY` (raw payload archive),
@@ -264,6 +266,17 @@ If there is **no row at all** for the user, the webhook didn't reach us:
   the user isn't yet provisioned — run the backfill script).
 
 ### Pulling the raw payload
+
+For photo issues, find `Magic Inbox normalized inbound_id=...` in the logs.
+It records attachment, decoded image, and decode failure counts. The
+`Magic Inbox extracted` entry records the model, contact count, and how many
+contacts include an email or phone, without logging those details.
+
+Photo normalization applies EXIF orientation before JPEG encoding. Photo
+messages omit the sender header from AI input, and extraction reads images
+at high detail. If every photo fails decoding and there are no other contact
+attachments, the message fails with an error instead of extracting a sender.
+The sender remains in the message record and contact provenance notes.
 
 ```python
 from services.supabase_storage import download_file
