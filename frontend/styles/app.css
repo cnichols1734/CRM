@@ -5153,6 +5153,11 @@ html[data-theme="dark"] .mkt-page {
   }
 }
 
+.crm-contact-picker-results { max-height: 15rem; overflow-y: auto; margin-top: .5rem; border: 1px solid var(--hairline); border-radius: .75rem; background: var(--paper); color: var(--ink); }
+.crm-contact-picker-results [role="option"] { padding: .65rem .85rem; cursor: pointer; overflow-wrap: anywhere; }
+.crm-contact-picker-results [role="option"]:hover, .crm-contact-picker-results [aria-selected="true"] { background: var(--accent-soft); }
+.crm-contact-picker-results span, .crm-contact-picker-results small { display: block; }
+.crm-contact-picker-results small { color: var(--ink-3); }
 /* Property context shared by client inquiry conversations. */
 .crm-message-property { display: flex; align-items: center; gap: 1rem; padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--hairline); }
 .crm-message-property img { width: 8rem; height: 6rem; object-fit: cover; border-radius: .5rem; flex-shrink: 0; }

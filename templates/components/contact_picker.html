@@ -1,0 +1,21 @@
+{% macro contact_picker(selected=none, required=false, task_id=none) %}
+<div data-controller="contact-picker"
+     data-contact-picker-url-value="{{ url_for('tasks.search_task_contacts', task_id=task_id) }}"
+     data-action="focusout->contact-picker#leave">
+    <input type="hidden" name="contact_id" value="{{ selected.id if selected else '' }}"
+           data-contact-picker-target="value">
+    <input id="task-contact-search" type="text" class="crm-input" role="combobox"
+           autocomplete="off" aria-autocomplete="list" aria-expanded="false"
+           aria-controls="task-contact-results" aria-describedby="task-contact-status"
+           placeholder="Search by name, email, or phone"
+           value="{{ (selected.first_name ~ ' ' ~ selected.last_name)|trim if selected else '' }}"
+           {% if required %}required{% endif %}
+           data-contact-picker-target="query"
+           data-action="input->contact-picker#search keydown->contact-picker#keydown focus->contact-picker#focus">
+    <ul id="task-contact-results" class="crm-contact-picker-results" role="listbox" hidden
+        aria-label="Contacts" data-contact-picker-target="results"
+        data-action="mousedown->contact-picker#keepFocus click->contact-picker#select"></ul>
+    <p id="task-contact-status" class="crm-muted text-xs mt-1" role="status" aria-live="polite"
+       data-contact-picker-target="status"></p>
+</div>
+{% endmacro %}

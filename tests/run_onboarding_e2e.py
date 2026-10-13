@@ -438,9 +438,10 @@ class OnboardingJourney:
         self.page.wait_for_load_state("networkidle")
         self.dismiss_ai_chat_panel()
 
-        contact_select = self.page.locator('select[name="contact_id"]')
-        if contact_select.count() > 0 and self.contact_id:
-            contact_select.select_option(value=str(self.contact_id))
+        self.page.fill('#task-contact-search', self.contact_last)
+        self.page.locator('#task-contact-results [role="option"]').filter(
+            has_text=f"{self.contact_first} {self.contact_last}"
+        ).click()
 
         type_select = self.page.locator('select[name="type_id"]')
         if type_select.count() > 0:

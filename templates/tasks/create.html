@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import page_header %}
+{% from "components/contact_picker.html" import contact_picker %}
 
 {% block title %}Create Task - AgentFlow{% endblock %}
 
@@ -49,18 +50,10 @@
                     <h2 class="section-title">Contact & Assignment</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="field-label">
+                            <label class="field-label" for="task-contact-search">
                                 Contact <span class="field-required">*</span>
                             </label>
-                            <select name="contact_id" id="contact_id" required class="crm-select">
-                                <option value="">Select a contact</option>
-                                {% for contact in contacts %}
-                                <option value="{{ contact.id }}"
-                                        {% if contact.id == request.args.get('contact_id')|int %}selected{% endif %}>
-                                    {{ contact.first_name }} {{ contact.last_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                            {{ contact_picker(selected_contact, required=true) }}
                         </div>
                         {% if current_user.role == 'admin' %}
                         <div>

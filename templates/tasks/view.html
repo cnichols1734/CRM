@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import badge %}
+{% from "components/contact_picker.html" import contact_picker %}
 
 {% block title %}{{ task.subject }} - Task{% endblock %}
 
@@ -368,17 +369,8 @@
                             <h2 class="section-title">Related Information</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Related Contact</label>
-                                    <select name="contact_id" class="crm-select">
-                                        {% if not task.contact %}
-                                        <option value="" selected>Select a contact</option>
-                                        {% endif %}
-                                        {% for contact in contacts %}
-                                        <option value="{{ contact.id }}" {% if task.contact and task.contact.id == contact.id %}selected{% endif %}>
-                                            {{ contact.first_name }} {{ contact.last_name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
+                                    <label for="task-contact-search" class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Related Contact</label>
+                                    {{ contact_picker(task.contact, required=task.contact is not none, task_id=task.id) }}
                                 </div>
                                 <div>
                                     <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Property Address</label>
@@ -630,6 +622,7 @@
 
     async function saveTask() {
         const form = document.getElementById('editTaskForm');
+        if (!form.reportValidity()) return;
         const formData = new FormData();
         const subjectInput = document.querySelector('input[name="subject"]');
         formData.append('subject', subjectInput.value);
