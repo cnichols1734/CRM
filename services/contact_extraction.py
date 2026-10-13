@@ -3,7 +3,7 @@ Magic Inbox orchestrator: take a normalized inbound payload, run the AI
 extraction, dedupe, create Contact rows, write status back to the
 InboundMessage row, and notify the user.
 
-Single AI path — vCards, CSVs, photos, signatures, all the same call.
+Text and photo extraction share the same contact validation and save path.
 """
 from __future__ import annotations
 
@@ -185,6 +185,25 @@ def process_inbound(user: User, message: InboundMessage,
         return {'created_contacts': [], 'status': 'failed',
                 'reason': 'no organization'}
 
+    logger.info(
+        'Magic Inbox normalized inbound_id=%s kind=%s attachments=%d '
+        'images=%d image_decode_failures=%d skipped_images=%d text_chars=%d',
+        message.id, bundle.source_kind, len(bundle.attachment_summary),
+        len(bundle.image_blocks), bundle.image_decode_failures,
+        bundle.skipped_images, len(bundle.cleaned_text),
+    )
+
+    if (bundle.source_kind == 'image' and bundle.image_decode_failures
+            and not bundle.image_blocks):
+        message.status = 'failed'
+        message.error_message = (
+            'Could not read the photo attachment. Send a clear JPEG or PNG photo.'
+        )
+        message.processed_at = datetime.utcnow()
+        db.session.commit()
+        return {'created_contacts': [], 'status': 'failed',
+                'reason': message.error_message}
+
     # --- Empty payload guard -------------------------------------------
     if not bundle.cleaned_text and not bundle.image_blocks:
         message.status = 'rejected'
@@ -222,6 +241,14 @@ def process_inbound(user: User, message: InboundMessage,
     raw_contacts = result.get('contacts') or []
     if not isinstance(raw_contacts, list):
         raw_contacts = []
+
+    logger.info(
+        'Magic Inbox extracted inbound_id=%s model=%s contacts=%d '
+        'with_email=%d with_phone=%d',
+        message.id, ai_model, len(raw_contacts),
+        sum(bool(entry.get('email')) for entry in raw_contacts if isinstance(entry, dict)),
+        sum(bool(entry.get('phone')) for entry in raw_contacts if isinstance(entry, dict)),
+    )
 
     # --- Filter / build candidates -------------------------------------
     candidates = []
