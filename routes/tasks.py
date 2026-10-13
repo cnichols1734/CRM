@@ -6,7 +6,7 @@ from services.activation_service import record_event
 from datetime import datetime, timezone, time
 import pytz
 from sqlalchemy.orm import joinedload
-from sqlalchemy import case
+from sqlalchemy import case, func, or_
 import logging
 
 logger = logging.getLogger(__name__)
@@ -203,10 +203,9 @@ def create_task():
             return redirect(url_for('tasks.tasks'))
 
     # Filter by organization for multi-tenancy
-    contacts = Contact.query.filter_by(
-        user_id=current_user.id,
-        organization_id=current_user.organization_id
-    ).all()
+    selected_contact = org_query(Contact).filter_by(
+        id=request.args.get('contact_id', type=int)
+    ).first() if request.args.get('contact_id', type=int) else None
     task_types = TaskType.query.filter_by(organization_id=current_user.organization_id).all()
     # Only show users from the same organization
     users = User.query.filter_by(organization_id=current_user.organization_id).all() if current_user.role == 'admin' else [current_user]
@@ -221,7 +220,7 @@ def create_task():
             prefill_address = txn.street_address or ''
 
     return render_template('tasks/create.html',
-                         contacts=contacts,
+                         selected_contact=selected_contact,
                          task_types=task_types,
                          users=users,
                          prefill_address=prefill_address)
@@ -235,6 +234,11 @@ def edit_task(task_id):
     # any org member could rewrite another agent's task.
     if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
         abort(403)
+
+    contact_id = request.form.get('contact_id', type=int)
+    if request.form.get('contact_id') and (
+            not contact_id or not org_query(Contact).filter_by(id=contact_id).first()):
+        abort(404)
 
     try:
         user_tz = get_user_timezone()
@@ -274,7 +278,7 @@ def edit_task(task_id):
                     task.subtype_id = int(new_subtype_id)
 
         if request.form.get('contact_id'):
-            task.contact_id = int(request.form.get('contact_id'))
+            task.contact_id = contact_id
 
         if task.status == 'completed' and old_status != 'completed':
             task.completed_at = datetime.now(timezone.utc)
@@ -376,6 +380,45 @@ def get_task_subtypes(type_id):
         'name': subtype.name
     } for subtype in subtypes])
 
+
+@tasks_bp.route('/tasks/contact-search')
+@login_required
+def search_task_contacts():
+    contacts = org_query(Contact)
+    task_id = request.args.get('task_id', type=int)
+    if request.args.get('task_id'):
+        task = org_query(Task).filter_by(id=task_id).first_or_404()
+        if current_user.role != 'admin' and task.assigned_to_id != current_user.id:
+            abort(403)
+    else:
+        contacts = contacts.filter_by(user_id=current_user.id)
+
+    query = request.args.get('q', '').strip()[:200]
+    if not query:
+        return jsonify([])
+    # Match each word, so full names work regardless of name order.
+    for word in query.split():
+        pattern = '%' + word.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+        digits = ''.join(ch for ch in word if ch.isdigit())
+        phone = Contact.phone
+        for separator in ('(', ')', ' ', '-', '.', '+'):
+            phone = func.replace(phone, separator, '')
+        phone_match = phone.like(f'%{digits}%') if digits and all(
+            ch.isdigit() or ch in '()-+. ' for ch in word
+        ) else Contact.phone.ilike(pattern, escape='\\')
+        contacts = contacts.filter(or_(
+            Contact.first_name.ilike(pattern, escape='\\'),
+            Contact.last_name.ilike(pattern, escape='\\'),
+            Contact.email.ilike(pattern, escape='\\'),
+            phone_match,
+        ))
+    return jsonify([{
+        'id': contact.id,
+        'name': ' '.join(filter(None, [contact.first_name, contact.last_name])),
+        'email': contact.email or '',
+        'phone': contact.phone or '',
+    } for contact in contacts.order_by(Contact.last_name, Contact.first_name, Contact.id).limit(20)])
+
 @tasks_bp.route('/tasks/<int:task_id>')
 @login_required
 def view_task(task_id):
@@ -396,7 +439,6 @@ def view_task(task_id):
         task.scheduled_time = convert_to_local(task.scheduled_time, user_tz)
 
     # Filter by organization for multi-tenancy
-    contacts = Contact.query.filter_by(organization_id=current_user.organization_id).all()
     task_types = TaskType.query.filter_by(organization_id=current_user.organization_id).all()
     task_subtypes = TaskSubtype.query.filter_by(task_type_id=task.task_type.id).all()
 
@@ -432,7 +474,6 @@ def view_task(task_id):
 
     return render_template('tasks/view.html',
                          task=task,
-                         contacts=contacts,
                          task_types=task_types,
                          task_subtypes=task_subtypes)
 

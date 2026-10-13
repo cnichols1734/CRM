@@ -350,6 +350,7 @@ class CRMTestSuite:
             test_first_name = f"TestContact{timestamp}"
             test_last_name = "AutoTest"
             test_email = f"test{timestamp}@example.com"
+            self.test_contact_email = test_email
             test_phone = "5551234567"
             
             # Fill contact form
@@ -570,11 +571,10 @@ class CRMTestSuite:
             # Fill task form
             self.log("Filling task form...", "step")
             
-            # Select contact - the contact dropdown
-            contact_select = self.page.locator('select[name="contact_id"]')
-            if contact_select.count() > 0:
-                # Select by value (contact ID)
-                contact_select.select_option(value=str(self.test_contact_id))
+            self.page.fill('#task-contact-search', self.test_contact_email)
+            self.page.locator(
+                f'#task-contact-results [data-contact-id="{self.test_contact_id}"]'
+            ).click()
             
             # Select task type - first available option
             type_select = self.page.locator('select[name="type_id"]')
