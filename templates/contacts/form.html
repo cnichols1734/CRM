@@ -114,7 +114,10 @@
                         <h2 class="crm-section-title">Business Details</h2>
                     </div>
                 </div>
-                <div class="crm-surface-body">
+                <div class="crm-surface-body space-y-4">
+                    {% with lead_source_form=form %}
+                        {% include 'contacts/_lead_source_fields.html' %}
+                    {% endwith %}
                     <div class="max-w-sm">
                         <label class="mb-1.5 block text-xs font-semibold" style="color: var(--ink-3);">Potential Commission ($)</label>
                         {{ form.potential_commission(class="crm-input") }}
@@ -209,6 +212,7 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/contact-lead-source.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var phoneInput = document.getElementById('phone');

@@ -64,6 +64,10 @@
         </div>
         <dl class="crm-rail__details">
             <div class="crm-rail__detail">
+                <dt>Lead source</dt>
+                <dd class="break-words">{{ contact.lead_source_display or 'Not set' }}</dd>
+            </div>
+            <div class="crm-rail__detail">
                 <dt>Email</dt>
                 <dd class="crm-copy-row">
                     {% if contact.email %}
