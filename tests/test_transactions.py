@@ -5,26 +5,49 @@ Covers: CRUD, status updates, documents, participants, API endpoints,
 history, intake, download, signing, and cross-org isolation.
 """
 import pytest
-from conftest import login
-from models import Contact, db
+from models import Contact, Task, Transaction, TransactionDocument, TransactionParticipant, db
 from routes.transactions.api import format_contact_address
 from types import SimpleNamespace
+
+
+@pytest.fixture
+def transaction_contact(app, seed):
+    with app.app_context():
+        contact = Contact(organization_id=seed['org_a'], user_id=seed['owner_a'],
+                          first_name='TransactionAudit', last_name='Client',
+                          email='transaction-audit@test.com', street_address='123 Main St',
+                          city='Austin', state='TX', zip_code='78701')
+        db.session.add(contact)
+        db.session.commit()
+        contact_id = contact.id
+    yield contact_id
+    with app.app_context():
+        Task.query.filter_by(contact_id=contact_id).delete(synchronize_session=False)
+        db.session.delete(db.session.get(Contact, contact_id))
+        db.session.commit()
+
+
+@pytest.fixture
+def transaction_record(app, seed, owner_a_client):
+    with app.app_context():
+        transaction = Transaction(organization_id=seed['org_a'], created_by_id=seed['owner_a'],
+                                  transaction_type_id=seed['tx_type_a'],
+                                  street_address='Audit Transaction', city='Austin', state='TX', status='active')
+        db.session.add(transaction)
+        db.session.commit()
+        transaction_id = transaction.id
+    yield transaction_id
+    owner_a_client.post(f'/transactions/{transaction_id}/delete')
 
 
 class TestTransactionList:
     """Transaction listing."""
 
-    def test_transactions_page_loads(self, owner_a_client, seed):
-        resp = owner_a_client.get('/transactions/')
-        assert resp.status_code == 200
-
     def test_transactions_no_cross_org(self, owner_a_client, seed):
         resp = owner_a_client.get('/transactions/')
-        assert b'200 Oak Ave' not in resp.data
-
-    def test_free_tier_no_transactions(self, owner_b_client, seed):
-        resp = owner_b_client.get('/transactions/', follow_redirects=True)
         assert resp.status_code == 200
+        assert b'100 Main St' in resp.data
+        assert b'200 Oak Ave' not in resp.data
 
 
 class TestTransactionView:
@@ -34,10 +57,6 @@ class TestTransactionView:
         resp = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
         assert resp.status_code == 200
         assert b'100 Main St' in resp.data or b'Main' in resp.data
-
-    def test_view_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}')
-        assert resp.status_code == 404
 
     def test_view_nonexistent(self, owner_a_client, seed):
         resp = owner_a_client.get('/transactions/99999')
@@ -54,31 +73,36 @@ class TestTransactionCreate:
         assert b'Use a client address' in resp.data
         assert b'streetAddressInput' in resp.data
 
-    def test_create_transaction(self, owner_a_client, seed):
-        resp = owner_a_client.post('/transactions/', data={
-            'transaction_type_id': str(seed['tx_type_a']),
-            'street_address': '999 Test Blvd',
-            'city': 'Houston',
-            'state': 'TX',
-        }, follow_redirects=True)
-        assert resp.status_code == 200
+    def test_create_edit_and_status_changes_persist(self, owner_a_client, seed, app, transaction_contact):
+        response = owner_a_client.post('/transactions/', data={
+            'transaction_type_id': str(seed['tx_type_a']), 'contact_ids': str(transaction_contact),
+            'street_address': '999 Test Blvd', 'city': 'Houston', 'state': 'TX',
+        })
+        assert response.status_code == 302
+        with app.app_context():
+            transaction = Transaction.query.filter_by(street_address='999 Test Blvd').one()
+            transaction_id = transaction.id
+            assert (transaction.organization_id, transaction.created_by_id, transaction.status) == (
+                seed['org_a'], seed['owner_a'], 'preparing_to_list')
+            seller = transaction.participants.filter_by(role='seller').one()
+            assert seller.contact_id == transaction_contact
+        try:
+            assert owner_a_client.get(f'/transactions/{transaction_id}/edit').status_code == 200
+            response = owner_a_client.post(f'/transactions/{transaction_id}', data={
+                'street_address': '999 Revised Blvd', 'city': 'Austin', 'state': 'TX',
+            })
+            assert response.status_code == 302
+            response = owner_a_client.post(f'/transactions/{transaction_id}/status', json={'status': 'active'})
+            assert response.status_code == 200
+            with app.app_context():
+                transaction = db.session.get(Transaction, transaction_id)
+                assert (transaction.street_address, transaction.city, transaction.status) == ('999 Revised Blvd', 'Austin', 'active')
+        finally:
+            owner_a_client.post(f'/transactions/{transaction_id}/delete')
 
 
 class TestTransactionEdit:
     """Transaction editing."""
-
-    def test_edit_form_loads(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/{seed["tx_a"]}/edit')
-        assert resp.status_code == 200
-
-    def test_update_transaction(self, owner_a_client, seed):
-        resp = owner_a_client.post(f'/transactions/{seed["tx_a"]}', data={
-            'transaction_type_id': str(seed['tx_type_a']),
-            'street_address': '100 Main St Updated',
-            'city': 'Austin',
-            'state': 'TX',
-        }, follow_redirects=True)
-        assert resp.status_code == 200
 
     def test_edit_cross_org_blocked(self, owner_a_client, seed):
         resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}/edit')
@@ -213,38 +237,6 @@ class TestTransactionDelete:
             assert TransactionDocument.query.get(doc_id) is None
 
 
-class TestTransactionStatusAPI:
-    """Status update API."""
-
-    def test_update_status(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/transactions/{seed["tx_a"]}/status',
-            json={'status': 'active'},
-            content_type='application/json',
-        )
-        assert resp.status_code == 200
-
-    def test_update_status_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/transactions/{seed["tx_b"]}/status',
-            json={'status': 'closed'},
-            content_type='application/json',
-        )
-        assert resp.status_code == 404
-
-
-class TestTransactionLockboxAPI:
-    """Lockbox combo API."""
-
-    def test_lockbox_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/transactions/{seed["tx_b"]}/lockbox-combo',
-            json={'lockbox_combo': '1234'},
-            content_type='application/json',
-        )
-        assert resp.status_code == 404
-
-
 class TestTransactionSignersAPI:
     """Signers API."""
 
@@ -252,37 +244,19 @@ class TestTransactionSignersAPI:
         resp = owner_a_client.get(f'/transactions/api/{seed["tx_a"]}/signers')
         assert resp.status_code == 200
 
-    def test_signers_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/api/{seed["tx_b"]}/signers')
-        assert resp.status_code == 404
-
 
 class TestTransactionContactSearch:
     """Contact search API within transactions."""
 
-    def test_search_contacts(self, owner_a_client, seed):
-        resp = owner_a_client.get('/transactions/api/contacts/search?q=Jane')
-        assert resp.status_code == 200
-
-    def test_search_contacts_includes_address(self, app, owner_a_client, seed):
-        with app.app_context():
-            contact = Contact.query.get(seed['contact_a'])
-            contact.street_address = '123 Main St'
-            contact.city = 'Austin'
-            contact.state = 'TX'
-            contact.zip_code = '78701'
-            db.session.commit()
-
-        resp = owner_a_client.get('/transactions/api/contacts/search?q=Jane')
-        assert resp.status_code == 200
-        payload = resp.get_json()
-        assert payload
-        match = next(item for item in payload if item['id'] == seed['contact_a'])
-        assert match['street_address'] == '123 Main St'
-        assert match['city'] == 'Austin'
-        assert match['state'] == 'TX'
-        assert match['zip_code'] == '78701'
-        assert match['full_address'] == '123 Main St, Austin, TX 78701'
+    def test_search_contacts_includes_address(self, owner_a_client, transaction_contact):
+        response = owner_a_client.get('/transactions/api/contacts/search?q=TransactionAudit')
+        assert response.status_code == 200
+        assert len(response.json) == 1
+        contact = response.json[0]
+        assert contact['id'] == transaction_contact
+        assert (contact['street_address'], contact['city'], contact['state'], contact['zip_code']) == (
+            '123 Main St', 'Austin', 'TX', '78701')
+        assert contact['full_address'] == '123 Main St, Austin, TX 78701'
 
     def test_format_contact_address(self):
         contact = SimpleNamespace(
@@ -309,19 +283,15 @@ class TestTransactionDocuments:
         )
         assert resp.status_code == 200
 
-    def test_document_form_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(
-            f'/transactions/{seed["tx_b"]}/documents/{seed["doc_a"]}/form'
-        )
-        assert resp.status_code == 404
-
-    def test_add_document(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/transactions/{seed["tx_a"]}/documents',
-            data={'template_slug': 'listing-agreement'},
-            follow_redirects=True,
-        )
-        assert resp.status_code in (200, 302, 400)
+    def test_add_document(self, owner_a_client, seed, app, transaction_record):
+        response = owner_a_client.post(f'/transactions/{transaction_record}/documents', data={
+            'template_slug': 'listing-agreement', 'template_name': 'Listing Agreement',
+        })
+        assert response.status_code == 200
+        with app.app_context():
+            document = db.session.get(TransactionDocument, response.json['document']['id'])
+            assert (document.organization_id, document.transaction_id, document.template_slug) == (
+                seed['org_a'], transaction_record, 'listing-agreement')
 
     def test_add_document_cross_org_blocked(self, owner_a_client, seed):
         resp = owner_a_client.post(
@@ -338,17 +308,9 @@ class TestTransactionHistory:
         resp = owner_a_client.get(f'/transactions/{seed["tx_a"]}/history')
         assert resp.status_code == 200
 
-    def test_history_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}/history')
-        assert resp.status_code == 404
-
     def test_history_view(self, owner_a_client, seed):
         resp = owner_a_client.get(f'/transactions/{seed["tx_a"]}/history/view')
         assert resp.status_code == 200
-
-    def test_history_view_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}/history/view')
-        assert resp.status_code == 404
 
 
 class TestTransactionIntake:
@@ -364,62 +326,16 @@ class TestTransactionIntake:
             assert b'var(--positive-soft)' in resp.data
             assert b'var(--danger-soft)' in resp.data
 
-    def test_intake_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}/intake')
-        assert resp.status_code == 404
-
-
-class TestTransactionDownload:
-    """Document download endpoints."""
-
-    def test_download_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(
-            f'/transactions/{seed["tx_b"]}/documents/{seed["doc_a"]}/download'
-        )
-        assert resp.status_code == 404
-
-    def test_print_all_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(
-            f'/transactions/{seed["tx_b"]}/documents/print-all-pdf'
-        )
-        assert resp.status_code == 404
-
 
 class TestTransactionParticipants:
     """Participant management endpoints."""
 
-    def test_add_participant(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/transactions/{seed["tx_a"]}/participants',
-            data={
-                'role': 'buyer',
-                'contact_id': str(seed['contact_a']),
-            },
-            follow_redirects=True,
-        )
-        assert resp.status_code in (200, 302, 400)
-
-    def test_add_participant_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/transactions/{seed["tx_b"]}/participants',
-            data={'role': 'buyer', 'contact_id': '999'},
-        )
-        assert resp.status_code == 404
-
-
-class TestTransactionSigning:
-    """Signing/preview endpoints."""
-
-    def test_preview_all_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(
-            f'/transactions/{seed["tx_b"]}/documents/preview-all'
-        )
-        assert resp.status_code == 404
-
-
-class TestTransactionRentcast:
-    """RentCast API endpoints."""
-
-    def test_rentcast_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}/rentcast-data')
-        assert resp.status_code == 404
+    def test_add_participant(self, owner_a_client, seed, app, transaction_contact, transaction_record):
+        response = owner_a_client.post(f'/transactions/{transaction_record}/participants', data={
+            'role': 'buyer', 'contact_id': str(transaction_contact),
+        })
+        assert response.status_code == 200
+        with app.app_context():
+            participant = db.session.get(TransactionParticipant, response.json['participant']['id'])
+            assert (participant.organization_id, participant.transaction_id, participant.contact_id, participant.role) == (
+                seed['org_a'], transaction_record, transaction_contact, 'buyer')

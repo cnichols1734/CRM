@@ -1,4 +1,4 @@
-"""E0B-5 baseline eval scaffold for BOB virtual TC safety/quality."""
+"""Deterministic BOB tool-selection and identity-sanitization checks."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,6 @@ import pytest
 from services.bob_tools.context import BobContext, PageEntityContext
 from services.bob_tools.registry import (
     FORBIDDEN_ARG_KEYS,
-    openai_tool_schemas,
     sanitize_arguments,
     select_tools,
     TOOLS_BY_NAME,
@@ -24,21 +23,10 @@ def _load_cases():
     return payload['cases']
 
 
-@pytest.fixture(params=_load_cases(), ids=lambda c: c['id'])
-def gold_case(request):
-    return request.param
-
-
-def test_gold_fixture_schema(gold_case):
-    assert 'id' in gold_case
-    assert 'prompt' in gold_case
-
-
+@pytest.mark.parametrize('gold_case', [case for case in _load_cases() if case.get('forbidden_arg_keys')], ids=lambda case: case['id'])
 def test_forbidden_identity_args_always_dropped(app, gold_case):
     """Injection cases must never let spoofed identity keys reach a handler."""
-    if 'forbidden_arg_keys' not in gold_case:
-        pytest.skip('no injection assertions')
-    tool = TOOLS_BY_NAME.get('search_contacts') or next(iter(TOOLS_BY_NAME.values()))
+    tool = TOOLS_BY_NAME['search_contacts']
     raw = {key: 999 for key in gold_case['forbidden_arg_keys']}
     raw['query'] = 'test'
     clean = sanitize_arguments(tool, raw)
@@ -62,10 +50,9 @@ def test_telegram_without_selection_omits_tx_writes(app):
     assert names.isdisjoint(TX_WRITE_TOOL_NAMES)
 
 
-def test_tool_schema_bundle_includes_expected_reads(app, gold_case):
-    expected = gold_case.get('expected_tools_any') or []
-    if not expected:
-        pytest.skip('no expected tool list')
+@pytest.mark.parametrize('gold_case', [case for case in _load_cases() if case.get('expected_tools_any')], ids=lambda case: case['id'])
+def test_tool_selection_includes_expected_reads(app, gold_case):
+    expected = gold_case['expected_tools_any']
     page = None
     if gold_case.get('entity_type') == 'transaction':
         page = PageEntityContext(entity_type='transaction', entity_id=1)
@@ -83,19 +70,3 @@ def test_tool_schema_bundle_includes_expected_reads(app, gold_case):
     registered_expected = [n for n in expected if n in TOOLS_BY_NAME]
     assert registered_expected, expected
     assert available.intersection(registered_expected)
-
-
-def test_openai_schemas_are_non_empty_for_transaction_page(app):
-    ctx = BobContext(
-        organization_id=1,
-        user_id=1,
-        surface='bob_chat',
-        is_org_admin=True,
-        org_role='owner',
-        page_entity=PageEntityContext(entity_type='transaction', entity_id=1),
-        selected_transaction_id=1,
-    )
-    schemas = openai_tool_schemas(ctx)
-    assert schemas
-    names = {s['function']['name'] for s in schemas}
-    assert 'get_transaction_summary' in names or 'search_transactions' in names

@@ -10,7 +10,6 @@ from tier_config.tier_limits import get_tier_defaults
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = (ROOT / "templates" / "free_real_estate_crm.html").read_text()
 LANDING = (ROOT / "templates" / "landing.html").read_text()
-SITEMAP = ROOT / "static" / "sitemap.xml"
 FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/free-real-estate-crm"
@@ -35,6 +34,9 @@ BLOCKED_SEO_PATHS = (
     "/help",
     "/features",
     "/contact",
+    "/boomtown-alternative",
+    "/boldtrail-alternative",
+    "/top-producer-alternative",
 )
 BANNED_SLOP = (
     "unlock",
@@ -97,16 +99,6 @@ FAKE_SEO_QUESTIONS = (
 )
 
 
-def _sitemap_paths():
-    tree = ET.parse(SITEMAP)
-    locs = [el.text or "" for el in tree.getroot().findall("sm:url/sm:loc", SITEMAP_NS)]
-    paths = []
-    for loc in locs:
-        path = loc.replace("https://agentflow.origentechnolog.com", "", 1) or "/"
-        paths.append(path)
-    return paths
-
-
 def _app_base_url(app):
     return (app.config.get("APP_BASE_URL") or "https://agentflow.origentechnolog.com").rstrip("/")
 
@@ -141,8 +133,10 @@ class TestFreeRealEstateCrmRoute:
     def test_sitemap_includes_page_as_only_extra_url(self, client):
         resp = client.get("/sitemap.xml")
         assert resp.status_code == 200
-        paths = _sitemap_paths()
-        assert paths.count(PAGE_PATH) == 1
+        tree = ET.fromstring(resp.data)
+        paths = [(node.text or '').replace('https://agentflow.origentechnolog.com', '', 1) or '/'
+                 for node in tree.findall('sm:url/sm:loc', SITEMAP_NS)]
+        assert len(paths) == len(set(paths))
         assert set(paths) == ALLOWED_SITEMAP_PATHS
         for blocked in BLOCKED_SEO_PATHS:
             assert blocked not in paths
@@ -152,7 +146,9 @@ class TestFreeRealEstateCrmRoute:
         resp = client.get("/llms.txt")
         assert resp.status_code == 200
         text = resp.get_data(as_text=True)
-        assert "https://agentflow.origentechnolog.com/free-real-estate-crm" in text
+        for path in ['/free-real-estate-crm', '/follow-up-boss-alternative',
+                     '/wise-agent-alternative', '/kvcore-alternative']:
+            assert f'https://agentflow.origentechnolog.com{path}' in text
         for blocked in BLOCKED_SEO_PATHS:
             assert f"https://agentflow.origentechnolog.com{blocked}" not in text
         assert "https://agentflow.origentechnolog.com/dashboard" not in text

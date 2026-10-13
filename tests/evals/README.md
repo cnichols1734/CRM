@@ -1,17 +1,7 @@
-# BOB VTC Eval Suite (E0B-5)
+# BOB VTC safety fixtures
 
-De-identified gold fixtures and safety checks for virtual TC quality.
+These deterministic checks exercise the tool registry and argument sanitizer. They verify that spoofed identity arguments are discarded, Telegram without a selected transaction omits transaction-write tools, and transaction context offers an expected read tool.
 
-## What this covers
+The fixture prompts are examples. This suite does not send them to a model, evaluate prompt injection resistance end to end, or prove IDOR protection. Tool dispatch and authorization checks live in `tests/test_bob_tools.py`; route isolation also has dedicated coverage in `tests/test_idor_protection.py`. OpenAI schema serialization is covered in `tests/test_bob_tools.py`.
 
-- Tool-selection: given a prompt, expected tools must appear / forbidden tools must not
-- Injection: page text / attachment notes must not override org identity
-- IDOR: spoofed `entity_id` / `transaction_id` must fail closed
-
-## Run
-
-```bash
-.venv/bin/python -m pytest tests/evals -q
-```
-
-Gold cases live in `fixtures/gold_cases.json`. Keep payloads de-identified — no real client names, phones, or addresses.
+Run with `.venv/bin/python -m pytest tests/evals -q`. Gold cases live in `fixtures/gold_cases.json`. Keep them synthetic, without real client details. Parameterize only applicable cases instead of collecting skipped placeholders.

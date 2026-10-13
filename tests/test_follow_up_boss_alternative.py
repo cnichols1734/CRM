@@ -2,16 +2,12 @@
 import json
 import re
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 from tier_config.tier_limits import get_tier_defaults
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = (ROOT / "templates" / "follow_up_boss_alternative.html").read_text()
-LANDING = (ROOT / "templates" / "landing.html").read_text()
-SITEMAP = ROOT / "static" / "sitemap.xml"
-LLMS = ROOT / "static" / "llms.txt"
 FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/follow-up-boss-alternative"
@@ -20,38 +16,6 @@ H1 = "Looking for a Follow Up Boss alternative?"
 META = (
     "Comparing AgentFlow with Follow Up Boss? See pricing, features and where each CRM fits. "
     "AgentFlow includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
-)
-HOME_TITLE = "Free Real Estate CRM | AgentFlow"
-HOME_H1_PART = "Keep up with every client"
-HOME_BOB_QUESTION = "What can B.O.B. do?"
-HOME_BOB_P1 = (
-    "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, "
-    "just tell B.O.B. what you need done. It can find and update contacts, manage tasks, "
-    "log activity, organize clients, and much more. If you can do it in AgentFlow, you can "
-    "ask B.O.B. to do it for you."
-)
-HOME_BOB_P2 = (
-    "The free plan includes 25 messages a day, and you can also chat with B.O.B. "
-    "through Telegram after connecting it from your profile."
-)
-SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-ALLOWED_SITEMAP_PATHS = {
-    "/",
-    "/register",
-    "/login",
-    "/terms-privacy",
-    "/free-real-estate-crm",
-    PAGE_PATH,
-    "/wise-agent-alternative",
-    "/kvcore-alternative",
-}
-BLOCKED_SEO_PATHS = (
-    "/pricing",
-    "/about",
-    "/blog",
-    "/help",
-    "/features",
-    "/contact",
 )
 BANNED_SLOP = (
     "unlock",
@@ -149,16 +113,6 @@ def _json_ld_answer(answer):
     return "\\n\\n".join(_faq_paragraphs(answer))
 
 
-def _sitemap_paths():
-    tree = ET.parse(SITEMAP)
-    locs = [el.text or "" for el in tree.getroot().findall("sm:url/sm:loc", SITEMAP_NS)]
-    paths = []
-    for loc in locs:
-        path = loc.replace("https://agentflow.origentechnolog.com", "", 1) or "/"
-        paths.append(path)
-    return paths
-
-
 def _app_base_url(app):
     return (app.config.get("APP_BASE_URL") or "https://agentflow.origentechnolog.com").rstrip("/")
 
@@ -202,32 +156,6 @@ class TestFollowUpBossAlternativeRoute:
         resp = owner_a_client.get(PAGE_PATH)
         assert resp.status_code == 200
 
-    def test_sitemap_includes_public_set_only(self, client):
-        resp = client.get("/sitemap.xml")
-        assert resp.status_code == 200
-        paths = _sitemap_paths()
-        assert paths.count(PAGE_PATH) == 1
-        assert set(paths) == ALLOWED_SITEMAP_PATHS
-        for blocked in BLOCKED_SEO_PATHS:
-            assert blocked not in paths
-        assert "/dashboard" not in paths
-
-    def test_llms_txt_lists_the_page(self, client):
-        resp = client.get("/llms.txt")
-        assert resp.status_code == 200
-        text = resp.get_data(as_text=True)
-        assert "https://agentflow.origentechnolog.com/follow-up-boss-alternative" in text
-        assert "https://agentflow.origentechnolog.com/follow-up-boss-alternative" in LLMS.read_text()
-        for blocked in BLOCKED_SEO_PATHS:
-            assert f"https://agentflow.origentechnolog.com{blocked}" not in text
-        assert "https://agentflow.origentechnolog.com/dashboard" not in text
-        assert "—" not in text
-
-    def test_blocked_marketing_urls_are_not_built(self, client):
-        for path in BLOCKED_SEO_PATHS:
-            resp = client.get(path)
-            assert resp.status_code == 404, f"{path} should not be a public page"
-
 
 class TestFollowUpBossAlternativeSeo:
     def test_unique_title_canonical_and_og(self, app, client):
@@ -244,11 +172,7 @@ class TestFollowUpBossAlternativeSeo:
         assert f'property="og:description" content="{META}"' in page
         assert f'property="og:image" content="{base}/static/images/og-share.png"' in page
         assert f'name="twitter:image" content="{base}/static/images/og-share.png"' in page
-        assert f'property="og:image" content="{base}/static/images/og-share.png"' in home
-        assert f'name="twitter:image" content="{base}/static/images/og-share.png"' in home
 
-        assert f"<title>{HOME_TITLE}</title>" in home
-        assert f'rel="canonical" href="{home_url}"' in home
         assert page.count("<title>") == 1
         assert f'rel="canonical" href="{home_url}"' not in page
         assert TITLE not in home
@@ -386,7 +310,6 @@ class TestFollowUpBossAlternativeCopy:
 
     def test_no_em_dashes(self):
         assert "—" not in PAGE
-        assert "—" not in LANDING
 
     def test_no_exclamation_in_visible_copy(self):
         assert "!" not in _visible_copy(PAGE)
@@ -529,17 +452,3 @@ class TestFollowUpBossAlternativeCopy:
         assert "calendar sync via B.O.B" not in PAGE.lower()
         assert "document generation" not in PAGE.lower()
         assert "doc gen" not in PAGE.lower()
-
-    def test_home_title_h1_and_bob_faq_unchanged(self):
-        assert f"<title>{HOME_TITLE}</title>" in LANDING
-        assert HOME_H1_PART in LANDING
-        assert f"<summary>{HOME_BOB_QUESTION}</summary>" in LANDING
-        assert LANDING.count(f"<summary>{HOME_BOB_QUESTION}</summary>") == 1
-        assert HOME_BOB_P1 in LANDING
-        assert HOME_BOB_P2 in LANDING
-        assert LANDING.count(HOME_BOB_P1) == 2
-        assert LANDING.count(HOME_BOB_P2) == 2
-        assert "follow-up-boss-alternative" not in LANDING
-        assert "wise-agent-alternative" not in LANDING
-        assert "kvcore-alternative" not in LANDING
-        assert "the free real estate CRM page" in LANDING

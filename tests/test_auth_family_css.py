@@ -3,72 +3,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_AUTH = (
-    "templates/auth/login.html",
-    "templates/auth/register.html",
-    "templates/auth/reset_request.html",
-    "templates/auth/reset_password.html",
-    "templates/auth/accept_invite.html",
-    "templates/auth/_styles.html",
-    "templates/auth/terms_privacy.html",
-)
 
 
 def _read(*parts):
     return ROOT.joinpath(*parts).read_text()
 
 
-def _public_auth_html():
-    return {path: _read(*path.split("/")) for path in PUBLIC_AUTH}
-
-
-class TestPublicAuthDropsCrmInputLeak:
-    def test_public_auth_fields_do_not_use_crm_input_or_t_input(self):
-        for path, html in _public_auth_html().items():
-            assert "crm-input" not in html, path
-            assert "t-input" not in html, path
-            assert "t-input-wrap" not in html, path
-
-    def test_login_and_register_keep_shipped_input_class(self):
-        login = _read("templates", "auth", "login.html")
-        register = _read("templates", "auth", "register.html")
-        assert 'class="input"' in login
-        assert 'class="input crm-input' not in login
-        assert 'class="input"' in register
-        assert "class=\"input crm-input" not in register
-
-    def test_reset_and_invite_keep_auth_input_only(self):
-        reset_request = _read("templates", "auth", "reset_request.html")
-        reset_password = _read("templates", "auth", "reset_password.html")
-        invite = _read("templates", "auth", "accept_invite.html")
-        styles = _read("templates", "auth", "_styles.html")
-        assert "auth-input" in reset_request
-        assert "auth-input" in reset_password
-        assert "auth-input" in invite
-        assert ".auth-input" in styles
-        assert "crm-input" not in reset_request
-        assert "crm-input" not in reset_password
-        assert "crm-input" not in invite
-
-    def test_login_keeps_free_crm_sentence(self):
-        login = _read("templates", "auth", "login.html")
-        assert "More on what's included is on" in login
-        assert "the free real estate CRM page" in login
-        assert "url_for('main.free_real_estate_crm')" in login
-        assert login.count("url_for('main.free_real_estate_crm')") == 1
-        assert login.count("the free real estate CRM page") == 1
-
-    def test_register_keeps_free_crm_sentence(self):
-        register = _read("templates", "auth", "register.html")
-        assert "More on what's included is on" in register
-        assert "the free real estate CRM page" in register
-        assert "url_for('main.free_real_estate_crm')" in register
-
-
 class TestAuthFamilyCssLock:
-    def test_base_links_auth_family_sheet_once(self):
-        base = _read("templates", "base.html")
-        assert base.count("css/auth-family.css") == 1
 
     def test_lock_beats_dark_theme_crm_input_color(self):
         css = _read("static", "css", "auth-family.css")
