@@ -10,9 +10,26 @@ from models import Organization, OrganizationInvite, User, db
 class TestOrgSettings:
     """Organization settings."""
 
-    def test_settings_page_loads_owner(self, owner_a_client, seed):
-        resp = owner_a_client.get('/org/settings')
-        assert resp.status_code == 200
+    @pytest.mark.parametrize('tier', ['free', 'pro', 'enterprise'])
+    def test_settings_and_web_navigation_hide_messages(self, owner_a_client, seed, app, tier):
+        with app.app_context():
+            org = db.session.get(Organization, seed['org_a'])
+            original_tier = org.subscription_tier
+            org.subscription_tier = tier
+            db.session.commit()
+        try:
+            resp = owner_a_client.get('/org/settings')
+            assert resp.status_code == 200
+            html = resp.get_data(as_text=True)
+            assert 'Organization information' in html
+            assert 'href="/contacts"' in html
+            assert 'href="/messages"' not in html
+            if tier != 'free':
+                assert 'Brokerage app link' in html
+        finally:
+            with app.app_context():
+                db.session.get(Organization, seed['org_a']).subscription_tier = original_tier
+                db.session.commit()
 
     def test_settings_page_loads_admin(self, admin_a_client, seed):
         resp = admin_a_client.get('/org/settings')
