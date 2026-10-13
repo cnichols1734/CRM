@@ -446,6 +446,7 @@ class CRMScheduledTestSuite:
             ''')
             
             assert response['ok'], f"Edit failed with status {response['status']}"
+            self.test_contact_email = 'edited@example.com'
             self.log("", "ok")
             
             # Verify edit by reloading
