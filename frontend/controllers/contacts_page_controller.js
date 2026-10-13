@@ -31,6 +31,7 @@ export default class extends Controller {
     this.handleKeydown = this.handleKeydown.bind(this);
     document.addEventListener("keydown", this.handleKeydown);
     this.toggleClearButton();
+    this.restoreImportStatus();
   }
 
   disconnect() {
@@ -403,6 +404,16 @@ export default class extends Controller {
       });
       const data = await response.json();
       this.renderImportStatus(data);
+      if (response.ok && data.success_count > 0 &&
+          ["success", "partial_success"].includes(data.status)) {
+        // Keep the import report visible after loading the updated list.
+        try {
+          window.sessionStorage.setItem(this.element.dataset.importResultKey, JSON.stringify(data));
+        } catch (_) {
+          // Storage may be disabled. The contact list should still refresh.
+        }
+        window.location.reload();
+      }
     } catch (error) {
       console.error(error);
       this.renderImportStatus({
@@ -424,6 +435,17 @@ export default class extends Controller {
     }
     if (this.hasImportLoadingTarget) {
       this.importLoadingTarget.classList.toggle("hidden", !loading);
+    }
+  }
+
+  restoreImportStatus() {
+    try {
+      const key = this.element.dataset.importResultKey;
+      const saved = window.sessionStorage.getItem(key);
+      window.sessionStorage.removeItem(key);
+      if (saved) this.renderImportStatus(JSON.parse(saved));
+    } catch (_) {
+      // A missing or invalid saved report must not prevent the page loading.
     }
   }
 
