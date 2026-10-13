@@ -1,0 +1,20 @@
+<div class="grid gap-4 md:grid-cols-2" data-lead-source-fields>
+    <div>
+        {{ lead_source_form.lead_source.label(class="crm-field-label") }}
+        {{ lead_source_form.lead_source(class="crm-select", aria_describedby="lead_source_errors") }}
+        <div id="lead_source_errors" role="alert">
+            {% for error in lead_source_form.lead_source.errors %}
+            <p class="mt-1 text-xs" style="color: var(--danger);">{{ error }}</p>
+            {% endfor %}
+        </div>
+    </div>
+    <div data-lead-source-other {% if lead_source_form.lead_source.data != 'Other' %}hidden{% endif %}>
+        {{ lead_source_form.lead_source_other.label(class="crm-field-label") }}
+        {{ lead_source_form.lead_source_other(class="crm-input", maxlength="255", required=lead_source_form.lead_source.data == 'Other', disabled=lead_source_form.lead_source.data != 'Other', aria_describedby="lead_source_other_errors") }}
+        <div id="lead_source_other_errors" role="alert">
+            {% for error in lead_source_form.lead_source_other.errors %}
+            <p class="mt-1 text-xs" style="color: var(--danger);">{{ error }}</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>

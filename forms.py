@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, TextAreaField, SelectMultipleField, DecimalField, DateField
-from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, Regexp
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, SelectField, SelectMultipleField, DecimalField, DateField
+from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, Regexp, ValidationError
+from services.contact_lead_sources import LEAD_SOURCES
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[Optional(), Length(min=4, max=20)])  # Optional for SaaS signup
@@ -40,7 +41,27 @@ class LoginForm(FlaskForm):
     ])
     submit = SubmitField('Sign in')
 
-class ContactForm(FlaskForm):
+class ContactLeadSourceForm(FlaskForm):
+    lead_source = SelectField(
+        'Lead source',
+        choices=[('', 'Not set')] + [(source, source) for source in LEAD_SOURCES],
+        filters=[lambda value: (value or '').strip()],
+    )
+    lead_source_other = StringField(
+        'Other lead source',
+        filters=[lambda value: (value or '').strip()],
+    )
+
+    def validate_lead_source_other(self, field):
+        if self.lead_source.data != 'Other':
+            field.data = None
+        elif not field.data:
+            raise ValidationError('Enter the other lead source.')
+        elif len(field.data) > 255:
+            raise ValidationError('Use 255 characters or fewer for the other lead source.')
+
+
+class ContactForm(ContactLeadSourceForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
     email = StringField('Email', validators=[Optional(), Email()])

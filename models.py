@@ -345,6 +345,8 @@ class Contact(db.Model):
     state = db.Column(db.String(50))
     zip_code = db.Column(db.String(20))
     notes = db.Column(db.Text)
+    lead_source = db.Column(db.String(128), nullable=True)
+    lead_source_other = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                           onupdate=datetime.utcnow)
@@ -385,6 +387,12 @@ class Contact(db.Model):
                            secondary=contact_groups,
                            back_populates='contacts',
                            lazy='joined')
+
+    @property
+    def lead_source_display(self):
+        if self.lead_source == 'Other' and self.lead_source_other:
+            return f'Other: {self.lead_source_other}'
+        return self.lead_source
 
     @property
     def full_address(self):

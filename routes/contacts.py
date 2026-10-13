@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models import db, Contact, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, TaskType, TaskSubtype, ContactEmail, ContactVoiceMemo, MarketingSend
 from feature_flags import can_access_transactions, feature_required, org_has_feature
-from forms import ContactForm
+from forms import ContactForm, ContactLeadSourceForm
 from services import supabase_storage
 from services.tenant_service import org_query, can_view_all_org_data, org_can_add_contact
 from services.contact_group_service import (
@@ -128,6 +128,8 @@ def view_contact(contact_id):
             'state': contact.state,
             'zip_code': contact.zip_code,
             'notes': contact.notes,
+            'lead_source': contact.lead_source,
+            'lead_source_other': contact.lead_source_other,
             'potential_commission': float(contact.potential_commission) if contact.potential_commission else None,
             'created_at': contact.created_at.isoformat(),
             'last_email_date': contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date else None,
@@ -200,6 +202,7 @@ def view_contact(contact_id):
 
     return render_template('contacts/view.html', 
                          contact=contact, 
+                         lead_source_form=ContactLeadSourceForm(obj=contact),
                          all_groups=all_groups,
                          next_contact=next_contact,
                          prev_contact=prev_contact,
@@ -302,6 +305,8 @@ def create_contact():
             state=form.state.data,
             zip_code=form.zip_code.data,
             notes=form.notes.data,
+            lead_source=form.lead_source.data or None,
+            lead_source_other=form.lead_source_other.data,
             potential_commission=form.potential_commission.data or 5000.00,
             last_email_date=form.last_email_date.data,
             last_text_date=form.last_text_date.data,
@@ -545,6 +550,16 @@ def edit_contact(contact_id):
             },
         }), 400
 
+    lead_source_form = None
+    if 'lead_source' in request.form:
+        lead_source_form = ContactLeadSourceForm(meta={'csrf': False})
+        if not lead_source_form.validate():
+            return jsonify({
+                'status': 'error',
+                'message': next(iter(lead_source_form.errors.values()))[0],
+                'errors': lead_source_form.errors,
+            }), 400
+
     try:
         contact.first_name = first_name
         contact.last_name = last_name
@@ -555,6 +570,9 @@ def edit_contact(contact_id):
         contact.state = request.form.get('state')
         contact.zip_code = request.form.get('zip_code')
         contact.notes = request.form.get('notes')
+        if lead_source_form is not None:
+            contact.lead_source = lead_source_form.lead_source.data or None
+            contact.lead_source_other = lead_source_form.lead_source_other.data
         contact.potential_commission = float(request.form.get('potential_commission', 5000.00))
 
         # Add new objective fields

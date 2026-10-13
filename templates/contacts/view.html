@@ -161,6 +161,9 @@
                           id="editContactForm" class="hidden">
                         <div class="px-5 py-5 first:border-t-0" style="border-top: 0.5px solid var(--hairline);">
                             <div class="crm-section-kicker mb-3">Basic information</div>
+                            <div class="mb-4">
+                                {% include 'contacts/_lead_source_fields.html' %}
+                            </div>
                             <div class="grid gap-4 md:grid-cols-2">
                                 <label class="block">
                                     <span class="crm-field-label">Email</span>
@@ -299,6 +302,10 @@
                         <div class="px-5 py-5 first:border-t-0" style="border-top: 0.5px solid var(--hairline);">
                             <div class="crm-section-kicker mb-3">Details</div>
                             <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                                <div class="sm:col-span-2">
+                                    <dt class="crm-field-label mb-0">Lead source</dt>
+                                    <dd class="mt-0.5 break-words text-sm" style="color: var(--ink);">{{ contact.lead_source_display or 'Not set' }}</dd>
+                                </div>
                                 <div>
                                     <dt class="crm-field-label mb-0">Email</dt>
                                     <dd class="crm-copy-row mt-0.5 text-sm" style="color: var(--ink);">{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{{ copy_value(contact.email, 'email') }}{% else %}<span class="crm-faint">&mdash;</span>{% endif %}</dd>
@@ -1954,6 +1961,7 @@
 
     async function saveContact() {
         const form = document.getElementById('editContactForm');
+        if (!form.elements.lead_source_other.reportValidity()) return;
         const formData = new FormData();
 
         // Explicitly add the name fields from the edit name section
@@ -1965,6 +1973,7 @@
         // Add all other form fields
         const formInputs = form.querySelectorAll('input, textarea, select');
         formInputs.forEach(input => {
+            if (input.disabled) return;
             if (input.type === 'checkbox') {
                 if (input.checked) {
                     formData.append(input.name, input.value);
@@ -2825,6 +2834,7 @@
 {% endif %}
 
 <!-- Activity Timeline Manager -->
+<script src="{{ url_for('static', filename='js/contact-lead-source.js') }}"></script>
 <script src="{{ url_for('static', filename='js/activity-timeline.js') }}"></script>
 <script>
     // Initialize Activity Timeline
