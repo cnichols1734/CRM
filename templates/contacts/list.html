@@ -6,7 +6,8 @@
 {% block content %}
 {% set has_filters = request.args.get('owners') or request.args.get('groups') or request.args.get('zips') or request.args.get('commission') %}
 
-<div class="crm-page" data-controller="contacts-page">
+<div class="crm-page" data-controller="contacts-page"
+     data-import-result-key="contacts-import-result:{{ current_user.id }}">
     <div class="t-page-slide crm-contacts-pages" data-page="1" id="crmContactsPages">
     <section class="t-page" data-page-id="1">
     <div class="crm-contacts-page-body">
