@@ -253,11 +253,6 @@
                     </div>
                 </section>
                 {% endif %}
-
-                {% if not is_admin_edit and mcp_enabled %}
-                {% set cowork_show_manage = true %}
-                {% include 'integrations/_cowork_setup.html' %}
-                {% endif %}
             </div>
 
             {# ── RIGHT: integrations / sidebar ─────────────── #}
