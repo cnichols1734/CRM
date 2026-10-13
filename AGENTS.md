@@ -89,6 +89,29 @@ The app serves on **port 5011** in debug mode with hot-reload.
 - No linter or formatter is configured for this project
 - Do not auto-run UI tests unless the user asks
 
+## Testing Philosophy & Quality Standards
+
+These rules apply to every future coding session. Before creating or substantially modifying tests, consult [docs/testing-standards.md](docs/testing-standards.md) for repository-specific examples, fixtures, and regression risks.
+
+- Protect meaningful business behavior and observable outcomes. Identify the specific realistic production regression each new or changed test should catch.
+- Search relevant existing tests first. Improve or extend them before adding scenarios, and add only the minimum meaningful regression coverage needed. Never add tests solely to increase coverage or test counts.
+- Prefer fast unit tests for isolated business logic. Use integration tests when interaction between components is itself a meaningful risk, and E2E tests selectively for critical user journeys. Do not automatically create a new integration test file for each feature.
+- Avoid tests that merely validate mocked responses, confirm stubbed calls, or test framework behavior and third-party internals. Mock external boundaries while exercising real application behavior.
+- Keep setup, assertions, and fixtures as simple as the protected behavior permits. Avoid redundant assertions, invented low-value edge cases, and unnecessary fixture complexity. Treat maintainability and execution speed as engineering quality metrics.
+- Improve or consolidate low-value tests in the affected area when safely within scope. Never remove meaningful regression protection to reduce test counts, and never turn a small change into an unrelated test-suite cleanup. Correctness and defect detection take priority over quantity.
+
+Before introducing or modifying any test, internally answer:
+
+1. What specific realistic bug would this test catch?
+2. Is this behavior already adequately protected elsewhere?
+3. Could a cheaper or simpler test provide equivalent protection?
+4. Is this testing observable behavior rather than implementation details?
+5. Would this test fail if the protected behavior were meaningfully broken?
+
+If the answers do not justify the test, do not create it or expand it. Apply this reasoning during normal development; do not generate documentation for every test.
+
+Update `docs/testing-standards.md` when a change reveals a recurring testing anti-pattern, important regression risk, or established testing convention. Edit the relevant guidance rather than appending repetitive instructions. Update this AGENTS.md section only when the general policy changes. Existing database-safety and UI-test execution rules still apply.
+
 ## Architecture Snapshot
 
 ### Multi-Tenancy with RLS
