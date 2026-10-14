@@ -82,12 +82,13 @@ def decrypt_token(encrypted_token: str) -> str:
     return f.decrypt(encrypted_token.encode()).decode()
 
 
-def get_oauth_url(state: str) -> str:
+def get_oauth_url(state: str, code_verifier: str) -> str:
     """
     Generate Google OAuth authorization URL.
     
     Args:
         state: CSRF state token (store in session for verification)
+        code_verifier: PKCE verifier retained in the session until the callback
     
     Returns:
         Authorization URL to redirect user to
@@ -105,7 +106,9 @@ def get_oauth_url(state: str) -> str:
                 "redirect_uris": [_get_redirect_uri()]
             }
         },
-        scopes=GMAIL_SCOPES
+        scopes=GMAIL_SCOPES,
+        code_verifier=code_verifier,
+        autogenerate_code_verifier=False,
     )
     flow.redirect_uri = _get_redirect_uri()
     
@@ -119,12 +122,13 @@ def get_oauth_url(state: str) -> str:
     return auth_url
 
 
-def exchange_code_for_tokens(code: str) -> Dict:
+def exchange_code_for_tokens(code: str, code_verifier: str) -> Dict:
     """
     Exchange authorization code for access/refresh tokens.
     
     Args:
         code: Authorization code from OAuth callback
+        code_verifier: The verifier used to create the authorization URL
     
     Returns:
         Dict with keys: access_token, refresh_token, expires_at, email
@@ -142,7 +146,9 @@ def exchange_code_for_tokens(code: str) -> Dict:
                 "redirect_uris": [_get_redirect_uri()]
             }
         },
-        scopes=GMAIL_SCOPES
+        scopes=GMAIL_SCOPES,
+        code_verifier=code_verifier,
+        autogenerate_code_verifier=False,
     )
     flow.redirect_uri = _get_redirect_uri()
     

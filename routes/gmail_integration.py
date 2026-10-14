@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 gmail_bp = Blueprint('gmail', __name__, url_prefix='/integrations/gmail')
 
 
+def _start_oauth() -> str:
+    """Keep the state and PKCE verifier together for the callback."""
+    state = secrets.token_urlsafe(32)
+    code_verifier = secrets.token_urlsafe(64)
+    auth_url = gmail_service.get_oauth_url(state, code_verifier)
+    session['gmail_oauth_state'] = state
+    session['gmail_oauth_code_verifier'] = code_verifier
+    return auth_url
+
+
 @gmail_bp.route('/connect')
 @login_required
 def connect():
@@ -26,12 +36,7 @@ def connect():
     Redirects user to Google's consent screen.
     """
     try:
-        # Generate CSRF state token
-        state = secrets.token_urlsafe(32)
-        session['gmail_oauth_state'] = state
-        
-        # Get authorization URL
-        auth_url = gmail_service.get_oauth_url(state)
+        auth_url = _start_oauth()
         
         logger.info(f"User {current_user.id} initiating Gmail OAuth")
         return redirect(auth_url)
@@ -56,6 +61,7 @@ def callback():
     # Verify state token (CSRF protection)
     state = request.args.get('state')
     stored_state = session.pop('gmail_oauth_state', None)
+    code_verifier = session.pop('gmail_oauth_code_verifier', None)
     
     if not state or state != stored_state:
         logger.warning(f"Invalid OAuth state for user {current_user.id}")
@@ -77,10 +83,14 @@ def callback():
     if not code:
         flash('No authorization code received. Please try again.', 'error')
         return redirect(url_for('auth.view_user_profile'))
+
+    if not code_verifier:
+        flash('Your Google connection attempt expired. Please connect again.', 'error')
+        return redirect(url_for('auth.view_user_profile'))
     
     try:
         # Exchange code for tokens
-        token_data = gmail_service.exchange_code_for_tokens(code)
+        token_data = gmail_service.exchange_code_for_tokens(code, code_verifier)
         
         # Check if integration already exists
         integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
@@ -210,9 +220,7 @@ def toggle_calendar_sync():
                 # Set a flag so callback knows to enable calendar sync after re-auth
                 session['enable_calendar_after_reauth'] = True
                 # Trigger re-auth
-                state = secrets.token_urlsafe(32)
-                session['gmail_oauth_state'] = state
-                auth_url = gmail_service.get_oauth_url(state)
+                auth_url = _start_oauth()
                 return redirect(auth_url)
         
         integration.calendar_sync_enabled = new_state
