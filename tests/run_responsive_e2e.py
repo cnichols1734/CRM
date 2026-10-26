@@ -212,6 +212,10 @@ def run(browser_names, layouts=True):
                             page.screenshot(path=str(ARTIFACTS / f'{name}-transactions-{theme}-{width}.png'))
                     # Public navigation stays scrollable in short landscape.
                     page.goto(base + '/logout'); page.goto(base + '/')
+                    for width, height in SIZES:
+                        page.set_viewport_size({'width': width, 'height': height})
+                        page.wait_for_timeout(100)
+                        assert_fits(page, (name, 'public homepage', width))
                     page.set_viewport_size({'width': 594, 'height': 368})
                     page.locator('#mobileMenuBtn').click()
                     page.locator('#mobileMenu a').last.scroll_into_view_if_needed()
