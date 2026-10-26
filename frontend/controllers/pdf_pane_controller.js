@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 
-const MIN_SCALE = 0.6;
+const MIN_SCALE = 0.1;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.15;
 const PULSE_MS = 900;
@@ -28,14 +28,34 @@ export default class PdfPaneController extends Controller {
   connectPdfPane() {
     this.pdfDoc = null;
     this.scale = 1.15;
-    this.pendingFit = Boolean(this.pendingFit);
+    this.fitMode = true;
+    this.pendingFit = true;
+    this.loadToken = 0;
+    this.renderJobs = new Map();
+    this.pages = new Map();
     this.renderToken = 0;
     this.pageEls = [];
-    this._onScroll = () => this.updatePageFromScroll();
+    this._onScroll = () => {
+      if (this.scrollFrame) return;
+      this.scrollFrame = window.requestAnimationFrame(() => {
+        this.scrollFrame = null;
+        this.updatePageFromScroll();
+      });
+    };
 
     if (this.hasPdfPaneTarget) {
       this.pdfPaneTarget.addEventListener("scroll", this._onScroll, { passive: true });
     }
+    this.resizeObserver = new ResizeObserver(() => {
+      const width = this.pdfPaneTarget.clientWidth;
+      if (!width || width === this.paneWidth) return;
+      this.paneWidth = width;
+      clearTimeout(this.resizeTimer);
+      this.resizeTimer = setTimeout(() => {
+        if (this.fitMode && this.pdfDoc) this.fitWidth();
+      }, 120);
+    });
+    if (this.hasPdfPaneTarget) this.resizeObserver.observe(this.pdfPaneTarget);
     this.loadPdf();
   }
 
@@ -43,7 +63,13 @@ export default class PdfPaneController extends Controller {
     if (this.hasPdfPaneTarget && this._onScroll) {
       this.pdfPaneTarget.removeEventListener("scroll", this._onScroll);
     }
+    this.loadToken += 1;
     this.renderToken += 1;
+    this.resizeObserver?.disconnect();
+    clearTimeout(this.resizeTimer);
+    window.cancelAnimationFrame(this.scrollFrame);
+    this.cancelRendering();
+    this.loadingTask?.destroy();
     this.pdfDoc = null;
     this.pageEls = [];
   }
@@ -70,20 +96,28 @@ export default class PdfPaneController extends Controller {
       return;
     }
 
-    const token = ++this.renderToken;
+    const loadToken = ++this.loadToken;
+    this.renderToken += 1;
+    this.cancelRendering();
+    this.loadingTask?.destroy();
+    this.pdfDoc = null;
+    this.pages.clear();
+    this.fitMode = true;
+    this.pendingFit = true;
     this.hidePdfError();
     try {
       await this.waitForPdfJs();
     } catch (error) {
-      if (token === this.renderToken) this.showPdfError();
+      if (loadToken === this.loadToken) this.showPdfError();
       return;
     }
-    if (token !== this.renderToken) return;
+    if (loadToken !== this.loadToken) return;
 
     try {
-      const loadingTask = window.pdfjsLib.getDocument(this.pdfUrlValue);
-      this.pdfDoc = await loadingTask.promise;
-      if (token !== this.renderToken) return;
+      this.loadingTask = window.pdfjsLib.getDocument(this.pdfUrlValue);
+      const pdf = await this.loadingTask.promise;
+      if (loadToken !== this.loadToken) return;
+      this.pdfDoc = pdf;
       if (this.hasPageTotalTarget) {
         this.pageTotalTarget.textContent = String(this.pdfDoc.numPages);
       }
@@ -92,10 +126,11 @@ export default class PdfPaneController extends Controller {
         await this.applyFitScale();
         this.pendingFit = false;
       }
-      await this.renderAllPages(token);
+      if (loadToken !== this.loadToken) return;
+      await this.renderAllPages(++this.renderToken);
     } catch (error) {
       console.error("PDF load failed", error);
-      if (token === this.renderToken) this.showPdfError();
+      if (loadToken === this.loadToken) this.showPdfError();
     }
   }
 
@@ -113,64 +148,110 @@ export default class PdfPaneController extends Controller {
     }
   }
 
-  async renderAllPages(token) {
-    if (!this.pdfDoc || !this.hasPageStackTarget) return;
+  cancelRendering() {
+    this.pageObserver?.disconnect();
+    this.renderJobs?.forEach((job) => job.cancel());
+    this.renderJobs?.clear();
+  }
 
+  async renderAllPages(token, anchor = null) {
+    if (!this.pdfDoc || !this.hasPageStackTarget) return;
+    this.cancelRendering();
+    const pdf = this.pdfDoc;
+    const scale = this.scale;
     const stack = this.pageStackTarget;
     stack.replaceChildren();
     this.pageEls = [];
+    this.pageObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) this.paintPage(entry.target, token);
+        else {
+          const number = Number(entry.target.dataset.page);
+          if (!this.renderJobs.has(number)) entry.target.querySelector('canvas')?.remove();
+        }
+      }
+    }, { root: this.pdfPaneTarget, rootMargin: '400px 0px' });
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    for (let pageNum = 1; pageNum <= this.pdfDoc.numPages; pageNum += 1) {
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+      const page = this.pages.get(pageNum) || await pdf.getPage(pageNum);
       if (token !== this.renderToken) return;
-      const page = await this.pdfDoc.getPage(pageNum);
-      if (token !== this.renderToken) return;
-
-      const viewport = page.getViewport({ scale: this.scale });
-      const wrapper = document.createElement("div");
-      wrapper.className = "drw-page";
+      this.pages.set(pageNum, page);
+      const viewport = page.getViewport({ scale });
+      const wrapper = document.createElement('div');
+      wrapper.className = 'drw-page';
       wrapper.dataset.page = String(pageNum);
       wrapper.style.width = `${viewport.width}px`;
       wrapper.style.height = `${viewport.height}px`;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
-
-      const context = canvas.getContext("2d");
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      wrapper.appendChild(canvas);
+      wrapper.setAttribute('aria-label', `Page ${pageNum}`);
       stack.appendChild(wrapper);
       this.pageEls[pageNum] = wrapper;
-
-      await page.render({ canvasContext: context, viewport }).promise;
     }
-
-    if (this.hasPdfLoadingTarget) this.pdfLoadingTarget.classList.add("hidden");
+    if (token !== this.renderToken) return;
+    if (this.hasPdfLoadingTarget) this.pdfLoadingTarget.classList.add('hidden');
     this.hidePdfError();
+    if (anchor && this.pageEls[anchor.page]) {
+      const el = this.pageEls[anchor.page];
+      const top = el.getBoundingClientRect().top - this.pdfPaneTarget.getBoundingClientRect().top;
+      this.pdfPaneTarget.scrollTop += top + anchor.fraction * el.offsetHeight;
+    }
+    this.pageEls.forEach((el) => this.pageObserver.observe(el));
     this.updatePageFromScroll();
+    this.afterPdfLayout?.();
   }
 
-  async rerender() {
+  async paintPage(wrapper, token) {
+    const number = Number(wrapper.dataset.page);
+    if (token !== this.renderToken || wrapper.querySelector('canvas') || this.renderJobs.has(number)) return;
+    const page = this.pages.get(number);
+    if (!page) return;
+    const viewport = page.getViewport({ scale: this.scale });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width * dpr);
+    canvas.height = Math.floor(viewport.height * dpr);
+    canvas.style.width = `${viewport.width}px`;
+    canvas.style.height = `${viewport.height}px`;
+    const context = canvas.getContext('2d');
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    wrapper.appendChild(canvas);
+    const job = page.render({ canvasContext: context, viewport });
+    this.renderJobs.set(number, job);
+    try {
+      await job.promise;
+    } catch (error) {
+      canvas.remove();
+      if (token === this.renderToken && error.name !== 'RenderingCancelledException') this.showPdfError();
+    } finally {
+      if (this.renderJobs.get(number) === job) this.renderJobs.delete(number);
+    }
+  }
+
+  readingAnchor() {
+    const page = this.currentPageNumber();
+    const el = this.pageEls[page];
+    if (!el || !this.hasPdfPaneTarget) return null;
+    const offset = this.pdfPaneTarget.getBoundingClientRect().top - el.getBoundingClientRect().top;
+    return { page, fraction: offset / Math.max(1, el.offsetHeight) };
+  }
+
+  async rerender(anchor = this.readingAnchor()) {
     if (!this.pdfDoc) return;
     const token = ++this.renderToken;
-    if (this.hasPdfLoadingTarget) {
-      this.pdfLoadingTarget.classList.remove("hidden");
-    }
-    await this.renderAllPages(token);
+    await this.renderAllPages(token, anchor);
   }
 
   zoomIn() {
+    this.fitMode = false;
+    const anchor = this.readingAnchor();
     this.scale = Math.min(MAX_SCALE, this.scale + SCALE_STEP);
-    this.rerender();
+    this.rerender(anchor);
   }
 
   zoomOut() {
+    this.fitMode = false;
+    const anchor = this.readingAnchor();
     this.scale = Math.max(MIN_SCALE, this.scale - SCALE_STEP);
-    this.rerender();
+    this.rerender(anchor);
   }
 
   async waitForPaneWidth(timeoutMs = 1500) {
@@ -183,17 +264,22 @@ export default class PdfPaneController extends Controller {
 
   async applyFitScale() {
     if (!this.pdfDoc || !this.hasPdfPaneTarget) return;
-    const page = await this.pdfDoc.getPage(1);
+    const pdf = this.pdfDoc;
+    const page = await pdf.getPage(1);
+    if (pdf !== this.pdfDoc) return;
     const unscaled = page.getViewport({ scale: 1 });
-    const available = Math.max(240, this.pdfPaneTarget.clientWidth - 48);
-    this.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, available / unscaled.width));
+    const available = Math.max(1, this.pdfPaneTarget.clientWidth - 48);
+    this.scale = Math.min(MAX_SCALE, available / unscaled.width);
   }
 
   async fitWidth() {
     if (!this.pdfDoc || !this.hasPdfPaneTarget) return;
     try {
+      this.fitMode = true;
+      const anchor = this.readingAnchor();
+      const pdf = this.pdfDoc;
       await this.applyFitScale();
-      await this.rerender();
+      if (pdf === this.pdfDoc) await this.rerender(anchor);
     } catch (_error) {
       /* ignore fit failures */
     }
@@ -219,7 +305,10 @@ export default class PdfPaneController extends Controller {
     const el = this.pageEls[pageNum];
     if (!el || !this.hasPdfPaneTarget) return;
 
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const top = el.getBoundingClientRect().top - this.pdfPaneTarget.getBoundingClientRect().top;
+    this.pdfPaneTarget.scrollTo({ top: this.pdfPaneTarget.scrollTop + top, behavior: reduce ? 'instant' : 'smooth' });
+    this.paintPage(el, this.renderToken);
     if (this.hasPageLabelTarget) this.pageLabelTarget.textContent = String(pageNum);
     if (pulse) this.pulsePage(el);
   }

@@ -95,6 +95,11 @@ export default class extends PdfPaneController {
     }
   }
 
+  afterPdfLayout() {
+    const card = this.fieldCardTargets[this.selectedIndex];
+    if (card?.dataset.quote) this.highlightQuote(Number(card.dataset.page), card.dataset.quote);
+  }
+
   async highlightQuote(pageNum, quote) {
     const pageEl = this.pageEls[pageNum];
     if (!pageEl || !this.pdfDoc || !quote) {
