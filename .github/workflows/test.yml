@@ -104,7 +104,14 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
+      - name: Use primary Ubuntu package archive
+        run: |
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
+          fi
+
       - name: Install Playwright browsers
+        timeout-minutes: 10
         run: playwright install --with-deps chromium webkit
 
       - name: Bootstrap isolated browser test database
