@@ -82,3 +82,80 @@ test('disconnect cancels pending rendering, resize work and loading', () => {
   assert.equal(pane.loadToken, 3);
   assert.equal(pane.renderToken, 5);
 });
+
+function renderingFixture() {
+  const pane = fixture();
+  const jobs = [];
+  globalThis.window = { devicePixelRatio: 1 };
+  globalThis.document = {
+    createElement(tag) {
+      return {
+        tag, dataset: {}, style: {}, children: [],
+        setAttribute() {},
+        appendChild(child) { child.parent = this; this.children.push(child); },
+        querySelector(tag) { return this.children.find(child => child.tag === tag); },
+        remove() { this.parent.children = this.parent.children.filter(child => child !== this); },
+        getContext: () => ({ setTransform() {} }),
+      };
+    },
+  };
+  globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; }
+    observe() {}
+    disconnect() {}
+    emit(target, isIntersecting) { this.callback([{ target, isIntersecting }]); }
+  };
+  pane.renderToken = 1;
+  pane.renderJobs = new Map();
+  pane.pages = new Map();
+  pane.hasPageStackTarget = true;
+  pane.pageStackTarget = { replaceChildren() {}, appendChild() {} };
+  pane.updatePageFromScroll = () => {};
+  pane.pdfDoc = {
+    numPages: 1,
+    getPage: async () => ({
+      getViewport: () => ({ width: 612, height: 792 }),
+      render() {
+        let resolve;
+        const promise = new Promise(done => { resolve = done; });
+        jobs.push({ resolve, promise });
+        return { promise, cancel() {} };
+      },
+    }),
+  };
+  return { pane, jobs };
+}
+
+test('a page leaving the buffer during rendering releases its canvas when the job settles', async () => {
+  const { pane, jobs } = renderingFixture();
+  await pane.renderAllPages(1);
+  const page = pane.pageEls[1];
+  pane.pageObserver.emit(page, true);
+  assert.ok(page.querySelector('canvas'));
+  pane.pageObserver.emit(page, false);
+  jobs[0].resolve();
+  await jobs[0].promise;
+  assert.equal(page.querySelector('canvas'), undefined);
+  assert.equal(pane.renderJobs.size, 0);
+  pane.pageObserver.emit(page, true);
+  assert.equal(jobs.length, 2);
+  jobs[1].resolve();
+  await jobs[1].promise;
+  assert.ok(page.querySelector('canvas'));
+  pane.pageObserver.emit(page, false);
+  assert.equal(page.querySelector('canvas'), undefined);
+});
+
+test('a page returning to the buffer before rendering finishes keeps its canvas', async () => {
+  const { pane, jobs } = renderingFixture();
+  await pane.renderAllPages(1);
+  const page = pane.pageEls[1];
+  pane.pageObserver.emit(page, true);
+  pane.pageObserver.emit(page, false);
+  pane.pageObserver.emit(page, true);
+  jobs[0].resolve();
+  await jobs[0].promise;
+  assert.equal(jobs.length, 1);
+  assert.ok(page.querySelector('canvas'));
+  assert.equal(pane.renderJobs.size, 0);
+});

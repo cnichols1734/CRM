@@ -180,7 +180,6 @@ export default class extends PdfPaneController {
         return;
       }
 
-      pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
       const box = document.createElement("div");
       box.className = "drw-quote-box";
       box.style.left = `${Math.max(0, minX - 2)}px`;

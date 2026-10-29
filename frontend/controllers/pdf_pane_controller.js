@@ -162,8 +162,11 @@ export default class PdfPaneController extends Controller {
     const stack = this.pageStackTarget;
     stack.replaceChildren();
     this.pageEls = [];
+    this.pageIntersections = new WeakMap();
     this.pageObserver = new IntersectionObserver((entries) => {
+      if (token !== this.renderToken) return;
       for (const entry of entries) {
+        this.pageIntersections.set(entry.target, entry.isIntersecting);
         if (entry.isIntersecting) this.paintPage(entry.target, token);
         else {
           const number = Number(entry.target.dataset.page);
@@ -223,6 +226,7 @@ export default class PdfPaneController extends Controller {
       if (token === this.renderToken && error.name !== 'RenderingCancelledException') this.showPdfError();
     } finally {
       if (this.renderJobs.get(number) === job) this.renderJobs.delete(number);
+      if (token !== this.renderToken || this.pageIntersections.get(wrapper) === false) canvas.remove();
     }
   }
 
