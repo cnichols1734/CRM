@@ -434,3 +434,15 @@ function toggleMobileNavMenu() {
     }
 }
 
+
+// A menu hidden by a wider layout must release its scroll lock.
+window.matchMedia('(min-width: 768px)').addEventListener('change', (event) => {
+    if (!event.matches) return;
+    const nav = document.getElementById('mobileNavMenu');
+    const user = document.getElementById('mobileUserMenu');
+    const navOpen = nav && nav.classList.contains('translate-x-0');
+    const userOpen = user && user.classList.contains('translate-y-0');
+    if (navOpen) toggleMobileNavMenu();
+    if (userOpen) hideMobileMenu(user);
+    if (document.body.classList.contains('bob-sheet-open')) document.body.style.overflow = 'hidden';
+});
