@@ -266,7 +266,7 @@ def create_app():
     @app.context_processor
     def inject_feature_flags():
         from datetime import date as date_cls
-        from feature_flags import org_has_feature, can_access_reports, can_access_transactions
+        from feature_flags import org_has_feature, can_access_reports, can_access_reports_overview, can_access_transactions
 
         cutoff = app.config.get('CUSTOMIZE_GROUPS_NEW_UNTIL')
         show_customize_groups_new_badge = bool(
@@ -275,6 +275,7 @@ def create_app():
         return dict(
             org_has_feature=org_has_feature,
             can_access_reports=can_access_reports,
+            can_access_reports_overview=can_access_reports_overview,
             can_access_transactions=can_access_transactions,
             show_customize_groups_new_badge=show_customize_groups_new_badge,
             app_base_url=(app.config.get('APP_BASE_URL') or DEFAULT_APP_BASE_URL).rstrip('/'),

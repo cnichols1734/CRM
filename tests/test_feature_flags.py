@@ -80,19 +80,19 @@ class TestGlobalFeatureOverrides:
 
 
 class TestReportsParked:
-    """Reports stays in the codebase but is off in nav and at /reports."""
+    """The legacy report catalog stays parked while the overview is available."""
 
     def test_owner_cannot_access_while_parked(self, app, seed):
         with app.app_context():
             owner = db.session.get(User, seed['owner_a'])
             assert can_access_reports(owner) is False
 
-    def test_shared_sidebar_omits_reports(self, owner_a_client):
+    def test_shared_sidebar_links_only_to_overview(self, owner_a_client):
         response = owner_a_client.get('/dashboard')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
         assert 'href="/reports/"' not in html
-        assert '>Reports</span>' not in html
+        assert 'href="/reports/overview"' in html
         assert '>Daily Briefing</span>' in html
 
     def test_reports_route_stays_registered(self, owner_a_client):
