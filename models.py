@@ -3062,6 +3062,21 @@ class AgentResource(db.Model):
         }
 
 
+class PersonalResource(db.Model):
+    """Links saved by one agent within their organization."""
+    __tablename__ = 'personal_resources'
+    __table_args__ = (db.Index('ix_personal_resources_org_user', 'organization_id', 'user_id'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    label = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(2000), nullable=False)
+
+    def to_dict(self):
+        return {'id': self.id, 'label': self.label, 'url': self.url, 'personal': True}
+
+
 # =============================================================================
 # VOICE MEMO MODELS
 # =============================================================================

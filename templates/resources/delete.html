@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+{% block title %}Delete resource - AgentFlow{% endblock %}
+{% block mobile_title %}My resources{% endblock %}
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {{ page_header('Delete resource', '', 'Resources') }}
+        <div class="crm-surface max-w-xl">
+            <form method="post" class="crm-surface-body space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <p>Delete "{{ resource.label }}" from your resources?</p>
+                <div class="flex gap-2">
+                    <button type="submit" class="crm-btn crm-btn-danger">Delete resource</button>
+                    <a href="{{ url_for('resources.index') }}" class="crm-btn crm-btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
