@@ -26,8 +26,8 @@ def enable(app, seed):
         db.session.commit()
 
 
-@pytest.mark.parametrize('tier,platform,allowed', [('free',False,False),('free',True,False),('pro',False,False),('enterprise',False,False),('enterprise',True,True)])
-def test_private_rollout_ignores_tier_and_superadmin_overrides(app, monkeypatch, tier, platform, allowed):
+@pytest.mark.parametrize('tier,platform,allowed', [('free',False,True),('free',True,True),('pro',False,False),('enterprise',False,False),('enterprise',True,True)])
+def test_free_access_preserves_paid_rollout_and_superadmin_rules(app, monkeypatch, tier, platform, allowed):
     monkeypatch.setattr('feature_flags._current_user_is_super_admin', lambda:True)
     org=SimpleNamespace(subscription_tier=tier,is_platform_admin=platform,feature_flags={'EMAIL_CAMPAIGNS':True,'MARKETING':True})
     with app.test_request_context('/'):
@@ -37,17 +37,30 @@ def test_private_rollout_ignores_tier_and_superadmin_overrides(app, monkeypatch,
         assert get_org_features(org)['MARKETING'] is allowed
 
 
-def test_free_account_cannot_reach_marketing_even_with_override(owner_b_client, app, seed):
+def test_free_account_can_open_marketing_and_disable_it(owner_b_client, app, seed):
     with app.app_context():
-        org,_=load_org_user(seed,'org_b','owner_b')
-        org.subscription_tier='free';org.is_platform_admin=False
-        org.feature_flags={'EMAIL_CAMPAIGNS':True,'MARKETING':True};db.session.commit()
-    for path in ('overview','library','studio','campaigns/new','settings'):
-        assert owner_b_client.get('/marketing/'+path).status_code in (302,403,404)
-    for path in ('preview','send-test','estimate'):
-        assert owner_b_client.post('/marketing/api/'+path,json={}).status_code in (302,403,404)
-    body=owner_b_client.get('/dashboard').get_data(as_text=True)
-    assert 'href="/marketing"' not in body
+        org, _ = load_org_user(seed, 'org_b', 'owner_b')
+        saved = (org.subscription_tier, org.is_platform_admin, org.feature_flags)
+        org.subscription_tier = 'free'
+        org.is_platform_admin = False
+        org.feature_flags = {}
+        db.session.commit()
+    try:
+        response = owner_b_client.get('/marketing/overview', follow_redirects=True)
+        assert response.status_code == 200
+        assert '100 attempts left' in response.get_data(as_text=True)
+        # Missing content reaches validation rather than the paid-plan gate.
+        assert owner_b_client.post('/marketing/api/send-test', json={}).status_code == 400
+        with app.app_context():
+            org, _ = load_org_user(seed, 'org_b', 'owner_b')
+            org.feature_flags = {'EMAIL_CAMPAIGNS': False}
+            db.session.commit()
+        assert owner_b_client.get('/marketing/overview').status_code in (302, 403, 404)
+    finally:
+        with app.app_context():
+            org, _ = load_org_user(seed, 'org_b', 'owner_b')
+            org.subscription_tier, org.is_platform_admin, org.feature_flags = saved
+            db.session.commit()
 
 
 def test_draft_can_save_without_audience_and_resume(owner_a_client, app, seed):

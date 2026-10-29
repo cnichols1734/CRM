@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import DateTime, bindparam, func, text
 
-from models import MarketingSend, UserEmailIntegration, db
+from models import MarketingMonthlyUsage, MarketingSend, UserEmailIntegration, db
 from tier_config.tier_limits import get_tier_defaults
 
 # Per-org quota override. Lives in the feature_flags JSON so raising a limit for
@@ -93,6 +93,7 @@ class Quota:
     limit: int
     used: int
     period_start: datetime
+    counts_attempts: bool = False
 
     @property
     def remaining(self) -> int:
@@ -158,6 +159,57 @@ def used_this_month(organization_id: int, now: Optional[datetime] = None) -> int
 def quota_for(org, now: Optional[datetime] = None) -> Quota:
     return Quota(
         limit=monthly_limit(org),
-        used=used_this_month(org.id, now),
+        used=attempts_this_month(org.id, now) if is_free(org) else used_this_month(org.id, now),
         period_start=period_start(now),
+        counts_attempts=is_free(org),
     )
+
+
+def is_free(org) -> bool:
+    return getattr(org, 'subscription_tier', None) == 'free'
+
+
+def attempts_this_month(organization_id, now=None) -> int:
+    return db.session.query(MarketingMonthlyUsage.attempts).filter_by(
+        organization_id=organization_id, period_start=period_start(now),
+    ).scalar() or 0
+
+
+class QuotaExhausted(ValueError):
+    pass
+
+
+def reserve_free_attempt(organization_id, now=None):
+    """Commit one slot before Gmail, independently of later request rollbacks.
+
+    The conditional upsert serializes competing senders on the monthly row.
+    An uncertain or failed provider result keeps its slot. Paid plans retain
+    their existing campaign quota behavior.
+    """
+    from models import Organization
+    org = db.session.get(Organization, organization_id)
+    if org is None:
+        raise QuotaExhausted('The sending organization is unavailable.')
+    if not is_free(org):
+        return
+    limit = monthly_limit(org)
+    if limit <= 0:
+        raise QuotaExhausted('Marketing email is not included in your plan.')
+    with db.engine.begin() as conn:
+        if conn.dialect.name == 'postgresql':
+            conn.execute(text("SELECT set_config('app.current_org_id', :org, true)"),
+                         {'org': str(organization_id)})
+        used = conn.execute(text("""
+            INSERT INTO marketing_monthly_usage (organization_id, period_start, attempts)
+            VALUES (:org, :period, 1)
+            ON CONFLICT (organization_id, period_start) DO UPDATE
+            SET attempts = marketing_monthly_usage.attempts + 1
+            WHERE marketing_monthly_usage.attempts < :limit
+            RETURNING attempts
+        """).bindparams(bindparam("period", type_=DateTime)),
+            {'org': organization_id, 'period': period_start(now), 'limit': limit}).scalar()
+    if used is None:
+        raise QuotaExhausted(
+            f'You have used all {limit:,} marketing email attempts this month. '
+            'Your allowance resets on the first of next month at 00:00 UTC.'
+        )
