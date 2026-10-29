@@ -122,3 +122,22 @@ def execute_report(report_id, date_range='this_month', user_id=None):
         return report_methods[report_id]()
 
     return {'rows': [], 'totals': {}}
+
+
+@reports_bp.route('/overview')
+@login_required
+def overview():
+    """Activity and source totals without enabling the legacy report catalog."""
+    from feature_flags import can_access_reports_overview
+    from services.activity_report_service import get_activity_overview
+
+    if not can_access_reports_overview(current_user):
+        abort(403)
+    days = 30 if request.args.get('days') == '30' else 7
+    team = request.args.get('view') == 'all' and is_org_admin()
+    return render_template(
+        'reports/overview.html',
+        report=get_activity_overview(days=days, team=team),
+        days=days, view_mode='all' if team else 'my',
+        can_view_all=is_org_admin(),
+    )

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+{% block title %}Reports - AgentFlow{% endblock %}
+{% block mobile_title %}Reports{% endblock %}
+{% block content %}
+<div class="crm-page"><div class="crm-page__inner">
+    {{ page_header('Reports', 'Review your recorded activity and where your contacts came from.') }}
+    <form method="get" class="flex flex-wrap items-end gap-3 mb-6">
+        <div><label for="report-days" class="crm-field-label">Activity period</label>
+            <select id="report-days" name="days" class="crm-select">
+                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+            </select>
+        </div>
+        {% if can_view_all %}<div><label for="report-view" class="crm-field-label">Scope</label>
+            <select id="report-view" name="view" class="crm-select">
+                <option value="my" {% if view_mode == 'my' %}selected{% endif %}>My records</option>
+                <option value="all" {% if view_mode == 'all' %}selected{% endif %}>Organization</option>
+            </select>
+        </div>{% endif %}
+        <button type="submit" class="crm-btn">Apply</button>
+    </form>
+    <section aria-labelledby="activity-heading" class="mb-8">
+        <h2 id="activity-heading" class="crm-section-title">Recorded activity</h2>
+        <p class="crm-muted text-sm mt-1 mb-4">{{ report.start.strftime('%b %d, %Y') }} through {{ report.end.strftime('%b %d, %Y') }}, including today.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div class="crm-stat"><div class="crm-stat__label">Logged activities</div><div class="crm-stat__value">{{ report.activities }}</div></div>
+            <div class="crm-stat"><div class="crm-stat__label">Contacts with activity</div><div class="crm-stat__value">{{ report.contacts_with_activity }}</div></div>
+        </div>
+        {% if report.activity_types %}<dl class="flex flex-wrap gap-x-6 gap-y-2 mb-4">{% for item in report.activity_types %}<div class="flex gap-2"><dt class="crm-muted">{{ item.label }}</dt><dd class="font-medium">{{ item.count }}</dd></div>{% endfor %}</dl>
+        {% else %}<p class="mb-3">No activity logged in this period. Log an activity from a contact to include it here.</p>{% endif %}
+        <p class="crm-muted text-sm">{% if view_mode == 'all' %}Activities recorded for contacts in your organization.{% else %}Activities you recorded for contacts you currently own.{% endif %} Each contact counts once, even with several activities. Counts use the saved activity date. Last-contact dates alone do not count, and a logged call or email does not confirm a conversation.</p>
+    </section>
+    <section aria-labelledby="source-heading">
+        <h2 id="source-heading" class="crm-section-title">Contacts by source</h2>
+        <p class="crm-muted text-sm mt-1 mb-4">All {{ report.total_contacts }} {% if view_mode == 'all' %}organization{% else %}owned{% endif %} contacts, across all dates. The activity period does not filter this table.</p>
+        {% if report.sources %}
+        <div class="crm-table-wrap"><table class="crm-table">
+            <caption class="sr-only">Contact sources and share linked to a closed transaction</caption>
+            <thead><tr><th scope="col">Source</th><th scope="col">Contacts</th><th scope="col">With a closed transaction</th><th scope="col">Share</th></tr></thead>
+            <tbody>{% for row in report.sources %}<tr><th scope="row" class="text-left font-medium">{{ row.source }}</th><td>{{ row.contacts }}</td><td>{{ row.closed_contacts }}</td><td>{{ '%.1f'|format(row.closed_share) }}%</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="crm-surface p-5">Add contacts and record their lead source to see a source breakdown.</div>{% endif %}
+        <p class="crm-muted text-sm mt-4">Share is the number of contacts linked as a buyer, seller, landlord, or tenant to at least one transaction currently marked closed, divided by all contacts in that source. Only transactions you can access count. Each contact counts once. This is an all-time snapshot using current sources and statuses, not a period conversion rate. Custom sources under Other are grouped together.</p>
+    </section>
+</div></div>
+{% endblock %}

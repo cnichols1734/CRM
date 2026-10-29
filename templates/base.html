@@ -2841,7 +2841,7 @@
 
                 {# ── Insights & Tools (only render if at least one item is visible) ── #}
                 {% set _has_marketing = org_has_feature('EMAIL_CAMPAIGNS') or org_has_feature('MARKETING') %}
-                {% set _has_reports   = can_access_reports(current_user) %}
+                {% set _has_reports   = can_access_reports_overview(current_user) %}
                 {% set _has_tax       = org_has_feature('TAX_PROTEST') %}
                 {% set _has_action    = org_has_feature('AI_ACTION_PLAN') %}
                 {% set _has_briefing  = org_has_feature('AI_DAILY_TODO') %}
@@ -2856,7 +2856,7 @@
                     </a>
                     {% endif %}
                     {% if _has_reports %}
-                    <a href="{{ url_for('reports.landing') }}"
+                    <a href="{{ url_for('reports.overview') }}"
                        class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}is-active{% endif %}">
                         <i class="fas fa-chart-pie"></i>
                         <span>Reports</span>

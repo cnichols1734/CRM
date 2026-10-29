@@ -102,7 +102,8 @@ GLOBAL_FEATURE_OVERRIDES = {
 FEATURE_FLAGS = {
     'TRANSACTIONS_ENABLED': True,
     'REPORTS_ADMIN_ONLY': True,  # When True, only admins/owners can access Reports
-    # Parked. Flip True to put Reports back in nav and restore /reports access.
+    # The legacy report catalog stays parked separately from the overview.
+    'REPORTS_OVERVIEW_ENABLED': True,
     'REPORTS_ENABLED': False,
 }
 
@@ -426,6 +427,14 @@ def can_access_documents(user) -> bool:
         return False
     
     return org_has_feature('DOCUMENT_GENERATION', org)
+
+
+def can_access_reports_overview(user) -> bool:
+    """Basic activity and source totals are available on every plan."""
+    return bool(
+        user and user.is_authenticated and user.organization_id
+        and FEATURE_FLAGS.get('REPORTS_OVERVIEW_ENABLED', False)
+    )
 
 
 def can_access_reports(user) -> bool:
