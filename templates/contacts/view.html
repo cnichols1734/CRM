@@ -271,6 +271,10 @@
                                     <span class="mt-1.5 block text-xs text-slate-500">Ex: they want to buy a home, sell a home, looking for acreage.</span>
                                 </label>
                                 <label class="block">
+                                    <span class="crm-field-label">Buyer criteria</span>
+                                    <textarea name="buyer_criteria" rows="3" class="crm-textarea" placeholder="At least 4 bedrooms, a pool, under $500,000 in BHISD">{{ contact.buyer_criteria or '' }}</textarea>
+                                </label>
+                                <label class="block">
                                     <span class="crm-field-label">What is their timeline?</span>
                                     <textarea name="move_timeline" rows="2" class="crm-input resize-y">{{ contact.move_timeline or '' }}</textarea>
                                     <span class="mt-1.5 block text-xs text-slate-500">Ex: now, within the next 6 months, within a year.</span>
@@ -393,6 +397,10 @@
                                 <div>
                                     <dt class="crm-field-label mb-0">What does this person want right now?</dt>
                                     <dd class="mt-0.5 whitespace-pre-line text-sm" style="color: var(--ink);">{{ contact.current_objective or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="crm-field-label mb-0">Buyer criteria</dt>
+                                    <dd class="mt-0.5 whitespace-pre-line break-words text-sm" style="color: var(--ink);">{{ contact.buyer_criteria or 'Not set' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="crm-field-label mb-0">Timeline</dt>

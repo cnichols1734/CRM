@@ -345,6 +345,7 @@ class Contact(db.Model):
     state = db.Column(db.String(50))
     zip_code = db.Column(db.String(20))
     notes = db.Column(db.Text)
+    buyer_criteria = db.Column(db.Text, nullable=True)
     lead_source = db.Column(db.String(128), nullable=True)
     lead_source_other = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
