@@ -4825,6 +4825,18 @@ class MarketingEnrollment(db.Model):
                 f'contact={self.contact_id} step={self.current_step_index}>')
 
 
+class MarketingMonthlyUsage(db.Model):
+    """Durable free-plan attempts, retained when campaigns or contacts are deleted."""
+    __tablename__ = 'marketing_monthly_usage'
+
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    period_start = db.Column(db.DateTime, primary_key=True)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+
+
 class MarketingSend(db.Model):
     """One row per email, including ones we deliberately did not send.
 

@@ -10,10 +10,8 @@ TIER_DEFAULTS = {
         'max_contacts': 10000,
         'can_invite_users': False,
         'daily_ai_chat_messages': 25,  # Free tier: 25 messages/day to B.O.B.
-        # Marketing email is capped per calendar month. The cap exists for
-        # deliverability, not packaging: the sending domain is shared, so one
-        # org blasting a purchased list degrades everyone's inbox placement.
-        'monthly_marketing_sends': 0,
+        # Free marketing uses the agent's connected Gmail account.
+        'monthly_marketing_sends': 100,
     },
     'pro': {
         'max_users': 25,  # Default, can be overridden per-org

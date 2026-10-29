@@ -36,8 +36,8 @@ TIER_FEATURES = {
         'TRANSACTIONS': False,
         'DOCUMENT_GENERATION': False,
         'MARKET_INSIGHTS': True,
-        'MARKETING': False,
-        'EMAIL_CAMPAIGNS': False,
+        'MARKETING': True,
+        'EMAIL_CAMPAIGNS': True,
         'TAX_PROTEST': False,
         'MCP_CONNECTOR': True,
     },
@@ -127,12 +127,16 @@ def _current_user_is_super_admin() -> bool:
 
 
 def marketing_available(org) -> bool:
-    """Only the existing brokerage rollout can use marketing, including workers."""
+    """Free accounts and the existing brokerage rollout can use marketing."""
     return bool(
         GLOBAL_FEATURE_OVERRIDES.get('EMAIL_CAMPAIGNS', True)
         and GLOBAL_FEATURE_OVERRIDES.get('MARKETING', True)
-        and org and getattr(org, 'is_platform_admin', False)
-        and getattr(org, 'subscription_tier', None) == 'enterprise'
+        and org and (
+            getattr(org, 'subscription_tier', None) == 'free'
+            or (getattr(org, 'is_platform_admin', False)
+                and getattr(org, 'subscription_tier', None) == 'enterprise')
+        )
+        and (getattr(org, 'feature_flags', None) or {}).get('MARKETING', True)
         and (getattr(org, 'feature_flags', None) or {}).get('EMAIL_CAMPAIGNS', True)
     )
 
@@ -158,7 +162,7 @@ def org_has_feature(feature_name: str, org=None) -> bool:
     if not org:
         return False
 
-    # Even a global enable cannot expand the private marketing rollout.
+    # Marketing has its own rollout and organization opt-out rules.
     if feature_name in ('MARKETING', 'EMAIL_CAMPAIGNS'):
         return marketing_available(org)
 

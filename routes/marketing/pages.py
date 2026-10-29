@@ -489,6 +489,7 @@ def campaigns_list():
     campaigns = pagination.items
     return render_template(
         'marketing/campaigns.html', campaigns=campaigns,
+        quota=sending_config.quota_for(org),
         activity_by_id=activity.snapshots(campaigns), pagination=pagination,
         status=view, search=search, local_time=activity.local_time,
         nav={'draft': 'drafts', 'completed': 'finished'}.get(view, 'campaigns'),
