@@ -14,7 +14,7 @@
         </a>
 
         {% set _title = 'Upgrade to <em>Pro</em>' %}
-        {% call page_header(_title, 'Unlock unlimited AI, transactions, document generation, and team invites.', 'Plans · Coming soon') %}
+        {% call page_header(_title, 'Unlock unlimited AI, transactions, and team invites.', 'Plans · Coming soon') %}
             <span class="crm-badge crm-badge-warning">
                 <i class="far fa-clock text-[10px] mr-1.5"></i>
                 Coming soon
@@ -50,9 +50,8 @@
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> Google integration (Gmail &amp; Calendar)</li>
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> B.O.B. AI Chat (10/day)</li>
                     <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Unlimited AI chat</li>
-                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> AI daily todo &amp; action plans</li>
+                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> AI daily To-Do &amp; action plans</li>
                     <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Transaction management</li>
-                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Document generation</li>
                     <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Team invitations</li>
                     <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Company updates</li>
                 </ul>
@@ -81,10 +80,9 @@
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> Up to 25 users</li>
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> Unlimited contacts</li>
                     <li class="crm-plan__feature"><i class="fas fa-infinity"></i> <b>Unlimited</b> B.O.B. AI chat</li>
-                    <li class="crm-plan__feature"><i class="fas fa-check"></i> AI daily todo generator</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> AI daily To-Do generator</li>
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> AI action plan builder</li>
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> Transaction management</li>
-                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Document generation &amp; e-signing</li>
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> Team invites &amp; member management</li>
                     <li class="crm-plan__feature"><i class="fas fa-check"></i> Company updates with comments &amp; reactions</li>
                 </ul>
@@ -103,11 +101,10 @@
                 <h2 class="crm-section-title mt-1.5">Capabilities included with the Pro plan</h2>
             </header>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {% set highlights = [
-                    ('Unlimited AI', 'fa-infinity', 'Unlimited B.O.B. conversations, plus AI daily todos and action plans.'),
+                    ('Unlimited AI', 'fa-infinity', 'Unlimited B.O.B. conversations, plus AI daily To-Dos and action plans.'),
                     ('Transaction management', 'fa-file-contract', 'Track deals from listing to close with full timeline visibility.'),
-                    ('Document generation', 'fa-file-signature', 'Auto-generate contracts and collect e-signatures seamlessly.'),
                     ('Team collaboration', 'fa-users', 'Invite teammates with role-based access and permissions.')
                 ] %}
                 {% for title, icon, desc in highlights %}
