@@ -262,6 +262,8 @@ def contact_summary(contact: Contact) -> dict:
         'email': contact.email,
         'phone': contact.phone,
         'groups': [g.name for g in contact.groups if g.is_active],
+        'buyer_criteria': truncate(contact.buyer_criteria, MAX_NOTE_FIELD),
+        'buyer_criteria_truncated': len((contact.buyer_criteria or '').strip()) > MAX_NOTE_FIELD,
         'last_contact_date': (
             contact.last_contact_date.isoformat()
             if contact.last_contact_date else None
@@ -277,6 +279,8 @@ def contact_detail(contact: Contact, ctx: BobContext) -> dict:
         'state': contact.state,
         'zip_code': contact.zip_code,
         'notes': truncate(contact.notes, MAX_NOTE_FIELD),
+        'buyer_criteria': truncate(contact.buyer_criteria, MAX_CONTACT_NOTES),
+        'buyer_criteria_truncated': len((contact.buyer_criteria or '').strip()) > MAX_CONTACT_NOTES,
         'current_objective': truncate(contact.current_objective),
         'move_timeline': truncate(contact.move_timeline),
         'motivation': truncate(contact.motivation),

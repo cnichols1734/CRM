@@ -87,7 +87,7 @@ _CONTACT_PRESENCE_FIELDS = [
     'state', 'zip_code', 'notes', 'potential_commission', 'last_email_date',
     'last_text_date', 'last_phone_call_date', 'last_contact_date',
     'current_objective', 'move_timeline', 'motivation', 'financial_status',
-    'additional_notes',
+    'additional_notes', 'buyer_criteria',
 ]
 _CONTACT_PRESENCE_FILTERS = {
     'group_status': {
@@ -125,7 +125,8 @@ TOOLS: tuple[Tool, ...] = (
         name='search_contacts',
         description=(
             'Find contacts in the agent\'s CRM by name, email, phone, or '
-            'location. Always call this before any tool that needs a '
+            'location or saved buyer criteria. Always call this before a tool '
+            'that needs a '
             'contact_id, and before answering questions about a specific '
             'person. Returns compact records plus total_matching, which is the '
             'real number of matches and may exceed the records returned; quote '
@@ -168,6 +169,20 @@ TOOLS: tuple[Tool, ...] = (
                 'description': (
                     'Filter by group, e.g. "Buyer - Under Contract". Call '
                     'list_contact_groups for real names.'
+                ),
+            },
+            'buyer_criteria': {
+                'type': 'string',
+                'description': (
+                    'Literal, case-insensitive text to find in saved buyer criteria, '
+                    'e.g. BHISD or pool. For listing-fit questions, use one broad '
+                    'term or present_fields=["buyer_criteria"] to retrieve candidates, '
+                    'then compare their saved criteria with the listing. This is '
+                    'substring search, not a numeric budget or bedroom filter. '
+                    'If buyer_criteria_truncated is true, call get_contact for '
+                    'more detail. If it is still truncated, ask the agent to '
+                    'review the contact. Do not claim a confirmed match when '
+                    'details are missing.'
                 ),
             },
             **_CONTACT_PRESENCE_FILTERS,
@@ -214,6 +229,20 @@ TOOLS: tuple[Tool, ...] = (
             'group_name': {
                 'type': 'string',
                 'description': 'Restrict to one contact group.',
+            },
+            'buyer_criteria': {
+                'type': 'string',
+                'description': (
+                    'Literal, case-insensitive text to find in saved buyer criteria, '
+                    'e.g. BHISD or pool. For listing-fit questions, use one broad '
+                    'term or present_fields=["buyer_criteria"] to retrieve candidates, '
+                    'then compare their saved criteria with the listing. This is '
+                    'substring search, not a numeric budget or bedroom filter. '
+                    'If buyer_criteria_truncated is true, call get_contact for '
+                    'more detail. If it is still truncated, ask the agent to '
+                    'review the contact. Do not claim a confirmed match when '
+                    'details are missing.'
+                ),
             },
             **_CONTACT_PRESENCE_FILTERS,
             'group_by': {

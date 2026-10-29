@@ -48,6 +48,7 @@ CONTACT_PRESENCE_COLUMNS = {
     'state': Contact.state,
     'zip_code': Contact.zip_code,
     'notes': Contact.notes,
+    'buyer_criteria': Contact.buyer_criteria,
     'potential_commission': Contact.potential_commission,
     'last_email_date': Contact.last_email_date,
     'last_text_date': Contact.last_text_date,
@@ -62,7 +63,7 @@ CONTACT_PRESENCE_COLUMNS = {
 _TEXT_PRESENCE_FIELDS = {
     'first_name', 'last_name', 'email', 'phone', 'street_address', 'city',
     'state', 'zip_code', 'notes', 'current_objective', 'move_timeline',
-    'motivation', 'financial_status', 'additional_notes',
+    'motivation', 'financial_status', 'additional_notes', 'buyer_criteria',
 }
 
 # Fields update_contact is allowed to touch. Anything outside this set is
@@ -110,6 +111,10 @@ def _apply_filters(query, args: dict):
         if digits:
             conditions.append(Contact.phone.like(f'%{digits}%'))
         query = query.filter(or_(*conditions))
+
+    buyer_criteria = (args.get('buyer_criteria') or '').strip()
+    if buyer_criteria:
+        query = query.filter(Contact.buyer_criteria.icontains(buyer_criteria, autoescape=True))
 
     # Exact, case-insensitive matches. City is the exception: agents say
     # "Houston" for a value stored as "Houston" or "North Houston".
@@ -183,6 +188,7 @@ def _filter_description(args: dict) -> str:
     for label, key in (
         ('matching "%s"', 'query'), ('in %s', 'city'), ('in %s', 'state'),
         ('in %s', 'zip_code'), ('in group %s', 'group_name'),
+        ('with buyer criteria containing "%s"', 'buyer_criteria'),
     ):
         value = (args.get(key) or '').strip() if args.get(key) else ''
         if value:
