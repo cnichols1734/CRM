@@ -25,16 +25,17 @@
     /* Quill editor styling */
     #editor-container {
         height: 400px;
-        background: white;
-        border: 2px solid #e2e8f0;
+        background: var(--paper);
+        color: var(--ink);
+        border: 2px solid var(--hairline-strong);
         border-top: none;
         border-radius: 0 0 0.75rem 0.75rem;
     }
 
     .ql-toolbar {
-        border: 2px solid #e2e8f0;
+        border: 2px solid var(--hairline-strong);
         border-radius: 0.75rem 0.75rem 0 0;
-        background: #f8fafc;
+        background: var(--paper-2);
     }
 
     .ql-container {
@@ -47,8 +48,45 @@
     }
 
     .ql-editor.ql-blank::before {
-        color: #94a3b8;
+        color: var(--ink-3);
         font-style: normal;
+    }
+
+    #update-form .ql-snow .ql-picker {
+        color: var(--ink-2);
+    }
+
+    #update-form .ql-snow .ql-stroke {
+        stroke: var(--ink-2);
+    }
+
+    #update-form .ql-snow .ql-fill {
+        fill: var(--ink-2);
+    }
+
+    #update-form .ql-snow .ql-picker-options,
+    #update-form .ql-snow .ql-tooltip {
+        background: var(--paper);
+        color: var(--ink);
+        border-color: var(--hairline-strong);
+    }
+
+    #update-form .ql-snow .ql-tooltip input[type=text] {
+        background: var(--paper);
+        color: var(--ink);
+        border-color: var(--hairline-strong);
+    }
+
+    #update-form .ql-snow :is(button, .ql-picker-label, .ql-picker-item):is(:hover, :focus-visible, .ql-active, .ql-selected) {
+        color: var(--ink);
+    }
+
+    #update-form .ql-snow :is(button, .ql-picker-label, .ql-picker-item):is(:hover, :focus-visible, .ql-active, .ql-selected) .ql-stroke {
+        stroke: var(--accent-ink);
+    }
+
+    #update-form .ql-snow :is(button, .ql-picker-label, .ql-picker-item):is(:hover, :focus-visible, .ql-active, .ql-selected) .ql-fill {
+        fill: var(--accent-ink);
     }
 
     /* Premium input styling */
