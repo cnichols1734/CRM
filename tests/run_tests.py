@@ -263,7 +263,21 @@ class CRMTestSuite:
                 }
             }"""
         )
-        self.page.wait_for_timeout(80)
+        # Auth inputs fade their focus ring over 150ms. Measure the resting
+        # styles after the transition, without hiding persistent halos.
+        self.page.wait_for_function(
+            """(selector) => {
+                const scope = document.querySelector(selector);
+                return scope && [...scope.querySelectorAll('input')].every((input) =>
+                    document.activeElement !== input &&
+                    input.getAnimations().every((animation) =>
+                        !animation.pending && animation.playState !== 'running'
+                    )
+                );
+            }""",
+            arg=spec["scope"],
+            timeout=3000,
+        )
 
         report = self.page.evaluate(COLLECT_AUTH_FAMILY_REPORT, spec)
         assert_auth_family_report(report, spec["name"], theme)
