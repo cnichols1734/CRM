@@ -52,12 +52,12 @@ class TestOverrideStorage:
             assert TIER_FEATURES[tier]['BOB_TELEGRAM'] is True
             assert tier_default_for('BOB_TELEGRAM', tier) is True
 
-    def test_email_campaigns_enterprise_only_by_tier(self):
-        assert TIER_FEATURES['free']['EMAIL_CAMPAIGNS'] is False
+    def test_email_campaigns_defaults_include_free_allowance(self):
+        assert TIER_FEATURES['free']['EMAIL_CAMPAIGNS'] is True
         assert TIER_FEATURES['pro']['EMAIL_CAMPAIGNS'] is False
         assert TIER_FEATURES['enterprise']['EMAIL_CAMPAIGNS'] is True
 
-    def test_super_admin_cannot_enable_email_campaigns_on_a_free_org(self, monkeypatch):
+    def test_marketing_access_respects_rollout_and_org_opt_out(self, monkeypatch):
         monkeypatch.setattr(
             'feature_flags._current_user_is_super_admin', lambda: True,
         )
@@ -66,8 +66,17 @@ class TestOverrideStorage:
             is_platform_admin=False,
             feature_flags={},
         )
-        assert org_has_feature('EMAIL_CAMPAIGNS', org) is False
+        assert org_has_feature('EMAIL_CAMPAIGNS', org) is True
         assert org_has_feature('TRANSACTIONS', org) is False
+        for disabled_flag in ('MARKETING', 'EMAIL_CAMPAIGNS'):
+            org.feature_flags = {disabled_flag: False}
+            assert org_has_feature('EMAIL_CAMPAIGNS', org) is False
+        org.feature_flags = {}
+        for tier in ('pro', 'enterprise'):
+            org.subscription_tier = tier
+            assert org_has_feature('EMAIL_CAMPAIGNS', org) is False
+        org.is_platform_admin = True
+        assert org_has_feature('EMAIL_CAMPAIGNS', org) is True
 
     def test_enabling_a_feature_off_by_default_stores_an_override(self, app, org):
         with app.app_context():
