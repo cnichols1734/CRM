@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+
+const transitions = await readFile(new URL('../../static/js/transitions.js', import.meta.url), 'utf8');
 
 const source = await readFile(new URL('../../frontend/controllers/contacts_page_controller.js', import.meta.url), 'utf8');
 const { default: ContactsPage } = await import('data:text/javascript;base64,' + Buffer.from(
@@ -142,4 +145,19 @@ test('network failure keeps the current input and list available', async () => {
   assert.equal(f.page.searchResultsTarget.innerHTML, 'old');
   assert.equal(f.page.searchErrorTarget.hidden, false);
   assert.equal(f.history.length, 0);
+});
+
+
+test('search resizes the contacts slider to the updated list height', async () => {
+  const f = fixture();
+  const context = { window, document: { documentElement: {}, readyState: 'loading', addEventListener() {} } };
+  vm.runInNewContext(transitions, context);
+  const body = { get scrollHeight() { return f.page.searchResultsTarget.innerHTML === 'old' ? 2400 : 480; } };
+  const slider = { style: { height: '2400px' }, getAttribute: () => '1', querySelector: () => ({ querySelector: () => body }) };
+  f.page.searchResultsTarget.closest = () => slider;
+  const pending = f.page.loadSearch();
+  f.finish(0, 'Jane');
+  await pending;
+  assert.equal(slider.style.height, '480px');
+  assert.equal(f.page.searchErrorTarget.hidden, true);
 });

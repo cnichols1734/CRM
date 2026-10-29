@@ -318,6 +318,7 @@ export default class extends Controller {
       slots.forEach((name, index) => {
         this[`${name}Target`].innerHTML = replacements[index].innerHTML;
       });
+      window.TMotion?.syncContactsPageHeight(this.searchResultsTarget.closest(".crm-contacts-pages"));
       this.exportLinkTarget.href = exportLink.getAttribute("href");
       this.filterPanelTarget.querySelector('input[name="q"]').value = query;
       window.history.replaceState(window.history.state, "", url);
