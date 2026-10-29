@@ -60,11 +60,13 @@ export default class extends Controller {
   // both dismiss. Mobile (<md) keeps native <a> navigation since the
   // mobile card stack is unaffected.
   openPreview(event) {
+    // The second click belongs to double-click navigation, not the preview toggle.
+    if (event.detail > 1) return;
     if (!this.hasLayoutTarget) return;
 
     // Don't hijack clicks on inner links/buttons (lets email/phone-style
     // anchors inside future rows work normally).
-    const interactive = event.target.closest("a, button, input, select, textarea, [role='button']");
+    const interactive = event.target.closest("a, button, input, select, textarea, label, summary, [role='button'], [role='checkbox'], [role='menuitem'], [contenteditable]");
     if (interactive && this.element.contains(interactive)) return;
 
     const row = event.currentTarget;
@@ -92,6 +94,18 @@ export default class extends Controller {
       this.renderSkeleton();
       this.fetchPreview(contactId, { warmSwap: false });
     }
+  }
+
+  openContact(event) {
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (event.target.closest("a, button, input, select, textarea, label, summary, [role='button'], [role='checkbox'], [role='menuitem'], [contenteditable]")) return;
+
+    const href = event.currentTarget.dataset.contactHref;
+    if (!href) return;
+
+    event.preventDefault();
+    window.location.assign(href);
   }
 
   closePreview(event) {
