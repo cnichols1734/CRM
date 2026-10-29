@@ -1,6 +1,8 @@
 """Reporting counts, permission boundaries, and independent rollout gate."""
 from datetime import date, datetime
 
+import pytest
+
 from flask_login import login_user
 
 from feature_flags import FEATURE_FLAGS
@@ -113,3 +115,22 @@ def test_overview_requires_login_and_hides_team_control(client, agent_a_client):
     assert b'id="report-view"' not in response.data
     assert b'Activities you recorded' in response.data
     assert b'1 owned contacts' in response.data
+
+
+@pytest.mark.parametrize('role', ['co_landlord', 'co_tenant'])
+def test_closed_rental_co_clients_count_once(app, db, seed, role):
+    with app.test_request_context():
+        login_user(db.session.get(User, seed['owner_a']))
+        contact = db.session.get(Contact, seed['contact_a'])
+        contact.lead_source = 'Referral'
+        tx = db.session.get(Transaction, seed['tx_a'])
+        tx.status = 'closed'
+        for _ in range(2):
+            db.session.add(TransactionParticipant(
+                organization_id=seed['org_a'], transaction_id=tx.id,
+                contact_id=contact.id, role=role,
+            ))
+        db.session.flush()
+        row = get_activity_overview()['sources'][0]
+        assert (row['contacts'], row['closed_contacts'], row['closed_share']) == (1, 1, 100.0)
+        db.session.rollback()

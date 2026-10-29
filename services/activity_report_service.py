@@ -9,7 +9,10 @@ from models import Contact, Interaction, Transaction, TransactionAssignment, Tra
 from services.tenant_service import is_org_admin
 
 
-CLIENT_ROLES = ('buyer', 'co_buyer', 'seller', 'co_seller', 'landlord', 'tenant')
+CLIENT_ROLES = (
+    'buyer', 'co_buyer', 'seller', 'co_seller',
+    'landlord', 'co_landlord', 'tenant', 'co_tenant',
+)
 ACTIVITY_LABELS = {'call': 'Calls', 'email': 'Emails', 'text': 'Texts', 'meeting': 'Meetings', 'other': 'Other'}
 
 
