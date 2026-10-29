@@ -133,7 +133,7 @@
 
     <div class="crm-page__inner max-w-[1600px]">
         {# Back link + actions — in-flow like contacts, not a sticky chrome bar #}
-        <div class="mb-4 flex items-center justify-between gap-3">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             {% if ref == 'contact' and contact_id_arg %}
             <a href="{{ url_for('contacts.view_contact', contact_id=contact_id_arg) }}"
                class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">

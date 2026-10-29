@@ -1,0 +1,127 @@
+/* Shared layouts adapt to their working space, including touch laptops. */
+body.crm-shell { height: 100dvh; }
+body.crm-shell > header { flex-shrink: 0; }
+main#mainContent, main#mainContent > .content-wrapper { min-width: 0; }
+html.am-skin .content-wrapper {
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (min-width: 768px) {
+  html.am-skin .content-wrapper {
+    padding-left: calc(var(--sidebar-width) + 8px + env(safe-area-inset-left, 0px));
+  }
+}
+@media (max-width: 767px) {
+  html.am-skin .content-wrapper { padding-left: env(safe-area-inset-left, 0px); }
+  body.crm-shell > header { padding-inline: max(8px, env(safe-area-inset-left, 0px)) max(8px, env(safe-area-inset-right, 0px)); }
+  body.crm-shell > header .crm-brand-logo-wrap { max-width: 108px; }
+  body.crm-shell > header > .space-x-3 { gap: 2px; }
+  body.crm-shell > header > .space-x-3 > * { margin-left: 0; }
+}
+.crm-mobile-search-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0; color: inherit;
+}
+.crm-mobile-search {
+  position: fixed; top: max(8px, env(safe-area-inset-top, 0px));
+  left: max(8px, env(safe-area-inset-left, 0px));
+  right: max(8px, env(safe-area-inset-right, 0px));
+  z-index: 100; display: flex; align-items: center; gap: 8px;
+  padding: 8px; border: 1px solid var(--hairline); border-radius: 14px;
+  background: var(--paper); color: var(--ink);
+}
+.crm-mobile-search[hidden] { display: none; }
+#crmMobileSearchSlot { flex: 1; min-width: 0; }
+#crmMobileSearch .crm-utility-search { width: 100%; max-width: none; }
+#crmMobileSearch input { width: 100%; font-size: 16px; height: 44px; }
+#crmMobileSearchClose { width: 44px; height: 44px; flex-shrink: 0; }
+body > #crmGlobalSearchResults { z-index: 101; overscroll-behavior: contain; }
+
+.crm-contact-workspace { container: contacts / inline-size; }
+.crm-contact-cards { display: none; }
+.crm-contacts-layout { display: grid; }
+.crm-contact-cards a, .crm-contact-cards a > div, .crm-contact-cards a > div > div { min-width: 0; }
+.crm-contact-cards a > div > div { flex: 1; }
+@container contacts (max-width: 960px) {
+  .crm-contact-cards { display: block; }
+  .crm-contacts-layout { display: none; }
+  .crm-contacts-layout.is-open { display: block; }
+  .crm-contact-workspace:has(.crm-contacts-layout.is-open) .crm-contact-cards { display: none; }
+  .crm-contacts-layout__table { display: none; }
+  html.am-skin .crm-contacts-layout.is-open .crm-rail {
+    position: static !important; padding: 0;
+    background: var(--canvas) !important; overflow: visible;
+  }
+  html.am-skin .crm-contacts-layout.is-open .crm-rail__inner {
+    width: 100%; max-width: 640px; margin: 0 auto; min-height: 0;
+    max-height: none !important; opacity: 1; transform: none;
+  }
+}
+.crm-transaction-workspace { container: transactions / inline-size; }
+.crm-transaction-cards { display: none; gap: 12px; }
+.crm-transaction-card { padding: 16px; min-width: 0; overflow-wrap: anywhere; }
+.crm-transaction-card__address { display: block; font-weight: 600; color: var(--ink); padding-block: 8px; }
+.crm-transaction-card__summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block: 12px; }
+.crm-transaction-card__details { margin-top: 8px; border-top: 1px solid var(--hairline); }
+.crm-transaction-card__details summary { cursor: pointer; padding-block: 12px; font-size: 13px; color: var(--ink-3); }
+.crm-transaction-card__details dl { display: grid; gap: 8px; font-size: 13px; }
+.crm-transaction-card__details dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+.crm-transaction-card__details dt { color: var(--ink-3); }
+@container transactions (max-width: 1000px) {
+  .crm-transaction-cards { display: grid; }
+  .crm-transaction-table { display: none; }
+}
+@container transactions (min-width: 600px) and (max-width: 1000px) {
+  .crm-transaction-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Keep compact pointer layouts; give touch users room on every display. */
+@media (any-pointer: coarse), (max-width: 767px) {
+  html.am-skin .crm-btn, html.am-skin .crm-rail__close,
+  html.am-skin .crm-segment__item, html.am-skin .crm-pill-tab,
+  #mobileMenuToggle, #mobileUserIcon, #bob-toggle-mobile,
+  #crmThemeToggleMobile {
+    min-height: 44px; min-width: 44px; height: auto;
+  }
+  #crmThemeToggleMobile { height: 44px !important; width: 44px !important; }
+  html.am-skin input.crm-input, html.am-skin input.crm-search,
+  html.am-skin select.crm-select, html.am-skin textarea.crm-textarea,
+  html.am-skin .crm-utility-search input {
+    font-size: 16px !important; min-height: 44px;
+  }
+  .crm-search-item { min-height: 44px; }
+}
+.bob-panel { height: calc(100dvh - 56px); }
+.bob-panel.modal, .bob-modal-container { height: 100dvh; max-height: 100dvh; }
+html.am-skin .crm-rail__inner { max-height: calc(100dvh - 5rem) !important; }
+#mobileUserMenu { max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+.crm-mobile-nav-panel { max-width: 100%; padding-bottom: env(safe-area-inset-bottom, 0px); }
+@media (max-height: 500px) {
+  .crm-page-header { margin-bottom: 12px; padding-bottom: 12px; gap: 8px; }
+  .crm-page__inner { padding-block: 12px; }
+  .crm-page-title { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crm-contacts-layout { transition: none; }
+}
+
+@media (max-width: 899px) {
+  .document-review-workspace .drw-pdf-pane,
+  .amendment-review-workspace .drw-pdf-pane,
+  .offer-package-review-workspace .drw-pdf-pane {
+    flex: 0 0 auto; height: clamp(240px, 60dvh, 700px); min-height: 0 !important;
+  }
+}
+
+.crm-page__inner .grid > * { min-width: 0; }
+@media (max-width: 767px) {
+  body.crm-shell > header .crm-brand-logo { max-width: 100%; height: auto; }
+}
+@media (max-width: 359px) {
+  body.crm-shell > header .crm-brand-logo-wrap { max-width: 76px; }
+}
+
+@container transactions (max-width: 599px) {
+  #filterForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #filterForm > div { min-width: 0; }
+}

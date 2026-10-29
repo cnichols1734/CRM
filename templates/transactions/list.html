@@ -57,7 +57,7 @@
 } %}
 
 <div class="crm-page">
-    <div class="crm-page__inner max-w-[1680px]">
+    <div class="crm-page__inner crm-transaction-workspace max-w-[1680px]">
         {% set _tx_title = 'Transactions <em>· ' ~ transactions|length ~ '</em>' %}
         {% call page_header(_tx_title, '', 'Pipeline') %}
             {% if vtc_pilot %}
@@ -171,8 +171,38 @@
         </section>
 
         {% if transactions %}
+        <div class="crm-transaction-cards">
+            {% for tx in transactions %}
+            {% set progress = document_progress.get(tx.id, {}) %}
+            {% set stage_info = stage_age.get(tx.id, {}) %}
+            {% set tx_type_name = tx.transaction_type.name if tx.transaction_type else 'seller' %}
+            {% set tx_status_labels = status_label_sets.get(tx_type_name, status_label_sets['seller']) %}
+            {% set contact = transaction_contacts.get(tx.id) %}
+            <article class="crm-surface crm-transaction-card">
+                <a class="crm-transaction-card__address" href="{{ url_for('transactions.view_transaction', id=tx.id) }}">{{ tx.street_address or 'Open transaction' }}</a>
+                <p class="crm-muted text-sm">{% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state or '' }} {{ tx.zip_code or '' }}</p>
+                <div class="crm-transaction-card__summary">
+                    <span class="crm-badge">{{ tx_status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}</span>
+                    <span class="text-sm crm-muted">{{ stage_info.get('days', 0) }}d in stage</span>
+                </div>
+                {% if contact %}<p class="text-sm">{{ contact.name }}</p>{% endif %}
+                <p class="text-sm">{{ progress.get('signed', 0) }}/{{ progress.get('total', 0) }} documents signed</p>
+                {% if progress.get('pending_signatures', 0) %}<p class="text-sm crm-muted">{{ progress.get('pending_signatures') }} awaiting signature</p>{% endif %}
+                {% if progress.get('pending_placeholders', 0) %}<p class="text-sm crm-muted">{{ progress.get('pending_placeholders') }} document placeholders</p>{% endif %}
+                <details class="crm-transaction-card__details">
+                    <summary>Details</summary>
+                    <dl>
+                        <div><dt>Type</dt><dd>{{ tx.transaction_type.display_name if tx.transaction_type else '' }}</dd></div>
+                        {% if current_user.role == 'admin' and show_all and tx.created_by %}<div><dt>Owner</dt><dd>{{ tx.created_by.first_name }} {{ tx.created_by.last_name }}</dd></div>{% endif %}
+                        {% if contact and contact.email %}<div><dt>Email</dt><dd>{{ contact.email }}</dd></div>{% endif %}
+                        <div><dt>Created</dt><dd>{{ tx.created_at.strftime('%b %d, %Y') }}</dd></div>
+                    </dl>
+                </details>
+            </article>
+            {% endfor %}
+        </div>
         {% call list_skel(6, 'crm-table-skel') %}
-        <div class="crm-table-wrap">
+        <div class="crm-table-wrap crm-transaction-table">
             <table class="crm-table min-w-[1230px]">
                 <thead>
                     <tr>

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+{% block title %}{{ 'Edit' if resource else 'Add' }} resource - AgentFlow{% endblock %}
+{% block mobile_title %}My resources{% endblock %}
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {{ page_header('Edit resource' if resource else 'Add resource', 'Only you can see and manage this link.', 'Resources') }}
+        <div class="crm-surface max-w-xl">
+            <form method="post" class="crm-surface-body space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+                <div>
+                    <label for="resource-label" class="crm-form-label">Name</label>
+                    <input id="resource-label" name="label" class="crm-input" required maxlength="100" value="{{ values.get('label', '') }}" autofocus>
+                </div>
+                <div>
+                    <label for="resource-url" class="crm-form-label">Website address</label>
+                    <input id="resource-url" name="url" class="crm-input" type="text" inputmode="url" required maxlength="2000" placeholder="https://example.com" value="{{ values.get('url', '') }}" aria-describedby="resource-url-help">
+                    <p id="resource-url-help" class="crm-muted text-sm mt-1">If you leave off https://, we'll add it.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="crm-btn crm-btn-primary">Save resource</button>
+                    <a href="{{ url_for('resources.index') }}" class="crm-btn crm-btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
