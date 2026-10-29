@@ -3,6 +3,11 @@ import { Controller } from "@hotwired/stimulus";
 export default class extends Controller {
   static targets = [
     "searchInput",
+    "searchResults",
+    "searchSummary",
+    "searchCount",
+    "searchError",
+    "exportLink",
     "mobileSearchInput",
     "mobileSearchBar",
     "filterPanel",
@@ -25,6 +30,7 @@ export default class extends Controller {
 
   connect() {
     this.searchTimeout = null;
+    this.searchVersion = 0;
     this.previewAbortController = null;
     this.previewClearTimer = null;
     this.activeRow = null;
@@ -35,6 +41,7 @@ export default class extends Controller {
   }
 
   disconnect() {
+    this.cancelSearch();
     if (this.searchTimeout) {
       window.clearTimeout(this.searchTimeout);
     }
@@ -262,39 +269,72 @@ export default class extends Controller {
     }
   }
 
+  cancelSearch() {
+    this.searchVersion++;
+    window.clearTimeout(this.searchTimeout);
+    this.searchAbort?.abort();
+  }
+
   queueSearch(event) {
     if (!this.hasSearchInputTarget) return;
-
-    const value = event.target.value.trim();
+    this.cancelSearch();
     this.toggleClearButton();
+    this.searchErrorTarget.hidden = true;
+    this.searchResultsTarget.setAttribute("aria-busy", "false");
+    if (event?.isComposing) return;
+    this.searchTimeout = window.setTimeout(() => this.loadSearch(), 250);
+  }
 
-    if (this.searchTimeout) {
-      window.clearTimeout(this.searchTimeout);
+  async loadSearch() {
+    this.cancelSearch();
+    const version = this.searchVersion;
+    this.searchAbort = new AbortController();
+    const url = new URL(window.location.href);
+    const query = this.searchInputTarget.value.trim();
+    if (query) url.searchParams.set("q", query);
+    else url.searchParams.delete("q");
+    url.searchParams.delete("page");
+    this.searchErrorTarget.hidden = true;
+    this.searchResultsTarget.setAttribute("aria-busy", "true");
+
+    try {
+      const response = await fetch(url, {
+        signal: this.searchAbort.signal,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      if (!response.ok || response.redirected) throw new Error("Search unavailable");
+      const html = await response.text();
+      if (version !== this.searchVersion) return;
+      const page = new DOMParser().parseFromString(html, "text/html");
+      const slots = ["searchResults", "searchSummary", "searchCount"];
+      const replacements = slots.map(name => page.querySelector(`[data-contacts-page-target="${name}"]`));
+      const exportLink = page.querySelector('[data-contacts-page-target="exportLink"]');
+      if (replacements.some(node => !node) || !exportLink) throw new Error("Invalid search response");
+
+      this.previewAbortController?.abort();
+      window.clearTimeout(this.previewClearTimer);
+      this.activeRow = null;
+      // Keep the search field mounted so mobile keyboards and selection survive.
+      slots.forEach((name, index) => {
+        this[`${name}Target`].innerHTML = replacements[index].innerHTML;
+      });
+      window.TMotion?.syncContactsPageHeight(this.searchResultsTarget.closest(".crm-contacts-pages"));
+      this.exportLinkTarget.href = exportLink.getAttribute("href");
+      this.filterPanelTarget.querySelector('input[name="q"]').value = query;
+      window.history.replaceState(window.history.state, "", url);
+    } catch (error) {
+      if (version !== this.searchVersion || error.name === "AbortError") return;
+      this.searchErrorTarget.hidden = false;
+    } finally {
+      if (version === this.searchVersion) this.searchResultsTarget.setAttribute("aria-busy", "false");
     }
-
-    this.searchTimeout = window.setTimeout(() => {
-      const url = new URL(window.location.href);
-      if (value) {
-        url.searchParams.set("q", value);
-      } else {
-        url.searchParams.delete("q");
-      }
-      url.searchParams.delete("page");
-      window.location.href = url.toString();
-    }, 250);
   }
 
   clearSearch(event) {
     if (event) event.preventDefault();
     if (!this.hasSearchInputTarget) return;
-
     this.searchInputTarget.value = "";
-    this.toggleClearButton();
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("q");
-    url.searchParams.delete("page");
-    window.location.href = url.toString();
+    this.queueSearch();
   }
 
   sort(event) {

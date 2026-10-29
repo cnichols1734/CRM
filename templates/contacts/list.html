@@ -12,7 +12,7 @@
     <section class="t-page" data-page-id="1">
     <div class="crm-contacts-page-body">
     <div class="crm-page__inner crm-contact-workspace">
-        {% set _title_html = 'Contacts <em>· ' ~ total_contacts ~ '</em>' %}
+        {% set _title_html = 'Contacts <em>· <span data-contacts-page-target="searchCount">' ~ total_contacts ~ '</span></em>' %}
         {% call page_header(_title_html, '', 'Database') %}
             <button type="button"
                     class="crm-btn crm-btn-secondary"
@@ -28,7 +28,7 @@
                                  groups=request.args.get('groups'),
                                  zips=request.args.get('zips'),
                                  commission=request.args.get('commission')) }}"
-               class="crm-btn crm-btn-secondary">
+               class="crm-btn crm-btn-secondary" data-contacts-page-target="exportLink">
                 <i class="fas fa-download text-xs"></i>
                 Export
             </a>
@@ -52,10 +52,12 @@
                     </a>
                 </div>
                 {% endif %}
+                <span class="inline-flex flex-wrap gap-3" data-contacts-page-target="searchSummary" role="status" aria-live="polite" aria-atomic="true">
                 {{ badge(total_contacts ~ ' records') }}
                 {% if request.args.get('q') %}
                 {{ badge('Search: ' ~ request.args.get('q'), 'accent') }}
                 {% endif %}
+                </span>
             </div>
             <div class="crm-toolbar w-full sm:w-auto sm:justify-end">
                 <div class="crm-toolbar__search t-clear">
@@ -64,7 +66,8 @@
                            placeholder="Search name, email, phone..."
                            class="crm-search pr-10"
                            data-contacts-page-target="searchInput"
-                           data-action="input->contacts-page#queueSearch">
+                           aria-label="Search contacts"
+                           data-action="input->contacts-page#queueSearch compositionend->contacts-page#queueSearch">
                     <div class="t-clear-mirror" aria-hidden="true"></div>
                     <div class="t-clear-placeholder" aria-hidden="true">Search name, email, phone...</div>
                     <div class="t-clear-glow" aria-hidden="true"></div>
@@ -110,9 +113,7 @@
                 {% if request.args.get('view') %}
                 <input type="hidden" name="view" value="{{ request.args.get('view') }}">
                 {% endif %}
-                {% if request.args.get('q') %}
-                <input type="hidden" name="q" value="{{ request.args.get('q') }}">
-                {% endif %}
+                <input type="hidden" name="q" value="{{ request.args.get('q', '') }}">
                 <div class="crm-filter-grid">
                     {% if current_user.role == 'admin' and show_all %}
                     <div>
@@ -238,6 +239,11 @@
             </div>
         </div>
 
+        <div hidden data-contacts-page-target="searchError" role="alert" class="mb-4">
+            <p class="text-sm crm-muted">Could not load contacts. Try again or reload the page.</p>
+            <button type="button" class="crm-btn crm-btn-secondary mt-2" data-action="contacts-page#loadSearch">Retry</button>
+        </div>
+        <div data-contacts-page-target="searchResults" aria-busy="false">
         {% if contacts %}
         <div class="crm-contact-cards space-y-3">
             {% for contact in contacts %}
@@ -458,6 +464,7 @@
                     <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
                 </select>
             </div>
+        </div>
         </div>
     </div>
     </div>
