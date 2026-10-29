@@ -429,3 +429,55 @@ def test_test_email_endpoint_explains_missing_google_connection(
     assert response.status_code == 400
     assert 'connect their Google account in their profile' in response.get_json()['error']
     provider.assert_not_called()
+
+
+def test_free_tests_and_downgraded_drips_share_cap_without_provider_fallback(
+    app, seed, monkeypatch,
+):
+    from models import MarketingMonthlyUsage
+    from services.marketing import sending_config as sc
+
+    from sendgrid import SendGridAPIClient
+    import smtplib
+    shared_send = MagicMock(side_effect=AssertionError('No shared marketing transport'))
+    monkeypatch.setattr(SendGridAPIClient, 'send', shared_send)
+    monkeypatch.setattr(smtplib, 'SMTP_SSL', shared_send)
+    gmail = MagicMock(return_value={'success': False, 'error': 'Temporary Gmail error', 'retryable': True})
+    monkeypatch.setattr(gmail_service, 'send_email', gmail)
+    with app.app_context():
+        org, owner = load_org_user(seed)
+        _connect(org, owner)
+        campaign = _campaign(org, owner)
+        campaign.kind = 'drip'
+        launchmod.launch(campaign, org, owner)
+        send = _queued(campaign)
+        saved = (org.subscription_tier, org.feature_flags, org.is_platform_admin)
+        org.subscription_tier = 'free'
+        org.is_platform_admin = False
+        org.feature_flags = {sc.QUOTA_OVERRIDE_KEY: 2}
+        MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
+        db.session.commit()
+        try:
+            # Two failed test recipients use the two slots, even after rollback.
+            with pytest.raises(sendmod.SendError, match='Temporary Gmail error'):
+                _send(org, owner)
+            db.session.rollback()
+            assert sc.quota_for(org).remaining == 0
+            assert gmail.call_count == 2
+            # Already queued while paid, then downgraded: pause before Gmail.
+            sendmod.deliver(send, persist_tracking=True)
+            db.session.commit()
+            assert send.status == 'queued'
+            assert campaign.status == 'paused'
+            assert 'used all 2' in campaign.auto_paused_reason
+            assert gmail.call_count == 2
+            # Retrying tests cannot evade the cap.
+            with pytest.raises(sendmod.SendError, match='used all 2'):
+                _send(org, owner)
+            assert gmail.call_count == 2
+            shared_send.assert_not_called()
+        finally:
+            db.session.rollback()
+            org.subscription_tier, org.feature_flags, org.is_platform_admin = saved
+            MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
+            db.session.commit()

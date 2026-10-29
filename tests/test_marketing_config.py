@@ -77,7 +77,7 @@ class TestSender:
 
 class TestMonthlyLimit:
     @pytest.mark.parametrize('tier,expected', [
-        ('free', 0),
+        ('free', 100),
         ('pro', 2500),
         ('enterprise', 25000),
     ])
@@ -114,7 +114,7 @@ class TestMonthlyLimit:
         assert sc.monthly_limit(org) == 25000
 
     def test_unknown_tier_falls_back_to_free(self):
-        assert sc.monthly_limit(FakeOrg(subscription_tier='legacy')) == 0
+        assert sc.monthly_limit(FakeOrg(subscription_tier='legacy')) == 100
 
 
 class TestQuotaArithmetic:
@@ -255,3 +255,45 @@ class TestUsage:
             assert quota.limit == 2500
             assert quota.used == 4
             assert quota.remaining == 2496
+
+
+def test_free_attempts_are_atomic_durable_and_month_scoped(app, seed):
+    from concurrent.futures import ThreadPoolExecutor
+    from models import MarketingMonthlyUsage
+
+    with app.app_context():
+        org = db.session.get(Organization, seed['org_b'])
+        saved = (org.subscription_tier, org.feature_flags, org.is_platform_admin)
+        org.subscription_tier = 'free'
+        org.feature_flags = {}
+        org.is_platform_admin = False
+        MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
+        db.session.commit()
+    now = datetime(2026, 10, 31, 23, 59)
+
+    def attempt(_):
+        with app.app_context():
+            try:
+                sc.reserve_free_attempt(seed['org_b'], now)
+                # A failed request must not restore a provider attempt.
+                db.session.rollback()
+                return True
+            except sc.QuotaExhausted:
+                return False
+
+    try:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(attempt, range(108)))
+        assert sum(results) == 100
+        with app.app_context():
+            assert sc.attempts_this_month(seed['org_b'], now) == 100
+            assert sc.attempts_this_month(seed['org_a'], now) == 0
+            next_month = datetime(2026, 11, 1)
+            sc.reserve_free_attempt(seed['org_b'], next_month)
+            assert sc.attempts_this_month(seed['org_b'], next_month) == 1
+    finally:
+        with app.app_context():
+            org = db.session.get(Organization, seed['org_b'])
+            org.subscription_tier, org.feature_flags, org.is_platform_admin = saved
+            MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
+            db.session.commit()

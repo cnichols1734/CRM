@@ -11,6 +11,7 @@
         <a class="crm-btn crm-btn-accent" href="{{ url_for('marketing.campaign_new') }}">Create campaign</a>
     {% endcall %}
     {% if status != 'completed' %}<div class="mkt-notices">{% include 'marketing/_readiness.html' %}</div>{% endif %}
+    {% if quota.counts_attempts %}<p class="mkt-usage">{{ '{:,}'.format(quota.remaining) }} attempts left of {{ '{:,}'.format(quota.limit) }} this month for your organization. Tests, failed sends, and retries count. Resets on the first of each month at 00:00 UTC. Every email sends from your connected Google account.</p>{% endif %}
     <div class="mkt-list-toolbar">
         <nav class="mkt-status-tabs" aria-label="Campaign status">
             {% for value, label in [('active', 'Active'), ('draft', 'Drafts'), ('completed', 'Finished')] %}

@@ -83,6 +83,11 @@ def _provider_send(
     """Send through the authenticated agent mailbox and return Gmail's message ID."""
     from services.gmail_service import send_email
 
+    try:
+        sending_config.reserve_free_attempt(sender.integration.organization_id)
+    except sending_config.QuotaExhausted as exc:
+        raise SendError(str(exc)) from exc
+
     result = send_email(
         sender.integration,
         to_emails=[to_email],
@@ -145,7 +150,7 @@ def send_test(
     """Send the current studio draft to listed addresses.
 
     Uses sample merge values, not a real contact. Uses the agent's connected
-    Gmail account. Does not create a campaign send or count against the quota.
+    Gmail account. Each recipient attempt counts toward the free monthly allowance.
     """
     from services.marketing.templates import TemplateError, prepare
 
@@ -285,6 +290,9 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None, persist_trac
         )
     except SendError as exc:
         send.error = str(exc)[:500]
+        if isinstance(exc.__cause__, sending_config.QuotaExhausted):
+            _pause_for_connection(campaign, send, str(exc), now)
+            return send
         if exc.needs_reauth:
             _pause_for_connection(campaign, send, str(exc), now)
             return send
