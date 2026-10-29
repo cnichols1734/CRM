@@ -481,3 +481,62 @@ def test_free_tests_and_downgraded_drips_share_cap_without_provider_fallback(
             org.subscription_tier, org.feature_flags, org.is_platform_admin = saved
             MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
             db.session.commit()
+
+
+def test_quota_pauses_preserve_provider_retries_after_month_reset(app, seed, monkeypatch):
+    from models import MarketingMonthlyUsage
+    from services.marketing import sending_config as sc
+
+    gmail = MagicMock(return_value={
+        'success': False, 'error': 'Temporary Gmail error', 'retryable': True,
+    })
+    monkeypatch.setattr(gmail_service, 'send_email', gmail)
+    with app.app_context():
+        org, owner = load_org_user(seed)
+        _connect(org, owner)
+        campaign = _campaign(org, owner)
+        launchmod.launch(campaign, org, owner)
+        send = _queued(campaign)
+        saved = (org.subscription_tier, org.feature_flags, org.is_platform_admin)
+        org.subscription_tier = 'free'
+        org.feature_flags = {}
+        org.is_platform_admin = False
+        MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
+        start = sc.period_start()
+        db.session.add(MarketingMonthlyUsage(
+            organization_id=org.id, period_start=start, attempts=100,
+        ))
+        db.session.commit()
+        try:
+            for _ in range(4):
+                if campaign.status == 'paused':
+                    launchmod.resume(campaign)
+                sendmod.deliver(send, persist_tracking=True)
+                db.session.commit()
+                assert campaign.status == 'paused'
+                assert send.status == 'queued'
+                assert send.attempt_count == 0
+                assert send.last_attempt_at is None
+            gmail.assert_not_called()
+
+            next_month = (start + timedelta(days=32)).replace(day=1)
+
+            class NextMonth(datetime):
+                @classmethod
+                def utcnow(cls):
+                    return next_month
+
+            monkeypatch.setattr(sc, 'datetime', NextMonth)
+            launchmod.resume(campaign)
+            for attempt in range(1, MarketingSend.MAX_ATTEMPTS + 1):
+                sendmod.deliver(send, now=next_month, persist_tracking=True)
+                db.session.commit()
+                assert send.attempt_count == attempt
+                assert send.status == ('failed' if attempt == MarketingSend.MAX_ATTEMPTS else 'queued')
+            assert gmail.call_count == MarketingSend.MAX_ATTEMPTS
+            assert sc.quota_for(org).used == MarketingSend.MAX_ATTEMPTS
+        finally:
+            db.session.rollback()
+            org.subscription_tier, org.feature_flags, org.is_platform_admin = saved
+            MarketingMonthlyUsage.query.filter_by(organization_id=org.id).delete()
+            db.session.commit()

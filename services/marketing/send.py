@@ -253,6 +253,8 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None, persist_trac
         unsub, mailto=Config.MARKETING_UNSUBSCRIBE_MAILTO,
     )
 
+    previous_attempt_count = send.attempt_count
+    previous_attempt_at = send.last_attempt_at
     send.attempt_count = (send.attempt_count or 0) + 1
     send.last_attempt_at = now
     send.status = 'sending'
@@ -291,6 +293,8 @@ def deliver(send: MarketingSend, *, now: Optional[datetime] = None, persist_trac
     except SendError as exc:
         send.error = str(exc)[:500]
         if isinstance(exc.__cause__, sending_config.QuotaExhausted):
+            send.attempt_count = previous_attempt_count
+            send.last_attempt_at = previous_attempt_at
             _pause_for_connection(campaign, send, str(exc), now)
             return send
         if exc.needs_reauth:
