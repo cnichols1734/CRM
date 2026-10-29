@@ -315,7 +315,7 @@
                 </thead>
                 <tbody>
                     {% for contact in contacts %}
-                    <tr data-action="click->contacts-page#openPreview"
+                    <tr data-action="click->contacts-page#openPreview dblclick->contacts-page#openContact"
                         data-contact-id="{{ contact.id }}"
                         data-contact-href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
                         data-contacts-page-target="row">
