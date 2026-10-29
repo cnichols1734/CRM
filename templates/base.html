@@ -2322,7 +2322,7 @@
                 if (stored === null) {
                     stored = window.matchMedia('(min-width: 1280px)').matches ? 'true' : 'false';
                 }
-                if (stored === 'true') {
+                if (stored === 'true' && window.matchMedia('(min-width: 1100px)').matches) {
                     document.documentElement.classList.add('sidebar-expanded');
                 }
             } catch (e) { /* ignore */ }
@@ -2368,6 +2368,7 @@
         button.crm-btn-accent:disabled,
         button.crm-btn-critical:disabled { opacity: 0.6; cursor: default; }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
     {% block head_scripts %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/auth-family.css') }}">
 </head>
@@ -2381,7 +2382,7 @@
         </div>
         {% if current_user.is_authenticated %}
         <div class="flex items-center gap-2 pr-4">
-            <form class="crm-utility-search t-clear" onsubmit="event.preventDefault();" role="search" autocomplete="off">
+            <form id="crmGlobalSearchForm" class="crm-utility-search t-clear" onsubmit="event.preventDefault();" role="search" autocomplete="off">
                 <i class="fas fa-search search-icon"></i>
                 <input id="crmGlobalSearchInput" type="text"
                        placeholder="Search contacts, transactions..."
@@ -2460,7 +2461,7 @@
     <header class="text-white h-14 flex items-center justify-between border-b border-slate-800 bg-slate-950 px-2 md:hidden">
         <div class="flex items-center">
             {% if current_user.is_authenticated %}
-            <button id="mobileMenuToggle" onclick="toggleMobileNavMenu()"
+            <button id="mobileMenuToggle" aria-label="Open navigation" onclick="toggleMobileNavMenu()"
                 class="w-10 h-10 flex items-center justify-center text-white hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0">
                 <i class="fas fa-bars text-xl"></i>
             </button>
@@ -2469,8 +2470,11 @@
         </div>
         <div class="flex items-center space-x-3">
             {% if current_user.is_authenticated %}
+            <button id="crmMobileSearchToggle" type="button" class="crm-mobile-search-toggle" aria-label="Search contacts and transactions" aria-expanded="false" aria-controls="crmMobileSearch">
+                <i class="fas fa-search" aria-hidden="true"></i>
+            </button>
             {% if org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
-            <button id="bob-toggle-mobile" class="bob-assistant-btn-mobile">
+            <button id="bob-toggle-mobile" aria-label="Open assistant" class="bob-assistant-btn-mobile">
                 <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M16 2L18.5 12L28 14L18.5 16.5L16 28L13.5 16.5L4 14L13.5 12L16 2Z" fill="currentColor"/>
                     <path d="M8 6L9 9L12 10L9 11L8 14L7 11L4 10L7 9L8 6Z" fill="currentColor" opacity="0.7"/>
@@ -2489,7 +2493,7 @@
             </button>
             <span class="t-tt" role="tooltip">Toggle theme</span>
             </span>
-            <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
+            <button id="mobileUserIcon" aria-label="Account menu" onclick="toggleMobileUserMenu()"
                 class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm font-semibold">
                 {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
             </button>
@@ -2500,6 +2504,13 @@
             {% endif %}
         </div>
     </header>
+
+    {% if current_user.is_authenticated %}
+    <div id="crmMobileSearch" class="crm-mobile-search" hidden>
+        <div id="crmMobileSearchSlot"></div>
+        <button id="crmMobileSearchClose" type="button" class="crm-btn crm-btn-icon" aria-label="Close search"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </div>
+    {% endif %}
 
     <!-- Mobile User Menu (Slides down from top) -->
     {% if current_user.is_authenticated %}
@@ -2724,6 +2735,7 @@
                     </button>
                     <div id="mobileResourcesPanel" class="hidden pl-12 pr-6 pb-2">
                         <ul id="mobileResourcesList" class="space-y-1"></ul>
+                        <a href="{{ url_for('resources.index') }}" class="crm-nav-link">My resources</a>
                     </div>
                 </div>
                 <script>
@@ -2894,6 +2906,7 @@
                         <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
                              class="hidden mt-1 ml-6 pl-3" style="border-left: 1px solid var(--hairline);">
                             <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
+                            <a href="{{ url_for('resources.index') }}" class="crm-nav-link">My resources</a>
                         </div>
                     </div>
                     <button onclick="openContactUsModal('app')" type="button"
@@ -3084,9 +3097,18 @@
             var sidebar = document.getElementById('sidebar');
             if (!sidebar) return;
 
-            function setExpanded(expanded) {
+            var wideSidebar = window.matchMedia('(min-width: 1100px)');
+            var preferredExpanded = root.classList.contains('sidebar-expanded');
+            try {
+                var savedSidebar = localStorage.getItem('sidebar-expanded');
+                if (savedSidebar !== null) preferredExpanded = savedSidebar === 'true';
+            } catch (e) {}
+            function setExpanded(expanded, persist) {
                 root.classList.toggle('sidebar-expanded', expanded);
-                try { localStorage.setItem('sidebar-expanded', expanded ? 'true' : 'false'); } catch (e) {}
+                if (persist !== false) {
+                    preferredExpanded = expanded;
+                    try { localStorage.setItem('sidebar-expanded', expanded ? 'true' : 'false'); } catch (e) {}
+                }
                 if (toggle) toggle.setAttribute('aria-pressed', expanded ? 'true' : 'false');
                 if (window.TMotion) TMotion.initThemeIcons();
             }
@@ -3096,6 +3118,9 @@
                     setExpanded(!root.classList.contains('sidebar-expanded'));
                 });
             }
+
+            wideSidebar.addEventListener('change', function () { setExpanded(wideSidebar.matches && preferredExpanded, false); });
+            setExpanded(wideSidebar.matches && preferredExpanded, false);
 
             // Floating tooltip for collapsed-sidebar nav links.
             var tip = null;
@@ -3147,6 +3172,42 @@
                 document.body.appendChild(panel);
             }
 
+            var form = document.getElementById('crmGlobalSearchForm');
+            var home = document.createComment('Global search');
+            form.before(home);
+            var mobileSearch = document.getElementById('crmMobileSearch');
+            var searchToggle = document.getElementById('crmMobileSearchToggle');
+            var searchClose = document.getElementById('crmMobileSearchClose');
+            var narrow = window.matchMedia('(max-width: 767px)');
+            function setMobileSearch(open, restoreFocus) {
+                mobileSearch.hidden = !open;
+                searchToggle.setAttribute('aria-expanded', String(open));
+                if (open) input.focus();
+                else {
+                    if (activeController) activeController.abort();
+                    clearTimeout(debounceTimer);
+                    closePanel();
+                    if (restoreFocus) searchToggle.focus();
+                }
+            }
+            function placeSearch() {
+                var focused = document.activeElement === input || !mobileSearch.hidden || panel.hasAttribute('data-open');
+                if (narrow.matches) {
+                    document.getElementById('crmMobileSearchSlot').appendChild(form);
+                    if (focused) setMobileSearch(true);
+                } else {
+                    home.after(form);
+                    mobileSearch.hidden = true;
+                    searchToggle.setAttribute('aria-expanded', 'false');
+                    if (focused) input.focus();
+                }
+                if (!panel.hidden) positionPanel();
+            }
+            searchToggle.addEventListener('click', function () { setMobileSearch(mobileSearch.hidden, true); });
+            searchClose.addEventListener('click', function () { setMobileSearch(false, true); });
+            narrow.addEventListener('change', placeSearch);
+            placeSearch();
+
             var debounceTimer = null;
             var activeController = null;
             var lastQuery = '';
@@ -3179,9 +3240,13 @@
                 panel.style.left = left + 'px';
                 panel.style.width = width + 'px';
                 panel.style.right = 'auto';
+                var vv = window.visualViewport;
+                var bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+                panel.style.maxHeight = Math.max(0, bottom - r.bottom - gap - 8) + 'px';
             }
 
             function openPanel() {
+                if (narrow.matches && mobileSearch.hidden) return;
                 positionPanel();
                 panel.hidden = false;
                 requestAnimationFrame(function () {
@@ -3299,7 +3364,8 @@
                     }
                 } else if (e.key === 'Escape') {
                     closePanel();
-                    input.blur();
+                    if (narrow.matches) setMobileSearch(false, true);
+                    else input.blur();
                 }
             });
 
@@ -3307,6 +3373,10 @@
                 if (!panel.contains(e.target) && e.target !== input) closePanel();
             });
 
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', positionPanel);
+                window.visualViewport.addEventListener('scroll', positionPanel);
+            }
             window.addEventListener('resize', function () {
                 if (panel.classList.contains('is-open') || panel.hasAttribute('data-open')) positionPanel();
             });

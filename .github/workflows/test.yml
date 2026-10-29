@@ -104,8 +104,15 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
+      - name: Use primary Ubuntu package archive
+        run: |
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
+          fi
+
       - name: Install Playwright browsers
-        run: playwright install chromium
+        timeout-minutes: 10
+        run: playwright install --with-deps chromium webkit
 
       - name: Bootstrap isolated browser test database
         run: python tests/bootstrap_browser_test_db.py
@@ -124,6 +131,9 @@ jobs:
       - name: Run integration tests
         run: python tests/run_tests.py --base-url http://127.0.0.1:5011
 
+      - name: Run responsive workflow tests
+        run: python tests/run_responsive_e2e.py
+
       - name: Upload test artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -132,3 +142,4 @@ jobs:
           path: |
             tests/*.png
             tests/*.log
+            tests/artifacts/

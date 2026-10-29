@@ -2510,8 +2510,9 @@
     color: var(--paper);
   }
   .crm-plan--featured .crm-plan__price,
-  .crm-plan--featured .crm-plan__name { color: var(--paper); }
-  .crm-plan--featured .crm-plan__sub { color: oklch(78% 0.004 75); }
+  .crm-plan--featured .crm-plan__name,
+  .crm-plan--featured .crm-plan__feature,
+  .crm-plan--featured .crm-plan__sub { color: var(--paper); }
   .crm-plan--featured .crm-plan__feature i { color: var(--accent); }
   .crm-plan--featured .crm-plan__feature .is-locked { color: oklch(60% 0.004 75); }
   .crm-plan__name {

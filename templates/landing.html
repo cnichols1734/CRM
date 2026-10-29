@@ -341,6 +341,11 @@
             line-height: 1.6;
         }
     </style>
+<style>
+        .grid > * { min-width: 0; }
+        #mobileMenu { height: 100dvh; max-width: 100%; overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom, 0px); }
+        #mobileMenu > div { min-height: 100%; height: auto; }
+    </style>
 </head>
 
 <body class="font-sans antialiased text-brand-800">
@@ -373,7 +378,7 @@
                 </div>
                 
                 <!-- Mobile Menu Button -->
-                <button id="mobileMenuBtn" class="md:hidden p-2 text-brand-700 hover:text-brand-900">
+                <button id="mobileMenuBtn" aria-label="Open navigation" class="md:hidden p-2 text-brand-700 hover:text-brand-900">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
             </div>
@@ -385,7 +390,7 @@
         <!-- Mobile Menu -->
         <div id="mobileMenu" class="mobile-menu fixed top-0 right-0 w-80 h-screen md:hidden z-50" style="background-color: #ffffff;">
             <div class="p-6 h-full bg-white">
-                <button id="closeMobileMenu" class="absolute top-4 right-4 p-2 text-brand-600 hover:text-brand-900 z-10">
+                <button id="closeMobileMenu" aria-label="Close navigation" class="absolute top-4 right-4 p-2 text-brand-600 hover:text-brand-900 z-10">
                     <i class="fas fa-times text-xl"></i>
                 </button>
                 
@@ -452,8 +457,8 @@
                                 <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
                                 <div class="w-3 h-3 rounded-full bg-green-400"></div>
                             </div>
-                            <div class="flex-1 mx-4">
-                                <div class="bg-white rounded-lg px-4 py-1.5 text-xs text-brand-400 border border-brand-100">
+                            <div class="flex-1 min-w-0 mx-4">
+                                <div class="truncate bg-white rounded-lg px-4 py-1.5 text-xs text-brand-400 border border-brand-100">
                                     Example · agentflow.origentechnolog.com/dashboard
                                 </div>
                             </div>
@@ -1122,7 +1127,7 @@
                 </div>
                 
                 <!-- Links -->
-                <div class="flex items-center gap-6 text-brand-400 text-sm">
+                <div class="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-brand-400 text-sm">
                     <a href="{{ url_for('auth.login') }}" class="hover:text-white transition-colors">Login</a>
                     <a href="{{ url_for('auth.register') }}" class="hover:text-white transition-colors">Register</a>
                     <a href="{{ url_for('auth.terms_privacy') }}" class="hover:text-white transition-colors">Terms & Privacy</a>
@@ -1172,6 +1177,7 @@
             document.body.style.overflow = '';
         }
         
+        window.matchMedia('(min-width: 768px)').addEventListener('change', function (event) { if (event.matches) closeMobileMenuFn(); });
         mobileMenuBtn.addEventListener('click', openMobileMenu);
         closeMobileMenu.addEventListener('click', closeMobileMenuFn);
         mobileMenuOverlay.addEventListener('click', closeMobileMenuFn);

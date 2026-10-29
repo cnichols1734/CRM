@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
-from models import db, AgentResource
+from models import db, AgentResource, PersonalResource
 from functools import wraps
 from services.tenant_service import org_query
 from services.docuseal_service import (
@@ -562,5 +562,9 @@ def get_resources_api():
     
     return jsonify({
         'success': True,
-        'resources': [r.to_dict() for r in resources]
+        'resources': [r.to_dict() for r in resources] + [
+            r.to_dict() for r in PersonalResource.query.filter_by(
+                organization_id=current_user.organization_id, user_id=current_user.id
+            ).order_by(PersonalResource.label, PersonalResource.id).all()
+        ]
     })
