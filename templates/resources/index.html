@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, empty_state %}
+{% block title %}My resources - AgentFlow{% endblock %}
+{% block mobile_title %}My resources{% endblock %}
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {% call page_header('My resources', 'Save links for your own use. Shared company resources stay in the sidebar.', 'Resources') %}
+        <a href="{{ url_for('resources.edit') }}" class="crm-btn crm-btn-primary">Add resource</a>
+        {% endcall %}
+        <div class="crm-surface">
+            <div class="crm-surface-body">
+                {% for resource in resources %}
+                <div class="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer" class="min-w-0 break-words text-accent-600 hover:underline">{{ resource.label }}</a>
+                    <div class="flex gap-2">
+                        <a href="{{ url_for('resources.edit', resource_id=resource.id) }}" class="crm-btn crm-btn-secondary crm-btn-sm" aria-label="Edit {{ resource.label }}">Edit</a>
+                        <a href="{{ url_for('resources.delete', resource_id=resource.id) }}" class="crm-btn crm-btn-danger crm-btn-sm" aria-label="Delete {{ resource.label }}">Delete</a>
+                    </div>
+                </div>
+                {% else %}
+                {{ empty_state('No personal resources yet', 'Add a website you use often to keep it in your Resources menu.', 'fa-link') }}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
