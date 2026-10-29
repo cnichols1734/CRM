@@ -128,6 +128,7 @@ def view_contact(contact_id):
             'state': contact.state,
             'zip_code': contact.zip_code,
             'notes': contact.notes,
+            'buyer_criteria': contact.buyer_criteria,
             'lead_source': contact.lead_source,
             'lead_source_other': contact.lead_source_other,
             'potential_commission': float(contact.potential_commission) if contact.potential_commission else None,
@@ -304,6 +305,7 @@ def create_contact():
             city=form.city.data,
             state=form.state.data,
             zip_code=form.zip_code.data,
+            buyer_criteria=(form.buyer_criteria.data or '').strip() or None,
             notes=form.notes.data,
             lead_source=form.lead_source.data or None,
             lead_source_other=form.lead_source_other.data,
@@ -569,6 +571,8 @@ def edit_contact(contact_id):
         contact.city = request.form.get('city')
         contact.state = request.form.get('state')
         contact.zip_code = request.form.get('zip_code')
+        if 'buyer_criteria' in request.form:
+            contact.buyer_criteria = request.form.get('buyer_criteria', '').strip() or None
         contact.notes = request.form.get('notes')
         if lead_source_form is not None:
             contact.lead_source = lead_source_form.lead_source.data or None

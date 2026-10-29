@@ -20,25 +20,25 @@
     .update-content {
         font-size: 1.1rem;
         line-height: 1.8;
-        color: #334155;
+        color: var(--ink-2);
     }
     .update-content h1 {
         font-size: 2rem;
         font-weight: 700;
         margin: 1.5rem 0 1rem;
-        color: #1e293b;
+        color: var(--ink);
     }
     .update-content h2 {
         font-size: 1.5rem;
         font-weight: 700;
         margin: 1.25rem 0 0.75rem;
-        color: #1e293b;
+        color: var(--ink);
     }
     .update-content h3 {
         font-size: 1.25rem;
         font-weight: 600;
         margin: 1rem 0 0.5rem;
-        color: #1e293b;
+        color: var(--ink);
     }
     .update-content p {
         margin-bottom: 1rem;
@@ -74,11 +74,11 @@
         padding-left: 1rem;
         margin: 1.5rem 0;
         font-style: italic;
-        color: #64748b;
+        color: var(--ink-3);
     }
     .update-content strong {
         font-weight: 600;
-        color: #1e293b;
+        color: var(--ink);
     }
     
     /* Reaction buttons */
@@ -89,11 +89,11 @@
         transform: scale(1.15);
     }
     .reaction-btn.active {
-        background-color: #dbeafe;
+        background-color: var(--accent-soft);
         border-color: #3b82f6;
     }
     .reaction-btn.active:hover {
-        background-color: #bfdbfe;
+        background-color: var(--paper-2);
     }
     
     /* Comment styling */
@@ -101,7 +101,7 @@
         transition: background-color 0.2s ease;
     }
     .comment-item:hover {
-        background-color: #f8fafc;
+        background-color: var(--paper-2);
     }
 </style>
 {% endblock %}

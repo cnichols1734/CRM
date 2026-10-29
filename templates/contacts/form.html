@@ -163,6 +163,10 @@
                         {% if form.current_objective.description %}<p class="mt-1 text-xs" style="color: var(--ink-4);">{{ form.current_objective.description }}</p>{% endif %}
                     </div>
                     <div>
+                        {{ form.buyer_criteria.label(class="crm-field-label") }}
+                        {{ form.buyer_criteria(class="crm-textarea", rows="3", placeholder="At least 4 bedrooms, a pool, under $500,000 in BHISD") }}
+                    </div>
+                    <div>
                         <label class="mb-1.5 block text-xs font-semibold" style="color: var(--ink-3);">{{ form.move_timeline.label }}</label>
                         {{ form.move_timeline(class="crm-textarea", rows="2") }}
                         {% if form.move_timeline.description %}<p class="mt-1 text-xs" style="color: var(--ink-4);">{{ form.move_timeline.description }}</p>{% endif %}

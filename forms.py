@@ -70,6 +70,7 @@ class ContactForm(ContactLeadSourceForm):
     city = StringField('City')
     state = StringField('State')
     zip_code = StringField('ZIP Code')
+    buyer_criteria = TextAreaField('Buyer criteria', validators=[Optional()])
     notes = TextAreaField('Notes')
     potential_commission = DecimalField('Potential Commission', places=2, default=5000.00)
     group_ids = SelectMultipleField('Groups', coerce=int)
