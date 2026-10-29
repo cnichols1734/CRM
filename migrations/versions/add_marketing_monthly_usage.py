@@ -3,7 +3,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = 'add_marketing_monthly_usage'
-down_revision = 'add_contact_lead_source'
+down_revision = 'add_contact_buyer_criteria'
 branch_labels = None
 depends_on = None
 
