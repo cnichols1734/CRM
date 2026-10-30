@@ -11,61 +11,19 @@
 {%- endmacro %}
 
 {% macro kpi_breakdown(rows, tone='blue', empty='No data yet') -%}
-{% set fill_class = 'am-bar-accent' if tone == 'orange' else ('am-bar-ink' if tone == 'slate' else 'am-bar-info') %}
 {% if rows %}
-<div class="min-w-[8.5rem] max-w-[10rem] flex-1 space-y-2">
+<dl class="crm-dashboard-breakdown">
     {% for row in rows %}
-    <div>
-        <div class="mb-1 flex items-center justify-between gap-3 text-[11px] leading-none">
-            <span class="max-w-[6.5rem] truncate" style="color: var(--ink-3);" title="{{ row.label }}">{{ with_currency(row.label) }}</span>
-            <span class="shrink-0 font-semibold" style="color: var(--ink-2);">{{ with_currency(row.value) }}</span>
-        </div>
-        <div class="h-1.5 overflow-hidden rounded-full am-bar-track">
-            <div class="h-full rounded-full {{ fill_class }}" style="width: {{ row.percent }}%"></div>
-        </div>
-    </div>
+    <div><dt title="{{ row.label }}">{{ with_currency(row.label) }}</dt><dd>{{ with_currency(row.value) }}</dd></div>
     {% endfor %}
-</div>
+</dl>
 {% else %}
-<div class="min-w-[8.5rem] rounded-[10px] border border-dashed px-3 py-4 text-center text-xs"
-     style="border-color: var(--hairline); color: var(--ink-4);">
-    {{ empty }}
-</div>
+<p class="crm-kpi__meta">{{ empty }}</p>
 {% endif %}
 {%- endmacro %}
 
 {% macro kpi_rail(spark) -%}
-{# Smooth area sparkline filling the right half of each KPI card.
-   Server-rendered SVG, no JS. Single ink color so it reads as restrained
-   editorial data viz; warm accent dot pinned to the latest value. #}
-<div class="crm-kpi__rail" aria-hidden="true">
-    <div class="crm-kpi__rail-kicker">{{ spark.kicker }}</div>
-    <div class="crm-spark-chart {% if not spark.has_data %}is-empty{% endif %}">
-        <svg viewBox="0 0 {{ spark.view_w }} {{ spark.view_h }}"
-             preserveAspectRatio="none"
-             xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="kpi-spark-{{ spark.id }}" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   class="crm-spark-chart__grad-top" />
-                    <stop offset="100%" class="crm-spark-chart__grad-bot" />
-                </linearGradient>
-            </defs>
-            <path class="crm-spark-chart__area"
-                  d="{{ spark.area }}"
-                  fill="url(#kpi-spark-{{ spark.id }})" />
-            <path class="crm-spark-chart__line"
-                  d="{{ spark.line }}"
-                  fill="none"
-                  vector-effect="non-scaling-stroke" />
-        </svg>
-        {% if spark.has_data %}
-        {# Dot lives outside the (stretched) SVG so it stays perfectly round. #}
-        <span class="crm-spark-chart__dot"
-              style="top: {{ '%.2f' % spark.end_y_pct }}%"></span>
-        {% endif %}
-    </div>
-    <div class="crm-kpi__rail-meta">{{ with_currency(spark.meta) }}</div>
-</div>
+<div class="crm-dashboard-trend"><span>{{ spark.kicker }}</span><span>{{ with_currency(spark.meta) }}</span></div>
 {%- endmacro %}
 
 {% block head_scripts %}
@@ -77,16 +35,12 @@
 {% block content %}
 {% set total_deals = transactions_by_status.values()|map(attribute='count')|sum if show_transactions else 0 %}
 {% set is_first_run = show_activation_onboarding and activation_state.mode == 'start' %}
-{% set _hour = now.hour if now is defined else 12 %}
-{% set greeting = 'Good morning' if _hour < 12 else ('Good afternoon' if _hour < 18 else 'Good evening') %}
-{% set first_name = current_user.first_name if current_user.is_authenticated else '' %}
-
-<div class="crm-page"
+<div class="crm-page crm-dashboard"
      data-controller="dashboard-page"
      data-dashboard-page-quick-add-url-value="{{ url_for('contacts.quick_add_contact') }}"
      data-dashboard-page-group-stats-value='{{ group_stats|tojson|safe }}'>
     <div class="crm-page__inner">
-        {% set _greeting_html = greeting ~ (', <em>' ~ first_name ~ '</em>' if first_name else '') %}
+
         {% set _subline_html %}
             {% if show_transactions %}
                 <b>{{ total_deals }}</b> open transactions · <b>${{ "{:,.0f}".format(total_commission or 0) }}</b> potential commission
@@ -94,7 +48,7 @@
                 <b>{{ total_contacts }}</b> tracked contacts · <b>${{ "{:,.0f}".format(total_commission or 0) }}</b> potential commission
             {% endif %}
         {% endset %}
-        {% call page_header(_greeting_html, _subline_html, 'Workspace') %}
+        {% call page_header('Dashboard', _subline_html) %}
             <a href="{{ url_for('main.contacts') }}" class="crm-btn crm-btn-secondary">
                 <i class="fas fa-address-book text-xs"></i>
                 Contacts
@@ -259,7 +213,7 @@
             <div class="crm-surface-header">
                 <div class="crm-mi__header-row">
                     <div class="min-w-0">
-                        {{ section_header('Market Insights', 'Active residential listings (Single Family, Condo, Townhouse). Refreshed weekly.', 'Market') }}
+                        {{ section_header('Market insights', 'Active residential listings (Single Family, Condo, Townhouse). Refreshed weekly.', 'Market') }}
                         <div class="mt-2 flex flex-wrap items-center gap-2 text-xs crm-muted"
                              data-market-insights-target="metaRow">
                             <span class="crm-mi__collapsed-hint">
@@ -654,7 +608,7 @@
         <section class="crm-surface mb-5">
             <div class="crm-surface-header">
                 <div>
-                    {{ section_header('Transaction Pipeline', '', 'Pipeline', '$' ~ "{:,.0f}".format(pipeline_value) ~ ' open') }}
+                    {{ section_header('Transaction pipeline', '', '', '$' ~ "{:,.0f}".format(pipeline_value) ~ ' open') }}
                 </div>
                 <div class="crm-page-actions">
                     {% if ytd_closed_value > 0 %}
@@ -706,11 +660,11 @@
         </section>
         {% endif %}
 
-        <div class="mb-5 grid gap-4 xl:grid-cols-2">
+        <div class="crm-dashboard-work mb-5 grid gap-4 xl:grid-cols-2">
             <section class="crm-surface crm-dash-tasks">
                 <div class="crm-surface-header">
                     <div>
-                        {{ section_header('Upcoming Client Tasks', '', 'Tasks') }}
+                        {{ section_header('Client tasks', '', '') }}
                     </div>
                     <div class="crm-dash-tasks-toolbar flex flex-col items-end gap-3">
                         <div class="crm-segment">
@@ -787,7 +741,7 @@
             <section class="crm-surface crm-dash-todo">
                 <div class="crm-surface-header">
                     <div>
-                        {{ section_header("Personal To-Do List", "", "To Do") }}
+                        {{ section_header("Personal to-do", "", "") }}
                     </div>
                     <a href="{{ url_for('user_todo.user_todo') }}" class="crm-back">Open full list</a>
                 </div>
@@ -813,7 +767,7 @@
             <section class="crm-surface xl:col-span-1">
                 <div class="crm-surface-header">
                     <div>
-                        {{ section_header('Contact Groups', '', 'Segments') }}
+                        {{ section_header('Contact groups', '', '') }}
                     </div>
                     {{ badge(group_stats|length ~ ' active', 'info') }}
                 </div>
@@ -840,7 +794,7 @@
             <section class="crm-surface xl:col-span-2">
                 <div class="crm-surface-header">
                     <div>
-                        {{ section_header('Top Contacts by Commission', '', 'Contacts') }}
+                        {{ section_header('Top contacts by commission', '', '') }}
                     </div>
                     <a href="{{ url_for('main.contacts') }}" class="crm-back">Open contacts</a>
                 </div>

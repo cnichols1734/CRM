@@ -2298,3 +2298,48 @@ html.am-skin .mkt-page .mkt-choice input:checked + span {
 html.am-skin .mkt-page .mkt-pane.is-current {
   box-shadow: inset 0 0 0 1px var(--accent-line) !important;
 }
+
+/* App chrome refinement using Unslop by Damir Sokolovsky, CC BY 4.0.
+   https://github.com/heydamir/unslop */
+html.am-skin #sidebar .crm-nav-section { gap: 4px; }
+html.am-skin.sidebar-expanded #sidebar .crm-nav-section + .crm-nav-section { margin-top: 20px; }
+html.am-skin #sidebar .crm-nav-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 4px 12px;
+  color: var(--ink-3) !important;
+}
+html.am-skin #sidebar .crm-nav-link { min-height: 36px; gap: 12px; }
+html.am-skin #sidebar .crm-nav-link > i { width: 16px; text-align: center; flex-shrink: 0; }
+html.am-skin #sidebar .crm-nav-link.is-active { box-shadow: none; font-weight: 500 !important; }
+html.am-skin #sidebar .crm-nav-link.is-active::before { content: none; }
+html.am-skin[data-theme="light"] #sidebar .crm-nav-link.is-active,
+html.am-skin[data-theme="light"] #sidebar .crm-nav-link.is-active i { color: #9a3d06 !important; }
+html.am-skin #sidebar .crm-sidebar-toggle-row { padding-top: 8px; }
+html.am-skin #sidebar .crm-sidebar-footer { border-top: 1px solid var(--hairline); }
+html.am-skin #sidebar .crm-nav-link:focus-visible,
+html.am-skin #sidebar .crm-sidebar-toggle:focus-visible,
+html.am-skin header button:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+@media (min-width: 768px) {
+  html.am-skin aside#sidebar.crm-sidebar { border-radius: 12px !important; box-shadow: none !important; }
+  html.am-skin header.crm-topbar .crm-utility-search { width: clamp(240px, 28vw, 360px); }
+  html.am-skin header.crm-topbar .crm-utility-search input { width: 100%; height: 36px; border-radius: 8px !important; }
+  html.am-skin header.crm-topbar .crm-utility-search input:focus { box-shadow: none !important; outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+  html.am-skin header.crm-topbar .crm-theme-btn,
+  html.am-skin header.crm-topbar .crm-utility-icon-btn {
+    width: 36px; height: 36px; min-height: 36px;
+    border-radius: 8px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--ink-2) !important;
+  }
+  html.am-skin header.crm-topbar .crm-theme-btn:hover,
+  html.am-skin header.crm-topbar .crm-utility-icon-btn:hover { background: var(--am-control-bg) !important; color: var(--ink) !important; }
+  html.am-skin header.crm-topbar .crm-utility-icon-btn i { font-size: 14px; }
+}
+html.am-skin:not(.sidebar-expanded) #sidebar .crm-nav-label { padding: 0; }

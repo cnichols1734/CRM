@@ -5167,3 +5167,85 @@ html[data-theme="dark"] .mkt-page {
 .crm-message-assignment > p:first-child { flex: 1; min-width: 12rem; }
 .crm-message-assignment-help { flex-basis: 100%; }
 @media (max-width: 480px) { .crm-message-property { align-items: flex-start; } .crm-message-property img { width: 5rem; height: 5rem; } }
+
+/* Dashboard refinement using Unslop by Damir Sokolovsky, CC BY 4.0.
+   https://github.com/heydamir/unslop */
+html.am-skin .crm-dashboard .crm-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  min-width: 0;
+}
+.crm-dashboard .crm-kpi__main { gap: 16px; flex: 1; }
+html.am-skin .crm-dashboard .crm-kpi__label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+html.am-skin .crm-dashboard .crm-kpi__value { font-size: 32px !important; line-height: 1.1; font-weight: 500 !important; font-variant-numeric: tabular-nums; }
+.crm-dashboard-breakdown { width: 100%; display: grid; gap: 8px; margin: 0; }
+.crm-dashboard-breakdown > div { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; line-height: 1.4; }
+.crm-dashboard-breakdown dt { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-dashboard-breakdown dd { color: var(--ink-2); margin: 0; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.crm-dashboard-trend { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--hairline); color: var(--ink-3); font-size: 11px; }
+.crm-dashboard .crm-surface-header { padding: 20px 24px; }
+.crm-dashboard .crm-surface-body { padding: 24px; }
+.crm-dashboard .crm-board-column__body { gap: 12px; }
+.crm-dashboard .crm-dash-tasks .crm-list-item { padding-top: 16px; padding-bottom: 16px; }
+@media (min-width: 1280px) { .crm-dashboard-work { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+@media (max-width: 767px) {
+  html.am-skin .crm-dashboard .crm-kpi { padding: 20px; gap: 16px; }
+  .crm-dashboard .crm-surface-header, .crm-dashboard .crm-surface-body { padding: 16px; }
+}
+
+/* Contact list: keep names and working controls ahead of decoration. */
+html.am-skin .crm-contacts-index .crm-avatar {
+  background: var(--paper-2) !important;
+  color: var(--ink-3) !important;
+  box-shadow: none !important;
+  font-weight: 500;
+}
+html.am-skin .crm-contacts-index .crm-table th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.crm-contacts-index .crm-table td { padding-top: 16px; padding-bottom: 16px; }
+.crm-contacts-index .crm-table td:last-child { font-variant-numeric: tabular-nums; }
+.crm-contacts-index .crm-toolbar__search { width: clamp(240px, 26vw, 360px); }
+html.am-skin .crm-contacts-index .crm-toolbar__search input { border-radius: 8px !important; height: 36px; }
+.crm-contacts-index [data-contacts-page-target="searchSummary"]:empty { display: none; }
+@media (max-width: 767px) {
+  .crm-contacts-index .crm-toolbar__search { flex: 1; width: auto; min-width: 0; }
+  .crm-contacts-index .crm-contact-cards .truncate { white-space: normal; overflow-wrap: anywhere; }
+  .crm-contacts-index .crm-contact-cards > a > div > div { min-width: 0; }
+}
+
+/* Contact details share the contact list's quiet hierarchy. */
+.crm-contact-detail #viewContactName { font-size: 32px; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere; }
+html.am-skin .crm-contact-detail .crm-contact-profile .crm-avatar {
+  background: var(--paper-2) !important;
+  color: var(--ink-3) !important;
+  box-shadow: none !important;
+}
+.crm-contact-detail-heading { font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ink); }
+.crm-contact-detail #viewContactInfo > div, .crm-contact-detail #editContactForm > div { padding: 24px; }
+.crm-contact-detail #viewContactInfo dl { row-gap: 16px; }
+.crm-contact-detail #viewContactInfo dt { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.crm-contact-detail #viewContactInfo dd { margin-top: 4px; overflow-wrap: anywhere; }
+.crm-contact-detail .crm-contact-profile .crm-surface-body { padding: 24px; }
+.crm-contact-detail .crm-contact-profile a { overflow-wrap: anywhere; }
+.crm-contact-detail .task-link { white-space: normal; }
+.crm-contact-detail #activeTasks button, .crm-contact-detail #completedTasks button { min-width: 32px; min-height: 32px; }
+.crm-contact-detail .file-item:focus-within .opacity-0 { opacity: 1; }
+@media (max-width: 767px) {
+  .crm-contact-detail #viewContactName { font-size: 28px; }
+  .crm-contact-detail #viewContactInfo > div, .crm-contact-detail #editContactForm > div,
+  .crm-contact-detail .crm-contact-profile .crm-surface-body { padding: 20px; }
+  .crm-contact-detail #editContactName { flex-wrap: wrap; }
+  .crm-contact-detail .file-item .opacity-0 { opacity: 1; }
+}

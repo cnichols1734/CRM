@@ -6,14 +6,14 @@
 {% block content %}
 {% set has_filters = request.args.get('owners') or request.args.get('groups') or request.args.get('zips') or request.args.get('commission') %}
 
-<div class="crm-page" data-controller="contacts-page"
+<div class="crm-page crm-contacts-index" data-controller="contacts-page"
      data-import-result-key="contacts-import-result:{{ current_user.id }}">
     <div class="t-page-slide crm-contacts-pages" data-page="1" id="crmContactsPages">
     <section class="t-page" data-page-id="1">
     <div class="crm-contacts-page-body">
     <div class="crm-page__inner crm-contact-workspace">
-        {% set _title_html = 'Contacts <em>· <span data-contacts-page-target="searchCount">' ~ total_contacts ~ '</span></em>' %}
-        {% call page_header(_title_html, '', 'Database') %}
+        {% set _contact_count = '<span data-contacts-page-target="searchCount">' ~ total_contacts ~ (' contact' if total_contacts == 1 else ' contacts') ~ '</span>' %}
+        {% call page_header('Contacts', _contact_count) %}
             <button type="button"
                     class="crm-btn crm-btn-secondary"
                     data-action="contacts-page#openImportDialog"
@@ -53,7 +53,6 @@
                 </div>
                 {% endif %}
                 <span class="inline-flex flex-wrap gap-3" data-contacts-page-target="searchSummary" role="status" aria-live="polite" aria-atomic="true">
-                {{ badge(total_contacts ~ ' records') }}
                 {% if request.args.get('q') %}
                 {{ badge('Search: ' ~ request.args.get('q'), 'accent') }}
                 {% endif %}
@@ -63,13 +62,13 @@
                 <div class="crm-toolbar__search t-clear">
                     <input type="search"
                            value="{{ request.args.get('q', '') }}"
-                           placeholder="Search name, email, phone..."
+                           placeholder="Name, email or phone"
                            class="crm-search pr-10"
                            data-contacts-page-target="searchInput"
                            aria-label="Search contacts"
                            data-action="input->contacts-page#queueSearch compositionend->contacts-page#queueSearch">
                     <div class="t-clear-mirror" aria-hidden="true"></div>
-                    <div class="t-clear-placeholder" aria-hidden="true">Search name, email, phone...</div>
+                    <div class="t-clear-placeholder" aria-hidden="true">Name, email or phone</div>
                     <div class="t-clear-glow" aria-hidden="true"></div>
                     <button type="button"
                             class="t-clear-btn"
@@ -87,7 +86,7 @@
                 </button>
                 {% if current_sort != 'name' or current_dir != 'asc' %}
                 <button type="button"
-                        class="crm-btn crm-btn-danger"
+                        class="crm-btn crm-btn-subtle"
                         data-action="contacts-page#clearSort">
                     Clear sort
                 </button>
@@ -101,8 +100,7 @@
               data-contacts-page-target="filterPanel">
             <div class="crm-surface-header">
                 <div>
-                    <div class="crm-section-kicker">Filters</div>
-                    <h2 class="crm-section-title mt-1">Filters</h2>
+                    <h2 class="crm-section-title">Filters</h2>
                 </div>
                 <div class="crm-page-actions">
                     <a href="{{ url_for('main.contacts', view=request.args.get('view')) }}" class="crm-btn crm-btn-subtle">Reset</a>
@@ -117,8 +115,8 @@
                 <div class="crm-filter-grid">
                     {% if current_user.role == 'admin' and show_all %}
                     <div>
-                        <label class="crm-field-label">Contact owner</label>
-                        <select name="owners" class="crm-select">
+                        <label class="crm-field-label" for="contacts-filter-owners">Contact owner</label>
+                        <select id="contacts-filter-owners" name="owners" class="crm-select">
                             <option value="">All owners</option>
                             {% for owner in all_owners %}
                             <option value="{{ owner.id }}" {% if request.args.get('owners') == owner.id|string %}selected{% endif %}>
@@ -130,8 +128,8 @@
                     {% endif %}
 
                     <div>
-                        <label class="crm-field-label">Group</label>
-                        <select name="groups" class="crm-select">
+                        <label class="crm-field-label" for="contacts-filter-groups">Group</label>
+                        <select id="contacts-filter-groups" name="groups" class="crm-select">
                             <option value="">All groups</option>
                             {% for group in all_groups %}
                             {% set option_value = group.group_ids|join(',') %}
@@ -143,8 +141,8 @@
                     </div>
 
                     <div>
-                        <label class="crm-field-label">Commission range</label>
-                        <select name="commission" class="crm-select">
+                        <label class="crm-field-label" for="contacts-filter-commission">Commission range</label>
+                        <select id="contacts-filter-commission" name="commission" class="crm-select">
                             <option value="">All ranges</option>
                             <option value="0-5000" {% if request.args.get('commission') == '0-5000' %}selected{% endif %}>$0 to $5,000</option>
                             <option value="5000-15000" {% if request.args.get('commission') == '5000-15000' %}selected{% endif %}>$5,000 to $15,000</option>
@@ -152,10 +150,10 @@
                         </select>
                     </div>
 
-                    <div class="{% if current_user.role == 'admin' and show_all %}md:col-span-3{% else %}md:col-span-3{% endif %}">
-                        <label class="crm-field-label">Zip codes</label>
+                    <div>
+                        <label class="crm-field-label" for="contacts-filter-zips">Zip codes</label>
                         <input type="text"
-                               name="zips"
+                               id="contacts-filter-zips" name="zips"
                                value="{{ request.args.get('zips', '') }}"
                                placeholder="Single zip code"
                                class="crm-input">
@@ -296,7 +294,7 @@
                                 <i class="fas fa-sort{% if current_sort == 'name' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %}" style="color: {% if current_sort == 'name' %}var(--ink-2){% else %}var(--ink-4){% endif %};"></i>
                             </button>
                         </th>
-                        <th>Contact Info</th>
+                        <th>Contact details</th>
                         <th>Groups</th>
                         <th>Location</th>
                         <th>
@@ -304,7 +302,7 @@
                                     class="inline-flex items-center gap-2 text-left"
                                     data-column="last_contact_date"
                                     data-action="contacts-page#sort">
-                                <span>Last Contact</span>
+                                <span>Last contact</span>
                                 <i class="fas fa-sort{% if current_sort == 'last_contact_date' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %}" style="color: {% if current_sort == 'last_contact_date' %}var(--ink-2){% else %}var(--ink-4){% endif %};"></i>
                             </button>
                         </th>

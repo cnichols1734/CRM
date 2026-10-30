@@ -62,7 +62,7 @@ class TestDashboardNextActionsRemoved:
         after = text[after_follow_up + len("{% endif %}"):].lstrip()
         assert after.startswith('<div class="t-skel crm-kpi-skel"')
         assert text.index("t-skel crm-kpi-skel") < text.index(
-            "Upcoming Client Tasks"
+            "Client tasks"
         )
 
     def test_kpi_currency_sits_on_baseline(self):
@@ -101,6 +101,6 @@ class TestDashboardNextActionsRemoved:
 
         inner = html.split('class="crm-page__inner"', 1)[1]
         kpi = inner.index("crm-kpi-skel")
-        upcoming = inner.index("Upcoming Client Tasks")
+        upcoming = inner.index("Client tasks")
         assert kpi < upcoming
         assert _workspace_order(inner)[0] == "kpi"
