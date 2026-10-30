@@ -22,6 +22,7 @@ ICON = 'fa-robot'
 # How the agent would describe where they asked, not our internal surface key.
 SURFACE_LABELS = {
     'bob_chat': 'chat',
+    'bob_ios': 'AgentDesk',
     'bob_telegram': 'Telegram',
 }
 

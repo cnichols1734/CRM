@@ -1328,6 +1328,8 @@ def post_conversation_message(user, participant_id):
 
 
 def _register_desk_extensions():
+    from routes import agent_bob
+    agent_bob.register(agent_api_bp)
     try:
         from routes import agent_contact_desk
         agent_contact_desk.register(agent_api_bp)
