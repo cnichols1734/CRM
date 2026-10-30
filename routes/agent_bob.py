@@ -187,11 +187,33 @@ def action(user, aid):
     row = BobAction.query.filter_by(id=aid, organization_id=user.organization_id, user_id=user.id).first()
     if not row:
         return jsonify(error='Action not found.'), 404
-    decision = (request.get_json(silent=True) or {}).get('decision')
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error='A decision is required.'), 400
+    decision = body.get('decision')
+    if not isinstance(decision, str):
+        return jsonify(error='A decision is required.'), 400
+    spoken = body.get('voice_confirmation')
+    if spoken is not None:
+        if not row.conversation_id or not isinstance(spoken, str) or len(spoken) > 120:
+            return jsonify(error='A short spoken confirmation is required for this conversation.'), 400
+        import re
+        normalized = ' '.join(re.findall(r"[a-z]+", str(spoken).lower()))
+        phrases = {
+            'approve': {'yes', 'yes please', 'yes go ahead', 'yes approve it', 'yes approve this change', 'approve this change', 'approve it'},
+            'reject': {'no', 'no thank you', 'no cancel it', 'cancel this change', 'cancel it', 'no reject it', 'reject it'},
+        }
+        if normalized not in phrases.get(decision, set()):
+            return jsonify(error='Say yes approve it, or no cancel it, after BOB describes the change.'), 400
     operation = {'approve': confirm_action, 'reject': reject_action, 'undo': undo_action}.get(decision)
     if operation is None:
         return jsonify(error='Choose approve, reject, or undo.'), 400
     result = operation(aid, BobContext.from_user(user, surface='bob_ios'))
+    if spoken is not None and result.ok:
+        db.session.add(ChatMessage(conversation_id=row.conversation_id, role='user',
+                                   content=f'Voice confirmation for action {aid}: {spoken}'))
+        db.session.add(ChatMessage(conversation_id=row.conversation_id, role='assistant', content=result.summary or 'Action updated.'))
+        db.session.commit()
     return jsonify(ok=result.ok, summary=result.summary, error=result.error), 200 if result.ok else 400
 
 
@@ -206,6 +228,9 @@ def voice_session(user, cid):
     sdp = body.get('sdp') if isinstance(body, dict) else None
     if not isinstance(sdp, str) or not sdp.startswith('v=0') or len(sdp) > 64000:
         return jsonify(error='A valid voice connection offer is required.'), 400
+    voice = body.get('voice', 'meridian')
+    if voice not in ('meridian', 'vesper', 'stone', 'ripple', 'cinder', 'marin'):
+        return jsonify(error='Choose one of the available BOB voices.'), 400
     voice_key = os.environ.get('BOB_VOICE_OPENAI_API_KEY') or Config.OPENAI_API_KEY
     if not voice_key:
         return jsonify(error='Voice is not configured on the server.'), 503
@@ -223,8 +248,11 @@ def voice_session(user, cid):
         'Delegate all requests for CRM facts or actions to the existing BOB backend. '
         'Never invent contact details or claim an action succeeded before a backend result. '
         'Ask for clarification when a name, number, date or intended action is unclear. '
-        'If an action needs approval, tell the agent to review the action card in chat. '
-        'Spoken agreement does not replace those approval controls. '
+        'The app can approve a specific pending action by voice after you describe it. '
+        'Follow the app commentary to read the change and ask its exact approval question. '
+        'Ask the agent to say yes approve it or no cancel it, then delegate their reply to the app. '
+        'Never interpret silence, ambiguous speech or the original request as approval. '
+        'Never claim approval or execution succeeded until the app returns that result. '
         'An interruption stops your speech, not work already submitted. '
         'Do not repeat a submitted action or promise to cancel it. '
         'Explain that action status must be checked when an outcome is uncertain.'
@@ -235,6 +263,7 @@ def voice_session(user, cid):
     payload = {
         'session': {
             'model': 'gpt-live-1',
+            'audio': {'output': {'voice': voice}},
             'instructions': instructions,
             'delegation': {'type': 'client'},
             'client': {'data_channel': {

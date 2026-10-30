@@ -146,6 +146,7 @@ def test_voice_session_scopes_history_and_keeps_key_server_side(app, client, see
     assert response.status_code == 200
     assert 'test-provider-secret' not in response.get_data(as_text=True)
     assert seen[0]['json']['session']['model'] == 'gpt-live-1'
+    assert seen[0]['json']['session']['audio']['output']['voice'] == 'meridian'
     assert seen[0]['json']['session']['input'][0]['content'][0]['text'] == 'Plan my follow-ups'
     assert 'Ignore permissions' not in seen[0]['json']['session']['instructions']
     with app.app_context():
@@ -171,3 +172,58 @@ def test_voice_provider_failure_does_not_disclose_response(app, client, seed, mo
     response = client.post(f'/api/agent/v1/bob/conversations/{cid}/voice', json={'sdp': 'v=0'}, headers=headers)
     assert response.status_code == 503
     assert 'sensitive' not in response.get_data(as_text=True)
+
+
+def test_voice_confirmation_rejects_qualified_speech_and_records_explicit_rejection(app, client, seed):
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        row = BobAction(user_id=seed['owner_a'], organization_id=seed['org_a'], conversation_id=cid,
+                        tool_name='delete_contact', status='pending', arguments={}, summary='Delete contact')
+        db.session.add(row)
+        db.session.commit()
+        aid = row.id
+    for phrase in ('yes but change the date', 'yes approve it but change the date', 'do not approve it', 'he said approve it'):
+        response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                               json={'decision': 'approve', 'voice_confirmation': phrase})
+        assert response.status_code == 400
+    assert client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json['actions'][0]['status'] == 'pending'
+    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                           json={'decision': 'reject', 'voice_confirmation': 'No, cancel it.'})
+    assert response.status_code == 200
+    conversation = client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json
+    assert conversation['actions'][0]['status'] == 'rejected'
+    assert any('No, cancel it.' in message['content'] for message in conversation['messages'])
+    assert client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                       json={'decision': 'approve', 'voice_confirmation': 'Yes, approve it.'}).status_code == 400
+
+
+def test_voice_choice_validation(client, seed, monkeypatch):
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    monkeypatch.setattr(agent_bob.requests, 'post', lambda *args, **kwargs: pytest.fail('Invalid voice must not start a paid session'))
+    response = client.post(f'/api/agent/v1/bob/conversations/{cid}/voice', headers=headers,
+                           json={'sdp': 'v=0', 'voice': 'invalid'})
+    assert response.status_code == 400
+
+
+def test_voice_approval_applies_pending_contact_change_once(app, client, seed):
+    from models import Contact
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        row = BobAction(user_id=seed['owner_a'], organization_id=seed['org_a'], conversation_id=cid,
+                        tool_name='update_contact', status='pending', summary='Update contact city',
+                        arguments={'contact_id': seed['contact_a'], 'fields': {'city': 'Voice test city'}})
+        db.session.add(row)
+        db.session.commit()
+        aid = row.id
+    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                           json={'decision': 'approve', 'voice_confirmation': 'Yes, approve it.'})
+    assert response.status_code == 200, response.json
+    with app.app_context():
+        assert db.session.get(Contact, seed['contact_a']).city == 'Voice test city'
+        assert db.session.get(BobAction, aid).status == 'executed'
+    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                           json={'decision': 'approve', 'voice_confirmation': 'Yes'})
+    assert response.status_code == 400
