@@ -369,7 +369,7 @@ class TestLandingProductClaims:
 
 class TestLoginLeftoverCopy:
     def test_keeps_login_h1(self):
-        assert "Sign in to continue." in LOGIN
+        assert '<h1 class="title mt-1">Sign in</h1>' in LOGIN
 
 
 class TestRegisterLeftoverCopy:

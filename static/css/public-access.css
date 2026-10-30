@@ -1,0 +1,132 @@
+/* Public account and visitor pages. Unslop by Damir Sokolovsky, CC BY 4.0.
+   https://github.com/heydamir/unslop */
+.public-access {
+  --bg: #faf9f6; --panel: #fff; --panel-soft: #f0f0ec;
+  --text: #23272b; --muted: #59616a; --border: #dedfdb; --brand-orange: #c2410c;
+  background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif;
+  min-height: 100dvh; padding: 64px 24px;
+}
+.public-access .shell { width: 100%; max-width: 1040px; }
+.public-access .card, .public-access .auth-card { border: 1px solid var(--border); border-radius: 12px; background: white; box-shadow: none; color: var(--text); overflow: hidden; }
+.public-access .card > .grid { grid-template-columns: .95fr 1.05fr; }
+.public-access .left { padding: 48px; background: #f0f0ec; border-right: 1px solid var(--border); }
+.public-access .left-title { font-size: 36px; font-weight: 500; letter-spacing: -.03em; line-height: 1.15; color: var(--text); }
+.public-access .left-muted, .public-access .left .text-brand-600 { color: var(--muted); line-height: 1.65; }
+.public-access .left-chip { font-size: 13px; color: var(--muted); }
+.public-access .left-bullet { padding-top: 16px; border-top: 1px solid var(--border); }
+.public-access .left-bullet .text-xs { font-size: 13px; margin-top: 4px; }
+.public-access .left .text-brand-800 { color: var(--brand-orange); }
+.public-access .public-auth-form { padding: 48px; }
+.public-access :is(.title,.auth-title) { font-size: 32px; font-weight: 500; letter-spacing: -.025em; line-height: 1.2; color: var(--text); }
+.public-access :is(.kicker,.auth-kicker) { font-size: 13px; font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; margin-bottom: 8px; }
+.public-access :is(.subtitle,.auth-subtitle) { font-size: 15px; line-height: 1.6; color: var(--muted); margin-top: 12px; }
+.public-access :is(.label,.auth-label) { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 8px; }
+.public-access :is(.input,.auth-input) { width: 100%; min-width: 0; height: 48px; padding: 0 12px; font-size: 16px; border: 1px solid var(--border); background: white; border-radius: 8px; color: var(--text); }
+/* Keep these forms readable when a visitor has a saved dark app theme. */
+body.crm-auth-page .public-access input.input,
+body.crm-auth-page .public-access.auth-family .auth-card input.auth-input {
+  background: #fff !important; background-color: #fff !important; color: #23272b !important;
+  -webkit-text-fill-color: #23272b !important; caret-color: #23272b;
+  border: 1px solid #c6cbc6 !important; border-radius: 8px !important; box-shadow: none !important; color-scheme: light;
+}
+body.crm-auth-page .public-access.auth-family .auth-card input.auth-input::placeholder,
+body.crm-auth-page .public-access input.input::placeholder { color: #626a72 !important; -webkit-text-fill-color: #626a72 !important; }
+body.crm-auth-page .public-access input:focus-visible { outline: 2px solid #c2410c !important; outline-offset: 2px; }
+.public-access :is(a,button):focus-visible { outline: 2px solid #c2410c; outline-offset: 4px; }
+.public-access :is(.btn,.auth-btn) { width: 100%; min-height: 48px; border-radius: 8px; background: #f97316; color: #25180d; font-size: 15px; font-weight: 600; border: 0; padding: 12px 16px; box-shadow: none; transition: background-color 160ms ease-out; }
+.public-access :is(.btn,.auth-btn):hover { background: #fb923c; box-shadow: none; }
+.public-access :is(.btn,.auth-btn) i { font-size: 12px; }
+.public-access .icon-btn { flex-shrink: 0; width: 48px; height: 48px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); background: white; }
+.public-access .grid > *, .public-access .flex-1 { min-width: 0; }
+.public-access .divider { height: 1px; background: var(--border); }
+.public-access :is(.footer-link,.support-action,.legal a) { color: var(--brand-orange); font-weight: 500; text-underline-offset: 3px; }
+.public-access :is(.footer-link,.support-action,.hint-link,.home-link,.auth-back):hover { text-decoration: underline; text-underline-offset: 3px; }
+.public-access :is(.hint-link,.home-link,.auth-back) { color: var(--muted); font-size: 13px; }
+.public-access .legal { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.public-access .support-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; font-size: 13px; margin-top: 20px; color: var(--muted); }
+.public-access .banner { padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: white; }
+.public-access .banner-warning { background: #fff8e7; border-color: #e6d6aa; }
+.public-access .banner-danger { background: #fff1f0; border-color: #e7c3bf; }
+.public-access .banner-title { font-weight: 600; margin-bottom: 8px; }
+.public-access .banner-text { color: var(--muted); font-size: 14px; }
+.public-access .auth-family-shell { width: 100%; max-width: 480px; }
+.public-access .auth-family-shell--wide { max-width: 640px; }
+.public-access .auth-notice { padding: 16px; background: #f0f0ec; border-radius: 8px; font-size: 13px; color: var(--muted); }
+.public-access .auth-input:disabled { opacity: 1; background: #f0f0ec !important; }
+.public-access :is(.text-red-400,.text-red-600) { color: #b42318; }
+.public-access #passwordStrengthBar { transition: background-color 160ms ease-out !important; }
+.public-access .legal-title { font-size: 40px; font-weight: 500; }
+.public-access :is(.legal-kicker,.legal-toc h2) { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; }
+.public-access :is(.legal-h2,.legal-h3) { font-weight: 500; }
+.public-access .legal-toc { background: transparent; border: 0; padding-left: 0; }
+.public-access .legal-doc { border-radius: 8px; border-color: var(--border); }
+.public-product .hero-bg { background: #faf9f6; background-image: none; }
+.public-product .btn-primary:hover { transform: none; box-shadow: none; }
+.public-product :is(h1,h2,h3) { font-weight: 500; }
+.public-product h1 { letter-spacing: -.035em; }
+.public-product .bg-brand-900 { background: #292e33; }
+.public-product :is(.rounded-2xl,.rounded-xl) { border-radius: 8px; }
+.public-product .landing-faq { font-family: inherit; }
+.public-product .overflow-x-auto { border: 1px solid #dedfdb; border-radius: 8px; }
+.public-product section > div > .text-center { text-align: left; }
+.public-product section > div > .text-center p { margin-left: 0; }
+.public-product .bg-brand-900 :is(.text-brand-300,.text-brand-400) { color: #c2c7cb; }
+body.pp { --pp-page: #faf9f6; --pp-ink: #23272b; --pp-ink-2: #59616a; --pp-dark: #292e33; background: #faf9f6; }
+.pp :is(.pp-center__box,.pp-card) { box-shadow: none; border-radius: 12px; }
+.pp :is(.pp-btn,.pp-link):focus-visible { outline: 2px solid #c2410c; outline-offset: 4px; }
+.pp .pp-btn { box-shadow: none; transition: background-color 160ms ease-out; }
+.pp .pp-btn:hover { transform: none; box-shadow: none; }
+.pp .pp-btn--ink { background: #f97316; color: #25180d; }
+@media(max-width:1023px) {
+ .public-access { padding: 32px 16px; align-items: flex-start; }
+ .public-access .shell { max-width: 600px; }
+ .public-access .card > .grid { grid-template-columns: 1fr; }
+ .public-access .left { padding: 24px; border-right: 0; border-bottom: 1px solid var(--border); }
+ .public-access .left > div > .mt-8 { display: none; }
+ .public-access .public-auth-form { padding: 32px 24px; }
+ .public-access :is(.title,.auth-title) { font-size: 28px; }
+ .public-access .legal-title { font-size: 32px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .public-access *, .public-product *, .pp * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+.pp .pp-live::after { display: none; }
+.pp .pp-display { font-weight: 500; }
+.pp .pp-brand { text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; }
+.public-health {
+ --bg-primary: #202428; --bg-secondary: #292e33; --bg-tertiary: #30363b; --bg-card: #292e33;
+ --text-primary: #f3f4f1; --text-secondary: #c2c7cb; --text-muted: #a0a7ae;
+ --border: #42494f; --border-focus: #fb923c; --neon-green: #86b99a;
+ --neon-cyan: #c2c7cb; --neon-blue: #c2c7cb; --neon-purple: #c2c7cb;
+ --neon-orange: #fb923c; --neon-red: #efa39d; --neon-yellow: #e5c586; --neon-pink: #c2c7cb;
+}
+.public-health::after { display: none; }
+.public-health * { text-shadow: none !important; box-shadow: none !important; }
+@media(prefers-reduced-motion:reduce) { .public-health * { animation: none !important; transition: none !important; } }
+/* The account wrapper takes precedence over legacy !important app-theme rules. */
+html body #public-account { background: #faf9f6 !important; color: #23272b !important; font-family: 'DM Sans', sans-serif !important; }
+#public-account :is(.card,.auth-card) { background: white !important; color: #23272b !important; border: 1px solid #dedfdb !important; border-radius: 12px !important; box-shadow: none !important; color-scheme: light; }
+#public-account .left { background: #f0f0ec !important; color: #23272b !important; border-color: #dedfdb !important; }
+#public-account :is(.left-title,.left .font-semibold,.auth-title,.auth-label,.title,.label) { color: #23272b !important; -webkit-text-fill-color: #23272b !important; }
+#public-account :is(.left-muted,.left .text-brand-600,.auth-subtitle,.auth-kicker,.subtitle,.kicker,.hint-link,.legal,.support-row) { color: #59616a !important; -webkit-text-fill-color: #59616a !important; }
+#public-account .left-chip { color: #59616a !important; background: none !important; border: 0 !important; }
+#public-account :is(.btn,.auth-btn) { background: #f97316 !important; color: #25180d !important; box-shadow: none !important; }
+#public-account :is(.btn,.auth-btn):hover { background: #fb923c !important; }
+#public-account :is(.footer-link,.support-action,.legal a) { color: #c2410c !important; -webkit-text-fill-color: #c2410c !important; }
+#public-account input:is(.input,.auth-input) { color: #23272b !important; -webkit-text-fill-color: #23272b !important; background: white !important; border: 1px solid #c6cbc6 !important; border-radius: 8px !important; height: 48px !important; font-size: 16px !important; box-shadow: none !important; color-scheme: light !important; }
+#public-account input:is(.input,.auth-input)::placeholder { color: #626a72 !important; -webkit-text-fill-color: #626a72 !important; }
+#public-account input:is(.input,.auth-input):focus { outline: 2px solid #c2410c !important; outline-offset: 2px; box-shadow: none !important; }
+#public-account input:disabled { background: #f0f0ec !important; }
+#public-account ::selection { background: #dedfdb !important; color: #23272b !important; }
+.public-product .landing-faq summary::after { width: auto; height: auto; border: 0; transform: none; margin: 0; }
+.public-product .landing-faq details[open] summary::after { transform: none; margin: 0; }
+.public-product footer .flex { flex-wrap: wrap; }
+.public-product footer .gap-6 { gap: 16px 24px; }
+.public-product .compare-table { font-variant-numeric: tabular-nums; }
+.public-health .topbar { flex-wrap: wrap; gap: 16px; }
+.public-health .topbar-right { flex-wrap: wrap; }
+@media(max-width:767px) {
+ .public-product footer .flex { justify-content: flex-start; }
+ .public-health .topbar { padding: 16px; }
+}

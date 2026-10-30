@@ -229,9 +229,11 @@
             line-height: 1.6;
         }
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public-sales.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public-access.css') }}">
 </head>
 
-<body class="font-sans antialiased text-brand-800">
+<body class="sales-page public-product font-sans antialiased text-brand-800">
 
     <nav class="fixed top-0 left-0 right-0 z-50 nav-blur bg-white/90 border-b border-brand-100/50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -250,13 +252,13 @@
                     <a href="{{ url_for('auth.login') }}" class="text-brand-700 hover:text-brand-900 font-semibold transition-colors">
                         Log In
                     </a>
-                    <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl shadow-lg">
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center gap-2 px-5 py-2.5  from-accent-500 to-accent-600 text-white font-semibold rounded-xl ">
                         Start Free
                         <i class="fas fa-arrow-right text-sm"></i>
                     </a>
                 </div>
 
-                <button id="mobileMenuBtn" class="md:hidden p-2 text-brand-700 hover:text-brand-900">
+                <button id="mobileMenuBtn" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileMenu" class="md:hidden p-2 text-brand-700 hover:text-brand-900">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
             </div>
@@ -264,9 +266,9 @@
 
         <div id="mobileMenuOverlay" class="fixed inset-0 bg-black/50 z-40 md:hidden opacity-0 pointer-events-none transition-opacity duration-300"></div>
 
-        <div id="mobileMenu" class="mobile-menu fixed top-0 right-0 w-80 h-screen md:hidden z-50" style="background-color: #ffffff;">
+        <div id="mobileMenu" inert class="mobile-menu fixed top-0 right-0 w-80 h-screen md:hidden z-50" style="background-color: #ffffff;">
             <div class="p-6 h-full bg-white">
-                <button id="closeMobileMenu" class="absolute top-4 right-4 p-2 text-brand-600 hover:text-brand-900 z-10">
+                <button id="closeMobileMenu" aria-label="Close navigation" class="absolute top-4 right-4 p-2 text-brand-600 hover:text-brand-900 z-10">
                     <i class="fas fa-times text-xl"></i>
                 </button>
 
@@ -278,7 +280,7 @@
                     <hr class="border-brand-100">
 
                     <a href="{{ url_for('auth.login') }}" class="block text-lg font-semibold text-brand-800">Log In</a>
-                    <a href="{{ url_for('auth.register') }}" class="block w-full text-center px-6 py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl shadow-lg">
+                    <a href="{{ url_for('auth.register') }}" class="block w-full text-center px-6 py-3  from-accent-500 to-accent-600 text-white font-semibold rounded-xl ">
                         Start Free
                     </a>
                 </div>
@@ -289,13 +291,13 @@
     <section class="hero-bg pt-24 md:pt-32 pb-16 md:pb-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="max-w-3xl">
-                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-900 leading-tight mb-6">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-semibold text-brand-900 leading-tight mb-6">
                     A free real estate CRM you can start tonight.
                 </h1>
                 <p class="text-lg sm:text-xl text-brand-600 mb-8">
                     Built for agents, by agents. The free tier stays free. No card. About two minutes.
                 </p>
-                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4  from-accent-500 to-accent-600 text-white font-semibold text-lg rounded-xl ">
                     Start Free
                     <i class="fas fa-arrow-right"></i>
                 </a>
@@ -307,7 +309,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="max-w-3xl space-y-10">
                 <div>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">What's on the free tier</h2>
+                    <h2 class="text-2xl sm:text-3xl font-semibold text-brand-900 mb-4">What's on the free tier</h2>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
                         The free tier is one user, up to 10,000 contacts, and 25 B.O.B. messages a day. Load your database, then put a due date on the next call so it isn't stuck in your notes app. Gmail send and Google Calendar task sync are included.
                     </p>
@@ -320,7 +322,7 @@
                 </div>
 
                 <div>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">What other CRMs publish</h2>
+                    <h2 class="text-2xl sm:text-3xl font-semibold text-brand-900 mb-4">What other CRMs publish</h2>
                     <p class="text-lg text-brand-600 leading-relaxed">
                         <a href="{{ url_for('main.follow_up_boss_alternative') }}" class="text-brand-800 underline underline-offset-2 hover:text-accent-600">Follow Up Boss</a> is $69 per user after a trial. <a href="{{ url_for('main.wise_agent_alternative') }}" class="text-brand-800 underline underline-offset-2 hover:text-accent-600">Wise Agent</a> is $49 after a trial. Sierra is $299.95 and up. <a href="{{ url_for('main.kvcore_alternative') }}" class="text-brand-800 underline underline-offset-2 hover:text-accent-600">BoldTrail</a> and Lofty are quote-only. Here it's $0 to start, and you don't need a card.
                     </p>
@@ -330,7 +332,7 @@
                     Paid features come later. Nothing paid is for sale today. Pro is coming soon.
                 </p>
 
-                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4  from-accent-500 to-accent-600 text-white font-semibold text-lg rounded-xl ">
                     Start Free
                     <i class="fas fa-arrow-right"></i>
                 </a>
@@ -340,7 +342,7 @@
 
     <section id="faq" class="bg-[#f4f4f4] py-16 md:py-20">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-10">Common questions</h2>
+            <h2 class="text-3xl sm:text-4xl font-semibold text-brand-900 mb-10">Common questions</h2>
             <div class="landing-faq">
                 <details>
                     <summary>What does the free tier include?</summary>
@@ -396,18 +398,26 @@
 
         function openMobileMenu() {
             mobileMenu.classList.add('open');
+            mobileMenu.inert = false;
+            mobileMenuBtn.setAttribute('aria-expanded', 'true');
+            closeMobileMenu.focus();
             mobileMenuOverlay.classList.remove('opacity-0', 'pointer-events-none');
             mobileMenuOverlay.classList.add('opacity-100');
             document.body.style.overflow = 'hidden';
         }
 
         function closeMobileMenuFn() {
+            const wasOpen = mobileMenu.classList.contains('open');
             mobileMenu.classList.remove('open');
+            mobileMenu.inert = true;
+            mobileMenuBtn.setAttribute('aria-expanded', 'false');
+            if (wasOpen) mobileMenuBtn.focus();
             mobileMenuOverlay.classList.add('opacity-0', 'pointer-events-none');
             mobileMenuOverlay.classList.remove('opacity-100');
             document.body.style.overflow = '';
         }
 
+        document.addEventListener('keydown', event => { if (event.key === 'Escape' && mobileMenu.classList.contains('open')) closeMobileMenuFn(); });
         mobileMenuBtn.addEventListener('click', openMobileMenu);
         closeMobileMenu.addEventListener('click', closeMobileMenuFn);
         mobileMenuOverlay.addEventListener('click', closeMobileMenuFn);

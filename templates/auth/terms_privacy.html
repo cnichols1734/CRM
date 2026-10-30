@@ -165,8 +165,9 @@
   }
   .legal-top:hover{ color: var(--brand-orange); }
 </style>
+{% include "auth/_public_styles.html" %}
 
-<div class="legal-page min-h-screen px-4 py-10 md:py-14">
+<div id="public-account" class="legal-page public-access min-h-screen px-4 py-10 md:py-14">
   <div class="legal-shell">
     <header class="mb-8">
       <a href="{{ url_for('main.landing') }}" class="legal-home">
