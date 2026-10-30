@@ -4,6 +4,8 @@ from functools import wraps
 import hashlib
 import json
 import logging
+import os
+import requests
 from uuid import UUID
 
 from flask import g, jsonify, request
@@ -25,6 +27,7 @@ def register(bp):
     bp.add_url_rule('/bob/conversations/<int:cid>', 'bob_conversation', conversation, methods=['GET'])
     bp.add_url_rule('/bob/conversations/<int:cid>/messages', 'bob_message', message, methods=['POST'])
     bp.add_url_rule('/bob/actions/<int:aid>', 'bob_action', action, methods=['POST'])
+    bp.add_url_rule('/bob/conversations/<int:cid>/voice', 'bob_voice', voice_session, methods=['POST'])
 
 
 def bob_required(view):
@@ -184,9 +187,110 @@ def action(user, aid):
     row = BobAction.query.filter_by(id=aid, organization_id=user.organization_id, user_id=user.id).first()
     if not row:
         return jsonify(error='Action not found.'), 404
-    decision = (request.get_json(silent=True) or {}).get('decision')
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error='A decision is required.'), 400
+    decision = body.get('decision')
+    if not isinstance(decision, str):
+        return jsonify(error='A decision is required.'), 400
+    spoken = body.get('voice_confirmation')
+    if spoken is not None:
+        if not row.conversation_id or not isinstance(spoken, str) or len(spoken) > 120:
+            return jsonify(error='A short spoken confirmation is required for this conversation.'), 400
+        import re
+        normalized = ' '.join(re.findall(r"[a-z0-9]+", spoken.lower()))
+        phrases = {
+            'approve': {'yes', 'yes please', 'yes go ahead', 'yes approve it', 'yes approve this change', 'approve this change', 'approve it'},
+            'reject': {'no', 'no thank you', 'no cancel it', 'cancel this change', 'cancel it', 'no reject it', 'reject it'},
+        }
+        if normalized not in phrases.get(decision, set()):
+            return jsonify(error='Say yes approve it, or no cancel it, after BOB describes the change.'), 400
     operation = {'approve': confirm_action, 'reject': reject_action, 'undo': undo_action}.get(decision)
     if operation is None:
         return jsonify(error='Choose approve, reject, or undo.'), 400
     result = operation(aid, BobContext.from_user(user, surface='bob_ios'))
+    if spoken is not None and result.ok:
+        db.session.add(ChatMessage(conversation_id=row.conversation_id, role='user',
+                                   content=f'Voice confirmation for action {aid}: {spoken}'))
+        db.session.add(ChatMessage(conversation_id=row.conversation_id, role='assistant', content=result.summary or 'Action updated.'))
+        db.session.commit()
     return jsonify(ok=result.ok, summary=result.summary, error=result.error), 200 if result.ok else 400
+
+
+@bob_required
+def voice_session(user, cid):
+    """Exchange the native WebRTC offer without sending a provider key to the phone."""
+    from routes.ai_chat import check_rate_limit
+    conv = scope(user).filter_by(id=cid).first()
+    if not conv:
+        return jsonify(error='Conversation not found.'), 404
+    body = request.get_json(silent=True) or {}
+    sdp = body.get('sdp') if isinstance(body, dict) else None
+    if not isinstance(sdp, str) or not sdp.startswith('v=0') or len(sdp) > 64000:
+        return jsonify(error='A valid voice connection offer is required.'), 400
+    voice = body.get('voice', 'meridian')
+    if voice not in ('meridian', 'vesper', 'stone', 'ripple', 'cinder', 'marin'):
+        return jsonify(error='Choose one of the available BOB voices.'), 400
+    voice_key = os.environ.get('BOB_VOICE_OPENAI_API_KEY') or Config.OPENAI_API_KEY
+    if not voice_key:
+        return jsonify(error='Voice is not configured on the server.'), 503
+    if not check_rate_limit()[0]:
+        return jsonify(error="The daily BOB usage limit was reached."), 429
+    try:
+        if not receipt_store().set(f'bob:voice:start:{user.organization_id}:{user.id}', '1', nx=True, ex=20):
+            return jsonify(error='Please wait a few seconds before starting another voice session.'), 429
+    except Exception:
+        return jsonify(error='Voice is temporarily unavailable. Try again shortly.'), 503
+    instructions = (
+        'You are BOB, the AgentDesk work assistant for a real estate agent. '
+        'Speak clearly, warmly and briefly. Let the agent interrupt you naturally. '
+        'Discuss work, planning, follow-ups and real estate. '
+        'Delegate all requests for CRM facts or actions to the existing BOB backend. '
+        'Never invent contact details or claim an action succeeded before a backend result. '
+        'Ask for clarification when a name, number, date or intended action is unclear. '
+        'The app can approve a specific pending action by voice after you describe it. '
+        'Follow the app commentary to read the change and ask its exact approval question. '
+        'Ask the agent to say yes approve it or no cancel it, then delegate their reply to the app. '
+        'Never interpret silence, ambiguous speech or the original request as approval. '
+        'Never claim approval or execution succeeded until the app returns that result. '
+        'An interruption stops your speech, not work already submitted. '
+        'Do not repeat a submitted action or promise to cancel it. '
+        'Explain that action status must be checked when an outcome is uncertain.'
+    )
+    history = ChatMessage.query.filter_by(conversation_id=cid).order_by(ChatMessage.id.desc()).limit(12).all()
+    context = [{'type': 'message', 'role': m.role, 'content': [{'type': 'output_text' if m.role == 'assistant' else 'input_text', 'text': m.content[:2000]}]} for m in reversed(history)
+               if m.role in ('user', 'assistant')]
+    payload = {
+        'session': {
+            'model': 'gpt-live-1',
+            'audio': {'output': {'voice': voice}},
+            'instructions': instructions,
+            'delegation': {'type': 'client'},
+            'client': {'data_channel': {
+                'allowed_client_events': ['session.thinking.append', 'session.commentary.append', 'session.close'],
+                'allowed_server_events': 'all',
+            }},
+        },
+        'transport': {'type': 'webrtc', 'sdp': sdp},
+    }
+    if context:
+        payload['session']['input'] = context
+    try:
+        response = requests.post('https://api.openai.com/v1/live/sessions',
+            headers={'Authorization': f'Bearer {voice_key}'}, json=payload, timeout=(5, 30))
+        if response.status_code in (401, 403, 404):
+            return jsonify(error='GPT-Live is unavailable for the server API key. Check its credentials and model access.'), 503
+        if response.status_code == 429:
+            return jsonify(error='Voice is busy or its usage limit was reached. Try again later.'), 429
+        if not response.ok:
+            logger.warning('BOB voice session rejected with HTTP %s', response.status_code)
+            return jsonify(error='The voice connection could not start. Try again.'), 502
+        result = response.json()
+        answer = result.get('transport', {}).get('sdp')
+        session_id = result.get('session', {}).get('id')
+        if not isinstance(answer, str) or not isinstance(session_id, str):
+            return jsonify(error='The voice provider returned an incomplete connection.'), 502
+        return jsonify(sdp=answer, session_id=session_id)
+    except (requests.RequestException, ValueError):
+        logger.warning('BOB voice session could not connect')
+        return jsonify(error='The voice connection timed out. Try again.'), 502
