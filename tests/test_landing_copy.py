@@ -105,8 +105,8 @@ class TestLandingLeftoverCopy:
         assert "seamlessly" not in REGISTER.lower()
 
     def test_exact_replacements_are_present(self):
-        assert "WHAT AGENTFLOW DOES" in LANDING
-        assert "Keep the client work together. Let B.O.B. handle the busywork." in LANDING
+        assert "What AgentFlow does" in LANDING
+        assert "The client record is just the start" in LANDING
         assert "See if AgentFlow fits the way you work." in LANDING
         assert "You can start with the free plan, add a few contacts, and use the actual CRM before deciding anything." in LANDING
         assert "Don't let the next step disappear" in LANDING
