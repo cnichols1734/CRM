@@ -1897,7 +1897,7 @@ def select_tools(ctx: BobContext | None = None) -> tuple[Tool, ...]:
     # CRM chat always gets transaction reads (handlers enforce authZ).
     # Telegram / pilot orgs get them too; non-pilot Telegram stays CRM-only
     # unless a transaction is already selected in session context.
-    vtc_enabled = has_tx or ctx.surface == 'bob_chat'
+    vtc_enabled = has_tx or ctx.surface in ('bob_chat', 'bob_ios')
     try:
         from feature_flags import org_has_feature
         from models import Organization
@@ -1921,7 +1921,7 @@ def select_tools(ctx: BobContext | None = None) -> tuple[Tool, ...]:
                 'search_transactions', 'select_transaction_context',
             })
             names -= TX_WRITE_TOOL_NAMES
-        elif has_tx or ctx.surface in ('bob_chat', 'mcp'):
+        elif has_tx or ctx.surface in ('bob_chat', 'bob_ios', 'mcp'):
             names.update(TX_WRITE_TOOL_NAMES)
 
     return tuple(t for t in TOOLS if t.name in names)

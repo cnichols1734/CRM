@@ -103,3 +103,22 @@ def test_pending_action_survives_refresh_and_rejection(app, client, seed, monkey
     result = client.post(f'/api/agent/v1/bob/actions/{aid}', json={'decision': 'reject'}, headers=headers)
     assert result.status_code == 200, result.json
     assert client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json['actions'][0]['status'] == 'rejected'
+
+
+def test_native_and_web_have_same_tool_catalog(app, seed):
+    from models import User
+    from services.bob_tools import BobContext, select_tools
+    with app.app_context():
+        user = db.session.get(User, seed['owner_a'])
+        native = {t.name for t in select_tools(BobContext.from_user(user, surface='bob_ios'))}
+        web = {t.name for t in select_tools(BobContext.from_user(user, surface='bob_chat'))}
+        assert native == web
+        assert 'search_transactions' in native
+
+
+def test_message_validates_json_before_running_tools(client, seed):
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    route = f'/api/agent/v1/bob/conversations/{cid}/messages'
+    assert client.post(route, json=['invalid'], headers=headers).status_code == 400
+    assert client.post(route, json={'message': 'hi', 'request_id': 'invalid'}, headers=headers).status_code == 400

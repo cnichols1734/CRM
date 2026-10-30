@@ -97,6 +97,8 @@ def message(user, cid):
     if not conv:
         return jsonify(error='Conversation not found.'), 404
     body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error='Send a JSON object.'), 400
     text = body.get('message')
     if not isinstance(text, str) or not text.strip() or len(text) > 12000:
         return jsonify(error='Enter a message of up to 12,000 characters.'), 400
