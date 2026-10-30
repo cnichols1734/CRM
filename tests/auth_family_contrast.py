@@ -1,6 +1,6 @@
 """Shared public-auth contrast contracts for Playwright.
 
-Login/register are a light form. Reset/invite use a dark card. Both sit on
+All public account forms use light surfaces. They sit on
 body.crm-auth-page and inherit html[data-theme]. These helpers fail when
 dark-theme crm-input tokens, near-white type, or leftover t-input orange
 slabs win on those screens.
@@ -30,7 +30,7 @@ _LIGHT_COPY = (
     ".text-slate-600",
 )
 
-_DARK_COPY = (
+_RECOVERY_COPY = (
     ".auth-title",
     ".auth-subtitle",
     ".auth-kicker",
@@ -78,19 +78,19 @@ def auth_family_page_specs(reset_path: str, invite_path: str) -> list[dict]:
         {
             "name": "forgot-password",
             "path": "/reset_password",
-            "form_kind": "dark",
+            "form_kind": "light",
             "scope": ".auth-card",
             "expect_text": ("Forgot Password?",),
-            "copy": list(_DARK_COPY),
+            "copy": list(_RECOVERY_COPY),
             "fill": (("input[name='email']", "agent@example.com"),),
         },
         {
             "name": "reset-password",
             "path": reset_path,
-            "form_kind": "dark",
+            "form_kind": "light",
             "scope": ".auth-card",
             "expect_text": ("Create New Password",),
-            "copy": list(_DARK_COPY),
+            "copy": list(_RECOVERY_COPY),
             "fill": (
                 ("input[name='password']", "not-a-real-password"),
                 ("input[name='confirm_password']", "not-a-real-password"),
@@ -99,10 +99,10 @@ def auth_family_page_specs(reset_path: str, invite_path: str) -> list[dict]:
         {
             "name": "accept-invite",
             "path": invite_path,
-            "form_kind": "dark",
+            "form_kind": "light",
             "scope": ".auth-card",
             "expect_text": ("You're invited to join",),
-            "copy": list(_DARK_COPY),
+            "copy": list(_RECOVERY_COPY),
             "fill": (
                 ("input[name='username']", "invitee_browser"),
                 ("input[name='first_name']", "Pat"),

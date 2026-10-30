@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/portal.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/public-access.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body class="pp">
@@ -28,12 +29,6 @@
           onScroll();
           window.addEventListener('scroll', onScroll, { passive: true });
         }
-        // Staggered reveal — gentle, slow, reduced-motion aware.
-        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        document.querySelectorAll('[data-reveal]').forEach(function (el, i) {
-          el.classList.add('pp-reveal');
-          el.style.animationDelay = Math.min(i * 90, 720) + 'ms';
-        });
       })();
     </script>
     {% block scripts %}{% endblock %}

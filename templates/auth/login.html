@@ -12,237 +12,9 @@
 {% endblock %}
 
 {% block content %}
-<style>
-  :root{
-    --brand-orange: #f97316;
-    --bg: #f4f4f4;
-    --panel: #ffffff;
-    --panel-soft: #f0f0f0;
-    --text: rgba(0, 0, 0, 0.88);
-    --muted: rgba(0, 0, 0, 0.56);
-    --border: rgba(0, 0, 0, 0.10);
-    --shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
-    --focus: rgba(249, 115, 22, 0.18);
-    --accent-soft: rgba(249, 115, 22, 0.1);
-  }
+{% include "auth/_public_styles.html" %}
 
-  .login-page{
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-
-  .shell{ width: 100%; max-width: 920px; }
-
-  .card{
-    background: var(--panel);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    border-radius: 18px;
-    overflow: hidden;
-  }
-
-  /* Left rail stays dark so the dark-mode mark has contrast. */
-  .left{
-    background:
-      radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.16) 0%, transparent 55%),
-      #2c2c2e;
-    color: hsla(0, 0%, 100%, 0.92);
-    position: relative;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  .left::before{
-    content:'';
-    position:absolute;
-    top:0; left:0; right:0;
-    height: 2px;
-    background: var(--brand-orange);
-  }
-  .left-muted{ color: hsla(0, 0%, 100%, 0.56); }
-  .left p.text-brand-600{ color: hsla(0, 0%, 100%, 0.56); }
-  .left a.text-brand-800{ color: #fb923c; }
-  .left a.text-brand-800:hover{ color: #f97316; }
-  .left-title{
-    color: hsla(0, 0%, 100%, 0.92);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-  }
-  .left-chip{
-    display:inline-flex;
-    align-items:center;
-    gap:.5rem;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 10px;
-    border-radius: 9999px;
-    background: rgba(249, 115, 22, 0.16);
-    color: #fb923c;
-    border: 1px solid rgba(249, 115, 22, 0.28);
-  }
-  .left-bullet{
-    display:flex;
-    gap:.75rem;
-    align-items:flex-start;
-  }
-  .left-icon{
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: #3a3a3c;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-shrink:0;
-    color: var(--brand-orange);
-  }
-
-  /* Form */
-  .kicker{ font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-  .title{ font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
-  .subtitle{ font-size: 14px; color: var(--muted); }
-
-  .label{
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 6px;
-    display: block;
-  }
-
-  .input{
-    height: 46px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    padding: 0 14px;
-    font-size: 15px;
-    width: 100%;
-    color: var(--text);
-    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
-  }
-  .input::placeholder{ color: rgba(0,0,0,0.35); }
-  .input:focus{
-    outline: none;
-    border-color: var(--brand-orange);
-    box-shadow: 0 0 0 4px var(--focus);
-  }
-  .input:-webkit-autofill,
-  .input:-webkit-autofill:hover,
-  .input:-webkit-autofill:focus{
-    -webkit-text-fill-color: var(--text);
-    caret-color: var(--text);
-    box-shadow: 0 0 0 1000px var(--panel) inset;
-    transition: background-color 9999s ease-out;
-  }
-
-  .hint-link{
-    color: var(--muted);
-    font-weight: 600;
-    font-size: 13px;
-    text-decoration: none;
-  }
-  .hint-link:hover{ color: var(--brand-orange); }
-
-  .btn{
-    height: 46px;
-    border-radius: 12px;
-    width: 100%;
-    background: #ea580c;
-    color: #fff;
-    font-weight: 700;
-    font-size: 15px;
-    transition: background .15s ease, box-shadow .18s ease;
-  }
-  .btn:hover{
-    background: #c2410c;
-    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
-  }
-  .btn:active{ background: #9a3412; }
-
-  .divider{ height: 1px; background: var(--border); }
-
-  .icon-btn{
-    border: 1px solid var(--border);
-    background: var(--panel);
-    height: 46px;
-    width: 46px;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    transition: background .15s ease, border-color .15s ease, color .15s ease;
-  }
-  .icon-btn:hover{
-    background: var(--panel-soft);
-    border-color: rgba(0,0,0,0.16);
-    color: var(--text);
-  }
-
-  .banner{
-    border-radius: 14px;
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-  }
-  .banner-warning{
-    background: #fffbeb;
-    border-color: #fbbf24;
-  }
-  .banner-danger{
-    background: #fef2f2;
-    border-color: #f87171;
-  }
-  .banner-neutral{
-    background: var(--panel-soft);
-    border-color: var(--border);
-  }
-  .banner-title{
-    font-weight: 800;
-    color: var(--text);
-    margin-bottom: 2px;
-  }
-  .banner-text{
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  .footer-link{
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--brand-orange);
-    text-decoration: none;
-  }
-  .footer-link:hover{ text-decoration: underline; text-underline-offset: 3px; }
-
-  .support-row{
-    margin-top: 10px;
-    font-size: 13px;
-    color: var(--muted);
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-  }
-  .support-action{
-    color: var(--brand-orange);
-    font-weight: 700;
-    text-decoration: none;
-  }
-  .support-action:hover{
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  @media (max-width: 1024px){
-    .left{
-      border-right: none;
-      border-bottom: 1px solid var(--border);
-    }
-  }
-</style>
-
-<div class="min-h-screen login-page flex items-center justify-center px-4 py-12">
+<div id="public-account" class="min-h-screen login-page public-access flex items-center justify-center px-4 py-12">
   <div class="shell">
 
     <!-- Organization Status Banners -->
@@ -328,19 +100,16 @@
         <!-- Left: Product context -->
         <div class="left p-8 lg:p-10 flex flex-col justify-between">
           <div>
-            <div class="flex items-center gap-3">
-              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=192, height=36) }}
-            </div>
+            <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="AgentFlow home">
+              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-light', width=192, height=36) }}
+            </a>
 
             <div class="mt-8">
-              <div class="left-chip">
-                <i class="fas fa-lock"></i>
-                Secure sign-in
-              </div>
+              <div class="left-chip">Your AgentFlow account</div>
 
-              <h1 class="left-title mt-4 text-2xl lg:text-3xl leading-tight">
-                Sign in to continue.
-              </h1>
+              <p class="left-title mt-4 text-2xl lg:text-3xl leading-tight">
+                Your clients and their next steps
+              </p>
 
               <p class="mt-3 text-sm lg:text-[15px] left-muted leading-relaxed">
                 Keep your contacts, tasks, and follow-ups in one place.
@@ -352,9 +121,7 @@
 
             <div class="mt-8 space-y-4">
               <div class="left-bullet">
-                <div class="left-icon">
-                  <i class="fas fa-address-book"></i>
-                </div>
+
                 <div>
                   <div class="font-semibold text-sm">Contacts & groups</div>
                   <div class="text-xs left-muted">Organized client records and activity history.</div>
@@ -362,9 +129,7 @@
               </div>
 
               <div class="left-bullet">
-                <div class="left-icon">
-                  <i class="fas fa-tasks"></i>
-                </div>
+
                 <div>
                   <div class="font-semibold text-sm">Tasks & reminders</div>
                   <div class="text-xs left-muted">Stay on top of follow-ups and deadlines.</div>
@@ -372,9 +137,7 @@
               </div>
 
               <div class="left-bullet">
-                <div class="left-icon">
-                  <i class="fas fa-calendar-check"></i>
-                </div>
+
                 <div>
                   <div class="font-semibold text-sm">Google integration</div>
                   <div class="text-xs left-muted">Email and calendar sync when enabled.</div>
@@ -382,18 +145,13 @@
               </div>
             </div>
           </div>
-
-          <div class="mt-10 text-xs left-muted flex items-center gap-2">
-            <i class="fas fa-shield-alt" style="color: #248a3d"></i>
-            256-bit SSL encryption · Your data stays private
-          </div>
         </div>
 
         <!-- Right: Form -->
-        <div class="p-8 lg:p-10">
+        <div class="public-auth-form p-8 lg:p-10">
           <div class="mb-7">
             <div class="kicker">Account</div>
-            <div class="title mt-1">Sign in</div>
+            <h1 class="title mt-1">Sign in</h1>
             <div class="subtitle mt-1">Enter your email/username and password.</div>
           </div>
 

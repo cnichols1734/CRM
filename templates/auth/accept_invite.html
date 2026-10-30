@@ -6,12 +6,12 @@
 {% block content %}
 {% include "auth/_styles.html" %}
 
-<div class="min-h-screen auth-family flex items-center justify-center px-4 py-12">
+<div id="public-account" class="min-h-screen auth-family public-access flex items-center justify-center px-4 py-12">
   <div class="auth-family-shell auth-family-shell--wide">
     <div class="auth-card">
       <div class="p-8 lg:p-10 space-y-6">
         <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="AgentFlow home">
-          {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=192, height=36) }}
+          {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-light', width=192, height=36) }}
         </a>
 
         <div>
@@ -41,7 +41,7 @@
               <div class="h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.12);">
                 <div id="passwordStrengthBar" class="h-2 w-1/4 bg-rose-400" style="transition: width .3s ease, background-color .3s ease;"></div>
               </div>
-              <p id="passwordStrengthLabel" class="text-xs mt-1" style="color: hsla(0, 0%, 100%, 0.56);">Strength: weak</p>
+              <p id="passwordStrengthLabel" class="text-xs mt-1" style="color: #59616a;">Strength: weak</p>
             </div>
           </div>
 
