@@ -14,7 +14,7 @@
     .email-body-content blockquote { border-left: 3px solid #e2e8f0; padding-left: 1rem; margin: 0.5rem 0; color: #64748b; }
 </style>
 
-<div class="crm-page">
+<div class="crm-page crm-contact-detail">
     <div class="t-page-slide crm-contacts-pages" data-page="2" id="crmContactsPages">
     <section class="t-page" data-page-id="1">
         <div class="crm-contacts-page-body"></div>
@@ -66,16 +66,16 @@
 
         <div class="flex flex-col gap-6 lg:flex-row">
             <div class="flex-1 min-w-0 space-y-5">
-                <section class="crm-surface">
+                <section class="crm-surface crm-contact-profile">
                     <div class="crm-surface-body">
                         <div class="flex items-start gap-4">
                             {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
                             <span class="crm-avatar crm-avatar-lg crm-avatar-serif">{{ initials }}</span>
                             <div class="flex-1 min-w-0">
                                 <div class="crm-eyebrow mb-1">Contact · #{{ "%04d"|format(contact.id) }}</div>
-                                <div id="viewContactName" class="crm-serif" style="font-size: 32px; line-height: 1; color: var(--ink);">
+                                <h1 id="viewContactName" class="crm-serif">
                                     {{ contact.first_name }} {{ contact.last_name }}
-                                </div>
+                                </h1>
                                 <div id="editContactName" class="hidden flex gap-2 mb-2">
                                     <input type="text" name="first_name" value="{{ contact.first_name }}"
                                            class="crm-input max-w-[200px] text-lg font-semibold"
@@ -111,7 +111,7 @@
                                 <div class="mt-3 flex flex-wrap gap-1.5">
                                     {% for group in contact.groups %}
                                     {% if group.is_active %}
-                                    {{ badge(group.name, 'accent') }}
+                                    {{ badge(group.name, 'neutral') }}
                                     {% else %}
                                     {{ badge(group.name ~ ' (inactive)', 'neutral') }}
                                     {% endif %}
@@ -148,7 +148,7 @@
                                 <i class="fas fa-microphone text-xs"></i>
                                 Voice memo
                             </button>
-                            <button type="button" onclick="showLogActivityModal()" class="crm-btn crm-btn-secondary">
+                            <button type="button" onclick="showLogActivityModal()" class="crm-btn crm-btn-accent">
                                 <i class="fas fa-clipboard-list text-xs"></i>
                                 Log activity
                             </button>
@@ -160,22 +160,22 @@
                     <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST"
                           id="editContactForm" class="hidden">
                         <div class="px-5 py-5 first:border-t-0" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Basic information</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Basic information</h2>
                             <div class="mb-4">
                                 {% include 'contacts/_lead_source_fields.html' %}
                             </div>
                             <div class="grid gap-4 md:grid-cols-2">
                                 <label class="block">
                                     <span class="crm-field-label">Email</span>
-                                    <input type="email" name="email" value="{{ contact.email }}" class="crm-input">
+                                    <input type="email" name="email" value="{{ contact.email or '' }}" class="crm-input">
                                 </label>
                                 <label class="block">
                                     <span class="crm-field-label">Phone</span>
-                                    <input type="tel" name="phone" value="{{ contact.phone }}" class="crm-input">
+                                    <input type="tel" name="phone" value="{{ contact.phone or '' }}" class="crm-input">
                                 </label>
                                 <label class="block">
                                     <span class="crm-field-label">Potential commission ($)</span>
-                                    <input type="number" name="potential_commission" value="{{ contact.potential_commission }}" step="0.01" min="0" class="crm-input">
+                                    <input type="number" name="potential_commission" value="{{ contact.potential_commission if contact.potential_commission is not none else '' }}" step="0.01" min="0" class="crm-input">
                                 </label>
                                 <div>
                                     <span class="crm-field-label">Created</span>
@@ -185,8 +185,8 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Last contact dates</div>
-                            <div class="grid gap-4 md:grid-cols-4">
+                            <h2 class="crm-contact-detail-heading mb-3">Last contact dates</h2>
+                            <div class="grid gap-4 sm:grid-cols-2">
                                 <label class="block">
                                     <span class="crm-field-label">Last email</span>
                                     <input type="date" name="last_email_date" value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}" class="crm-input">
@@ -207,29 +207,29 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Address</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Address</h2>
                             <div class="grid gap-4 md:grid-cols-2">
                                 <label class="block md:col-span-2">
                                     <span class="crm-field-label">Street address</span>
-                                    <input type="text" name="street_address" value="{{ contact.street_address }}" class="crm-input">
+                                    <input type="text" name="street_address" value="{{ contact.street_address or '' }}" class="crm-input">
                                 </label>
                                 <label class="block">
                                     <span class="crm-field-label">City</span>
-                                    <input type="text" name="city" value="{{ contact.city }}" class="crm-input">
+                                    <input type="text" name="city" value="{{ contact.city or '' }}" class="crm-input">
                                 </label>
                                 <label class="block">
                                     <span class="crm-field-label">State</span>
-                                    <input type="text" name="state" value="{{ contact.state }}" class="crm-input">
+                                    <input type="text" name="state" value="{{ contact.state or '' }}" class="crm-input">
                                 </label>
                                 <label class="block">
                                     <span class="crm-field-label">ZIP code</span>
-                                    <input type="text" name="zip_code" value="{{ contact.zip_code }}" class="crm-input">
+                                    <input type="text" name="zip_code" value="{{ contact.zip_code or '' }}" class="crm-input">
                                 </label>
                             </div>
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Groups</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Groups</h2>
                             {% set contact_group_ids = contact.groups | map(attribute='id') | list %}
                             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3" id="editGroupsGrid">
                                 {% for group in all_groups %}
@@ -263,7 +263,7 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Client details</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Client details</h2>
                             <div class="space-y-4">
                                 <label class="block">
                                     <span class="crm-field-label">What does this person want right now?</span>
@@ -297,16 +297,16 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Notes</div>
-                            <textarea name="notes" rows="4" class="crm-input resize-y">{{ contact.notes }}</textarea>
+                            <h2 class="crm-contact-detail-heading mb-3">Notes</h2>
+                            <textarea name="notes" rows="4" class="crm-input resize-y">{{ contact.notes or '' }}</textarea>
                         </div>
                     </form>
 
                     <div id="viewContactInfo">
                         <div class="px-5 py-5 first:border-t-0" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Details</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Details</h2>
                             <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                                <div class="sm:col-span-2">
+                                <div>
                                     <dt class="crm-field-label mb-0">Lead source</dt>
                                     <dd class="mt-0.5 break-words text-sm" style="color: var(--ink);">{{ contact.lead_source_display or 'Not set' }}</dd>
                                 </div>
@@ -330,7 +330,7 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Last contact dates</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Last contact dates</h2>
                             <dl class="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
                                 <div>
                                     <dt class="crm-field-label mb-0">Email</dt>
@@ -353,7 +353,7 @@
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
                             <div class="crm-copy-row mb-3">
-                                <div class="crm-section-kicker">Address</div>
+                                <h2 class="crm-contact-detail-heading">Address</h2>
                                 {{ copy_value(contact.full_address, 'address') }}
                             </div>
                             <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -377,11 +377,11 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Groups</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Groups</h2>
                             <div class="flex flex-wrap gap-1.5">
                                 {% for group in contact.groups %}
                                 {% if group.is_active %}
-                                {{ badge(group.name, 'accent') }}
+                                {{ badge(group.name, 'neutral') }}
                                 {% else %}
                                 {{ badge(group.name ~ ' (inactive)', 'neutral') }}
                                 {% endif %}
@@ -392,7 +392,7 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Client details</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Client details</h2>
                             <dl class="space-y-3">
                                 <div>
                                     <dt class="crm-field-label mb-0">What does this person want right now?</dt>
@@ -422,7 +422,7 @@
                         </div>
 
                         <div class="px-5 py-5" style="border-top: 0.5px solid var(--hairline);">
-                            <div class="crm-section-kicker mb-3">Notes</div>
+                            <h2 class="crm-contact-detail-heading mb-3">Notes</h2>
                             <p class="whitespace-pre-line text-sm" style="color: var(--ink);">{{ contact.notes or '\u2014' }}</p>
                         </div>
                     </div>
@@ -530,7 +530,7 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <button type="button" onclick="quickUpdateStatus({{ task.id }}, true)"
+                                <button type="button" onclick="quickUpdateStatus({{ task.id }}, true)" aria-label="Complete task: {{ task.subject }}"
                                         class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-emerald-50 hover:text-emerald-600">
                                     <i class="fas fa-check text-xs"></i>
                                 </button>
@@ -557,7 +557,7 @@
                                         <span>{% if task.completed_at %}{{ task.completed_at.strftime('%m/%d/%y') }}{% else %}Recently{% endif %}</span>
                                     </div>
                                 </div>
-                                <button type="button" onclick="quickUpdateStatus({{ task.id }}, false)"
+                                <button type="button" onclick="quickUpdateStatus({{ task.id }}, false)" aria-label="Reopen task: {{ task.subject }}"
                                         class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-amber-50 hover:text-amber-600">
                                     <i class="fas fa-undo text-xs"></i>
                                 </button>
