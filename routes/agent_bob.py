@@ -198,7 +198,7 @@ def action(user, aid):
         if not row.conversation_id or not isinstance(spoken, str) or len(spoken) > 120:
             return jsonify(error='A short spoken confirmation is required for this conversation.'), 400
         import re
-        normalized = ' '.join(re.findall(r"[a-z]+", str(spoken).lower()))
+        normalized = ' '.join(re.findall(r"[a-z0-9]+", spoken.lower()))
         phrases = {
             'approve': {'yes', 'yes please', 'yes go ahead', 'yes approve it', 'yes approve this change', 'approve this change', 'approve it'},
             'reject': {'no', 'no thank you', 'no cancel it', 'cancel this change', 'cancel it', 'no reject it', 'reject it'},

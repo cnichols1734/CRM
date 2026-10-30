@@ -183,7 +183,7 @@ def test_voice_confirmation_rejects_qualified_speech_and_records_explicit_reject
         db.session.add(row)
         db.session.commit()
         aid = row.id
-    for phrase in ('yes but change the date', 'yes approve it but change the date', 'do not approve it', 'he said approve it'):
+    for phrase in ('yes approve it 5', 'yes but change the date', 'yes approve it but change the date', 'do not approve it', 'he said approve it'):
         response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
                                json={'decision': 'approve', 'voice_confirmation': phrase})
         assert response.status_code == 400
