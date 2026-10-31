@@ -766,6 +766,18 @@ def _responses_input_items(messages: list, input_files: list[dict]) -> list:
         content = message.get('content')
         if role not in {'user', 'assistant', 'developer', 'system'}:
             continue
+        if isinstance(content, list):
+            converted = []
+            for part in content:
+                if part.get('type') == 'text':
+                    converted.append({'type': 'input_text', 'text': part['text']})
+                elif part.get('type') == 'image_url':
+                    image = part['image_url']
+                    converted.append({'type': 'input_image', 'image_url': image['url'],
+                                      'detail': image.get('detail', 'high')})
+                else:
+                    converted.append(part)
+            content = converted
         items.append({'role': role, 'content': content})
 
     file_parts = []
