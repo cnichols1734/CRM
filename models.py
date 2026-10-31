@@ -216,6 +216,7 @@ class PlatformAuditLog(db.Model):
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    deletion_identity = db.Column(db.String(32), nullable=True, unique=True, default=lambda: secrets.token_hex(16))
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))  # scrypt hashes can be 160+ chars
@@ -5096,3 +5097,16 @@ class ClientBrowseRateLimit(db.Model):
     key = db.Column(db.String(64), primary_key=True)
     hits = db.Column(db.Integer, nullable=False, default=0)
     expires_at = db.Column(db.Integer, nullable=False)
+
+
+class AccountDeletionRequest(db.Model):
+    __tablename__ = 'account_deletion_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, nullable=False, index=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    account_identity = db.Column(db.String(32), nullable=False, unique=True)
+    requested_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    due_at = db.Column(db.DateTime, nullable=False)
+    completed_at = db.Column(db.DateTime)
+    completion_evidence = db.Column(db.Text)
+    notified_at = db.Column(db.DateTime)

@@ -105,3 +105,67 @@ def test_expired_and_tampered_challenges(app, seed, monkeypatch):
 def test_malformed_json_is_rejected(client, path):
     assert client.post(BASE + path, json=['bad']).status_code == 400
     assert client.post(BASE + path, json={'email': {'nested': True}}).status_code == 400
+
+
+def test_deletion_request_is_authenticated_confirmed_durable_and_idempotent(app, client, monkeypatch):
+    from models import AccountDeletionRequest
+    notices = []
+    monkeypatch.setattr('services.email_service.EmailService.send_contact_form', lambda self, **kw: notices.append(kw) or False)
+    registered = client.post(BASE + '/accounts', json=registration('delete-native@example.com'))
+    headers = {'Authorization': 'Bearer ' + registered.json['token']}
+    url = BASE + '/account/deletion-request'
+    assert client.post(url, json={'password': 'a-new-password'}).status_code == 401
+    assert client.post(url, headers=headers, json={'password': 'wrong'}).status_code == 403
+    with app.app_context():
+        assert AccountDeletionRequest.query.count() == 0
+    first = client.post(url, headers=headers, json={'password': 'a-new-password'})
+    assert first.status_code == 202
+    assert client.get(url, headers=headers).json == first.json
+    assert client.post(url, headers=headers, json={'password': 'a-new-password'}).json == first.json
+    with app.app_context():
+        row = AccountDeletionRequest.query.one()
+        assert row.completed_at is None and row.notified_at is None
+        assert 29 <= (row.due_at - row.requested_at).days <= 30
+        user = db.session.get(User, row.user_id)
+        assert user and user.email == 'delete-native@example.com'
+        assert ContactGroup.query.filter_by(user_id=user.id).count() > 0
+    other = client.post(BASE + '/accounts', json=registration('other-native@example.com'))
+    assert client.get(url, headers={'Authorization': 'Bearer ' + other.json['token']}).json == {'message': None}
+    assert notices and notices[0]['internal_recipient'] == 'chrisnichols17@gmail.com'
+
+
+@pytest.mark.parametrize('reuse_other_org', [False, True])
+def test_deletion_receipt_does_not_follow_reused_user_id(app, seed, client, monkeypatch, reuse_other_org):
+    from models import AccountDeletionRequest
+    monkeypatch.setattr('services.email_service.EmailService.send_contact_form', lambda *args, **kw: True)
+    password = 'p' * 200
+    with app.app_context():
+        org_a = db.session.get(User, seed['owner_a']).organization_id
+        org_b = db.session.get(User, seed['owner_b']).organization_id
+        original = User(username='deletion-reuse', email='deletion-reuse@example.com', first_name='Test', last_name='Deletion', organization_id=org_a)
+        original.set_password(password)
+        db.session.add(original)
+        db.session.commit()
+        uid, identity = original.id, original.deletion_identity
+        token = issue_agent_jwt(original)
+    url = BASE + '/account/deletion-request'
+    first = client.post(url, headers={'Authorization': 'Bearer ' + token}, json={'password': password})
+    assert first.status_code == 202
+    with app.app_context():
+        db.session.delete(db.session.get(User, uid))
+        db.session.commit()
+        replacement = User(id=uid, username='deletion-reuse', email='deletion-reuse@example.com', first_name='New', last_name='Account', organization_id=org_b if reuse_other_org else org_a)
+        replacement.set_password(password)
+        db.session.add(replacement)
+        db.session.commit()
+        assert replacement.deletion_identity != identity
+        token = issue_agent_jwt(replacement)
+    headers = {'Authorization': 'Bearer ' + token}
+    assert client.get(url, headers=headers).json == {'message': None}
+    second = client.post(url, headers=headers, json={'password': password})
+    assert second.status_code == 202 and second.json != first.json
+    with app.app_context():
+        assert AccountDeletionRequest.query.filter_by(user_id=uid).count() == 2
+        AccountDeletionRequest.query.filter_by(user_id=uid).delete()
+        db.session.delete(db.session.get(User, uid))
+        db.session.commit()
