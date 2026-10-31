@@ -735,7 +735,7 @@ def _run_responses_tool_conversation(
     yield ('text', (
         'I got partway through that but ran out of steps before I could wrap up. '
         'Anything already confirmed above did go through. Ask me again and I '
-        'will pick it up from here.\n\n--BOB'
+        'will pick it up from here.'
     ))
     yield ('telemetry', {
         'model': last_model,

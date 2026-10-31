@@ -531,7 +531,7 @@ class TestTypingIndicator:
     ):
         def slow_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
             time.sleep(0.3)
-            yield ('text', 'Two contacts.')
+            yield ('text', 'Two contacts.\n\n--BOB')
 
         with app.app_context():
             with patch(
@@ -547,6 +547,7 @@ class TestTypingIndicator:
                     telegram_message_id='501',
                 )
 
+        assert _fake_transport.sent[-1]['text'] == 'Two contacts.'
         # Refreshed rather than sent once, so the dots survive a long turn.
         assert len(_fake_transport.activity) > 1
         assert all(
@@ -829,7 +830,7 @@ class TestDeepLinksAndLocalDay:
 
         def run_with_tool(*, system_prompt, messages, tools, execute_tool, **kwargs):
             execute_tool('add_note', {'contact_id': seed['contact_a'], 'note': 'hi'})
-            yield ('text', 'Note added.')
+            yield ('text', 'Note added.\n\n-- Bob')
 
         with app.app_context():
             with patch(
@@ -852,6 +853,8 @@ class TestDeepLinksAndLocalDay:
 
         sent = ' '.join(m['text'] for m in _fake_transport.sent)
         assert f"https://example.test/contact/{seed['contact_a']}" in sent
+        assert '--' not in sent
+        assert 'Note added.' in sent
 
     def test_conversation_reuses_local_day_window(
         self, app, seed, linked_channel,
@@ -1021,3 +1024,19 @@ class TestPhotoContacts:
         assert wants_create_contact('save contact')
         assert not wants_create_contact('')
         assert not wants_create_contact('what do you see here?')
+
+
+def test_bob_help_and_reminders_have_no_automatic_footer(app, seed, monkeypatch):
+    from services.messaging import outbound
+    from services.messaging.conversation import _help_text, _clean_bob_reply
+    sent = []
+    monkeypatch.setattr(outbound, 'notify', lambda user, category, text: sent.append(text) or True)
+    with app.app_context():
+        user = db.session.get(User, seed['owner_a'])
+        assert not _help_text(user).endswith('--BOB')
+        assert outbound.notify_task_reminder(user, ['Call Taylor'], action_url='https://example.test/tasks')
+        assert outbound.notify_daily_briefing(user, {'teaser': 'Two calls today.'}, action_url='https://example.test/briefing')
+    assert sent[0].endswith('Open tasks: https://example.test/tasks')
+    assert sent[1].endswith('Open briefing: https://example.test/briefing')
+    assert _clean_bob_reply('Regards,\nTaylor') == 'Regards,\nTaylor'
+    assert _clean_bob_reply('BOB found two contacts.') == 'BOB found two contacts.'

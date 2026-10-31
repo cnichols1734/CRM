@@ -152,20 +152,20 @@ def handle_inbound_message(
                 )
             from_voice = True
         except VoiceTranscriptionError as exc:
-            transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+            transport.send_text(channel.chat_id, exc.message)
             return
         except Exception:
             logger.exception('Voice transcription crashed channel=%s', channel_id)
             transport.send_text(
                 channel.chat_id,
-                "Couldn't catch that. Try again or type it.\n\n--BOB",
+                "Couldn't catch that. Try again or type it.",
             )
             return
 
     if not working_text:
         transport.send_text(
             channel.chat_id,
-            "I can take a text message or a voice note.\n\n--BOB",
+            "I can take a text message or a voice note.",
         )
         return
 
@@ -177,7 +177,7 @@ def handle_inbound_message(
         transport.send_text(
             channel.chat_id,
             "Disconnected. You will not hear from me again until you "
-            "reconnect from your CRM profile.\n\n--BOB",
+            "reconnect from your CRM profile.",
         )
         return
 
@@ -196,7 +196,7 @@ def handle_inbound_message(
             channel.chat_id,
             f"Already linked, {user.first_name or 'there'}. "
             "Ask me about your contacts or tasks anytime, "
-            "or send a voice note.\n\n--BOB",
+            "or send a voice note.",
             _starter_options(),
         )
         return
@@ -208,7 +208,7 @@ def handle_inbound_message(
     try:
         _bump_daily_count(channel)
     except RateLimitExceeded as exc:
-        transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+        transport.send_text(channel.chat_id, exc.message)
         return
 
     if from_voice:
@@ -346,7 +346,7 @@ def handle_callback_query(
                 record_urls = [result.record_url]
 
         body = _append_record_links(body, record_urls)
-        body = _ensure_bob_signoff(body)
+        body = _clean_bob_reply(body)
         options = []
         if undoable is not None:
             options.append(ChoiceOption(
@@ -371,7 +371,7 @@ def handle_callback_query(
         channel.pending_action_id = None
         db.session.commit()
         transport.answer_callback(callback_query_id, text='Cancelled')
-        body = _ensure_bob_signoff(f"Cancelled. {result.summary}")
+        body = _clean_bob_reply(f"Cancelled. {result.summary}")
         if message_id:
             transport.edit_message(channel.chat_id, message_id, body)
         else:
@@ -384,7 +384,7 @@ def handle_callback_query(
             callback_query_id,
             text='Undone' if result.ok else 'Could not undo',
         )
-        body = _ensure_bob_signoff(
+        body = _clean_bob_reply(
             (result.summary if result.ok else result.error) or 'Could not undo.'
         )
         if message_id:
@@ -604,7 +604,7 @@ def _run_tool_loop(
         if 'Saved to your CRM' not in reply:
             reply = saved_block
 
-    reply = _ensure_bob_signoff(reply)
+    reply = _clean_bob_reply(reply)
     return reply, pending, undoable_action_id, disambiguation, record_urls
 
 
@@ -649,7 +649,7 @@ def _handle_pick_contact(
     try:
         _bump_daily_count(channel)
     except RateLimitExceeded as exc:
-        transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+        transport.send_text(channel.chat_id, exc.message)
         return
 
     conversation = _get_or_create_conversation(user)
@@ -716,7 +716,7 @@ def _handle_pdf_document_message(
     try:
         _bump_daily_count(channel)
     except RateLimitExceeded as exc:
-        transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+        transport.send_text(channel.chat_id, exc.message)
         return
 
     conversation = _get_or_create_conversation(user)
@@ -725,7 +725,7 @@ def _handle_pdf_document_message(
 
     selected_id = getattr(channel, 'selected_transaction_id', None)
     if not selected_id:
-        body = _ensure_bob_signoff(
+        body = _clean_bob_reply(
             "Select a transaction first (search + select_transaction_context), "
             "then send the PDF. I won't attach deal docs without a selected file."
         )
@@ -738,7 +738,7 @@ def _handle_pdf_document_message(
         organization_id=channel.organization_id,
     ).first()
     if tx is None:
-        body = _ensure_bob_signoff(
+        body = _clean_bob_reply(
             "The selected transaction is gone. Search and select again, then resend the PDF."
         )
         transport.send_text(channel.chat_id, body)
@@ -758,7 +758,7 @@ def _handle_pdf_document_message(
             )
             body = format_intake_reply(session, tx)
     except TelegramDocumentError as exc:
-        body = _ensure_bob_signoff(exc.message)
+        body = _clean_bob_reply(exc.message)
         transport.send_text(channel.chat_id, body)
         _persist_message(conversation, 'assistant', body)
         return
@@ -767,7 +767,7 @@ def _handle_pdf_document_message(
             'Telegram PDF intake crashed channel=%s tx=%s',
             channel.id, selected_id,
         )
-        body = _ensure_bob_signoff(
+        body = _clean_bob_reply(
             "Couldn't process that PDF. Try again, or upload it in the CRM bootstrap inbox."
         )
         transport.send_text(channel.chat_id, body)
@@ -790,7 +790,7 @@ def _handle_photo_message(
     try:
         _bump_daily_count(channel)
     except RateLimitExceeded as exc:
-        transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+        transport.send_text(channel.chat_id, exc.message)
         return
 
     conversation = _get_or_create_conversation(user)
@@ -805,13 +805,13 @@ def _handle_photo_message(
                 image_bytes, caption=caption, user=user,
             )
     except PhotoContactError as exc:
-        body = _ensure_bob_signoff(exc.message)
+        body = _clean_bob_reply(exc.message)
         transport.send_text(channel.chat_id, body)
         _persist_message(conversation, 'assistant', body)
         return
     except Exception:
         logger.exception('Telegram photo turn crashed channel=%s', channel.id)
-        body = _ensure_bob_signoff(
+        body = _clean_bob_reply(
             "Couldn't read that photo. Try again, or type the contact details."
         )
         transport.send_text(channel.chat_id, body)
@@ -819,7 +819,7 @@ def _handle_photo_message(
         return
 
     if not candidates:
-        body = _ensure_bob_signoff(
+        body = _clean_bob_reply(
             "I didn't find usable contact info in that photo. "
             "Try a clearer shot of the card or email, or type the details."
         )
@@ -835,7 +835,7 @@ def _handle_photo_message(
                 conversation_id=conversation.id,
             )
         body = _append_record_links(body, record_urls)
-        body = _ensure_bob_signoff(body)
+        body = _clean_bob_reply(body)
         options = []
         if undoable is not None:
             options.append(ChoiceOption(
@@ -857,7 +857,7 @@ def _handle_photo_message(
     )
     channel.pending_action_id = action.id
     db.session.commit()
-    body = _ensure_bob_signoff(preview)
+    body = _clean_bob_reply(preview)
     transport.send_choice(
         channel.chat_id,
         body,
@@ -915,8 +915,7 @@ def _help_text(user: User) -> str:
         "- Photo a card with caption: create this contact\n\n"
         "Commands: /today  /overdue  /help  /undo  /stop\n"
         "Risky edits and deletes show a Confirm button first.\n"
-        "When a few people match a name, tap the right one.\n\n"
-        "--BOB"
+        "When a few people match a name, tap the right one."
     )
 
 
@@ -935,12 +934,12 @@ def _handle_undo_command(channel, user, transport) -> None:
     if action is None:
         transport.send_text(
             channel.chat_id,
-            "Nothing recent to undo.\n\n--BOB",
+            "Nothing recent to undo.",
         )
         return
     result = undo_action(action.id, ctx)
     body = (result.summary if result.ok else result.error) or 'Could not undo.'
-    transport.send_text(channel.chat_id, _ensure_bob_signoff(body))
+    transport.send_text(channel.chat_id, _clean_bob_reply(body))
 
 
 def _format_pending_preview(pending: dict, model_text: str) -> str:
@@ -958,7 +957,7 @@ def _format_pending_preview(pending: dict, model_text: str) -> str:
             lines.append(linked)
     lines.append('')
     lines.append('Tap Confirm to apply, or Cancel to leave it alone.')
-    return _ensure_bob_signoff('\n'.join(lines))
+    return _clean_bob_reply('\n'.join(lines))
 
 
 def _disambiguation_options(contacts: list[dict]) -> list[ChoiceOption]:
@@ -994,24 +993,18 @@ def _append_record_links(body: str, record_urls: list[Optional[str]]) -> str:
             continue
         seen.append(full)
     if not seen:
-        return body
+        return _clean_bob_reply(body)
 
-    text = (body or '').rstrip()
-    if text.endswith('--BOB'):
-        text = text[: -len('--BOB')].rstrip()
+    text = _clean_bob_reply(body)
     link_block = '\n'.join(f'Open: {url}' for url in seen)
     if link_block not in text:
         text = f'{text}\n\n{link_block}' if text else link_block
-    return _ensure_bob_signoff(text)
+    return _clean_bob_reply(text)
 
 
-def _ensure_bob_signoff(body: str) -> str:
+def _clean_bob_reply(body: str) -> str:
     text = (body or '').rstrip()
-    if not text:
-        return '--BOB'
-    if text.endswith('--BOB'):
-        return text
-    return text + '\n\n--BOB'
+    return re.sub(r'(?im)(?:^|\n)[ \t]*--[ \t]*BOB[ \t]*\Z', '', text).rstrip()
 
 
 def _get_or_create_conversation(user: User) -> ChatConversation:

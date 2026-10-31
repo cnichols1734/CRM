@@ -938,7 +938,7 @@ def finalize_document_review(
             identity_text = '\n'.join(identity_parts)
             telegram_body = (
                 f'{title}\n\n{identity_text}\n\n{summary}\n\n'
-                f'Review: {action_url}\n\n--BOB'
+                f'Review: {action_url}'
             )
             telegram_notify(
                 user,
