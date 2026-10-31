@@ -416,6 +416,49 @@ class TestAttachmentTools:
             remaining = Contact.query.filter(Contact.id.in_(ids)).count()
             assert remaining == 0
 
+    @pytest.mark.parametrize('match_field', ['email', 'phone'])
+    def test_photo_duplicate_explains_match_without_creating_or_changing_contact(
+        self, app, ctx_agent_a, match_field,
+    ):
+        with app.app_context():
+            email = f'{_unique("duplicatephoto")}@example.com'
+            existing = Contact(
+                first_name='Taylor', last_name='Existing', email=email,
+                phone='(832) 555-0176', notes='Keep these notes',
+                user_id=ctx_agent_a.user_id,
+                organization_id=ctx_agent_a.organization_id,
+            )
+            db.session.add(existing)
+            db.session.commit()
+            try:
+                before_contacts = Contact.query.count()
+                before_actions = BobAction.query.count()
+                ctx = ctx_agent_a.with_attachment(AttachmentTurnContext(
+                    intent=INTENT_CREATE, kind=KIND_IMAGE,
+                    filename='card.jpg', mime='image/jpeg',
+                    attachment_ref='unused', allow_attachment_writes=True,
+                ))
+                result = dispatch('import_contacts', {'candidates': [{
+                    'first_name': 'Casey', 'last_name': 'Different',
+                    'email': email.upper() if match_field == 'email' else None,
+                    'phone': '8325550176' if match_field == 'phone' else '8325550199',
+                    'notes': 'New photo notes',
+                }]}, ctx)
+                assert not result.ok
+                assert not result.requires_confirmation
+                assert match_field in result.error
+                assert 'Taylor Existing' in result.error
+                assert 'Casey Different' in result.error
+                assert 'avoid duplicates' in result.error
+                assert Contact.query.count() == before_contacts
+                assert BobAction.query.count() == before_actions
+                db.session.refresh(existing)
+                assert existing.first_name == 'Taylor'
+                assert existing.notes == 'Keep these notes'
+            finally:
+                db.session.delete(existing)
+                db.session.commit()
+
     def test_import_reject_creates_nothing(self, app, ctx_agent_a):
         with app.app_context():
             email = f'{_unique("rej")}@example.com'

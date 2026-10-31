@@ -80,6 +80,7 @@ class ImportPreview:
     total_rows: int = 0
     create_count: int = 0
     duplicate_count: int = 0
+    duplicate_details: list[str] = field(default_factory=list)
     invalid_count: int = 0
     invalid_phone_count: int = 0
     missing_name_count: int = 0
@@ -102,6 +103,7 @@ class ImportPreview:
             'total_rows': self.total_rows,
             'create_count': self.create_count,
             'duplicate_count': self.duplicate_count,
+            'duplicate_details': self.duplicate_details,
             'invalid_count': self.invalid_count,
             'invalid_phone_count': self.invalid_phone_count,
             'missing_name_count': self.missing_name_count,
@@ -379,6 +381,10 @@ def preview_contact_import(
         key = email or phone or f'name:{(first or "").lower()}|{(last or "").lower()}'
         if key in seen_keys:
             preview.duplicate_count += 1
+            if len(preview.duplicate_details) < 20:
+                preview.duplicate_details.append(
+                    f'{first} {last}'.strip() + ' appears more than once in this upload.'
+                )
             continue
         seen_keys.add(key)
 
@@ -391,6 +397,18 @@ def preview_contact_import(
         )
         if existing is not None:
             preview.duplicate_count += 1
+            if len(preview.duplicate_details) < 20:
+                existing_name = f'{existing.first_name or ""} {existing.last_name or ""}'.strip()
+                if email and (existing.email or '').lower() == email:
+                    match = f'email {email}'
+                elif phone and existing.phone == phone:
+                    match = f'phone number {phone}'
+                else:
+                    match = 'name'
+                preview.duplicate_details.append(
+                    f'{first} {last}'.strip()
+                    + f' matches the {match} on your existing contact {existing_name}.'
+                )
             continue
 
         candidate = {
