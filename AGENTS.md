@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## AgentFlow family, required context
+
+This repository is one part of the AgentFlow product family. Before changing app behavior, APIs, shared business data or backend services, read [documentation/app-family.md](documentation/app-family.md).
+
+- AgentFlow iOS lives in `cnichols1734/agentflow-client`, local sibling `agentflow/`. It owns the agent app and native BOB.
+- ClientFlow iOS lives in the private `cnichols1734/clientflow`, local sibling `clientflow/`. It owns the client app.
+- CRM lives in `cnichols1734/CRM`, local sibling `crm/`. It owns the web CRM, shared database, authentication, both mobile APIs, background jobs and external integrations.
+
+Both apps use the CRM backend at `https://agentflow.origentechnolog.com`. Agent routes use `/api/agent/v1`; client routes use `/api/client/v1` and `/api/client/v1/discovery`. Repository separation does not make these independent backend systems. Preserve the distinct agent, client-account and deal-participant authorization boundaries.
+
+For every change, assess the affected repositories. For a shared contract change, inspect the producer and all consumers, preserve compatibility with installed apps, link companion PRs, document deployment order and run the relevant checks in each affected repo. Keep family ownership/service guidance current in all three repositories when those relationships change. Do not add sibling-directory build dependencies or rename legacy bundle/storage identifiers as cleanup.
+
 This is the canonical AI agent guide for this repository. If an agent-specific file in this repo says to follow another file, follow this one first.
 
 ## Unslop (every task)
