@@ -132,3 +132,40 @@ def test_deletion_request_is_authenticated_confirmed_durable_and_idempotent(app,
     other = client.post(BASE + '/accounts', json=registration('other-native@example.com'))
     assert client.get(url, headers={'Authorization': 'Bearer ' + other.json['token']}).json == {'message': None}
     assert notices and notices[0]['internal_recipient'] == 'chrisnichols17@gmail.com'
+
+
+@pytest.mark.parametrize('reuse_other_org', [False, True])
+def test_deletion_receipt_does_not_follow_reused_user_id(app, seed, client, monkeypatch, reuse_other_org):
+    from models import AccountDeletionRequest
+    monkeypatch.setattr('services.email_service.EmailService.send_contact_form', lambda *args, **kw: True)
+    password = 'p' * 200
+    with app.app_context():
+        org_a = db.session.get(User, seed['owner_a']).organization_id
+        org_b = db.session.get(User, seed['owner_b']).organization_id
+        original = User(username='deletion-reuse', email='deletion-reuse@example.com', first_name='Test', last_name='Deletion', organization_id=org_a)
+        original.set_password(password)
+        db.session.add(original)
+        db.session.commit()
+        uid, identity = original.id, original.deletion_identity
+        token = issue_agent_jwt(original)
+    url = BASE + '/account/deletion-request'
+    first = client.post(url, headers={'Authorization': 'Bearer ' + token}, json={'password': password})
+    assert first.status_code == 202
+    with app.app_context():
+        db.session.delete(db.session.get(User, uid))
+        db.session.commit()
+        replacement = User(id=uid, username='deletion-reuse', email='deletion-reuse@example.com', first_name='New', last_name='Account', organization_id=org_b if reuse_other_org else org_a)
+        replacement.set_password(password)
+        db.session.add(replacement)
+        db.session.commit()
+        assert replacement.deletion_identity != identity
+        token = issue_agent_jwt(replacement)
+    headers = {'Authorization': 'Bearer ' + token}
+    assert client.get(url, headers=headers).json == {'message': None}
+    second = client.post(url, headers=headers, json={'password': password})
+    assert second.status_code == 202 and second.json != first.json
+    with app.app_context():
+        assert AccountDeletionRequest.query.filter_by(user_id=uid).count() == 2
+        AccountDeletionRequest.query.filter_by(user_id=uid).delete()
+        db.session.delete(db.session.get(User, uid))
+        db.session.commit()

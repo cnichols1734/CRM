@@ -24,7 +24,7 @@ def main():
             row = AccountDeletionRequest.query.filter_by(id=args.complete, organization_id=args.organization).one()
             if row.completed_at:
                 parser.error('This request is already complete.')
-            if db.session.get(User, row.user_id) is not None:
+            if User.query.filter_by(deletion_identity=row.account_identity).first() is not None:
                 parser.error('The account record still exists. Fulfill deletion before recording completion.')
             if not args.evidence:
                 parser.error('--evidence is required.')
@@ -38,7 +38,8 @@ def main():
             _set_org_context(args.organization)
         rows = AccountDeletionRequest.query.filter_by(organization_id=args.organization).order_by(AccountDeletionRequest.due_at).all()
         for row in rows:
-            print(json.dumps(dict(id=row.id, user_id=row.user_id, due_at=row.due_at.isoformat(),
+            print(json.dumps(dict(id=row.id, user_id=row.user_id, account_identity=row.account_identity,
+                account_present=User.query.filter_by(deletion_identity=row.account_identity).first() is not None, due_at=row.due_at.isoformat(),
                 completed_at=row.completed_at.isoformat() if row.completed_at else None,
                 notification_sent=row.notified_at is not None,
                 overdue=row.completed_at is None and row.due_at < datetime.utcnow())))

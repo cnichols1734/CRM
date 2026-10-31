@@ -10,6 +10,7 @@ from routes.client_discovery import limited
 
 def register(bp):
     from datetime import datetime, timedelta
+    import secrets
     from models import AccountDeletionRequest, User
     from routes.agent_api import agent_jwt_required, _set_org_context
 
@@ -21,7 +22,7 @@ def register(bp):
     @bp.get('/account/deletion-request')
     @agent_jwt_required
     def deletion_status(user):
-        row = AccountDeletionRequest.query.filter_by(organization_id=user.organization_id, user_id=user.id).first()
+        row = AccountDeletionRequest.query.filter_by(organization_id=user.organization_id, account_identity=user.deletion_identity).first()
         return deletion_receipt(row)
 
     @bp.post('/account/deletion-request')
@@ -31,13 +32,15 @@ def register(bp):
             return error('Too many attempts. Try again in 15 minutes.', 429)
         data = body()
         password = data.get('password', '') if data else ''
-        if not password or len(password) > 128 or not user.check_password(password):
+        if not password or not user.check_password(password):
             return error('Password is incorrect.', 403)
         # Serialize repeat submissions without changing the original deadline.
-        User.query.filter_by(id=user.id, organization_id=user.organization_id).with_for_update().one()
-        row = AccountDeletionRequest.query.filter_by(organization_id=user.organization_id, user_id=user.id).first()
+        user = User.query.filter_by(id=user.id, organization_id=user.organization_id).with_for_update().populate_existing().one()
+        if user.deletion_identity is None:
+            user.deletion_identity = secrets.token_hex(16)
+        row = AccountDeletionRequest.query.filter_by(organization_id=user.organization_id, account_identity=user.deletion_identity).first()
         if row is None:
-            row = AccountDeletionRequest(organization_id=user.organization_id, user_id=user.id,
+            row = AccountDeletionRequest(organization_id=user.organization_id, user_id=user.id, account_identity=user.deletion_identity,
                 due_at=datetime.utcnow() + timedelta(days=30))
             db.session.add(row)
             db.session.commit()

@@ -9,11 +9,15 @@ depends_on = None
 
 def upgrade():
     conn = op.get_bind()
+    if 'deletion_identity' not in {c['name'] for c in sa.inspect(conn).get_columns('user')}:
+        op.add_column('user', sa.Column('deletion_identity', sa.String(32), nullable=True))
+    op.execute('CREATE UNIQUE INDEX IF NOT EXISTS uq_user_deletion_identity ON "user" (deletion_identity)')
     metadata = sa.MetaData()
     table = sa.Table('account_deletion_requests', metadata,
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('organization_id', sa.Integer, nullable=False, index=True),
-        sa.Column('user_id', sa.Integer, nullable=False, unique=True),
+        sa.Column('user_id', sa.Integer, nullable=False),
+        sa.Column('account_identity', sa.String(32), nullable=False, unique=True),
         sa.Column('requested_at', sa.DateTime, nullable=False),
         sa.Column('due_at', sa.DateTime, nullable=False),
         sa.Column('completed_at', sa.DateTime),
@@ -39,3 +43,6 @@ def upgrade():
 
 def downgrade():
     op.execute('DROP TABLE IF EXISTS account_deletion_requests')
+    op.execute('DROP INDEX IF EXISTS uq_user_deletion_identity')
+    if 'deletion_identity' in {c['name'] for c in sa.inspect(op.get_bind()).get_columns('user')}:
+        op.drop_column('user', 'deletion_identity')
