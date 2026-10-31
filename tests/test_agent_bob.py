@@ -368,3 +368,75 @@ def test_native_pdf_and_invalid_uploads(client, seed, monkeypatch, receipts, nat
         json={'message': 'Summarize this PDF', 'request_id': str(uuid4()), 'attachment_ref': uploaded.json['attachment_ref']})
     assert result.status_code == 200, result.json
     assert result.json['messages'][0]['file_type'] == 'application/pdf'
+
+
+def test_dictation_uses_openai_without_creating_messages(app, client, seed, monkeypatch, receipts):
+    import io
+    from types import SimpleNamespace
+    import openai
+
+    audio = b'\x00\x00\x00\x18ftypM4A ' + b'bounded test recording'
+    calls = []
+
+    class Transcriber:
+        def __init__(self, **kwargs):
+            assert kwargs['api_key'] == 'test-dictation-key'
+            assert kwargs['timeout'] == 60 and kwargs['max_retries'] == 0
+            self.audio = SimpleNamespace(transcriptions=self)
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(text='  Schedule a call tomorrow.  ')
+
+    monkeypatch.setattr(openai, 'OpenAI', Transcriber)
+    monkeypatch.setattr(agent_bob.Config, 'OPENAI_API_KEY', 'test-dictation-key')
+    headers = _auth(_owner_token(client))
+    with app.app_context():
+        before = (ChatConversation.query.count(), ChatMessage.query.count(), BobAction.query.count())
+    result = client.post('/api/agent/v1/bob/transcriptions', headers=headers,
+                         data={'file': (io.BytesIO(audio), 'dictation.m4a')})
+    assert result.status_code == 200, result.json
+    assert result.json == {'text': 'Schedule a call tomorrow.'}
+    assert calls == [{'model': 'gpt-transcribe', 'file': ('dictation.m4a', audio, 'audio/mp4')}]
+    with app.app_context():
+        assert before == (ChatConversation.query.count(), ChatMessage.query.count(), BobAction.query.count())
+    limited = client.post('/api/agent/v1/bob/transcriptions', headers=headers,
+                          data={'file': (io.BytesIO(audio), 'dictation.m4a')})
+    assert limited.status_code == 429 and len(calls) == 1
+
+
+def test_dictation_rejects_unauthorized_invalid_and_large_audio(client, seed, monkeypatch, receipts):
+    import io
+    import openai
+
+    def forbidden(**kwargs):
+        pytest.fail('Invalid recordings must not reach OpenAI')
+    monkeypatch.setattr(openai, 'OpenAI', forbidden)
+    route = '/api/agent/v1/bob/transcriptions'
+    assert client.post(route).status_code == 401
+    headers = _auth(_owner_token(client))
+    assert client.post(route, headers=headers).status_code == 400
+    invalid = client.post(route, headers=headers, data={'file': (io.BytesIO(b'not audio'), 'dictation.m4a')})
+    assert invalid.status_code == 400
+    large = client.post(route, headers=headers, data={'file': (io.BytesIO(b'x' * (8 * 1024 * 1024 + 1)), 'dictation.m4a')})
+    assert large.status_code == 413
+    monkeypatch.setattr(agent_bob, 'org_has_feature', lambda *args: False)
+    assert client.post(route, headers=headers).status_code == 403
+
+
+def test_dictation_provider_failure_does_not_expose_secrets(client, seed, monkeypatch, receipts):
+    import io
+    import openai
+
+    def unavailable(**kwargs):
+        raise RuntimeError('private-provider-detail')
+    monkeypatch.setattr(openai, 'OpenAI', unavailable)
+    monkeypatch.setattr(agent_bob.Config, 'OPENAI_API_KEY', 'test-dictation-key')
+    result = client.post('/api/agent/v1/bob/transcriptions', headers=_auth(_owner_token(client)),
+                         data={'file': (io.BytesIO(b'\x00\x00\x00\x18ftypM4A '), 'dictation.m4a')})
+    assert result.status_code == 502
+    assert 'private-provider-detail' not in result.get_data(as_text=True)
+    assert 'retried' in result.json['error']

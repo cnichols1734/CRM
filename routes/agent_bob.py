@@ -26,6 +26,7 @@ def register(bp):
     bp.add_url_rule('/bob/conversations', 'bob_conversations', conversations, methods=['GET', 'POST'])
     bp.add_url_rule('/bob/conversations/<int:cid>', 'bob_conversation', conversation, methods=['GET'])
     bp.add_url_rule('/bob/conversations/<int:cid>/messages', 'bob_message', message, methods=['POST'])
+    bp.add_url_rule('/bob/transcriptions', 'bob_transcription', transcribe_dictation, methods=['POST'])
     bp.add_url_rule('/bob/attachments', 'bob_attachment', upload_attachment, methods=['POST'])
     bp.add_url_rule('/bob/actions/<int:aid>', 'bob_action', action, methods=['POST'])
     bp.add_url_rule('/bob/conversations/<int:cid>/voice', 'bob_voice', voice_session, methods=['POST'])
@@ -98,6 +99,48 @@ def receipt_store():
 def upload_attachment(user):
     from routes.ai_chat import upload_attachment_for_user
     return upload_attachment_for_user(user)
+
+
+@bob_required
+def transcribe_dictation(user):
+    """Transcribe a bounded native recording without saving audio or creating a turn."""
+    from openai import OpenAI, BadRequestError
+    from routes.ai_chat import check_rate_limit
+
+    maximum_bytes = 8 * 1024 * 1024
+    request.max_content_length = maximum_bytes + 64 * 1024
+    recording = request.files.get('file')
+    if recording is None:
+        return jsonify(error='Choose a recording to transcribe.'), 400
+    audio = recording.stream.read(maximum_bytes + 1)
+    if len(audio) > maximum_bytes:
+        return jsonify(error='The recording is too large. Record a shorter message.'), 413
+    if len(audio) < 12 or audio[4:8] != b'ftyp':
+        return jsonify(error='A valid M4A recording is required.'), 400
+    if not Config.OPENAI_API_KEY:
+        return jsonify(error='Transcription is not configured on the server.'), 503
+    if not check_rate_limit()[0]:
+        return jsonify(error='The daily BOB usage limit was reached.'), 429
+    try:
+        if not receipt_store().set(f'bob:dictation:{user.organization_id}:{user.id}', '1', nx=True, ex=3):
+            return jsonify(error='Please wait a few seconds before transcribing again.'), 429
+    except Exception:
+        return jsonify(error='Transcription is temporarily unavailable. Try again shortly.'), 503
+    try:
+        with OpenAI(api_key=Config.OPENAI_API_KEY, timeout=60, max_retries=0) as client:
+            result = client.audio.transcriptions.create(
+                model='gpt-transcribe',
+                file=('dictation.m4a', audio, 'audio/mp4'),
+            )
+        text = result.text.strip()
+        if not text:
+            return jsonify(error='No speech was detected. Record your message again.'), 422
+        return jsonify(text=text)
+    except BadRequestError:
+        return jsonify(error='The recording could not be transcribed. Record your message again.'), 422
+    except Exception:
+        logger.warning('BOB dictation transcription failed')
+        return jsonify(error='Transcription failed. Your recording can be retried.'), 502
 
 
 def attachment_for_turn(user, ref, history):
