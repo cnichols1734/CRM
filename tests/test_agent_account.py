@@ -105,3 +105,30 @@ def test_expired_and_tampered_challenges(app, seed, monkeypatch):
 def test_malformed_json_is_rejected(client, path):
     assert client.post(BASE + path, json=['bad']).status_code == 400
     assert client.post(BASE + path, json={'email': {'nested': True}}).status_code == 400
+
+
+def test_deletion_request_is_authenticated_confirmed_durable_and_idempotent(app, client, monkeypatch):
+    from models import AccountDeletionRequest
+    notices = []
+    monkeypatch.setattr('services.email_service.EmailService.send_contact_form', lambda self, **kw: notices.append(kw) or False)
+    registered = client.post(BASE + '/accounts', json=registration('delete-native@example.com'))
+    headers = {'Authorization': 'Bearer ' + registered.json['token']}
+    url = BASE + '/account/deletion-request'
+    assert client.post(url, json={'password': 'a-new-password'}).status_code == 401
+    assert client.post(url, headers=headers, json={'password': 'wrong'}).status_code == 403
+    with app.app_context():
+        assert AccountDeletionRequest.query.count() == 0
+    first = client.post(url, headers=headers, json={'password': 'a-new-password'})
+    assert first.status_code == 202
+    assert client.get(url, headers=headers).json == first.json
+    assert client.post(url, headers=headers, json={'password': 'a-new-password'}).json == first.json
+    with app.app_context():
+        row = AccountDeletionRequest.query.one()
+        assert row.completed_at is None and row.notified_at is None
+        assert 29 <= (row.due_at - row.requested_at).days <= 30
+        user = db.session.get(User, row.user_id)
+        assert user and user.email == 'delete-native@example.com'
+        assert ContactGroup.query.filter_by(user_id=user.id).count() > 0
+    other = client.post(BASE + '/accounts', json=registration('other-native@example.com'))
+    assert client.get(url, headers={'Authorization': 'Bearer ' + other.json['token']}).json == {'message': None}
+    assert notices and notices[0]['internal_recipient'] == 'chrisnichols17@gmail.com'

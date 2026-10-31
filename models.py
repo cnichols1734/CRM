@@ -5096,3 +5096,15 @@ class ClientBrowseRateLimit(db.Model):
     key = db.Column(db.String(64), primary_key=True)
     hits = db.Column(db.Integer, nullable=False, default=0)
     expires_at = db.Column(db.Integer, nullable=False)
+
+
+class AccountDeletionRequest(db.Model):
+    __tablename__ = 'account_deletion_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, nullable=False, index=True)
+    user_id = db.Column(db.Integer, nullable=False, unique=True)
+    requested_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    due_at = db.Column(db.DateTime, nullable=False)
+    completed_at = db.Column(db.DateTime)
+    completion_evidence = db.Column(db.Text)
+    notified_at = db.Column(db.DateTime)

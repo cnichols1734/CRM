@@ -9,6 +9,56 @@ from routes.client_discovery import limited
 
 
 def register(bp):
+    from datetime import datetime, timedelta
+    from models import AccountDeletionRequest, User
+    from routes.agent_api import agent_jwt_required, _set_org_context
+
+    def deletion_receipt(row):
+        if row is None:
+            return jsonify(message=None)
+        return jsonify(message=f"Deletion request #{row.id} received. We will complete it by {row.due_at:%B %d, %Y} and email you when it is complete. Records required by law may be retained.")
+
+    @bp.get('/account/deletion-request')
+    @agent_jwt_required
+    def deletion_status(user):
+        row = AccountDeletionRequest.query.filter_by(organization_id=user.organization_id, user_id=user.id).first()
+        return deletion_receipt(row)
+
+    @bp.post('/account/deletion-request')
+    @agent_jwt_required
+    def request_account_deletion(user):
+        if limited('agent-delete', 5, 900, identity=str(user.id)):
+            return error('Too many attempts. Try again in 15 minutes.', 429)
+        data = body()
+        password = data.get('password', '') if data else ''
+        if not password or len(password) > 128 or not user.check_password(password):
+            return error('Password is incorrect.', 403)
+        # Serialize repeat submissions without changing the original deadline.
+        User.query.filter_by(id=user.id, organization_id=user.organization_id).with_for_update().one()
+        row = AccountDeletionRequest.query.filter_by(organization_id=user.organization_id, user_id=user.id).first()
+        if row is None:
+            row = AccountDeletionRequest(organization_id=user.organization_id, user_id=user.id,
+                due_at=datetime.utcnow() + timedelta(days=30))
+            db.session.add(row)
+            db.session.commit()
+            _set_org_context(user.organization_id)
+        if row.notified_at is None:
+            from services.email_service import get_email_service
+            try:
+                sent = get_email_service().send_contact_form(
+                    subject=f'Account deletion request #{row.id}', user_email=user.email,
+                    message=f'AgentFlow deletion request {row.id}, organization {row.organization_id}, user {row.user_id}. Due {row.due_at:%Y-%m-%d}. Review the account-deletion runbook before removing records.',
+                    internal_recipient='chrisnichols17@gmail.com')
+                if sent:
+                    row.notified_at = datetime.utcnow()
+                    db.session.commit()
+                    _set_org_context(user.organization_id)
+            except Exception:
+                db.session.rollback()
+                _set_org_context(user.organization_id)
+                current_app.logger.exception('Deletion request notification failed request_id=%s', row.id)
+        return deletion_receipt(row), 202
+
     def error(message, status=400):
         return jsonify(error=message), status
 
