@@ -88,7 +88,6 @@ def notify_task_reminder(user: User, summary_parts: list[str],
     ]
     if action_url:
         lines.extend(['', f'Open tasks: {action_url}'])
-    lines.extend(['', '--BOB'])
     return notify(user, 'task_reminder', '\n'.join(lines))
 
 
@@ -125,7 +124,6 @@ def notify_daily_briefing(user: User, content: dict,
 
     if action_url:
         lines.extend(['', f'Open briefing: {action_url}'])
-    lines.extend(['', '--BOB'])
     return notify(user, 'daily_briefing', '\n'.join(lines))
 
 

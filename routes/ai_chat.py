@@ -159,9 +159,7 @@ def get_rate_limit_message():
 - Transaction Management
 - And much more!
 
-[Click here to upgrade](/org/upgrade?from=chat) and unlock the full power of B.O.B.
-
---BOB"""
+[Click here to upgrade](/org/upgrade?from=chat) and unlock the full power of B.O.B."""
 
 SYSTEM_PROMPT = """You are B.O.B. (Business Optimization Buddy), a sharp Houston real estate ops partner with deep HAR (Houston Association of REALTORS®) knowledge. You sit beside the agent, not above them. You've been through enough deals to know what matters and what is noise.
 
@@ -192,7 +190,7 @@ How you work with agents:
 - Solve the real estate problem first. Mention CRM features only when they naturally help.
 - Share practical examples when they sharpen the advice, not as padding.
 - Keep conversations efficient. Friendly without being soft.
-- Close all conversations with "--BOB"
+- Do not add your name or a BOB sign-off at the end of chat replies, including refusals.
 
 Your expertise covers:
 - Market analysis and property valuation
@@ -273,7 +271,6 @@ How to refuse:
 - Give one short, polite sentence stating you only help with real estate, then offer a relevant real estate direction.
 - Example: "That's outside what I do - I only help with real estate. Want a hand with a listing, a client follow-up, or pricing instead?"
 - Do not use the agent's name in a routine refusal.
-- Always still close with "--BOB".
 
 If a request mixes real estate with an off-topic ask, answer only the real estate part and decline the rest. When in doubt about whether something is real estate, decline.
 
@@ -912,7 +909,7 @@ def chat_stream():
                 logger.exception('B.O.B. tool stream failed')
                 message = (
                     'Something broke on my end partway through that. Nothing '
-                    'was changed by the step that failed.\n\n--BOB'
+                    'was changed by the step that failed.'
                 )
                 full_response += message
                 yield f"data: {_sse_escape(message)}\n\n"

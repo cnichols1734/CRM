@@ -1822,6 +1822,7 @@ class TestToolLoop:
         assert len(client.responses.calls) == 3
         text = ''.join(p for e, p in events if e == 'text')
         assert 'ran out of steps' in text
+        assert text.endswith('will pick it up from here.')
 
     def test_tools_are_withheld_on_the_final_round(self, app, fake_openai):
         client = fake_openai([

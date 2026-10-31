@@ -70,7 +70,7 @@ def _notify_ready(session, *, failed: bool = False) -> None:
         notify(
             user,
             'document_review',
-            f'{title}\n\n{body}\n\nOpen review: {absolute_url}\n\n--BOB',
+            f'{title}\n\n{body}\n\nOpen review: {absolute_url}',
             respect_quiet_hours=True,
         )
     except Exception:

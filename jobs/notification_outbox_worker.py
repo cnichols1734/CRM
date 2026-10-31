@@ -213,7 +213,6 @@ def _deliver_one(delivery) -> bool:
             lines.extend(['', body[:1500]])
         if action_url:
             lines.extend(['', f'Open: {action_url}'])
-        lines.extend(['', '--BOB'])
         # Quiet hours already applied via scheduled_for/not_before.
         sent = telegram_notify(
             user,

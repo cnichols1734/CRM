@@ -225,4 +225,4 @@ def format_intake_reply(session: ContractBootstrapSession, transaction: Transact
         lines.append(f'Extracted {field_count} candidate field(s) for review.')
     else:
         lines.append('No fields extracted yet; you can still attach/review the file in CRM.')
-    return '\n'.join(lines) + '\n\n--BOB'
+    return '\n'.join(lines)

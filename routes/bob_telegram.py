@@ -162,7 +162,7 @@ def _handle_message_update(message: dict, update_id: str) -> None:
     if not _org_allows_telegram(channel.organization_id):
         get_transport().send_text(
             channel.chat_id,
-            "Telegram for B.O.B. is not enabled for your organization.\n\n--BOB",
+            "Telegram for B.O.B. is not enabled for your organization.",
         )
         return
 
@@ -171,7 +171,7 @@ def _handle_message_update(message: dict, update_id: str) -> None:
             channel.chat_id,
             "I can take a text message, a voice note, a photo of a "
             "business card / email / contact screenshot, or a PDF after "
-            "you've selected a transaction.\n\n--BOB",
+            "you've selected a transaction.",
         )
         return
 
@@ -242,7 +242,7 @@ def _handle_start(text_body: str, *, external_id: str, chat_id: str,
         transport.send_text(
             chat_id,
             "Open your CRM profile, click Connect Telegram, and scan the "
-            "QR code to link this account.\n\n--BOB",
+            "QR code to link this account.",
         )
         return
 
@@ -251,7 +251,7 @@ def _handle_start(text_body: str, *, external_id: str, chat_id: str,
             token, external_id=external_id, chat_id=chat_id,
         )
     except BindingError as exc:
-        transport.send_text(chat_id, f"{exc}\n\n--BOB")
+        transport.send_text(chat_id, str(exc))
         return
 
     _set_webhook_org_context(channel.organization_id)
@@ -261,7 +261,7 @@ def _handle_start(text_body: str, *, external_id: str, chat_id: str,
         chat_id,
         "Linked. Ask me about your contacts or tasks anytime, "
         "send a voice note, or photo a business card.\n\n"
-        "Try one of these, or just type.\n\n--BOB",
+        "Try one of these, or just type.",
         [
             ChoiceOption(label="Today's plate", callback_data='cmd:today'),
             ChoiceOption(label='Overdue', callback_data='cmd:overdue'),
