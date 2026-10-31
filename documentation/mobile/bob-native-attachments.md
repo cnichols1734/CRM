@@ -10,4 +10,4 @@ Native attachment-derived create_contact calls route through import_contacts, in
 
 Validation: 177 tests passed across tests/test_agent_bob.py, tests/test_bob_attachments.py and tests/test_bob_tools.py. The new cases exercise real route, parsing, Responses input conversion, pending action and approval behavior with storage/model boundaries mocked. A separate live gpt-6.1-sol image request read synthetic name, email and phone values exactly; it performed no CRM action. Real camera quality and production mobile-to-storage-to-model acceptance remain to be checked after deployment.
 
-Companion iOS work is in agentflow-client PR #43. Deploy this CRM change before using attachments on the phone. The Responses image block format is documented at https://developers.openai.com/api/docs/guides/images-vision.
+Companion iOS work is in [agentflow PR #43](https://github.com/cnichols1734/agentflow/pull/43). Deploy this CRM change before using attachments on the phone. The Responses image block format is documented at https://developers.openai.com/api/docs/guides/images-vision.
