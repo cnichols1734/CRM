@@ -151,6 +151,12 @@ class TestMarkdownToHtml:
         out = markdown_to_telegram_html('use `a < b`')
         assert '<code>a &lt; b</code>' in out
 
+    def test_web_sources_are_clickable_and_escape_url_attributes(self):
+        out = markdown_to_telegram_html('[Rate source](https://example.com/?a=1&b=2)')
+        assert out == '<a href="https://example.com/?a=1&amp;b=2">Rate source</a>'
+        assert '<a ' not in markdown_to_telegram_html('[Bad](javascript:alert)')
+        assert '<a ' not in markdown_to_telegram_html('`[Code](https://example.com)`')
+
 
 # ---------------------------------------------------------------------------
 # Secret comparison

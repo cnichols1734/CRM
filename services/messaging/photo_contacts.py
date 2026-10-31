@@ -1,6 +1,6 @@
 """Telegram photo → contact extraction for B.O.B.
 
-Reuses Magic Inbox's vision extraction (``generate_contact_extraction``) and
+Reuses the contact extraction schema through BOB's model policy and
 image prep (``image_to_base64_jpeg``). Telegram decides whether to ask before
 creating or to create immediately when the caption/text is a clear save ask.
 """
@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from models import BobAction, Contact, User, db
-from services.ai_service import generate_contact_extraction
+from services.bob_ai import generate_contact_extraction
 from services.bob_tools.context import BobContext, ToolResult
 from services.bob_tools.registry import (
     CONFIRMATION_TTL_MINUTES,
@@ -93,7 +93,7 @@ def extract_contact_candidates(
     caption: str = '',
     user: User,
 ) -> list[dict]:
-    """Run Magic Inbox extraction on one photo and return usable candidates."""
+    """Extract contacts from one photo using BOB's model policy."""
     b64 = image_to_base64_jpeg(image_bytes)
     if not b64:
         raise PhotoContactError(

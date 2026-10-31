@@ -3,10 +3,8 @@ from flask_login import login_required, current_user
 from config import Config
 from models import db, BobAction, Contact, Task, TaskType, TaskSubtype, ChatConversation, ChatMessage
 from feature_flags import feature_required
-from services.ai_service import (
-    generate_chat_response, run_tool_conversation,
-    stream_chat_response,
-)
+from services.ai_service import run_tool_conversation
+from services.bob_ai import generate_chat_response, generate_response
 from services.bob_tools import (
     AttachmentTurnContext,
     BobContext,
@@ -38,7 +36,6 @@ from services.bob_attachments import (
 from sqlalchemy import or_, func
 from tier_config.tier_limits import get_tier_defaults
 import logging
-import openai
 import re
 import json
 from pprint import pprint
@@ -567,11 +564,9 @@ def chat():
         print(messages[-1]["content"])
         print("="*50 + "\n")
 
-        # Call AI using centralized service (GPT-5.1 → GPT-5-mini → GPT-4o fallback)
+        # Use the same model policy as BOB tool conversations.
         assistant_response = generate_chat_response(
-            messages=messages,
-            temperature=0.8,
-            max_tokens=2000
+            messages=messages
         )
 
         # Update session history with the new exchange
@@ -1117,25 +1112,10 @@ def save_chat_history():
 def _generate_chat_title(first_message):
     """Generate a short title for the conversation using AI"""
     try:
-        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-        
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Generate a very short title (3-6 words) for this chat conversation. No quotes, no punctuation at the end. Just the title text."
-                },
-                {
-                    "role": "user",
-                    "content": f"First message: {first_message[:500]}"
-                }
-            ],
-            max_tokens=20,
-            temperature=0.7
-        )
-        
-        title = response.choices[0].message.content.strip()
+        title = generate_response(
+            "Generate a very short title (3-6 words) for this chat conversation. No quotes, no punctuation at the end. Just the title text.",
+            f"First message: {first_message[:500]}",
+        ).strip()
         # Clean up the title
         title = title.strip('"\'')
         # Limit length

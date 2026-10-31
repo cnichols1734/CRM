@@ -1,6 +1,7 @@
 """
 Centralized AI Service for all OpenAI interactions.
-Provides consistent model selection with fallback chain across all features.
+Provides shared AI helpers. BOB uses the policy in services.bob_ai; other
+features retain the fallback chain below.
 
 Model Hierarchy (GPT-5.6 family, Responses API preferred):
 1. Primary: gpt-5.6-sol (flagship)
@@ -27,6 +28,7 @@ import os
 import openai
 import logging
 from config import Config
+from services import bob_ai
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -570,13 +572,11 @@ def stream_chat_response(
 
 
 # All BOB tool loops use the Responses API (file and non-file turns).
-# Chat Completions cannot pair GPT-5.6 function tools with reasoning effort.
+# GPT-6.1 Sol function tools require Responses.
 MAX_TOOL_ROUNDS = 5
 
-# Default reasoning effort for ordinary CRM/Telegram tool turns.
-# Document/file review uses a higher effort (see run_tool_conversation).
-TOOL_REASONING_EFFORT = "low"
-TOOL_REASONING_EFFORT_FILES = "medium"
+# Shared by CRM, iOS, voice delegation, Telegram, and file review.
+TOOL_REASONING_EFFORT = bob_ai.REASONING_EFFORT
 
 
 def run_tool_conversation(
@@ -588,7 +588,6 @@ def run_tool_conversation(
     api_key: str = None,
     temperature: float = 0.3,
     input_files: list[dict] | None = None,
-    reasoning_effort: str | None = None,
     safety_identifier: str | None = None,
 ):
     """Run a tool-calling conversation via the Responses API.
@@ -613,7 +612,6 @@ def run_tool_conversation(
             flattened for Responses internally).
         max_rounds: Cap on tool rounds before the loop is cut off.
         input_files: Optional trusted file payloads (PDFs as complete docs).
-        reasoning_effort: Override Responses reasoning effort for this turn.
         safety_identifier: Privacy-preserving end-user identifier for OpenAI.
         temperature: Retained for API compatibility; Responses path ignores it.
     """
@@ -625,9 +623,6 @@ def run_tool_conversation(
 
     client = openai.OpenAI(api_key=key)
     files = list(input_files or [])
-    effort = reasoning_effort or (
-        TOOL_REASONING_EFFORT_FILES if files else TOOL_REASONING_EFFORT
-    )
     yield from _run_responses_tool_conversation(
         client=client,
         system_prompt=system_prompt,
@@ -636,7 +631,7 @@ def run_tool_conversation(
         execute_tool=execute_tool,
         input_files=files,
         max_rounds=max_rounds,
-        reasoning_effort=effort,
+        reasoning_effort=TOOL_REASONING_EFFORT,
         safety_identifier=safety_identifier,
     )
 
@@ -663,13 +658,12 @@ def _run_responses_tool_conversation(
 
     for round_index in range(max_rounds):
         is_final_round = round_index == max_rounds - 1
-        response = _responses_tool_round_with_fallback(
+        response = _responses_tool_round(
             client=client,
             system_prompt=system_prompt,
             input_items=input_items,
             tools=response_tools,
             allow_tools=not is_final_round,
-            reasoning_effort=reasoning_effort,
             safety_identifier=safety_identifier,
         )
         if response is None:
@@ -688,7 +682,7 @@ def _run_responses_tool_conversation(
         ]
 
         if not tool_calls:
-            text = getattr(response, 'output_text', None) or ''
+            text = bob_ai.response_text(response)
             transcript.append({'role': 'assistant', 'content': text})
             for chunk in _chunk_text(text):
                 yield ('text', chunk)
@@ -827,67 +821,23 @@ def _responses_tool_schemas(tools: list) -> list[dict]:
     return translated
 
 
-def _responses_tool_round_with_fallback(
-    *,
-    client,
-    system_prompt: str,
-    input_items: list,
-    tools: list,
-    allow_tools: bool,
-    reasoning_effort: str = TOOL_REASONING_EFFORT,
-    safety_identifier: str | None = None,
+def _responses_tool_round(
+    *, client, system_prompt: str, input_items: list, tools: list,
+    allow_tools: bool, safety_identifier: str | None = None,
 ):
-    """One Responses API round, walking the standard model fallback chain."""
-    for i, model in enumerate(MODEL_CHAIN):
-        try:
-            kwargs = {
-                'model': model,
-                'instructions': system_prompt,
-                'input': input_items,
-                'reasoning': {'effort': reasoning_effort},
-            }
-            if allow_tools and tools:
-                kwargs['tools'] = tools
-                kwargs['tool_choice'] = 'auto'
-            if safety_identifier:
-                kwargs['safety_identifier'] = safety_identifier
-
-            logger.info(
-                f"[{i+1}/{len(MODEL_CHAIN)}] Responses tool round: "
-                f"attempting {model} "
-                f"(tools={'on' if allow_tools and tools else 'off'}, "
-                f"effort={reasoning_effort})"
-            )
-            return client.responses.create(**kwargs)
-
-        except (openai.NotFoundError, openai.AuthenticationError,
-                openai.PermissionDeniedError, openai.RateLimitError) as e:
-            logger.warning(
-                f"Responses tool round fallback: {model} failed with "
-                f"{type(e).__name__}"
-            )
-            continue
-
-        except openai.APIError as e:
-            if _should_fallback(e):
-                logger.warning(
-                    f"Responses tool round fallback: {model} failed with "
-                    f"status {e.status_code}"
-                )
-                continue
-            logger.error(
-                f"Responses tool round fatal: {model} unrecoverable error: {e}"
-            )
-            return None
-
-        except Exception as e:
-            logger.error(f"Responses tool round error with {model}: {e}")
-            if i < len(MODEL_CHAIN) - 1:
-                continue
-            return None
-
-    logger.error("FATAL: All models failed during Responses tool round")
-    return None
+    """Run one BOB round; leave transient retries to the OpenAI client."""
+    kwargs = {'instructions': system_prompt + '\n' + bob_ai.WEB_INSTRUCTIONS,
+              'input': input_items}
+    if allow_tools:
+        kwargs['tools'] = tools + bob_ai.web_tools()
+        kwargs['tool_choice'] = 'auto'
+    if safety_identifier:
+        kwargs['safety_identifier'] = safety_identifier
+    try:
+        return bob_ai.create_response(client=client, **kwargs)
+    except Exception:
+        logger.exception("BOB Responses request failed")
+        return None
 
 
 def _tool_round_with_fallback(*, client, messages, tools, temperature,
@@ -1353,74 +1303,27 @@ def _usage_meta(model: str, usage) -> dict:
 # DOCUMENT EXTRACTION (structured data from document images)
 # =============================================================================
 
-EXTRACTION_MODEL = os.getenv("DOCUMENT_EXTRACTION_MODEL", "gpt-5.1")
-EXTRACTION_FALLBACK_MODEL = os.getenv("DOCUMENT_EXTRACTION_FALLBACK_MODEL", "gpt-5-mini")
-EXTRACTION_LEGACY_MODEL = os.getenv("DOCUMENT_EXTRACTION_LEGACY_MODEL", "gpt-4.1-mini")
+EXTRACTION_MODEL = bob_ai.MODEL
 
 
 def generate_document_extraction(
     system_prompt: str,
     user_prompt: str,
     images: list = None,
-    api_key: str = None
+    api_key: str = None,
 ) -> dict:
-    """
-    Extract structured data from document images using GPT-4.1-mini.
-    Returns parsed JSON dict. Uses json_object response format for
-    guaranteed valid JSON output.
-
-    Args:
-        system_prompt: Instructions for the extraction task
-        user_prompt: Field definitions and format instructions
-        images: List of base64-encoded PNG image strings (one per page)
-        api_key: Optional API key override
-
-    Returns:
-        dict with extracted field values
-    """
+    """Review all document pages with BOB's model and return extracted JSON."""
     key = api_key or Config.OPENAI_API_KEY
     if not key:
         raise ValueError("OpenAI API key is not configured")
-
     client = openai.OpenAI(api_key=key)
-
-    user_content = [{"type": "text", "text": user_prompt}]
-    for img_b64 in images or []:
-        user_content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{img_b64}", "detail": "high"}
-        })
-
-    models = [EXTRACTION_MODEL, EXTRACTION_FALLBACK_MODEL, EXTRACTION_LEGACY_MODEL]
-    last_error = None
-    logger.info(f"Document extraction: sending {len(images or [])} page images to {models[0]}")
-
-    for index, model in enumerate(dict.fromkeys(models), start=1):
-        try:
-            kwargs = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content}
-                ],
-                "response_format": {"type": "json_object"},
-            }
-            if not model.startswith("gpt-5"):
-                kwargs["temperature"] = 0.1
-
-            response = client.chat.completions.create(**kwargs)
-            result = json.loads(response.choices[0].message.content)
-            logger.info(f"Document extraction: received {len(result)} fields from {model}")
-            return result
-        except Exception as error:
-            last_error = error
-            logger.warning(
-                "Document extraction model %s/%s failed for %s: %s",
-                index,
-                len(models),
-                model,
-                error,
-                exc_info=True,
-            )
-
-    raise last_error
+    content = [{"type": "input_text", "text": "Return JSON.\n" + user_prompt}]
+    content.extend({"type": "input_image",
+                    "image_url": f"data:image/png;base64,{image}",
+                    "detail": "high"} for image in images or [])
+    response = bob_ai.create_response(
+        client=client, instructions=system_prompt,
+        input=[{"role": "user", "content": content}],
+        text={"format": {"type": "json_object"}},
+    )
+    return json.loads(response.output_text)
