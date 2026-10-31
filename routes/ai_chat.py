@@ -1512,6 +1512,11 @@ def _build_attachment_context(
 @feature_required('AI_CHAT')
 def upload_attachment():
     """Upload a file attachment for chat and return a signed attachment ref."""
+    return upload_attachment_for_user(current_user)
+
+
+def upload_attachment_for_user(user):
+    """Shared upload after the caller has authenticated and checked BOB access."""
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
@@ -1538,7 +1543,7 @@ def upload_attachment():
                 "error": "Legacy .doc files are not supported. Upload a .docx instead."
             }), 400
         
-        file_data = file.read()
+        file_data = file.read(MAX_FILE_SIZE + 1)
         file_size = len(file_data)
         
         if file_size > MAX_FILE_SIZE:
@@ -1557,7 +1562,7 @@ def upload_attachment():
         
         ext = _extension_for_upload(file.filename, content_type)
         unique_filename = f"{uuid.uuid4().hex}{ext}"
-        storage_path = f"user_{current_user.id}/{unique_filename}"
+        storage_path = f"user_{user.id}/{unique_filename}"
         digest = sha256_digest(file_data)
 
         result = upload_file(
@@ -1575,8 +1580,8 @@ def upload_attachment():
             CHAT_ATTACHMENTS_BUCKET, storage_path, expires_in=86400 * 7,
         )
         attachment_ref = make_attachment_ref(
-            user_id=current_user.id,
-            organization_id=current_user.organization_id,
+            user_id=user.id,
+            organization_id=user.organization_id,
             storage_path=storage_path,
             mime=content_type,
             size=file_size,

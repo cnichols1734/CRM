@@ -227,3 +227,144 @@ def test_voice_approval_applies_pending_contact_change_once(app, client, seed):
     response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
                            json={'decision': 'approve', 'voice_confirmation': 'Yes'})
     assert response.status_code == 400
+
+
+@pytest.fixture
+def native_uploads(monkeypatch):
+    from services import supabase_storage, bob_attachment_refs
+    objects = {}
+    def upload(**kwargs):
+        objects[kwargs['storage_path']] = kwargs['file_data']
+        return {'path': kwargs['storage_path']}
+    monkeypatch.setattr(supabase_storage, 'upload_file', upload)
+    monkeypatch.setattr(supabase_storage, 'get_signed_url', lambda *a, **k: 'https://example.test/private-image')
+    monkeypatch.setattr(supabase_storage, 'download_file', lambda bucket, path: objects[path])
+    monkeypatch.setattr(bob_attachment_refs, 'download_file', lambda bucket, path: objects[path])
+    return objects
+
+
+def _upload_card(client, headers):
+    import io
+    from PIL import Image
+    stream = io.BytesIO()
+    Image.new('RGB', (320, 160), 'white').save(stream, format='JPEG')
+    stream.seek(0)
+    return client.post('/api/agent/v1/bob/attachments', headers=headers,
+                       data={'file': (stream, 'card.jpg', 'image/jpeg')})
+
+
+def test_native_photo_reaches_vision_and_contact_waits_for_approval(app, client, seed, monkeypatch, receipts, native_uploads):
+    from types import SimpleNamespace as NS
+    from services import ai_service
+    from models import Contact
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    uploaded = _upload_card(client, headers)
+    assert uploaded.status_code == 200, uploaded.json
+    email = f'photo-{uuid4().hex}@example.test'
+    candidate = {'first_name': 'Photo', 'last_name': 'Example', 'email': email, 'phone': '5125550142'}
+    inputs = []
+    def respond(**kwargs):
+        inputs.append(kwargs['input'][:])
+        if len(inputs) == 1:
+            output = [NS(type='function_call', name='create_contact', arguments=json.dumps(candidate), call_id='photo-create')]
+            return NS(output=output, model='test', usage=None, id='r1')
+        return NS(output=[], output_text='Review the contact details before approving.', model='test', usage=None, id='r2')
+    monkeypatch.setattr(ai_service.Config, 'OPENAI_API_KEY', 'test')
+    monkeypatch.setattr(ai_service.openai, 'OpenAI', lambda **kw: NS(responses=NS(create=respond)))
+    route = f'/api/agent/v1/bob/conversations/{cid}/messages'
+    body = {'message': 'Create a contact from this photo', 'attachment_ref': uploaded.json['attachment_ref'], 'request_id': str(uuid4())}
+    result = client.post(route, json=body, headers=headers)
+    assert result.status_code == 200, result.json
+    image = next(p for p in inputs[0][-1]['content'] if p['type'] == 'input_image')
+    assert image['image_url'].startswith('data:image/jpeg;base64,')
+    assert image['detail'] == 'high'
+    assert result.json['messages'][0]['file_name'] == 'card.jpg'
+    pending = result.json['actions'][0]
+    assert pending['status'] == 'pending'
+    assert pending['tool_name'] == 'import_contacts'
+    with app.app_context():
+        assert Contact.query.filter_by(email=email).count() == 0
+    assert client.post(route, json=body, headers=headers).status_code == 200
+    assert len(inputs) == 2, 'Retry must not call the model or create another pending import'
+    assert client.post(route, json={**body, 'attachment_ref': 'different'}, headers=headers).status_code == 409
+    approved = client.post(f"/api/agent/v1/bob/actions/{pending['action_id']}", json={'decision': 'approve'}, headers=headers)
+    assert approved.status_code == 200, approved.json
+    with app.app_context():
+        contact = Contact.query.filter_by(email=email).one()
+        assert contact.first_name == 'Photo'
+        assert contact.organization_id == seed['org_a']
+        assert contact.user_id == seed['owner_a']
+    # Switching to voice delegates another turn without uploading the picture again.
+    followup = client.post(route, headers=headers, json={'request_id': str(uuid4()),
+        'message': 'Voice conversation context follows. Earlier requests may already be executed.\nuser: Create a contact\nassistant: Done\nuser: What phone number is on the photo?'})
+    assert followup.status_code == 200, followup.json
+    assert any(p['type'] == 'input_image' for p in inputs[-1][-1]['content'])
+    with app.app_context():
+        assert Contact.query.filter_by(email=email).count() == 1
+
+
+def test_native_upload_ownership_validation_and_read_only_intent(app, client, seed, monkeypatch, receipts, native_uploads):
+    from services.bob_attachment_refs import make_attachment_ref
+    from models import Contact
+    headers = _auth(_owner_token(client))
+    assert _upload_card(client, {}).status_code == 401
+    uploaded = _upload_card(client, headers).json
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    route = f'/api/agent/v1/bob/conversations/{cid}/messages'
+    with app.app_context():
+        foreign = make_attachment_ref(user_id=seed['owner_b'], organization_id=seed['org_b'],
+            storage_path=f"user_{seed['owner_b']}/foreign.jpg", mime='image/jpeg', size=1, filename='foreign.jpg', digest='abc')
+    assert client.post(route, headers=headers, json={'message': 'Read it', 'request_id': str(uuid4()), 'attachment_ref': foreign}).status_code == 400
+    assert client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json['messages'] == []
+    email = f'blocked-{uuid4().hex}@example.test'
+    def run(**kwargs):
+        model, result = kwargs['execute_tool']('create_contact', {'first_name': 'Blocked', 'email': email})
+        assert not result['ok']
+        yield 'text', 'The photo contains contact details.'
+    monkeypatch.setattr(agent_bob, 'run_tool_conversation', run)
+    result = client.post(route, headers=headers, json={'message': 'What does this photo say?',
+        'request_id': str(uuid4()), 'attachment_ref': uploaded['attachment_ref']})
+    assert result.status_code == 200, result.json
+    assert result.json['actions'] == []
+    with app.app_context():
+        assert Contact.query.filter_by(email=email).count() == 0
+
+
+def test_legacy_image_blocks_are_translated_for_responses():
+    from services.ai_service import _responses_input_items
+    output = _responses_input_items([{'role': 'user', 'content': [
+        {'type': 'text', 'text': 'Read this'},
+        {'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,abc', 'detail': 'high'}}]}], [])
+    assert output[0]['content'] == [
+        {'type': 'input_text', 'text': 'Read this'},
+        {'type': 'input_image', 'image_url': 'data:image/jpeg;base64,abc', 'detail': 'high'}]
+
+
+def test_native_pdf_and_invalid_uploads(client, seed, monkeypatch, receipts, native_uploads):
+    import io
+    import fitz
+    headers = _auth(_owner_token(client))
+    upload_route = '/api/agent/v1/bob/attachments'
+    for data, name in [(b'', 'empty.txt'), (b'bad', 'script.exe'), (b'x' * (10 * 1024 * 1024 + 1), 'large.txt')]:
+        assert client.post(upload_route, headers=headers, data={'file': (io.BytesIO(data), name)}).status_code == 400
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), 'Synthetic property information')
+    pdf = document.tobytes()
+    document.close()
+    uploaded = client.post(upload_route, headers=headers, data={'file': (io.BytesIO(pdf), 'info.pdf', 'application/pdf')})
+    assert uploaded.status_code == 200
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    def run(**kwargs):
+        from services.ai_service import _responses_input_items
+        payload = _responses_input_items(kwargs['messages'], kwargs['input_files'])
+        assert payload[-1]['content'][-1]['type'] == 'input_file'
+        assert payload[-1]['content'][-1]['file_data'].startswith('data:application/pdf;base64,')
+        assert kwargs['input_files'][0]['data'] == pdf
+        yield 'text', 'The file contains property information.'
+    monkeypatch.setattr(agent_bob, 'run_tool_conversation', run)
+    result = client.post(f'/api/agent/v1/bob/conversations/{cid}/messages', headers=headers,
+        json={'message': 'Summarize this PDF', 'request_id': str(uuid4()), 'attachment_ref': uploaded.json['attachment_ref']})
+    assert result.status_code == 200, result.json
+    assert result.json['messages'][0]['file_type'] == 'application/pdf'
