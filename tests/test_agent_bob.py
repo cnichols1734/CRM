@@ -17,6 +17,11 @@ class ReceiptStore:
             return False
         self.values[key] = value
         return True
+    def incr(self, key):
+        self.values[key] = int(self.values.get(key, 0)) + 1
+        return self.values[key]
+    def expire(self, key, seconds):
+        return key in self.values
     def eval(self, script, count, key, expected):
         if self.values.get(key) == expected:
             self.values.pop(key, None)
@@ -393,6 +398,7 @@ def test_dictation_uses_openai_without_creating_messages(app, client, seed, monk
 
     monkeypatch.setattr(openai, 'OpenAI', Transcriber)
     monkeypatch.setattr(agent_bob.Config, 'OPENAI_API_KEY', 'test-dictation-key')
+    monkeypatch.setattr('routes.ai_chat.check_rate_limit', lambda: (True, 2, 2))
     headers = _auth(_owner_token(client))
     with app.app_context():
         before = (ChatConversation.query.count(), ChatMessage.query.count(), BobAction.query.count())
@@ -406,6 +412,16 @@ def test_dictation_uses_openai_without_creating_messages(app, client, seed, monk
     limited = client.post('/api/agent/v1/bob/transcriptions', headers=headers,
                           data={'file': (io.BytesIO(audio), 'dictation.m4a')})
     assert limited.status_code == 429 and len(calls) == 1
+    # Expire only the cooldown; the daily count must survive repeated recording sessions.
+    for expected_status in (200, 429):
+        for key in list(receipts.values):
+            if key.startswith('bob:dictation:') and ':daily:' not in key:
+                del receipts.values[key]
+        result = client.post('/api/agent/v1/bob/transcriptions', headers=headers,
+                             data={'file': (io.BytesIO(audio), 'dictation.m4a')})
+        assert result.status_code == expected_status, result.json
+    assert len(calls) == 2
+    assert result.json['error'] == 'The daily dictation limit was reached.'
 
 
 def test_dictation_rejects_unauthorized_invalid_and_large_audio(client, seed, monkeypatch, receipts):
@@ -422,7 +438,10 @@ def test_dictation_rejects_unauthorized_invalid_and_large_audio(client, seed, mo
     invalid = client.post(route, headers=headers, data={'file': (io.BytesIO(b'not audio'), 'dictation.m4a')})
     assert invalid.status_code == 400
     large = client.post(route, headers=headers, data={'file': (io.BytesIO(b'x' * (8 * 1024 * 1024 + 1)), 'dictation.m4a')})
-    assert large.status_code == 413
+    assert large.status_code == 413 and large.is_json
+    parser_limit = client.post(route, headers=headers,
+                               data={'file': (io.BytesIO(b'x' * (9 * 1024 * 1024)), 'dictation.m4a')})
+    assert parser_limit.status_code == 413 and parser_limit.json == large.json
     monkeypatch.setattr(agent_bob, 'org_has_feature', lambda *args: False)
     assert client.post(route, headers=headers).status_code == 403
 
