@@ -12,6 +12,7 @@ import json
 import time
 
 from flask import current_app
+from sqlalchemy import func
 
 from models import Organization, User
 
@@ -42,7 +43,7 @@ def find_login_user(login_input):
     value = (login_input or '').strip()
     if not value:
         return None
-    user = User.query.filter(User.email == value).first()
+    user = User.query.filter(func.lower(User.email) == value.lower()).first()
     if not user:
         user = User.query.filter(User.username == value).first()
     return user

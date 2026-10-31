@@ -437,7 +437,7 @@ def create_default_groups_for_org(org_id: int, *, commit: bool = True):
     return result
 
 
-def create_default_task_types_for_org(org_id: int):
+def create_default_task_types_for_org(org_id: int, *, commit: bool = True):
     """
     Create default task types and subtypes for a new organization.
     Called when an organization is approved.
@@ -524,11 +524,14 @@ def create_default_task_types_for_org(org_id: int):
         
         created_types.append(task_type)
     
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return created_types
 
 
-def create_default_transaction_types_for_org(org_id: int):
+def create_default_transaction_types_for_org(org_id: int, *, commit: bool = True):
     """
     Create default transaction types for a new organization.
     Called when an organization is approved.
@@ -569,5 +572,8 @@ def create_default_transaction_types_for_org(org_id: int):
         db.session.add(tx_type)
         created_types.append(tx_type)
     
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return created_types
