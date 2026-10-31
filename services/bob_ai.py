@@ -98,6 +98,7 @@ def generate_response(system_prompt, user_prompt, *, web_search=False,
     if web_search:
         from services.ai_service import _web_search_tools
         kwargs["tools"] = _web_search_tools(user_location)
+        kwargs["tool_choice"] = "required"
     if json_mode:
         kwargs["text"] = {"format": {"type": "json_object"}}
         user_prompt = "Return JSON.\n" + user_prompt

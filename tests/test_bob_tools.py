@@ -1878,6 +1878,20 @@ class TestToolLoop:
         transcript = next(value for kind, value in events if kind == 'messages')
         assert transcript[-1]['content'] == text
 
+    def test_explicit_research_requires_search_but_chat_keeps_auto_selection(self, app, fake_openai):
+        from services.bob_ai import generate_response
+
+        client = fake_openai([_FakeResponse(text='Researched listing remarks.')])
+        text = generate_response('Research the area before drafting.', 'Draft listing remarks.',
+                                 web_search=True, user_location={'city': 'Houston'})
+        request = client.responses.calls[0]
+        assert request['tool_choice'] == 'required'
+        assert request['tools'][0]['type'] == 'web_search'
+        assert request['tools'][0]['user_location']['city'] == 'Houston'
+        assert text == 'Researched listing remarks.'
+        self._run()
+        assert client.responses.calls[-1]['tool_choice'] == 'auto'
+
     def test_model_failure_does_not_downgrade_or_execute_tools(self, app, fake_openai):
         client = fake_openai([])
 

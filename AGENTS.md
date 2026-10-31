@@ -175,6 +175,13 @@ If you see "Multiple head revisions are present", the migration's `down_revision
 - Always branch from an up-to-date `main`
 - Push branches for review instead of committing directly to `main`
 
+## Before every PR merge
+
+- Verify the latest PR head has passing required CI checks.
+- Read Copilot review submissions and inline review threads, including unresolved comments. Passing CI alone is not sufficient.
+- Investigate each finding against the current code. Fix valid issues and verify them; document why any finding does not apply. Do not dismiss comments solely because tests pass or a thread is marked outdated.
+- After pushing fixes, check CI and Copilot comments again against the new head. Wait for an in-progress Copilot review before merging. If no Copilot review is available, explicitly report that limitation rather than implying it passed.
+
 ## Railway Builds
 
 Production uses **Railpack**, not Nixpacks.
