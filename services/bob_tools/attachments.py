@@ -291,11 +291,7 @@ def _prepare_from_spreadsheet(resolved, ctx: BobContext, *, execute: bool) -> di
             else 'Contact limit reached.'
         )
     if preview_model.create_count == 0:
-        raise ToolError(
-            'No new contacts to import. '
-            f"Duplicates skipped: {preview_model.duplicate_count}. "
-            f"Invalid rows: {preview_model.invalid_count}."
-        )
+        raise ToolError(_empty_import_message(preview_model))
 
     if not execute:
         return {'preview': preview, 'created': []}
@@ -346,6 +342,28 @@ def _prepare_from_extraction(resolved, ctx: BobContext, *, execute: bool, captio
     return _prepare_from_candidates(candidates, ctx, execute=execute)
 
 
+def _empty_import_message(preview) -> str:
+    parts = ['No contacts were added or changed.']
+    if preview.duplicate_count:
+        parts.append(
+            f'{preview.duplicate_count} contact(s) were skipped to avoid duplicates.'
+        )
+        parts.extend(preview.duplicate_details)
+    if preview.invalid_count:
+        parts.append('Some contact details are incomplete.')
+        parts.extend(preview.error_details[:5])
+    if not preview.duplicate_count and not preview.invalid_count:
+        parts.append('No contact details were found in the attachment.')
+    if preview.duplicate_count:
+        parts.append(
+            'Please check whether this is the same person or whether the '
+            'details in the attachment need correcting before continuing.'
+        )
+    else:
+        parts.append('Please provide the missing details or a clearer attachment.')
+    return ' '.join(parts)
+
+
 def _prepare_from_candidates(candidates: list, ctx: BobContext, *, execute: bool) -> dict:
     # Lazy import avoids registry <-> photo_contacts circular import at boot.
     from services.messaging.photo_contacts import candidate_to_create_args
@@ -387,7 +405,7 @@ def _prepare_from_candidates(candidates: list, ctx: BobContext, *, execute: bool
             else 'Contact limit reached.'
         )
     if preview_model.create_count == 0:
-        raise ToolError('No new contacts to import from that extraction.')
+        raise ToolError(_empty_import_message(preview_model))
 
     if not execute:
         return {'preview': preview, 'created': []}

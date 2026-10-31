@@ -290,6 +290,31 @@ class TestContactImport:
         assert mapping['First Name'] == 'first_name'
         assert mapping['Email 1'] == 'email'
 
+    @pytest.mark.parametrize('match_field', ['email', 'phone', 'name'])
+    def test_upload_collision_identifies_shared_field(self, app, ctx_agent_a, match_field):
+        with app.app_context():
+            email = f'{_unique("shared")}@example.com' if match_field == 'email' else None
+            phone = '8325550182' if match_field == 'phone' else None
+            rows = [
+                {'first_name': 'Taylor', 'last_name': 'Upload', 'email': email, 'phone': phone},
+                {'first_name': 'Taylor' if match_field == 'name' else 'Casey',
+                 'last_name': 'Upload', 'email': email, 'phone': phone},
+            ]
+            preview = preview_contact_import(
+                rows, actor_user_id=ctx_agent_a.user_id,
+                owner_user_id=ctx_agent_a.user_id, org_id=ctx_agent_a.organization_id,
+            )
+            assert preview.create_count == 1
+            assert preview.duplicate_count == 1
+            detail = preview.duplicate_details[0]
+            if match_field == 'email':
+                assert f'shares email {email}' in detail
+            elif match_field == 'phone':
+                assert 'shares phone number (832) 555-0182' in detail
+            else:
+                assert 'same name' in detail
+            assert 'appears more than once' not in detail
+
     def test_preview_and_execute(self, app, seed, ctx_agent_a):
         with app.app_context():
             email = f'{_unique("imp")}@example.com'
@@ -415,6 +440,49 @@ class TestAttachmentTools:
             assert undone.ok is True
             remaining = Contact.query.filter(Contact.id.in_(ids)).count()
             assert remaining == 0
+
+    @pytest.mark.parametrize('match_field', ['email', 'phone'])
+    def test_photo_duplicate_explains_match_without_creating_or_changing_contact(
+        self, app, ctx_agent_a, match_field,
+    ):
+        with app.app_context():
+            email = f'{_unique("duplicatephoto")}@example.com'
+            existing = Contact(
+                first_name='Taylor', last_name='Existing', email=email,
+                phone='(832) 555-0176', notes='Keep these notes',
+                user_id=ctx_agent_a.user_id,
+                organization_id=ctx_agent_a.organization_id,
+            )
+            db.session.add(existing)
+            db.session.commit()
+            try:
+                before_contacts = Contact.query.count()
+                before_actions = BobAction.query.count()
+                ctx = ctx_agent_a.with_attachment(AttachmentTurnContext(
+                    intent=INTENT_CREATE, kind=KIND_IMAGE,
+                    filename='card.jpg', mime='image/jpeg',
+                    attachment_ref='unused', allow_attachment_writes=True,
+                ))
+                result = dispatch('import_contacts', {'candidates': [{
+                    'first_name': 'Casey', 'last_name': 'Different',
+                    'email': email.upper() if match_field == 'email' else None,
+                    'phone': '8325550176' if match_field == 'phone' else '8325550199',
+                    'notes': 'New photo notes',
+                }]}, ctx)
+                assert not result.ok
+                assert not result.requires_confirmation
+                assert match_field in result.error
+                assert 'Taylor Existing' in result.error
+                assert 'Casey Different' in result.error
+                assert 'avoid duplicates' in result.error
+                assert Contact.query.count() == before_contacts
+                assert BobAction.query.count() == before_actions
+                db.session.refresh(existing)
+                assert existing.first_name == 'Taylor'
+                assert existing.notes == 'Keep these notes'
+            finally:
+                db.session.delete(existing)
+                db.session.commit()
 
     def test_import_reject_creates_nothing(self, app, ctx_agent_a):
         with app.app_context():
