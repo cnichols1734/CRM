@@ -208,12 +208,10 @@ def generate_listing_description(
     facts = collect_listing_description_facts(tx, listing_info, documents)
     draft = ''
     if Config.OPENAI_API_KEY:
-        from services.ai_service import generate_ai_response
-        draft = sanitize_listing_copy(generate_ai_response(
+        from services.bob_ai import generate_response
+        draft = sanitize_listing_copy(generate_response(
             system_prompt=LISTING_DESCRIPTION_SYSTEM_PROMPT,
             user_prompt=build_listing_description_user_prompt(facts),
-            temperature=0.5,
-            reasoning_effort='low',
             web_search=True,
             user_location=web_search_location(facts),
         ))

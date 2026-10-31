@@ -15,11 +15,7 @@ from models import (
     db, User, Contact, Task, Transaction, DailyTodoList,
 )
 from jobs.base import set_job_org_context
-from services.ai_service import (
-    FALLBACK_MODEL,
-    LEGACY_MODEL,
-    generate_structured_response,
-)
+from services.bob_ai import generate_structured_response
 
 logger = logging.getLogger(__name__)
 
@@ -360,10 +356,6 @@ def generate_briefing_content(user_id: int, org_id: int | None) -> tuple:
         schema=BRIEFING_SCHEMA,
         schema_name="daily_briefing",
         temperature=0.4,
-        # Quality-first for the day's plan; pro mode stays OFF in ai_service
-        reasoning_effort="high",
-        # Terra only for Daily Briefing — chat / Telegram keep the sol chain
-        model_chain=(FALLBACK_MODEL, LEGACY_MODEL),
     )
     # Soft-cap arrays in case the model overshoots
     content["priorities"] = (content.get("priorities") or [])[:5]

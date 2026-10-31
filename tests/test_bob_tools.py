@@ -1833,8 +1833,8 @@ class TestToolLoop:
         assert 'tools' in client.responses.calls[0]
         assert 'tools' not in client.responses.calls[1]
 
-    def test_reasoning_effort_is_low_on_ordinary_tool_turns(self, app, fake_openai):
-        """Ordinary CRM/Telegram turns use Responses with low reasoning effort."""
+    def test_bob_policy_applies_to_every_tool_round(self, app, fake_openai):
+        """Every BOB round keeps Sol 6.1, Fast mode, and medium reasoning."""
         client = fake_openai([
             _FakeMessage(tool_calls=[_FakeToolCall('c1', 'get_agenda', '{}')]),
             _FakeMessage(content='All clear.'),
@@ -1843,7 +1843,22 @@ class TestToolLoop:
 
         assert client.responses.calls, 'no request was made'
         for call in client.responses.calls:
-            assert call.get('reasoning') == {'effort': 'low'}, call.get('model')
+            assert call['reasoning'] == {'effort': 'medium'}
+            assert call['model'] == 'gpt-6.1-sol'
+            assert call['service_tier'] == 'fast'
+
+    def test_model_failure_does_not_downgrade_or_execute_tools(self, app, fake_openai):
+        client = fake_openai([])
+
+        def unavailable(**kwargs):
+            client.responses.calls.append(kwargs)
+            raise RuntimeError('Model unavailable')
+
+        client.responses.create = unavailable
+        events = self._run(execute=lambda *args: pytest.fail('No tool should run'))
+        assert [kind for kind, _ in events] == ['error']
+        assert len(client.responses.calls) == 1
+        assert not client.completions.calls
 
     def test_pdf_uses_native_responses_file_input(self, app, fake_openai):
         client = fake_openai([
@@ -1989,3 +2004,41 @@ class TestToolLoopWithRealDispatch:
             results = [p['result'] for e, p in events if e == 'tool_result']
             assert results[0]['requires_confirmation'] is True
             assert results[0]['action_id'] is not None
+
+
+class TestBOBExtraction:
+    def test_photo_and_caption_reach_responses_with_contact_schema(self, app, fake_openai):
+        from services.bob_ai import generate_contact_extraction
+
+        client = fake_openai([_FakeResponse(text='{"contacts": [{"first_name": "Sarah"}]}')])
+        result = generate_contact_extraction('Add to Buyers', image_blocks=['cGhvdG8='])
+        assert result['contacts'][0]['first_name'] == 'Sarah'
+        request = client.responses.calls[0]
+        assert request['input'][0]['content'] == [
+            {'type': 'input_text', 'text': 'Add to Buyers'},
+            {'type': 'input_image', 'image_url': 'data:image/jpeg;base64,cGhvdG8=',
+             'detail': 'high'},
+        ]
+        assert request['text']['format']['strict'] is True
+        assert request['model'] == 'gpt-6.1-sol'
+        assert request['service_tier'] == 'fast'
+        assert request['reasoning'] == {'effort': 'medium'}
+        assert not client.completions.calls
+
+    def test_document_review_keeps_all_pages_and_json_contract(self, app, fake_openai):
+        from services.ai_service import generate_document_extraction
+
+        client = fake_openai([_FakeResponse(text='{"reference": "TEST-42"}')])
+        result = generate_document_extraction('Read the document.', 'Extract its reference.',
+                                              images=['cGFnZTE=', 'cGFnZTI='])
+        assert result == {'reference': 'TEST-42'}
+        request = client.responses.calls[0]
+        content = request['input'][0]['content']
+        assert 'json' in content[0]['text'].lower()
+        assert [part['image_url'] for part in content[1:]] == [
+            'data:image/png;base64,cGFnZTE=', 'data:image/png;base64,cGFnZTI=',
+        ]
+        assert request['text']['format']['type'] == 'json_object'
+        assert request['model'] == 'gpt-6.1-sol'
+        assert request['service_tier'] == 'fast'
+        assert request['reasoning'] == {'effort': 'medium'}

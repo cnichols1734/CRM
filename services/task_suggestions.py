@@ -7,7 +7,7 @@ from models import (
     ContactVoiceMemo, Transaction, TransactionParticipant,
     TaskType, TaskSubtype
 )
-from services.ai_service import generate_ai_response
+from services.bob_ai import generate_response
 from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
@@ -156,12 +156,10 @@ def generate_task_suggestions(contact_id, org_id, user_id):
         f"Profile: {json.dumps(context, separators=(',', ':'), default=str)}"
     )
 
-    response_text = generate_ai_response(
+    response_text = generate_response(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=user_prompt,
-        temperature=0.7,
         json_mode=True,
-        reasoning_effort="low"
     )
 
     return _parse_suggestions(response_text, context)

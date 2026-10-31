@@ -184,16 +184,14 @@ def _classify_intent_with_model(text: str, attachment_kind: str) -> str:
     """Small structured classifier for ambiguous action-like phrasing."""
     try:
         import json
-        import openai
+        from services.bob_ai import create_response
         from config import Config
 
         if not Config.OPENAI_API_KEY:
             return INTENT_AMBIGUOUS
 
-        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model='gpt-4.1-mini',
-            messages=[
+        response = create_response(
+            input=[
                 {
                     'role': 'system',
                     'content': (
@@ -213,10 +211,9 @@ def _classify_intent_with_model(text: str, attachment_kind: str) -> str:
                     ),
                 },
             ],
-            response_format={'type': 'json_object'},
-            temperature=0,
+            text={'format': {'type': 'json_object'}},
         )
-        raw = response.choices[0].message.content or '{}'
+        raw = response.output_text or '{}'
         parsed = json.loads(raw)
         intent = (parsed.get('intent') or '').strip()
         if intent in {INTENT_ANALYZE, INTENT_CREATE, INTENT_AMBIGUOUS}:
@@ -737,7 +734,7 @@ def extract_contact_candidates_from_attachment(
     caption: str = '',
 ) -> list[dict]:
     """Run Magic Inbox extraction for non-tabular create-intent attachments."""
-    from services.ai_service import generate_contact_extraction
+    from services.bob_ai import generate_contact_extraction
     from services.messaging import photo_contacts as photo_mod
 
     image_blocks = []

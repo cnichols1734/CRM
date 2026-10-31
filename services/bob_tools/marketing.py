@@ -23,6 +23,7 @@ from services.marketing import templates as tpl
 from services.marketing.context import shell_for
 from services.marketing.render import preview as preview_email
 from services.marketing.studio import generate
+from services.bob_ai import generate_structured_response
 from services.marketing.suppression import (
     REASON_MANUAL, REASON_UNSUBSCRIBE, release, suppress as write_suppression,
 )
@@ -155,6 +156,7 @@ def create_template(ctx: BobContext, **kwargs) -> ToolResult:
                 prompt,
                 tone=kwargs.get('tone') or 'warm',
                 category=kwargs.get('category'),
+                response_generator=generate_structured_response,
             )
             blocks = generated['blocks']
             subject = kwargs.get('subject') or generated['subject']

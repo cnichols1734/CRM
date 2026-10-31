@@ -25,7 +25,7 @@ from services.daily_briefing import (
     CHAT_SYSTEM_PROMPT,
     build_chat_context,
 )
-from services.ai_service import stream_chat_response
+from services.bob_ai import stream_chat_response
 
 logger = logging.getLogger(__name__)
 

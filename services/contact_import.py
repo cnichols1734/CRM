@@ -164,16 +164,14 @@ def map_contact_columns_with_ai(headers: list[str]) -> dict[str, str]:
 
     try:
         import json
-        import openai
+        from services.bob_ai import create_response
         from config import Config
 
         if not Config.OPENAI_API_KEY:
             return mapping
 
-        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model='gpt-4.1-mini',
-            messages=[
+        response = create_response(
+            input=[
                 {
                     'role': 'system',
                     'content': (
@@ -188,10 +186,9 @@ def map_contact_columns_with_ai(headers: list[str]) -> dict[str, str]:
                     'content': 'Headers: ' + ', '.join(headers[:50]),
                 },
             ],
-            response_format={'type': 'json_object'},
-            temperature=0,
+            text={'format': {'type': 'json_object'}},
         )
-        raw = response.choices[0].message.content or '{}'
+        raw = response.output_text or '{}'
         parsed = json.loads(raw)
         ai_map = parsed.get('mapping') or {}
         allowed = set(CANONICAL_FIELDS) | {'full_name'}

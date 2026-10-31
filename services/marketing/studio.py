@@ -68,6 +68,7 @@ def generate(
     category: Optional[str] = None,
     image_urls: Optional[list[str]] = None,
     extra_instructions: Optional[str] = None,
+    response_generator=None,
 ) -> dict:
     """Return prepared template fields from a prompt.
 
@@ -97,7 +98,7 @@ def generate(
     user_parts.append(_few_shot())
 
     try:
-        parsed, model_used = generate_structured_response(
+        parsed, model_used = (response_generator or generate_structured_response)(
             system_prompt=system,
             user_prompt='\n\n'.join(user_parts),
             schema=ai_generation_schema(),
