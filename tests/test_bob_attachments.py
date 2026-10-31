@@ -290,6 +290,31 @@ class TestContactImport:
         assert mapping['First Name'] == 'first_name'
         assert mapping['Email 1'] == 'email'
 
+    @pytest.mark.parametrize('match_field', ['email', 'phone', 'name'])
+    def test_upload_collision_identifies_shared_field(self, app, ctx_agent_a, match_field):
+        with app.app_context():
+            email = f'{_unique("shared")}@example.com' if match_field == 'email' else None
+            phone = '8325550182' if match_field == 'phone' else None
+            rows = [
+                {'first_name': 'Taylor', 'last_name': 'Upload', 'email': email, 'phone': phone},
+                {'first_name': 'Taylor' if match_field == 'name' else 'Casey',
+                 'last_name': 'Upload', 'email': email, 'phone': phone},
+            ]
+            preview = preview_contact_import(
+                rows, actor_user_id=ctx_agent_a.user_id,
+                owner_user_id=ctx_agent_a.user_id, org_id=ctx_agent_a.organization_id,
+            )
+            assert preview.create_count == 1
+            assert preview.duplicate_count == 1
+            detail = preview.duplicate_details[0]
+            if match_field == 'email':
+                assert f'shares email {email}' in detail
+            elif match_field == 'phone':
+                assert 'shares phone number (832) 555-0182' in detail
+            else:
+                assert 'same name' in detail
+            assert 'appears more than once' not in detail
+
     def test_preview_and_execute(self, app, seed, ctx_agent_a):
         with app.app_context():
             email = f'{_unique("imp")}@example.com'

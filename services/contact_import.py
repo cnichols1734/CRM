@@ -383,7 +383,14 @@ def preview_contact_import(
             preview.duplicate_count += 1
             if len(preview.duplicate_details) < 20:
                 preview.duplicate_details.append(
-                    f'{first} {last}'.strip() + ' appears more than once in this upload.'
+                    f'{first} {last}'.strip()
+                    + (
+                        f' shares email {email} with another row in this upload.'
+                        if email
+                        else f' shares phone number {phone} with another row in this upload.'
+                        if phone
+                        else ' has the same name as another row in this upload.'
+                    )
                 )
             continue
         seen_keys.add(key)
