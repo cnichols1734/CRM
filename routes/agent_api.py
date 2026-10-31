@@ -1348,3 +1348,7 @@ def _register_desk_extensions():
 
 
 _register_desk_extensions()
+
+
+from routes import agent_account
+agent_account.register(agent_api_bp)

@@ -256,6 +256,26 @@ class EmailService:
     # Convenience Methods
     # =========================================================================
     
+    def send_password_reset_code(self, user, code: str) -> bool:
+        """Send the native recovery code without requiring a hosted template."""
+        if skip_outbound_send(user.email):
+            return False
+        subject = 'Your AgentFlow password reset code'
+        plain = (f'Your AgentFlow password reset code is {code}. '
+                 'Enter it in the AgentFlow app within 15 minutes. '
+                 'If you did not request this, you can ignore this email.')
+        html = (f'<p>Your AgentFlow password reset code is</p><h1>{code}</h1>'
+                '<p>Enter it in the AgentFlow app within 15 minutes.</p>'
+                '<p>If you did not request this, you can ignore this email.</p>')
+        try:
+            message = Mail(from_email=DEFAULT_SENDER, to_emails=user.email,
+                           subject=subject, plain_text_content=plain, html_content=html)
+            if self.client.send(message).status_code in (200, 201, 202):
+                return True
+        except Exception:
+            current_app.logger.warning('Native reset code delivery failed via SendGrid')
+        return self._send_via_gmail(user.email, subject, html)
+
     def send_password_reset(self, user, reset_url: str) -> bool:
         """
         Send password reset email.
