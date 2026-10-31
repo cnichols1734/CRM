@@ -354,13 +354,13 @@ def _empty_import_message(preview) -> str:
         parts.extend(preview.error_details[:5])
     if not preview.duplicate_count and not preview.invalid_count:
         parts.append('No contact details were found in the attachment.')
-    parts.append(
-        'Explain this reason to the agent. Ask them to clarify any matching '
-        'contact or correct the missing details. Do not describe duplicate '
-        'detection as an import failure. Do not offer to bypass it by creating '
-        'the contact directly, remove matching fields to force creation, or '
-        'change an existing contact without their explicit instruction.'
-    )
+    if preview.duplicate_count:
+        parts.append(
+            'Please check whether this is the same person or whether the '
+            'details in the attachment need correcting before continuing.'
+        )
+    else:
+        parts.append('Please provide the missing details or a clearer attachment.')
     return ' '.join(parts)
 
 
