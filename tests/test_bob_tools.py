@@ -1847,6 +1847,37 @@ class TestToolLoop:
             assert call['model'] == 'gpt-6.1-sol'
             assert call['service_tier'] == 'fast'
 
+    def test_web_search_and_crm_tools_share_a_round_with_clickable_sources(self, app, fake_openai):
+        from types import SimpleNamespace as Item
+
+        marker = 'SOURCE'
+        answer = 'Published average, as of the source date. ' + marker
+        cited = Item(type='message', content=[Item(
+            type='output_text', text=answer,
+            annotations=[Item(type='url_citation', url='https://www.freddiemac.com/pmms',
+                              title='Freddie Mac PMMS', start_index=answer.index(marker),
+                              end_index=len(answer))],
+        )])
+        client = fake_openai([
+            _FakeResponse(output=[
+                Item(type='web_search_call', id='search-1'),
+                _FakeResponseCall('c1', 'get_agenda', '{}'),
+            ]),
+            _FakeResponse(text=answer, output=[cited]),
+        ])
+        executed = []
+        events = self._run(execute=lambda name, args: (
+            executed.append(name) or ({'status': 'ok'}, {'ok': True})
+        ))
+        assert executed == ['get_agenda']
+        assert any(t['type'] == 'function' for t in client.responses.calls[0]['tools'])
+        assert {'type': 'web_search', 'external_web_access': True} in client.responses.calls[0]['tools']
+        text = ''.join(value for kind, value in events if kind == 'text')
+        assert '[Freddie Mac PMMS](https://www.freddiemac.com/pmms)' in text
+        assert marker not in text
+        transcript = next(value for kind, value in events if kind == 'messages')
+        assert transcript[-1]['content'] == text
+
     def test_model_failure_does_not_downgrade_or_execute_tools(self, app, fake_openai):
         client = fake_openai([])
 

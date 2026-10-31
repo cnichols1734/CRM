@@ -77,9 +77,19 @@ def markdown_to_telegram_html(text: str) -> str:
 
     working = _CODE_RE.sub(_stash_code, text)
     working = html.escape(working)
+    link_slots = []
+
+    def _stash_link(match):
+        link_slots.append(f'<a href="{match.group(2)}">{match.group(1)}</a>')
+        return f'\x00LINK{len(link_slots) - 1}\x00'
+
+    working = re.sub(r'\[([^\]\n]+)\]\((https?://[^\s)]+)\)', _stash_link, working)
     working = _HEADER_RE.sub(r'<b>\1</b>', working)
     working = _BOLD_RE.sub(r'<b>\1</b>', working)
     working = _ITALIC_RE.sub(r'<i>\1</i>', working)
+
+    for i, slot in enumerate(link_slots):
+        working = working.replace(f'\x00LINK{i}\x00', slot)
 
     for i, slot in enumerate(code_slots):
         working = working.replace(f'\x00CODE{i}\x00', f'<code>{slot}</code>')

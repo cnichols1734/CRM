@@ -682,7 +682,7 @@ def _run_responses_tool_conversation(
         ]
 
         if not tool_calls:
-            text = getattr(response, 'output_text', None) or ''
+            text = bob_ai.response_text(response)
             transcript.append({'role': 'assistant', 'content': text})
             for chunk in _chunk_text(text):
                 yield ('text', chunk)
@@ -826,9 +826,10 @@ def _responses_tool_round(
     allow_tools: bool, safety_identifier: str | None = None,
 ):
     """Run one BOB round; leave transient retries to the OpenAI client."""
-    kwargs = {'instructions': system_prompt, 'input': input_items}
-    if allow_tools and tools:
-        kwargs['tools'] = tools
+    kwargs = {'instructions': system_prompt + '\n' + bob_ai.WEB_INSTRUCTIONS,
+              'input': input_items}
+    if allow_tools:
+        kwargs['tools'] = tools + bob_ai.web_tools()
         kwargs['tool_choice'] = 'auto'
     if safety_identifier:
         kwargs['safety_identifier'] = safety_identifier

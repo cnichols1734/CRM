@@ -130,7 +130,7 @@ Every model has an `organization_id`. PostgreSQL RLS is enforced via `SET LOCAL 
 
 ### AI Fallback Chain
 
-`services/bob_ai.py` owns BOB's model policy: `gpt-6.1-sol`, Fast mode, and medium reasoning through Responses. CRM chat, native iOS, voice delegation, Telegram, Daily Briefing, task suggestions, document review, and BOB helper requests use it without switching to older models on failure. GPT-Live remains the voice model. Other AI features retain the fallback chain in `services/ai_service.py`.
+`services/bob_ai.py` owns BOB's model policy: `gpt-6.1-sol`, Fast mode, and medium reasoning through Responses. CRM chat, native iOS, voice delegation, Telegram, Daily Briefing, task suggestions, document review, and BOB helper requests use it without switching to older models on failure. GPT-Live remains the voice model and delegates current-information questions to BOB. BOB chat has hosted web search, with source annotations converted to clickable Markdown citations. Other AI features retain the fallback chain in `services/ai_service.py`.
 
 ### External Integrations
 
