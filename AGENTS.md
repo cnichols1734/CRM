@@ -4,9 +4,9 @@
 
 This repository is one part of the AgentFlow product family. Before changing app behavior, APIs, shared business data or backend services, read [documentation/app-family.md](documentation/app-family.md).
 
-- AgentFlow iOS lives in `cnichols1734/agentflow-client`, local sibling `agentflow/`. It owns the agent app and native BOB.
-- ClientFlow iOS lives in the private `cnichols1734/clientflow`, local sibling `clientflow/`. It owns the client app.
-- CRM lives in `cnichols1734/CRM`, local sibling `crm/`. It owns the web CRM, shared database, authentication, both mobile APIs, background jobs and external integrations.
+- AgentFlow iOS lives in `cnichols1734/agentflow`, local checkout `~/agentflow`. It owns the agent app and native BOB.
+- ClientFlow iOS lives in the private `cnichols1734/clientflow`, local checkout `~/clientflow`. It owns the client app.
+- CRM lives in `cnichols1734/CRM`, local checkout `~/PycharmProjects/CRM`. It owns the web CRM, shared database, authentication, both mobile APIs, background jobs and external integrations.
 
 Both apps use the CRM backend at `https://agentflow.origentechnolog.com`. Agent routes use `/api/agent/v1`; client routes use `/api/client/v1` and `/api/client/v1/discovery`. Repository separation does not make these independent backend systems. Preserve the distinct agent, client-account and deal-participant authorization boundaries.
 

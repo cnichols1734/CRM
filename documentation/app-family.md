@@ -4,13 +4,13 @@ AgentFlow, ClientFlow and CRM are one product family with three repositories. Se
 
 ## Repository ownership
 
-| Product | Repository | Local folder in the shared workspace | Owns |
+| Product | Repository | Primary local checkout | Owns |
 | --- | --- | --- | --- |
-| AgentFlow iOS | [cnichols1734/agentflow-client](https://github.com/cnichols1734/agentflow-client) | `agentflow/` | Agent native UI, CRM account sign-in, contacts, tasks, deals, agent messages and native BOB |
-| ClientFlow iOS | [cnichols1734/clientflow](https://github.com/cnichols1734/clientflow), private | `clientflow/` | Client native UI, discovery, saved homes, brokerage identity, deal participation, messages, documents, showings and calendar handoff |
-| AgentFlow CRM | [cnichols1734/CRM](https://github.com/cnichols1734/CRM) | `crm/` | Web CRM, API contracts, authentication/authorization, persistent business data, migrations, background jobs and external services |
+| AgentFlow iOS | [cnichols1734/agentflow](https://github.com/cnichols1734/agentflow) | `~/agentflow` | Agent native UI, CRM account sign-in, contacts, tasks, deals, agent messages and native BOB |
+| ClientFlow iOS | [cnichols1734/clientflow](https://github.com/cnichols1734/clientflow), private | `~/clientflow` | Client native UI, discovery, saved homes, brokerage identity, deal participation, messages, documents, showings and calendar handoff |
+| AgentFlow CRM | [cnichols1734/CRM](https://github.com/cnichols1734/CRM) | `~/PycharmProjects/CRM` | Web CRM, API contracts, authentication/authorization, persistent business data, migrations, background jobs and external services |
 
-The workspace currently places these folders beside one another. That layout is a convenience, not a build dependency. Verify `git remote -v` in every checkout you use. The original agent repository's GitHub name still contains `client`; it now owns the agent app. ClientFlow's new repository owns the client app. Old worktrees and old commits may still contain both apps.
+AgentFlow and ClientFlow sit directly under Christopher's home directory. CRM keeps its existing location under `PycharmProjects`. Additional workspace worktrees may exist; verify `git remote -v` in every checkout you use. The agent repository was renamed from `agentflow-client` to `agentflow` on October 31, 2026. Old commits may still contain both apps. Folder placement is not a build dependency.
 
 AgentFlow uses `AgentFlow.xcodeproj`, scheme `AgentFlow Agent`, bundle `com.agentflow.agent`. ClientFlow uses `ClientFlow.xcodeproj`, scheme `ClientFlow`, bundle `com.agentflow.client`. AgentDesk is the agent app's old name. AgentFlow was also the client's old name. Existing `AGENTDESK` conditions, `AgentFlowAPIBaseURL`, storage keys and `agentflow` deep links retain legacy names for compatibility. Do not rename them as cosmetic cleanup.
 
@@ -67,4 +67,4 @@ Before handing off, state the affected repositories, companion PRs, contract cha
 
 Each repository's `AGENTS.md` requires this guide. The same family guide is intentionally stored in all three repositories so a future agent can understand ownership from any one checkout. When repository ownership, API namespaces, authentication boundaries, shared services or deployment relationships change, update the guide and the affected root `AGENTS.md` summaries in all three repositories in the same workstream. A normal app-only change does not require editing all three copies. Verify the owning source before changing facts, and use links to the other repositories when local sibling folders are unavailable.
 
-The split originated after agent PR #47 merged at `af791cd` on October 31, 2026. The agent-only cleanup is [agentflow-client PR #48](https://github.com/cnichols1734/agentflow-client/pull/48). Verify its current state before basing new agent work on `main`. The private ClientFlow repository preserves the pre-split Git history; those historical commits contain both apps.
+The split originated after agent PR #47 merged at `af791cd` on October 31, 2026. The agent-only cleanup merged in [agentflow PR #48](https://github.com/cnichols1734/agentflow/pull/48). Start new agent work from current `agentflow/main`. The private ClientFlow repository preserves the pre-split Git history; those historical commits contain both apps.
