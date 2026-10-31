@@ -202,3 +202,15 @@ All are optional for basic local dev. The app starts and serves pages without an
 | `SUPABASE_URL` / `SUPABASE_KEY` | File storage |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GMAIL_TOKEN_ENCRYPTION_KEY` | Gmail and Calendar integration |
 | `RENTCAST_API_KEY` | Property data lookups |
+
+## After every PR merge
+
+Merged feature and fix branches are temporary. Complete their cleanup before ending the task.
+
+1. Verify the PR is merged on GitHub and record its final head SHA. Fetch with pruning, then fast-forward the clean local `main` to `origin/main`.
+2. GitHub's automatic head-branch deletion is enabled. If the merged remote branch remains, delete it only when it still points to the merged PR head. Never bypass branch protection. Check dependent open or stacked PRs before manual deletion.
+3. Inspect the local branch and every attached worktree before removal. Remove clean, unused worktrees, then delete the local merged branch. Retain needed ignored configuration outside a worktree before removing it. A clean status alone does not establish that a worktree is unused.
+4. Do not discard uncommitted changes, stashes or commits added after the reviewed PR head. Preserve that work and report why cleanup stopped. A one-time authorization to discard old work does not authorize future deletion of new work.
+5. Prefer `git branch -d`. Squash and rebase merges may not satisfy Git's ancestry check. Use `-D` only after confirming the PR merged, the local branch has no work beyond the merged PR head, and no worktree needs it.
+6. Keep the default branch and explicitly long-lived release or integration branches. Protect any such branch before using it as a PR head so GitHub auto-deletion cannot remove it. Routine cleanup does not include tags, other repositories or branches with unmerged work.
+7. Finish with the primary workspace checkout on current `main`, a clean working tree and stale remote-tracking refs pruned. Report any retained branch or worktree and the reason. GitHub handles remote deletion; local cleanup is the agent's responsibility and is not a background daemon.
