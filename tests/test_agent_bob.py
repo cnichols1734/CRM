@@ -188,7 +188,7 @@ def test_voice_confirmation_rejects_qualified_speech_and_records_explicit_reject
         db.session.add(row)
         db.session.commit()
         aid = row.id
-    for phrase in ('yes approve it 5', 'yes but change the date', 'yes approve it but change the date', 'do not approve it', 'he said approve it'):
+    for phrase in ('yes approve it 5', 'yes but change the date', 'yes approve it but change the date', 'do not approve it', 'he said approve it', 'yeah but change the date', 'please do not', 'sure if it is free', 'yes or no', 'yeah no'):
         response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
                                json={'decision': 'approve', 'voice_confirmation': phrase})
         assert response.status_code == 400
@@ -212,26 +212,37 @@ def test_voice_choice_validation(client, seed, monkeypatch):
     assert response.status_code == 400
 
 
-def test_voice_approval_applies_pending_contact_change_once(app, client, seed):
+@pytest.mark.parametrize("spoken", ["Yes, approve it.", "yeah", "please do", "Sure, go ahead, thanks"])
+def test_voice_approval_applies_pending_contact_change_once(app, client, seed, spoken):
     from models import Contact
     headers = _auth(_owner_token(client))
     cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
     with app.app_context():
-        row = BobAction(user_id=seed['owner_a'], organization_id=seed['org_a'], conversation_id=cid,
-                        tool_name='update_contact', status='pending', summary='Update contact city',
-                        arguments={'contact_id': seed['contact_a'], 'fields': {'city': 'Voice test city'}})
-        db.session.add(row)
+        contact = db.session.get(Contact, seed['contact_a'])
+        original_city = contact.city
+        contact.city = 'Before voice approval'
         db.session.commit()
-        aid = row.id
-    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
-                           json={'decision': 'approve', 'voice_confirmation': 'Yes, approve it.'})
-    assert response.status_code == 200, response.json
-    with app.app_context():
-        assert db.session.get(Contact, seed['contact_a']).city == 'Voice test city'
-        assert db.session.get(BobAction, aid).status == 'executed'
-    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
-                           json={'decision': 'approve', 'voice_confirmation': 'Yes'})
-    assert response.status_code == 400
+    try:
+        with app.app_context():
+            row = BobAction(user_id=seed['owner_a'], organization_id=seed['org_a'], conversation_id=cid,
+                            tool_name='update_contact', status='pending', summary='Update contact city',
+                            arguments={'contact_id': seed['contact_a'], 'fields': {'city': 'Voice test city'}})
+            db.session.add(row)
+            db.session.commit()
+            aid = row.id
+        response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                               json={'decision': 'approve', 'voice_confirmation': spoken})
+        assert response.status_code == 200, response.json
+        with app.app_context():
+            assert db.session.get(Contact, seed['contact_a']).city == 'Voice test city'
+            assert db.session.get(BobAction, aid).status == 'executed'
+        response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                               json={'decision': 'approve', 'voice_confirmation': 'Yes'})
+        assert response.status_code == 400
+    finally:
+        with app.app_context():
+            db.session.get(Contact, seed['contact_a']).city = original_city
+            db.session.commit()
 
 
 @pytest.fixture
@@ -544,3 +555,20 @@ def test_linked_todo_deletion_has_no_undo_in_native_history(app, client, seed):
             ClientBrowseInquiry.query.filter_by(id=inquiry_id).delete(synchronize_session=False)
             ClientBrowseAccount.query.filter_by(id=account_id).delete(synchronize_session=False)
             db.session.commit()
+
+
+@pytest.mark.parametrize("spoken, expected", [
+    ("Yes", "approve"), ("yeah", "approve"), ("Yep!", "approve"),
+    ("please do", "approve"), ("go ahead", "approve"),
+    ("Yeah, please do.", "approve"), ("Yes, please go ahead", "approve"), ("Sure, go ahead, thanks", "approve"),
+    ("okay", "approve"), ("absolutely", "approve"), ("yes yes", "approve"),
+    ("Yes, approve this change", "approve"),
+    ("no", "reject"), ("Nope", "reject"), ("no thank you", "reject"),
+    ("please cancel it", "reject"), ("nah", "reject"),
+    ("maybe", None), ("", None), ("yes or no", None),
+    ("yeah but change the date", None), ("please do not", None),
+    ("he said approve it", None), ("sure if it is free", None),
+])
+def test_natural_voice_decision(spoken, expected):
+    from services.bob_voice import voice_decision
+    assert voice_decision(spoken) == expected
