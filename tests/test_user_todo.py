@@ -192,3 +192,30 @@ def test_legacy_rename_cannot_create_ambiguous_detailed_duplicate(app, db, seed,
         db.session.commit()
     assert owner_a_client.post('/api/user_todos/save', json={'active': ['Call', 'Call'], 'completed': []}).status_code == 409
     assert owner_a_client.get('/api/user_todos/get').json['active'] == ['Plan', 'Call']
+
+
+def test_bob_details_invalidate_native_and_web_snapshots(app, client, owner_a_client, seed, restore_todos):
+    from services.bob_tools import BobContext, dispatch, undo_action
+    from tests.test_agent_api import _owner_token, _auth
+    headers = _auth(_owner_token(client))
+    url = '/api/agent/v1/todos'
+    owner_a_client.post('/api/user_todos/save', json={'active': ['Shared item'], 'completed': []})
+    original = client.get(url, headers=headers).json
+    with app.app_context():
+        ctx = BobContext(user_id=seed['owner_a'], organization_id=seed['org_a'])
+        changed = dispatch('update_todo', {'text': 'Shared item', 'description': 'BOB details',
+                                         'due_date': '2026-11-09', 'priority': 1}, ctx)
+        assert changed.ok, changed.error
+    current = client.get(url, headers=headers).json
+    assert current['items'][0]['details']['description'] == 'BOB details'
+    assert current['items'][0]['id'] == original['items'][0]['id']
+    assert current['revision'] != original['revision']
+    assert client.put(url, headers=headers, json=original).status_code == 409
+    assert owner_a_client.post('/api/user_todos/save', json={
+        'active': ['Stale title'], 'completed': [], 'revision': original['revision']}).status_code == 409
+    # A current native edit survives an older BOB undo attempt.
+    current['items'][0]['details']['description'] = 'Later native edit'
+    assert client.put(url, headers=headers, json=current).status_code == 200
+    with app.app_context():
+        assert not undo_action(changed.action_id, ctx).ok
+    assert client.get(url, headers=headers).json['items'][0]['details']['description'] == 'Later native edit'

@@ -1315,6 +1315,124 @@ class TestPersonalTodos:
             assert second.data['already_completed'] is True
 
 
+    def test_details_children_comments_and_reopening_round_trip(self, app, ctx_owner_a):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Prepare signs', 'description': 'For Sunday',
+                                          'due_date': '2026-11-08', 'priority': 2}, ctx_owner_a)
+            assert created.ok, created.error
+            identity = created.data['todo']['todo_id']
+            args = {'todo_id': identity}
+            def call(name, **values):
+                result = dispatch(name, {**args, **values}, ctx_owner_a)
+                assert result.ok, result.error
+                return result.data['todo']
+            first = call('add_subtodo', title='Print signs')['details']['subtodos'][0]['id']
+            second = call('add_subtodo', title='Pack signs')['details']['subtodos'][1]['id']
+            call('update_subtodo', subtodo_id=first, title='Print ten signs', completed=True)
+            call('reorder_subtodos', subtodo_ids=[second, first])
+            call('update_subtodo', subtodo_id=first, completed=False)
+            commented = call('add_todo_comment', comment='Use the blue design')
+            comment = commented['details']['comments'][0]
+            call('update_todo_comment', comment_id=comment['id'], comment='Use the green design')
+            call('update_todo', title='Prepare open house', completed=True)
+            call('update_todo', completed=False, due_date=None, priority=3)
+            db.session.expire_all()
+            current = call('get_todo')
+            assert current['text'] == 'Prepare open house'
+            assert current['completed'] is False
+            assert current['details'] == {
+                'description': 'For Sunday', 'due_date': None, 'priority': 3,
+                'subtodos': [{'id': second, 'text': 'Pack signs', 'completed': False},
+                            {'id': first, 'text': 'Print ten signs', 'completed': False}],
+                'comments': [{**comment, 'text': 'Use the green design'}],
+            }
+            call('delete_subtodo', subtodo_id=first)
+            call('delete_todo_comment', comment_id=comment['id'])
+            call('update_todo', description='', priority=0)
+            current = call('get_todo')
+            assert current['details']['comments'] == []
+            assert [item['id'] for item in current['details']['subtodos']] == [second]
+            deleted = dispatch('delete_todo', args, ctx_owner_a)
+            assert deleted.ok and deleted.undoable
+            assert db.session.get(UserTodo, identity) is None
+            assert undo_action(deleted.action_id, ctx_owner_a).ok
+            assert call('get_todo') == current
+
+    def test_reorder_and_pagination_preserve_all_items(self, app, ctx_owner_a):
+        from services.bob_tools.common import MAX_LIST_RESULTS
+        with app.app_context():
+            for index in range(MAX_LIST_RESULTS + 2):
+                db.session.add(UserTodo(user_id=ctx_owner_a.user_id, organization_id=ctx_owner_a.organization_id,
+                                        text=f'Paginated {index}', order=index))
+            db.session.commit()
+            first = dispatch('list_todos', {}, ctx_owner_a).data
+            second = dispatch('list_todos', {'offset': first['next_offset']}, ctx_owner_a).data
+            ids = [item['todo_id'] for item in first['todos'] + second['todos']]
+            assert len(ids) == first['total_matching'] == MAX_LIST_RESULTS + 2
+            assert second['next_offset'] is None
+            before = list(ids)
+            result = dispatch('reorder_todos', {'todo_ids': ids[::-1]}, ctx_owner_a)
+            assert result.ok, result.error
+            assert [row.id for row in UserTodo.query.filter_by(user_id=ctx_owner_a.user_id).order_by(UserTodo.order)] == ids[::-1]
+            rejected = dispatch('reorder_todos', {'todo_ids': ids[:-1]}, ctx_owner_a)
+            assert not rejected.ok
+            assert undo_action(result.action_id, ctx_owner_a).ok
+            assert [row.id for row in UserTodo.query.filter_by(user_id=ctx_owner_a.user_id).order_by(UserTodo.order)] == before
+
+    @pytest.mark.parametrize('changes', [
+        {'title': 'x' * 501}, {'due_date': '2026-02-30'}, {'priority': True},
+        {'priority': 4}, {'completed': 'false'}, {'description': None},
+    ])
+    def test_invalid_edits_do_not_partially_change_parent(self, app, ctx_owner_a, changes):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Keep original'}, ctx_owner_a).data['todo']
+            result = dispatch('update_todo', {'todo_id': created['todo_id'], 'title': 'Changed', **changes}, ctx_owner_a)
+            assert not result.ok
+            assert dispatch('get_todo', {'todo_id': created['todo_id']}, ctx_owner_a).data['todo'] == created
+
+    def test_admin_and_other_tenant_cannot_touch_private_details(self, app, ctx_owner_a, ctx_agent_a, ctx_owner_b):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Private agent list', 'description': 'Private notes'}, ctx_agent_a)
+            identity = created.data['todo']['todo_id']
+            child = dispatch('add_subtodo', {'todo_id': identity, 'title': 'Private child'}, ctx_agent_a).data['todo']['details']['subtodos'][0]['id']
+            comment = dispatch('add_todo_comment', {'todo_id': identity, 'comment': 'Private comment'}, ctx_agent_a).data['todo']['details']['comments'][0]['id']
+            before = dispatch('get_todo', {'todo_id': identity}, ctx_agent_a).data
+            attempts = {
+                'get_todo': {}, 'update_todo': {'description': 'Overwrite'}, 'delete_todo': {},
+                'complete_todo': {}, 'add_subtodo': {'title': 'Intruder'},
+                'update_subtodo': {'subtodo_id': child, 'completed': True},
+                'delete_subtodo': {'subtodo_id': child}, 'reorder_subtodos': {'subtodo_ids': [child]},
+                'add_todo_comment': {'comment': 'Intruder'},
+                'update_todo_comment': {'comment_id': comment, 'comment': 'Intruder'},
+                'delete_todo_comment': {'comment_id': comment}, 'reorder_todos': {'todo_ids': [identity]},
+            }
+            for ctx in (ctx_owner_a, ctx_owner_b):
+                for name, values in attempts.items():
+                    denied = dispatch(name, {'todo_id': identity, **values}, ctx)
+                    assert not denied.ok, name
+                assert not undo_action(created.action_id, ctx).ok
+            assert dispatch('get_todo', {'todo_id': identity}, ctx_agent_a).data == before
+
+    def test_undo_preserves_later_app_details_and_audit_failure_rolls_back(self, app, ctx_owner_a, monkeypatch):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Retain this'}, ctx_owner_a)
+            identity = created.data['todo']['todo_id']
+            changed = dispatch('update_todo', {'todo_id': identity, 'description': 'From BOB'}, ctx_owner_a)
+            row = db.session.get(UserTodo, identity)
+            row.details = {**row.details, 'description': 'Later app edit'}
+            db.session.commit()
+            assert not undo_action(changed.action_id, ctx_owner_a).ok
+            assert not undo_action(created.action_id, ctx_owner_a).ok
+            assert db.session.get(UserTodo, identity).details['description'] == 'Later app edit'
+            def unavailable(*args, **kwargs):
+                raise RuntimeError('Audit unavailable')
+            monkeypatch.setattr('services.bob_tools.registry._record_executed_action', unavailable)
+            failed = dispatch('update_todo', {'todo_id': identity, 'title': 'Unsaved'}, ctx_owner_a)
+            assert not failed.ok
+            db.session.expire_all()
+            assert db.session.get(UserTodo, identity).text == 'Retain this'
+
+
 class TestGroupAssignment:
     def test_replaces_active_groups(self, app, scratch_contact, ctx_owner_a):
         with app.app_context():

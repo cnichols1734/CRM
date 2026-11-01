@@ -337,6 +337,8 @@ class TestScopesAndIsolation:
         )
         listed = _rpc(owner_a_client, tokens, 'tools/list')
         names = {tool['name'] for tool in listed.get_json()['result']['tools']}
+        assert {'delete_todo', 'delete_subtodo', 'delete_todo_comment'}.isdisjoint(names)
+        assert {'get_todo', 'update_todo', 'update_subtodo', 'add_todo_comment'} <= names
         assert 'delete_contact' not in names
         called = _rpc(owner_a_client, tokens, 'tools/call', {
             'name': 'delete_contact',

@@ -384,6 +384,8 @@ def voice_session(user, cid):
         'Do not append or speak a BOB sign-off at the end of replies. '
         'Discuss work, planning, follow-ups and real estate. '
         'Delegate all requests for CRM facts or actions to the existing BOB backend. '
+        'This includes personal to-dos, due dates, priorities, sub-to-dos, comments, '
+        'completion, reopening, deletion and reordering. '
         'Delegate questions about attached photos or files too; the backend can view them. '
         'Also delegate questions needing current public information or internet search, '
         'including current mortgage interest rates, lender programs, and market news. '
