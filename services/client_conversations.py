@@ -1,5 +1,6 @@
 """Browsing conversations and ownership, independent of transaction access."""
 from datetime import datetime
+from flask import g
 
 from models import (db, User, Contact, Interaction, UserTodo, AuditEvent,
                     ClientBrowseInquiry, ClientInquiryMessage, ClientBrowseAccount)
@@ -30,7 +31,13 @@ def events(inquiry):
 
 def inquiry_payload(inquiry):
     history = events(inquiry)
-    account = ClientBrowseAccount.query.filter_by(id=inquiry.account_id, organization_id=inquiry.organization_id).first()
+    accounts = getattr(g, '_inquiry_accounts', None)
+    if accounts is None:
+        accounts = g._inquiry_accounts = {}
+    key = (inquiry.organization_id, inquiry.account_id)
+    if key not in accounts:
+        accounts[key] = ClientBrowseAccount.query.filter_by(id=inquiry.account_id, organization_id=inquiry.organization_id).first()
+    account = accounts[key]
     agent = User.query.filter_by(id=inquiry.agent_id, organization_id=inquiry.organization_id).first() if inquiry.agent_id else None
     for event in history:
         event['sender_avatar_url'] = avatar_url(account) if event['sender'] == 'client' else event.get('sender_avatar_url', avatar_url(agent))

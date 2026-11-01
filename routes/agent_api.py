@@ -509,6 +509,8 @@ def list_contacts(user):
     pagination = query.order_by(Contact.last_name, Contact.first_name).paginate(
         page=page, per_page=per_page, error_out=False,
     )
+    from services.profile_photos import prime_contact_photos
+    prime_contact_photos(pagination.items)
     return jsonify({
         'contacts': [_serialize_contact(c) for c in pagination.items],
         'page': pagination.page,

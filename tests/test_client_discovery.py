@@ -382,9 +382,13 @@ def test_native_agents_claim_inquiries_reply_and_notify_once(app, seed, client, 
     assert client.post(path + '/messages', headers=agent, json={**payload,'body':'Changed'}).status_code == 409
     client_rows = client.get(BASE + '/inquiries', headers=client_headers).json['inquiries']
     assert next(r for r in client_rows if r['id'] == ids[0])['messages'][-1]['body'] == 'Happy to help.'
-    followup = {'body':'Thanks!', 'request_id':str(uuid.uuid4())}
+    original = next(r for r in client_rows if r['id'] == ids[0])['messages'][0]
+    followup = {'body':'Thanks!', 'request_id':original['request_id']}
     for _ in range(2):
-        assert client.post(BASE + f'/inquiries/{ids[0]}/messages', headers=client_headers, json=followup).status_code == 200
+        saved = client.post(BASE + f'/inquiries/{ids[0]}/messages', headers=client_headers, json=followup)
+        assert saved.status_code == 200
+        assert saved.json['message']['body'] == 'Thanks!'
+        assert saved.json['message']['id'] != original['id']
     assert len(pushes) == 5
 
 
@@ -456,3 +460,19 @@ def test_native_inquiry_pages_are_compact_and_tenant_scoped(app, seed, client):
     second = client.get('/api/agent/v1/inquiries', headers=agent, query_string={'limit':1,'cursor':first['next_cursor']}).json
     assert [r['id'] for r in second['inquiries']] == [ids[0]]
     assert client.get('/api/agent/v1/inquiries', headers=foreign, query_string={'cursor':first['next_cursor']}).status_code == 400
+
+
+def test_photo_upload_rechecks_session_after_authentication(app, client, monkeypatch):
+    from routes import client_discovery
+    response = signup(client)
+    account_id = response.json['account']['id']
+    original = client_discovery.lock_browse_session
+    def revoked_before_lock(account, org):
+        account.session_version += 1
+        db.session.commit()
+        return original(account, org)
+    monkeypatch.setattr(client_discovery, 'lock_browse_session', revoked_before_lock)
+    result = client.post(BASE + '/account/photo', headers=auth(response))
+    assert result.status_code == 401
+    with app.app_context():
+        assert db.session.get(ClientBrowseAccount, account_id).avatar_path is None

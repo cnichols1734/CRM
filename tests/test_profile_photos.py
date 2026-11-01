@@ -13,6 +13,8 @@ from tests.test_client_portal_api import _open_session
 
 @pytest.fixture
 def photo_storage(monkeypatch):
+    from services import profile_photos
+    monkeypatch.setattr(profile_photos, 'storage_configured', lambda: True)
     objects = {}
     class Bucket:
         def list(self, prefix, options):
@@ -134,6 +136,10 @@ def test_photo_removal_purges_replaced_objects_without_touching_other_identity(a
     other = f'profile-photos/{seed["org_b"]}/agent/{seed["owner_b"]}/keep.jpg'
     photo_storage[old] = b'old'
     photo_storage[other] = b'other'
+    from models import User
+    with app.app_context():
+        db.session.get(User, seed['owner_a']).avatar_path = None
+        db.session.commit()
     assert client.delete('/api/agent/v1/me/photo', headers=headers).status_code == 200
     assert set(photo_storage) == {other}
 

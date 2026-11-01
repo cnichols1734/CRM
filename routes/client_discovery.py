@@ -207,6 +207,9 @@ def sign_in():
 @client_discovery_bp.route('/account/photo', methods=['POST', 'DELETE'])
 @authenticated
 def account_photo(account, org):
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     return change_photo(account, 'browse')
 
 
@@ -245,7 +248,7 @@ def delete_account(account, org):
         ClientInquiryMessage.inquiry_id.in_(inquiry_ids)).delete(synchronize_session=False)
     ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).delete()
     from services.profile_photos import purge_identity_photos
-    if account.avatar_path and not purge_identity_photos(account, 'browse'):
+    if not purge_identity_photos(account, 'browse'):
         db.session.rollback()
         return error('Your photo could not be removed. Try deleting your account again.', 503)
     db.session.delete(account)
@@ -387,13 +390,14 @@ def send_inquiry_message(account, org, inquiry_id):
         db.session.add(message)
         db.session.flush()
         message_id = message.id
+    saved_id = prior.id if prior else message_id
     db.session.commit()
     if message_id:
         from services.device_push import enqueue_inquiry_push
         enqueue_inquiry_push(inquiry_id=inquiry_id, org_id=oid, message_id=message_id)
     org_context(oid)
     db.session.expire(row, ['messages'])
-    saved = next(m for m in inquiry_payload(row)['messages'] if m.get('request_id') == request_id and m['sender'] == 'client')
+    saved = next(m for m in inquiry_payload(row)['messages'] if m['id'] == f'message-{saved_id}')
     return jsonify(ok=True, message=saved)
 
 

@@ -634,3 +634,16 @@ def test_voice_title_generation_is_bounded(client, seed, monkeypatch, receipts):
             json={'message': 'Plan the next showing'}, headers=headers)
         assert response.status_code == (200 if number < 10 else 429)
     assert len(calls) == 10
+
+
+def test_failed_title_provider_still_bounds_database_title(client, seed, monkeypatch, receipts):
+    from routes import ai_chat
+    def fail(*args, **kwargs):
+        raise RuntimeError('Provider unavailable')
+    monkeypatch.setattr(ai_chat, 'generate_response', fail)
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    response = client.post(f'/api/agent/v1/bob/conversations/{cid}/title',
+        json={'message': 'x' * 300}, headers=headers)
+    assert response.status_code == 200
+    assert response.json['title'] == 'x' * 100

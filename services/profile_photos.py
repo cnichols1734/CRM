@@ -1,6 +1,7 @@
 """Private profile photos owned by the authenticated identity."""
 from io import BytesIO
 import uuid
+import os
 import warnings
 import time
 from functools import lru_cache
@@ -66,7 +67,13 @@ def delete_photo_object(path):
         return False
 
 
+def storage_configured():
+    return bool(os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_KEY'))
+
+
 def purge_identity_photos(identity, kind):
+    if not storage_configured():
+        return not bool(identity.avatar_path)
     prefix = f'profile-photos/{identity.organization_id}/{kind}/{identity.id}'
     try:
         bucket = storage.get_supabase_client().storage.from_(BUCKET)
@@ -119,7 +126,7 @@ def change_photo(identity, kind):
     identity = type(identity).query.filter_by(id=identity.id, organization_id=identity.organization_id).with_for_update().populate_existing().one()
     old_path = identity.avatar_path
     path = f'profile-photos/{identity.organization_id}/{kind}/{identity.id}/{uuid.uuid4().hex}.jpg' if data else None
-    if request.method == 'DELETE' and old_path and not purge_identity_photos(identity, kind):
+    if request.method == 'DELETE' and not purge_identity_photos(identity, kind):
         db.session.rollback()
         return jsonify(error='Your photo could not be removed. Try again.'), 503
     try:
@@ -142,8 +149,26 @@ def change_photo(identity, kind):
     return jsonify(avatar_url=result_url, avatar_source=result_source)
 
 
-def contact_avatar_url(contact):
+def prime_contact_photos(contacts):
     from models import ClientBrowseAccount
-    accounts = ClientBrowseAccount.query.filter_by(organization_id=contact.organization_id,
-        contact_id=contact.id, owns_contact=True).limit(2).all()
-    return avatar_url(accounts[0]) if len(accounts) == 1 else None
+    cache = getattr(g, '_contact_photo_owners', None)
+    if cache is None:
+        cache = g._contact_photo_owners = {}
+    org_ids = {contact.organization_id for contact in contacts}
+    for org_id in org_ids:
+        ids = [contact.id for contact in contacts if contact.organization_id == org_id]
+        owners = {cid: [] for cid in ids}
+        accounts = ClientBrowseAccount.query.filter_by(organization_id=org_id, owns_contact=True).filter(
+            ClientBrowseAccount.contact_id.in_(ids)).all()
+        for account in accounts:
+            owners[account.contact_id].append(account)
+        for cid, matches in owners.items():
+            cache[(org_id, cid)] = matches[0] if len(matches) == 1 else None
+
+
+def contact_avatar_url(contact):
+    cache = getattr(g, '_contact_photo_owners', {})
+    key = (contact.organization_id, contact.id)
+    if key not in cache:
+        prime_contact_photos([contact])
+    return avatar_url(g._contact_photo_owners[key])

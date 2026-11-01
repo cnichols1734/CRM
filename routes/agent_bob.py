@@ -117,7 +117,7 @@ def name_conversation(conv, message):
         from routes.ai_chat import _generate_chat_title
         if message.startswith('Voice conversation context follows.') and '\nuser: ' in message:
             message = message.rsplit('\nuser: ', 1)[-1].split('\nassistant: ', 1)[0]
-        conv.title = _generate_chat_title(message) or ' '.join(message.split()[:6])[:100]
+        conv.title = (_generate_chat_title(message) or ' '.join(message.split()[:6]))[:100]
 
 
 @bob_required
