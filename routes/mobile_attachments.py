@@ -67,6 +67,9 @@ def register_agent(bp):
         if draft and (row.owner_kind, row.owner_id) != ('agent', user.id):
             return jsonify(error='Attachment not found.'), 404
         if row.target_kind == 'deal':
+            from feature_flags import org_has_feature
+            if not org_has_feature('TRANSACTIONS', user.organization):
+                return jsonify(error='Transactions are not on this plan.'), 403
             _, _, error = _conversation_access(user, row.target_id)
             if error or (not draft and not deal_message_exists(row)):
                 return jsonify(error='Attachment not found.'), 404

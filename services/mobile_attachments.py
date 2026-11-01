@@ -22,6 +22,7 @@ MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_REQUEST_BYTES = MAX_FILE_BYTES + 64 * 1024
 MAX_MESSAGE_BYTES = 25 * 1024 * 1024
 MAX_ATTACHMENTS = 5
+DAILY_UPLOAD_LIMIT = 100
 DRAFT_LIFETIME = timedelta(hours=24)
 DOCUMENT_TYPES = {
     '.pdf': 'application/pdf', '.txt': 'text/plain', '.csv': 'text/csv',
@@ -123,6 +124,20 @@ def attachment_payload(row):
                 size=row.size, kind=row.kind, url=url)
 
 
+def consume_upload_allowance(org_id, owner_kind, owner_id):
+    from models import ClientBrowseRateLimit
+    if db.engine.dialect.name == 'postgresql':
+        from sqlalchemy.dialects.postgresql import insert
+    else:
+        from sqlalchemy.dialects.sqlite import insert
+    identity = f'mobile-attachment:{org_id}:{owner_kind}:{owner_id}:{datetime.utcnow():%Y%m%d}'
+    key = hashlib.sha256(identity.encode()).hexdigest()
+    stmt = insert(ClientBrowseRateLimit).values(key=key, hits=1, expires_at=int(time.time()) + 172800)
+    db.session.execute(stmt.on_conflict_do_update(index_elements=['key'], set_={'hits': ClientBrowseRateLimit.hits + 1}))
+    used = db.session.query(ClientBrowseRateLimit.hits).filter_by(key=key).scalar()
+    return used <= DAILY_UPLOAD_LIMIT
+
+
 def upload(owner, owner_kind, target_kind, target_id):
     request.max_content_length = MAX_REQUEST_BYTES
     try:
@@ -160,7 +175,7 @@ def upload(owner, owner_kind, target_kind, target_id):
             return jsonify(error='This upload request ID belongs to another file.'), 409
         return jsonify(attachment=attachment_payload(prior)), 200
     cleanup_expired(owner.organization_id, owner_kind, owner.id, limit=20)
-    if query.filter(MobileChatAttachment.created_at > datetime.utcnow() - timedelta(days=1)).count() >= 100:
+    if not consume_upload_allowance(owner.organization_id, owner_kind, owner.id):
         return jsonify(error='Your daily attachment upload limit has been reached.'), 429
     if query.filter_by(message_id=None).count() >= 20:
         return jsonify(error='Send or remove your pending attachments before uploading more.'), 409

@@ -164,3 +164,35 @@ def test_invalid_files_expired_drafts_and_discard(app, seed, client, file_storag
     assert file_storage == {}
     assert client.post('/api/client/v1/messages', headers=headers,
         json=dict(body='', request_id=str(uuid4()), attachment_ids=[identifier])).status_code == 410
+
+
+def test_discarding_uploads_does_not_reset_daily_allowance(app, seed, client, file_storage, monkeypatch):
+    from services import mobile_attachments
+    monkeypatch.setattr(mobile_attachments, 'DAILY_UPLOAD_LIMIT', 2)
+    participant, headers = deal(app, seed, client)
+    for _ in range(2):
+        response = upload(client, '/api/client/v1/attachments', headers)
+        assert response.status_code == 201
+        assert client.delete('/api/client/v1/attachments/' + response.json['attachment']['id'], headers=headers).status_code == 200
+    assert upload(client, '/api/client/v1/attachments', headers).status_code == 429
+    assert file_storage == {}
+
+
+def test_daily_cleanup_removes_only_expired_unsent_files(app, seed, client, file_storage):
+    from jobs.mobile_attachment_cleanup import cleanup_staged_attachments
+    participant, headers = deal(app, seed, client)
+    expired = upload(client, '/api/client/v1/attachments', headers).json['attachment']['id']
+    sent = upload(client, '/api/client/v1/attachments', headers).json['attachment']['id']
+    fresh = upload(client, '/api/client/v1/attachments', headers).json['attachment']['id']
+    response = client.post('/api/client/v1/messages', headers=headers,
+        json=dict(body='', request_id=str(uuid4()), attachment_ids=[sent]))
+    assert response.status_code == 201
+    with app.app_context():
+        for identifier in (expired, sent):
+            db.session.get(MobileChatAttachment, identifier).created_at = datetime.utcnow() - timedelta(days=2)
+        db.session.commit()
+        assert cleanup_staged_attachments() == 1
+        assert db.session.get(MobileChatAttachment, expired) is None
+        assert db.session.get(MobileChatAttachment, sent) is not None
+        assert db.session.get(MobileChatAttachment, fresh) is not None
+    assert len(file_storage) == 2

@@ -210,8 +210,6 @@ def run_cleanup():
     from app import create_app
     app = create_app()
     with app.app_context():
-        from jobs.mobile_attachment_cleanup import cleanup_staged_attachments
-        cleanup_staged_attachments()
         cleanup_pending_deletions()
 
 

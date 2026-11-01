@@ -14,6 +14,8 @@ def cleanup_staged_attachments():
             removed += cleanup_expired(org_id, limit=1000)
             db.session.commit()
         except Exception:
+            from flask import current_app
+            current_app.logger.exception('Expired message attachment cleanup failed for organization %s', org_id)
             db.session.rollback()
         finally:
             db.session.remove()
