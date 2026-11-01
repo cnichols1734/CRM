@@ -1433,6 +1433,47 @@ class TestPersonalTodos:
             assert db.session.get(UserTodo, identity).text == 'Retain this'
 
 
+    def test_later_completion_and_reopening_keep_old_add_undo_stale(self, app, ctx_owner_a):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Keep after later work'}, ctx_owner_a)
+            identity = created.data['todo']['todo_id']
+            assert dispatch('complete_todo', {'todo_id': identity}, ctx_owner_a).ok
+            assert dispatch('update_todo', {'todo_id': identity, 'completed': False}, ctx_owner_a).ok
+            assert not undo_action(created.action_id, ctx_owner_a).ok
+            assert db.session.get(UserTodo, identity).completed is False
+
+    def test_deleted_todo_undo_rejects_reused_client_identity(self, app, ctx_owner_a):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Original'}, ctx_owner_a).data['todo']
+            deleted = dispatch('delete_todo', {'todo_id': created['todo_id']}, ctx_owner_a)
+            replacement = UserTodo(id=created['todo_id'] + 1000, user_id=ctx_owner_a.user_id,
+                                   organization_id=ctx_owner_a.organization_id,
+                                   client_id=created['client_id'], text='Recreated in app')
+            db.session.add(replacement)
+            db.session.commit()
+            assert not undo_action(deleted.action_id, ctx_owner_a).ok
+            assert db.session.get(UserTodo, created['todo_id']) is None
+            assert UserTodo.query.filter_by(client_id=created['client_id']).one().text == 'Recreated in app'
+
+    def test_single_item_edit_does_not_load_unrelated_details(self, app, ctx_owner_a):
+        from sqlalchemy import event
+        with app.app_context():
+            target = dispatch('add_todo', {'text': 'Target'}, ctx_owner_a).data['todo']['todo_id']
+            unrelated = dispatch('add_todo', {'text': 'Unrelated', 'description': 'Other notes'}, ctx_owner_a).data['todo']['todo_id']
+            db.session.expunge_all()
+            loaded = set()
+            def track_load(row, context):
+                loaded.add(row.id)
+            event.listen(UserTodo, 'load', track_load)
+            try:
+                result = dispatch('add_todo_comment', {'todo_id': target, 'comment': 'One update'}, ctx_owner_a)
+                assert result.ok, result.error
+                assert target in loaded
+                assert unrelated not in loaded
+            finally:
+                event.remove(UserTodo, 'load', track_load)
+
+
 class TestGroupAssignment:
     def test_replaces_active_groups(self, app, scratch_contact, ctx_owner_a):
         with app.app_context():

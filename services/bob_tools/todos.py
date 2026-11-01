@@ -5,7 +5,7 @@ from copy import deepcopy
 from functools import wraps
 from uuid import uuid4
 
-from models import UserTodo, db
+from models import ClientBrowseInquiry, UserTodo, db
 from services.bob_tools.common import MAX_LIST_RESULTS, ToolError
 from services.bob_tools.context import BobContext, ToolResult
 from services.personal_todos import empty_details, lock_owner, valid_text, validate_details
@@ -48,20 +48,38 @@ def _lock(ctx):
 
 
 def _write(handler):
-    """Lock before reading and save only the changed rows for guarded undo."""
+    """Lock before reading and save only the affected rows for guarded undo."""
     @wraps(handler)
     def run(args, ctx):
         _lock(ctx)
-        before = {row.id: _state(row) for row in _rows(ctx)}
+        if handler.__name__ == 'add_todo':
+            targets = []
+        elif handler.__name__ == 'reorder_todos':
+            completed = args.get('completed', False)
+            if type(completed) is not bool:
+                raise ToolError('completed must be true or false.')
+            targets = _scope(ctx).filter_by(completed=completed).populate_existing().all()
+        else:
+            targets = [_resolve(ctx, args, open_only=handler.__name__ == 'complete_todo')]
+        before = {row.id: _state(row) for row in targets}
         result = handler(args, ctx)
         db.session.flush()
-        after = {row.id: _state(row) for row in _rows(ctx)}
+        if result.data.get('already_present') or result.data.get('undo_unavailable'):
+            result.undoable = False
+            return result
+        identities = set(before)
+        if result.data.get('todo'):
+            identities.add(result.data['todo']['todo_id'])
+        rows = _scope(ctx).filter(UserTodo.id.in_(identities)).populate_existing().all()
+        after = {row.id: _state(row) for row in rows}
+        versions = {row.id: row.updated_at.isoformat() if row.updated_at else None for row in rows}
         changed = sorted(key for key in before.keys() | after.keys()
                          if before.get(key) != after.get(key))
         result.undoable = bool(changed)
         if changed:
             result.data['undo_payload'] = [
-                {'before': before.get(key), 'after': after.get(key)} for key in changed]
+                {'before': before.get(key), 'after': after.get(key), 'after_version': versions.get(key)}
+                for key in changed]
         # The dispatcher commits the mutation and its audit record together.
         return result
     return run
@@ -105,12 +123,12 @@ def _resolve(ctx, args, *, open_only=False):
     text = args.get('text')
     if not isinstance(text, str) or not text.strip():
         raise ToolError('Pass todo_id or text to identify the to-do.')
-    rows = _rows(ctx)
+    query = _scope(ctx).populate_existing()
     if open_only:
-        rows = [row for row in rows if not row.completed]
+        query = query.filter_by(completed=False)
     lowered = text.strip().lower()
-    exact = [row for row in rows if row.text.lower() == lowered]
-    matches = exact or [row for row in rows if lowered in row.text.lower()]
+    exact = query.filter(db.func.lower(UserTodo.text) == lowered).limit(6).all()
+    matches = exact or query.filter(db.func.lower(UserTodo.text).contains(lowered, autoescape=True)).limit(6).all()
     if len(matches) == 1:
         return matches[0]
     if not matches:
@@ -192,6 +210,12 @@ def complete_todo(args, ctx):
 def delete_todo(args, ctx):
     todo = _resolve(ctx, args)
     result = _result(todo, f'Deleted: {todo.text}')
+    linked = ClientBrowseInquiry.query.filter_by(
+        organization_id=ctx.organization_id, followup_todo_id=todo.id).first()
+    if linked is not None:
+        result.data['undo_unavailable'] = True
+        result.data['note'] = 'This inquiry follow-up cannot be restored automatically after deletion.'
+        result.summary += '. Undo is unavailable for linked inquiry follow-ups.'
     db.session.delete(todo)
     return result
 
@@ -313,15 +337,21 @@ def undo_todo_change(action, ctx):
             raise ToolError('This older action cannot be undone automatically.')
         db.session.flush()
         return 'Undid the personal to-do change.'
-    rows = {row.id: row for row in _rows(ctx)}
+    identities = [(change['after'] or change['before'])['id'] for change in changes]
+    rows = {row.id: row for row in _scope(ctx).filter(UserTodo.id.in_(identities)).populate_existing().all()}
     for change in changes:
         expected = change['after']
         identity = (expected or change['before'])['id']
         row = rows.get(identity)
-        if (_state(row) if row else None) != expected:
+        version = row.updated_at.isoformat() if row and row.updated_at else None
+        if ((_state(row) if row else None) != expected
+                or ('after_version' in change and version != change['after_version'])):
             raise ToolError('This to-do changed after that action. Read it again before making another change.')
-        if row is None and db.session.get(UserTodo, identity) is not None:
-            raise ToolError('This to-do cannot be restored automatically.')
+        if row is None:
+            client_id = change['before'].get('client_id')
+            if (db.session.get(UserTodo, identity) is not None
+                    or (client_id and _scope(ctx).filter_by(client_id=client_id).first() is not None)):
+                raise ToolError('This to-do cannot be restored because its ID is already in use.')
     for change in changes:
         previous = change['before']
         row = rows.get((change['after'] or previous)['id'])

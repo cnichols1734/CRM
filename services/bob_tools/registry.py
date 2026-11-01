@@ -771,7 +771,7 @@ TOOLS: tuple[Tool, ...] = (
     ),
     Tool(
         name='delete_todo',
-        description='Delete a personal to-do and its description, sub-to-dos and comments, only when asked to delete it. To mark work done, use complete_todo. This change supports guarded undo.',
+        description='Delete a personal to-do and its description, sub-to-dos and comments, only when asked to delete it. To mark work done, use complete_todo. Ordinary personal deletions support guarded undo. Linked inquiry follow-ups cannot be undone.',
         parameters=_obj(_TODO_SELECTOR),
         risk=RISK_LOW_WRITE,
         handler=todo_tools.delete_todo,
