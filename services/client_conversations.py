@@ -96,6 +96,8 @@ def assign_client(account, org, agent, actor):
     todo_ids = [row.followup_todo_id for row in rows if row.followup_todo_id]
     owner_ids = {owner_id for (owner_id,) in db.session.query(UserTodo.user_id).filter(
         UserTodo.organization_id == org.id, UserTodo.id.in_(todo_ids)).all()}
+    if actor:
+        owner_ids.add(actor.id)
     if agent:
         owner_ids.add(agent.id)
     # Use the same owner locks as mobile/web saves before reading private details.

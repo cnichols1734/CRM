@@ -181,3 +181,14 @@ def test_legacy_duplicate_rename_and_overlong_ids_are_rejected(client, owner_a_c
         assert owner_a_client.post('/api/user_todos/save', json={
             'active': ['No'], 'completed': [], 'identities': {'active': [invalid_id], 'completed': []}, 'revision': saved['revision']}).status_code == 409
         assert client.get(url, headers=headers).json == saved
+
+
+def test_legacy_rename_cannot_create_ambiguous_detailed_duplicate(app, db, seed, owner_a_client, restore_todos):
+    with app.app_context():
+        db.session.add_all([
+            UserTodo(user_id=seed['owner_a'], organization_id=seed['org_a'], text='Plan', completed=False, order=0),
+            UserTodo(user_id=seed['owner_a'], organization_id=seed['org_a'], text='Call', completed=False, order=1,
+                     details={'description': 'Keep with this call'})])
+        db.session.commit()
+    assert owner_a_client.post('/api/user_todos/save', json={'active': ['Call', 'Call'], 'completed': []}).status_code == 409
+    assert owner_a_client.get('/api/user_todos/get').json['active'] == ['Plan', 'Call']

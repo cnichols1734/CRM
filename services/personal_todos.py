@@ -1,7 +1,7 @@
 """Shared personal todo snapshots for the CRM and agent app."""
 import hashlib
 import json
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 from models import User, UserTodo, db
 
@@ -62,8 +62,10 @@ def replace_web(user, active, completed, identities=None):
     for row in old_rows:
         available[row.text].append(row)
     # Old pages cannot identify which duplicate was renamed, removed or completed.
-    ambiguous = any(len(group) > 1 and any(row.details for row in group)
-                    for group in available.values())
+    incoming_counts = Counter(active + completed)
+    ambiguous = any((len(group) > 1 or incoming_counts[title] > 1)
+                    and any(row.details for row in group)
+                    for title, group in available.items())
     if ambiguous and (active != [row.text for row in old_rows if not row.completed]
                       or completed != [row.text for row in old_rows if row.completed]):
         raise ValueError('Reload this page before changing duplicate to-dos with details.')
