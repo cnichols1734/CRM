@@ -23,7 +23,7 @@ def test_two_agents_link_then_switch(app, seed, client, agent_a_client):
     for token in (tokens[0], tokens[1], tokens[0]):
         assert client.post(BASE+'/connection', headers=headers, json={'deal_token': token}).status_code == 200
     with app.app_context():
-        assert ClientBrowseInquiry.query.one().agent_id==seed['owner_a']
+        assert db.session.get(ClientBrowseInquiry, inquiry_id).agent_id==seed['owner_a']
     selected=client.post(BASE+f'/deals/{pids[0]}/session',headers=headers).json['deal_session']['token']
     assert client.get(BASE+'/account',headers=headers).json['account']['agent_id']==seed['owner_a']
     first_headers={'Authorization':'Bearer '+selected}
