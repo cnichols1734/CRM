@@ -937,8 +937,9 @@ def serialize_client_deal(access):
     """JSON-ready, client-safe deal from ``build_portal_context``."""
     ctx = build_portal_context(access)
     deal = {key: _json_safe(ctx.get(key)) for key in _DEAL_KEYS}
-    from services.profile_photos import avatar_url
+    from services.profile_photos import avatar_url, avatar_source
     deal['avatar_url'] = avatar_url(access.participant)
+    deal['avatar_source'] = avatar_source(access.participant)
     _assert_client_safe(deal)
     return deal
 
@@ -973,7 +974,7 @@ def list_client_messages(access, limit=50, message_id=None):
             'author': author_name,
             'request_id': m.request_id,
             'sender_avatar_url': avatar_url(access.participant if m.sender == 'client' else author),
-            'created_at': created.isoformat() if created else None,
+            'created_at': created.isoformat() + 'Z' if created else None,
             'date': _day(created),
         })
     return out

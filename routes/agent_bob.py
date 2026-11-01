@@ -129,6 +129,23 @@ def title_from_speech(user, cid):
     text = body.get('message') if isinstance(body, dict) else None
     if not isinstance(text, str) or not text.strip() or len(text) > 12000:
         return jsonify(error='A spoken message of up to 12,000 characters is required.'), 400
+    if needs_title(conv):
+        from routes.ai_chat import check_rate_limit
+        allowed, _, daily_limit = check_rate_limit()
+        if not allowed:
+            return jsonify(error='Your daily BOB usage limit has been reached.'), 429
+        try:
+            store = receipt_store()
+            now = datetime.now(timezone.utc)
+            for period, cap, ttl in ((now.strftime('%Y%m%d%H%M'), 10, 120),
+                                     (now.strftime('%Y%m%d'), daily_limit or 1000, 86400)):
+                key = f'bob:voice-title:{user.organization_id}:{user.id}:{period}'
+                used = store.incr(key)
+                store.expire(key, ttl)
+                if used > cap:
+                    return jsonify(error='Please wait before naming another voice conversation.'), 429
+        except Exception:
+            return jsonify(error='Voice chat naming is temporarily unavailable.'), 503
     name_conversation(conv, text.strip())
     conv.updated_at = datetime.utcnow()
     result = serialize(conv, user)

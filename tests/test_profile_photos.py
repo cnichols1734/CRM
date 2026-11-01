@@ -150,3 +150,44 @@ def test_failed_signing_preserves_existing_photo(app, client, seed, photo_storag
     assert set(photo_storage) == stored_paths
     assert client.get('/api/agent/v1/me', headers=headers).json['user']['avatar_url'] == original
     client.delete(route, headers=headers)
+
+
+def test_verified_owned_contact_photo_falls_back_without_merging_identities(app, client, seed, photo_storage):
+    from datetime import datetime
+    with app.app_context():
+        org = db.session.get(Organization, seed['org_a'])
+        old_settings = org.client_app_settings
+        org.client_app_settings = {'enabled': True}
+        tx, participant, access = _seller_thread(seed)
+        participant.contact_id = seed['contact_a2']
+        db.session.commit()
+        code = access.invite_code
+    try:
+        account = signup(client)
+        browse_headers = auth(account)
+        browse_url = client.post(BASE + '/account/photo', headers=browse_headers, data=photo()).json['avatar_url']
+        deal_headers = _auth(_open_session(client, code).json['token'])
+        with app.app_context():
+            browser = db.session.get(ClientBrowseAccount, account.json['account']['id'])
+            browser.contact_id = seed['contact_a2']
+            browser.owns_contact = True
+            db.session.commit()
+        assert client.get('/api/client/v1/deal', headers=deal_headers).json['avatar_url'] is None
+        with app.app_context():
+            browser = db.session.get(ClientBrowseAccount, account.json['account']['id'])
+            browser.email_verified_at = datetime.utcnow()
+            db.session.commit()
+        inherited = client.get('/api/client/v1/deal', headers=deal_headers).json
+        assert inherited['avatar_url'] == browse_url
+        assert inherited['avatar_source'] == 'account'
+        override = client.post('/api/client/v1/profile/photo', headers=deal_headers, data=photo()).json
+        assert override['avatar_source'] == 'profile'
+        assert override['avatar_url'] != browse_url
+        restored = client.delete('/api/client/v1/profile/photo', headers=deal_headers).json
+        assert restored == {'avatar_url': browse_url, 'avatar_source': 'account'}
+        assert client.get(BASE + '/account', headers=browse_headers).json['account']['avatar_url'] == browse_url
+        client.delete(BASE + '/account/photo', headers=browse_headers)
+    finally:
+        with app.app_context():
+            db.session.get(Organization, seed['org_a']).client_app_settings = old_settings
+            db.session.commit()

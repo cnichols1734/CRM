@@ -580,7 +580,7 @@ def test_natural_voice_decision(spoken, expected):
     assert voice_decision(spoken) == expected
 
 
-def test_voice_titles_replace_placeholders_and_preserve_named_threads(app, client, seed, monkeypatch):
+def test_voice_titles_replace_placeholders_and_preserve_named_threads(app, client, seed, monkeypatch, receipts):
     from routes import ai_chat
     headers = _auth(_owner_token(client))
     cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
@@ -621,3 +621,16 @@ def test_old_voice_history_projects_title_without_writing(app, client, seed):
         conv = db.session.get(ChatConversation, cid)
         assert conv.title.startswith('Voice conversation context follows.')
         assert conv.updated_at == original_date
+
+
+def test_voice_title_generation_is_bounded(client, seed, monkeypatch, receipts):
+    from routes import ai_chat
+    calls = []
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *a, **k: calls.append(1) or 'Showing plans')
+    headers = _auth(_owner_token(client))
+    for number in range(11):
+        cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+        response = client.post(f'/api/agent/v1/bob/conversations/{cid}/title',
+            json={'message': 'Plan the next showing'}, headers=headers)
+        assert response.status_code == (200 if number < 10 else 429)
+    assert len(calls) == 10

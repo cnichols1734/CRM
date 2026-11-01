@@ -22,7 +22,27 @@ def _signed_photo(path, window):
     return storage.get_signed_url(BUCKET, path)
 
 
+def photo_identity(identity):
+    if getattr(identity, 'avatar_path', None) or getattr(identity, '__tablename__', None) != 'transaction_participants':
+        return identity
+    if not identity.contact_id:
+        return identity
+    from models import ClientBrowseAccount
+    accounts = ClientBrowseAccount.query.filter_by(organization_id=identity.organization_id,
+        contact_id=identity.contact_id, owns_contact=True).filter(
+        ClientBrowseAccount.email_verified_at.isnot(None)).limit(2).all()
+    return accounts[0] if len(accounts) == 1 else identity
+
+
+def avatar_source(identity):
+    owner = photo_identity(identity)
+    if not getattr(owner, 'avatar_path', None):
+        return None
+    return 'profile' if owner is identity else 'account'
+
+
 def avatar_url(identity):
+    identity = photo_identity(identity)
     path = getattr(identity, 'avatar_path', None)
     if not path:
         return None
@@ -107,6 +127,7 @@ def change_photo(identity, kind):
             storage.upload_file(BUCKET, path, data, 'profile.jpg', 'image/jpeg')
         identity.avatar_path = path
         result_url = avatar_url(identity)
+        result_source = avatar_source(identity)
         if path and result_url is None:
             raise RuntimeError('The uploaded photo could not be signed')
         db.session.commit()
@@ -118,7 +139,7 @@ def change_photo(identity, kind):
         return jsonify(error='Your photo could not be saved. Try again.'), 503
     if old_path and request.method != 'DELETE':
         delete_photo_object(old_path)
-    return jsonify(avatar_url=result_url)
+    return jsonify(avatar_url=result_url, avatar_source=result_source)
 
 
 def contact_avatar_url(contact):
