@@ -218,21 +218,31 @@ def test_voice_approval_applies_pending_contact_change_once(app, client, seed, s
     headers = _auth(_owner_token(client))
     cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
     with app.app_context():
-        row = BobAction(user_id=seed['owner_a'], organization_id=seed['org_a'], conversation_id=cid,
-                        tool_name='update_contact', status='pending', summary='Update contact city',
-                        arguments={'contact_id': seed['contact_a'], 'fields': {'city': 'Voice test city'}})
-        db.session.add(row)
+        contact = db.session.get(Contact, seed['contact_a'])
+        original_city = contact.city
+        contact.city = 'Before voice approval'
         db.session.commit()
-        aid = row.id
-    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
-                           json={'decision': 'approve', 'voice_confirmation': spoken})
-    assert response.status_code == 200, response.json
-    with app.app_context():
-        assert db.session.get(Contact, seed['contact_a']).city == 'Voice test city'
-        assert db.session.get(BobAction, aid).status == 'executed'
-    response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
-                           json={'decision': 'approve', 'voice_confirmation': 'Yes'})
-    assert response.status_code == 400
+    try:
+        with app.app_context():
+            row = BobAction(user_id=seed['owner_a'], organization_id=seed['org_a'], conversation_id=cid,
+                            tool_name='update_contact', status='pending', summary='Update contact city',
+                            arguments={'contact_id': seed['contact_a'], 'fields': {'city': 'Voice test city'}})
+            db.session.add(row)
+            db.session.commit()
+            aid = row.id
+        response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                               json={'decision': 'approve', 'voice_confirmation': spoken})
+        assert response.status_code == 200, response.json
+        with app.app_context():
+            assert db.session.get(Contact, seed['contact_a']).city == 'Voice test city'
+            assert db.session.get(BobAction, aid).status == 'executed'
+        response = client.post(f'/api/agent/v1/bob/actions/{aid}', headers=headers,
+                               json={'decision': 'approve', 'voice_confirmation': 'Yes'})
+        assert response.status_code == 400
+    finally:
+        with app.app_context():
+            db.session.get(Contact, seed['contact_a']).city = original_city
+            db.session.commit()
 
 
 @pytest.fixture
