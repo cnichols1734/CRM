@@ -467,11 +467,9 @@ def register_agent_device(user):
         )
     except ValueError as exc:
         return _json_error(str(exc), 400)
-    return jsonify({
-        'ok': True,
-        'device_id': row.id,
-        'platform': row.platform,
-    }), 201
+    result = {'ok': True, 'device_id': row.id, 'platform': row.platform}
+    db.session.commit()
+    return jsonify(result), 201
 
 
 @agent_api_bp.route('/dashboard', methods=['GET'])

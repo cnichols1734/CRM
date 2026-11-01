@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 
 from models import DeviceToken, db
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,15 @@ def register_device(*, organization_id, audience, token, platform,
         raise ValueError('Client account devices need an account.')
 
     platform = normalize_platform(platform)
-    row = DeviceToken.query.filter_by(audience=audience, token=token).first()
+    if db.engine.dialect.name == 'postgresql':
+        db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))'),
+            {'key': audience + ':' + token})
+        db.session.execute(text('SELECT public.release_other_device_bindings(:token, :audience, :org)'),
+            {'token': token, 'audience': audience, 'org': organization_id})
+    else:
+        DeviceToken.query.filter(DeviceToken.audience == audience, DeviceToken.token == token,
+            DeviceToken.organization_id != organization_id).delete(synchronize_session=False)
+    row = DeviceToken.query.filter_by(organization_id=organization_id, audience=audience, token=token).first()
     if row:
         row.organization_id = organization_id
         row.platform = platform
@@ -52,7 +61,7 @@ def register_device(*, organization_id, audience, token, platform,
         row.environment = environment
         row.expires_at = expires_at
         row.last_seen_at = datetime.utcnow()
-        db.session.commit()
+        db.session.flush()
         return row
 
     row = DeviceToken(
@@ -69,7 +78,7 @@ def register_device(*, organization_id, audience, token, platform,
         ),
     )
     db.session.add(row)
-    db.session.commit()
+    db.session.flush()
     return row
 
 

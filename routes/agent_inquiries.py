@@ -1,10 +1,12 @@
 """Native agent access to the brokerage inquiry inbox."""
 import uuid
+from datetime import datetime
 
-from flask import jsonify, request
-from sqlalchemy import func
+from flask import jsonify, request, current_app
+from sqlalchemy import func, and_, or_
+from itsdangerous import URLSafeSerializer, BadSignature
 
-from models import db, ClientBrowseAccount, ClientBrowseInquiry, ClientInquiryMessage
+from models import db, User, ClientBrowseAccount, ClientBrowseInquiry, ClientInquiryMessage
 from routes.agent_api import agent_jwt_required
 from routes.client_discovery import org_context
 from services.client_conversations import assign_client, inquiry_payload
@@ -37,11 +39,43 @@ def native_payload(row):
 @agent_jwt_required
 def inbox(user):
     org_context(user.organization_id)
-    latest = db.session.query(func.max(ClientInquiryMessage.created_at)).filter(
-        ClientInquiryMessage.organization_id == user.organization_id,
-        ClientInquiryMessage.inquiry_id == ClientBrowseInquiry.id).correlate(ClientBrowseInquiry).scalar_subquery()
-    rows = visible(user).order_by(func.coalesce(latest, ClientBrowseInquiry.created_at).desc(), ClientBrowseInquiry.id.desc()).all()
-    return jsonify(inquiries=[native_payload(row) for row in rows])
+    page_size = min(max(request.args.get('limit', 100, type=int), 1), 100)
+    signer = URLSafeSerializer(current_app.config['SECRET_KEY'], salt='agent-inquiry-page')
+    latest = db.session.query(ClientInquiryMessage.inquiry_id,
+        func.max(ClientInquiryMessage.id).label('message_id')).filter(
+        ClientInquiryMessage.organization_id == user.organization_id).group_by(ClientInquiryMessage.inquiry_id).subquery()
+    at = func.coalesce(ClientInquiryMessage.created_at, ClientBrowseInquiry.created_at)
+    query = visible(user).add_columns(ClientBrowseAccount, User, ClientInquiryMessage).join(
+        ClientBrowseAccount, and_(ClientBrowseAccount.id == ClientBrowseInquiry.account_id,
+            ClientBrowseAccount.organization_id == user.organization_id)).outerjoin(
+        User, and_(User.id == ClientBrowseInquiry.agent_id, User.organization_id == user.organization_id)).outerjoin(
+        latest, latest.c.inquiry_id == ClientBrowseInquiry.id).outerjoin(
+        ClientInquiryMessage, ClientInquiryMessage.id == latest.c.message_id)
+    cursor = request.args.get('cursor')
+    if cursor:
+        try:
+            scope_org, scope_user, last_at, last_id = signer.loads(cursor)
+            if (scope_org, scope_user) != (user.organization_id, user.id):
+                raise ValueError()
+            cutoff = datetime.fromisoformat(last_at)
+            query = query.filter(or_(at < cutoff, and_(at == cutoff, ClientBrowseInquiry.id < int(last_id))))
+        except (BadSignature, TypeError, ValueError):
+            return jsonify(error='Refresh the inbox to continue.'), 400
+    rows = query.order_by(at.desc(), ClientBrowseInquiry.id.desc()).limit(page_size + 1).all()
+    result = []
+    for row, account, agent, message in rows[:page_size]:
+        timestamp = message.created_at if message else row.created_at
+        result.append(dict(id=row.id, account_id=account.id, name=account.name, email=account.email,
+            kind=row.kind, assigned=row.agent_id is not None, agent_id=row.agent_id,
+            agent_name=f'{agent.first_name} {agent.last_name}'.strip() if agent else None,
+            created_at=row.created_at.isoformat() + 'Z', last_at=timestamp.isoformat() + 'Z',
+            last_preview=(message.body if message else row.reply or row.body)[:240], messages=[]))
+    next_cursor = None
+    if len(rows) > page_size:
+        row, _, _, message = rows[page_size - 1]
+        timestamp = message.created_at if message else row.created_at
+        next_cursor = signer.dumps([user.organization_id, user.id, timestamp.isoformat(), row.id])
+    return jsonify(inquiries=result, next_cursor=next_cursor)
 
 
 @agent_jwt_required

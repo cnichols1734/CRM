@@ -117,6 +117,7 @@ def authenticated(view):
             g.browse_session_expires_at = signed_at.replace(tzinfo=None) + timedelta(seconds=TTL)
             if not isinstance(claims, dict) or claims.get('type') != 'browse':
                 raise BadSignature('type')
+            g.browse_session_version = claims.get('version')
             org = db.session.get(Organization, int(claims['org']))
             if not org or not public_org(org.slug):
                 raise BadSignature('org')
@@ -208,6 +209,9 @@ def account_get(account, org):
 @client_discovery_bp.delete('/session')
 @authenticated
 def sign_out(account, org):
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     from models import DeviceToken
     DeviceToken.query.filter_by(organization_id=org.id, browse_account_id=account.id).delete()
     account.session_version += 1
@@ -218,6 +222,9 @@ def sign_out(account, org):
 @client_discovery_bp.delete('/account')
 @authenticated
 def delete_account(account, org):
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     password = payload().get('password', '')
     if not isinstance(password, str) or len(password) > 128 or not check_password_hash(account.password_hash, password):
         return error('Password is incorrect.', 403)
@@ -555,6 +562,9 @@ def listing_detail(slug, listing_id):
 @client_discovery_bp.route('/devices', methods=['POST', 'DELETE'])
 @authenticated
 def account_device(account, org):
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     from models import DeviceToken
     from services.device_push import register_device
     data = payload()
@@ -572,4 +582,13 @@ def account_device(account, org):
             environment=data.get('environment'), expires_at=g.browse_session_expires_at)
     except ValueError as exc:
         return error(str(exc))
-    return jsonify(ok=True, device_id=row.id), 201
+    device_id = row.id
+    db.session.commit()
+    return jsonify(ok=True, device_id=device_id), 201
+
+
+def lock_browse_session(account, org):
+    account = ClientBrowseAccount.query.filter_by(id=account.id, organization_id=org.id).with_for_update().populate_existing().first()
+    if account is None or account.session_version != g.browse_session_version:
+        return None
+    return account

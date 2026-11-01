@@ -413,3 +413,46 @@ def test_browse_push_registration_is_separate_and_revoked(app, seed, client):
     assert client.delete(BASE + '/account', headers=second_headers, json={'password':'test-password-123'}).status_code == 200
     with app.app_context():
         assert DeviceToken.query.filter_by(browse_account_id=second_id).count() == 0
+
+
+def test_browse_registration_moves_token_between_brokerages_without_sharing_identity(app, client):
+    from models import DeviceToken
+    first, second = signup(client), signup(client, slug='test-realty-b')
+    data = dict(token='brokerage-switch-token', platform='ios', environment='sandbox')
+    assert client.post(BASE + '/devices', headers=auth(first), json=data).status_code == 201
+    assert client.post(BASE + '/devices', headers=auth(second), json=data).status_code == 201
+    with app.app_context():
+        row = DeviceToken.query.filter_by(token=data['token'], audience='browse').one()
+        assert row.browse_account_id == second.json['account']['id']
+    assert client.delete(BASE + '/devices', headers=auth(first), json=data).status_code == 200
+    with app.app_context():
+        assert DeviceToken.query.filter_by(token=data['token'], audience='browse').one().browse_account_id == second.json['account']['id']
+
+
+def test_browse_registration_rechecks_session_after_account_lock(app, client):
+    from flask import g
+    from routes.client_discovery import lock_browse_session
+    response = signup(client)
+    with app.test_request_context():
+        account = db.session.get(ClientBrowseAccount, response.json['account']['id'])
+        org = db.session.get(Organization, account.organization_id)
+        g.browse_session_version = account.session_version
+        db.session.query(ClientBrowseAccount).filter_by(id=account.id).update(
+            {ClientBrowseAccount.session_version: account.session_version + 1}, synchronize_session=False)
+        assert lock_browse_session(account, org) is None
+        db.session.rollback()
+
+
+def test_native_inquiry_pages_are_compact_and_tenant_scoped(app, seed, client):
+    from tests.test_agent_api import _agent_session, _auth
+    browser = signup(client)
+    ids = [client.post(BASE + '/inquiries', headers=auth(browser), json=inquiry_body()).json['id'] for _ in range(2)]
+    agent = _auth(_agent_session(client, email='agent_a@test.com').json['token'])
+    foreign = _auth(_agent_session(client, email='owner_b@test.com').json['token'])
+    first = client.get('/api/agent/v1/inquiries?limit=1', headers=agent).json
+    assert [r['id'] for r in first['inquiries']] == [ids[-1]]
+    assert first['inquiries'][0]['messages'] == [] and 'body' not in first['inquiries'][0]
+    assert first['inquiries'][0]['last_preview'] == 'Test showing inquiry'
+    second = client.get('/api/agent/v1/inquiries', headers=agent, query_string={'limit':1,'cursor':first['next_cursor']}).json
+    assert [r['id'] for r in second['inquiries']] == [ids[0]]
+    assert client.get('/api/agent/v1/inquiries', headers=foreign, query_string={'cursor':first['next_cursor']}).status_code == 400

@@ -88,7 +88,9 @@ def test_append_only_history_idempotency_and_account_isolation(app, client, agen
     assert client.post(url, headers=other, json=message).status_code == 404
     assert client.post(url, headers=headers, json={**message, 'body': 'x'*4001}).status_code == 400
     row = client.get(BASE+'/inquiries', headers=headers).json['inquiries'][0]
-    assert [m['body'] for m in row['messages']] == ['Test showing inquiry', 'Legacy reply stays visible', 'Yes, Saturday works.', 'How about 10 AM?']
+    assert [m['body'] for m in row['messages']] == ['Test showing inquiry', 'Legacy reply stays visible',
+        'Agent Amy Agent has reviewed your message and will respond shortly.',
+        'Yes, Saturday works.', 'How about 10 AM?']
     assert row['reply'] == 'Yes, Saturday works.' and row['assigned']
     assert b'How about 10 AM?' in agent_a_client.get('/messages?view=attention').data
     assert client.delete(BASE+'/account', headers=headers, json={'password': 'test-password-123'}).status_code == 200
