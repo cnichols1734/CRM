@@ -603,3 +603,21 @@ def test_voice_titles_replace_placeholders_and_preserve_named_threads(app, clien
         conv.organization_id = seed['org_b']
         db.session.commit()
     assert client.post(route, json={'message': 'Private'}, headers=headers).status_code == 404
+
+
+def test_old_voice_history_projects_title_without_writing(app, client, seed):
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        conv.title = 'Voice conversation context follows. Respond to the latest request only.'
+        db.session.add(ChatMessage(conversation_id=cid, role='user', content='Voice conversation context follows. Instructions.\nuser: Find my overdue client tasks\nassistant: I will check'))
+        db.session.commit()
+        original_date = conv.updated_at
+    listed = client.get('/api/agent/v1/bob/conversations', headers=headers).json['conversations']
+    assert next(row for row in listed if row['id'] == cid)['title'] == 'Find my overdue client tasks'
+    assert client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json['title'] == 'Find my overdue client tasks'
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        assert conv.title.startswith('Voice conversation context follows.')
+        assert conv.updated_at == original_date

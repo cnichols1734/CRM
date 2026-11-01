@@ -66,7 +66,7 @@ def preview_text(value, indent=0):
 
 
 def serialize(conv, user):
-    data = conv.to_dict(include_messages=True)
+    data = conversation_payload(conv, include_messages=True)
     actions = BobAction.query.filter_by(conversation_id=conv.id, user_id=user.id,
                                        organization_id=user.organization_id).order_by(BobAction.id.desc()).limit(30).all()
     data['actions'] = [{**a.to_dict(), 'undoable': action_is_undoable(a),
@@ -83,7 +83,7 @@ def conversations(user):
         db.session.commit()
         return jsonify(serialize(conv, user)), 201
     rows = scope(user).order_by(ChatConversation.updated_at.desc()).limit(100).all()
-    return jsonify(conversations=[c.to_dict() for c in rows])
+    return jsonify(conversations=[conversation_payload(c) for c in rows])
 
 
 @bob_required
@@ -97,6 +97,19 @@ def conversation(user, cid):
 def needs_title(conv):
     return (not conv.title or conv.title.strip().lower() in {'voice chat', 'new conversation', 'new chat', 'untitled'}
             or conv.title.startswith('Voice conversation context follows.'))
+
+
+def conversation_payload(conv, include_messages=False):
+    data = conv.to_dict(include_messages=include_messages)
+    if needs_title(conv):
+        first = conv.messages.filter_by(role='user').order_by(None).order_by(ChatMessage.id).first()
+        if first and first.content:
+            text = first.content
+            if text.startswith('Voice conversation context follows.'):
+                text = text.rsplit('\nuser: ', 1)[-1].split('\nassistant: ', 1)[0] if '\nuser: ' in text else ''
+            if text.strip():
+                data['title'] = ' '.join(text.split()[:8])[:90]
+    return data
 
 
 def name_conversation(conv, message):
