@@ -32,7 +32,7 @@ def native_payload(row):
     result = inquiry_payload(row)
     history = result['messages']
     result.update(account_id=account.id, name=account.name, email=account.email,
-                  agent_id=row.agent_id, last_preview=history[-1]['body'],
+                  agent_id=row.agent_id, last_preview=history[-1]['body'] or 'Attachment',
                   last_at=history[-1]['created_at'] or result['created_at'])
     return result
 
@@ -71,7 +71,7 @@ def inbox(user):
             client_avatar_url=avatar_url(account), agent_avatar_url=avatar_url(agent),
             agent_name=f'{agent.first_name} {agent.last_name}'.strip() if agent else None,
             created_at=row.created_at.isoformat() + 'Z', last_at=timestamp.isoformat() + 'Z',
-            last_preview=(message.body if message else row.reply or row.body)[:240], messages=[]))
+            last_preview=(message.body if message else row.reply or row.body)[:240] or 'Attachment', messages=[]))
     next_cursor = None
     if len(rows) > page_size:
         row, _, _, message = rows[page_size - 1]
@@ -131,8 +131,13 @@ def reply(user, inquiry_id):
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
         return jsonify(error='A message is required.'), 400
-    body, request_id = data.get('body'), data.get('request_id')
-    if not isinstance(body, str) or not body.strip() or len(body) > 4000:
+    from services.mobile_attachments import attachment_ids, bind_attachments, AttachmentError
+    body, request_id = data.get('body') or '', data.get('request_id')
+    try:
+        ids = attachment_ids(data)
+    except AttachmentError as exc:
+        return jsonify(error=str(exc)), exc.status
+    if not isinstance(body, str) or (not body.strip() and not ids) or len(body) > 4000:
         return jsonify(error='Write a message of up to 4,000 characters.'), 400
     try:
         request_id = str(uuid.UUID(request_id))
@@ -153,6 +158,13 @@ def reply(user, inquiry_id):
         db.session.add(message)
         db.session.flush()
         message_id = message.id
+    try:
+        bind_attachments(ids, org_id=user.organization_id, owner_kind='agent', owner_id=user.id,
+            target_kind='inquiry', target_id=row.id, message_kind='inquiry', message_id=prior.id if prior else message_id,
+            replay=prior is not None)
+    except AttachmentError as exc:
+        db.session.rollback()
+        return jsonify(error=str(exc)), exc.status
     db.session.commit()
     if message_id:
         enqueue_inquiry_push(inquiry_id=row.id, org_id=user.organization_id, message_id=message_id)

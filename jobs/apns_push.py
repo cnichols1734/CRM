@@ -160,7 +160,7 @@ def send_inquiry_push(*, inquiry_id, org_id, message_id=None, assignment=False):
         if assignment and (message is None or message.author_user_id != account.agent_id):
             return {'ok': False, 'reason': 'assignment_changed'}
         sender = message.sender if message else 'client'
-        body = message.body if message else row.body
+        body = (message.body if message else row.body) or 'Sent an attachment.'
         if sender == 'client':
             query = DeviceToken.query.filter_by(organization_id=org_id, audience=DeviceToken.AUDIENCE_AGENT, platform='ios')
             if row.agent_id:

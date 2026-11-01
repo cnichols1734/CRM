@@ -956,6 +956,8 @@ def list_client_messages(access, limit=50, message_id=None):
     if message_id is not None:
         query = query.filter_by(id=message_id)
     msgs = query.order_by(PortalMessage.created_at.desc(), PortalMessage.id.desc()).limit(limit).all()
+    from services.mobile_attachments import message_attachments
+    attachments = message_attachments(access.participant.organization_id, 'portal', [m.id for m in msgs])
     out = []
     for m in reversed(msgs):
         author = getattr(m, 'author', None)
@@ -973,6 +975,7 @@ def list_client_messages(access, limit=50, message_id=None):
             'body': m.body,
             'author': author_name,
             'request_id': m.request_id,
+            'attachments': attachments.get(m.id, []),
             'sender_avatar_url': avatar_url(access.participant if m.sender == 'client' else author),
             'created_at': created.isoformat() + 'Z' if created else None,
             'date': _day(created),

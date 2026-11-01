@@ -135,7 +135,9 @@ def authenticated(view):
 
 @client_discovery_bp.before_request
 def bounded_request():
-    maximum = PHOTO_REQUEST_BYTES if request.endpoint == 'client_discovery.account_photo' else 32768
+    from services.mobile_attachments import MAX_REQUEST_BYTES
+    maximum = (MAX_REQUEST_BYTES if request.endpoint == 'client_discovery.upload_browse_attachment' else
+               PHOTO_REQUEST_BYTES if request.endpoint == 'client_discovery.account_photo' else 32768)
     request.max_content_length = maximum
     if request.content_length and request.content_length > maximum:
         return error('This request is too large.', 413)
@@ -241,6 +243,10 @@ def delete_account(account, org):
     password = payload().get('password', '')
     if not isinstance(password, str) or len(password) > 128 or not check_password_hash(account.password_hash, password):
         return error('Password is incorrect.', 403)
+    from services.mobile_attachments import purge_browse_attachments
+    if not purge_browse_attachments(account):
+        db.session.rollback()
+        return error('Your attached files could not be removed. Try deleting your account again.', 503)
     from models import DeviceToken
     DeviceToken.query.filter_by(organization_id=org.id, browse_account_id=account.id).delete()
     inquiry_ids = db.session.query(ClientBrowseInquiry.id).filter_by(organization_id=org.id, account_id=account.id)
@@ -288,34 +294,64 @@ def inquiries(account, org):
         ClientInquiryMessage.inquiry_id == ClientBrowseInquiry.id).correlate(ClientBrowseInquiry).scalar_subquery()
     rows = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).order_by(
         func.coalesce(latest, ClientBrowseInquiry.created_at).desc(), ClientBrowseInquiry.id.desc()).limit(100).all()
+    from services.client_conversations import prime_inquiry_attachments
+    prime_inquiry_attachments(rows)
     return jsonify(inquiries=[inquiry_payload(r) for r in rows])
 
 
 @client_discovery_bp.post('/inquiries')
 @authenticated
 def send_inquiry(account, org):
+    from services.mobile_attachments import attachment_ids, bind_attachments, AttachmentError
     data = payload()
+    try:
+        ids = attachment_ids(data)
+    except AttachmentError as exc:
+        return error(str(exc), exc.status)
     request_id = field(data, 'request_id', 36)
     try:
         uuid.UUID(request_id)
     except ValueError:
         return error('A request ID is required.')
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     prior = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id, request_id=request_id).first()
     if prior:
+        try:
+            if (prior.body != field(data, 'body', 4000) or prior.kind != field(data, 'kind', 20)
+                    or prior.listing_id != (field(data, 'listing_id', 80) or None)):
+                return error('This request ID belongs to another inquiry.', 409)
+            bind_attachments(ids, org_id=org.id, owner_kind='browse', owner_id=account.id,
+                target_kind='new_inquiry', target_id=account.id, message_kind='initial', message_id=prior.id, replay=True)
+        except AttachmentError as exc:
+            return error(str(exc), exc.status)
         return jsonify(id=prior.id), 200
     account_id = account.id
     if limited('inquiry', 20, 86400, str(account_id)):
         return error('You have reached today’s inquiry limit. Try again tomorrow.', 429)
     org_context(org.id)
-    account = ClientBrowseAccount.query.filter_by(id=account_id, organization_id=org.id).with_for_update().populate_existing().one()
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     prior = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id, request_id=request_id).first()
     if prior:
+        try:
+            if (prior.body != field(data, 'body', 4000) or prior.kind != field(data, 'kind', 20)
+                    or prior.listing_id != (field(data, 'listing_id', 80) or None)):
+                return error('This request ID belongs to another inquiry.', 409)
+            bind_attachments(ids, org_id=org.id, owner_kind='browse', owner_id=account.id,
+                target_kind='new_inquiry', target_id=account.id, message_kind='initial', message_id=prior.id, replay=True)
+        except AttachmentError as exc:
+            return error(str(exc), exc.status)
         return jsonify(id=prior.id), 200
     kind = field(data, 'kind', 20)
     listing_id = field(data, 'listing_id', 80) or None
+    if not isinstance(data.get('body', ''), str) or len(data.get('body', '')) > 4000:
+        return error('Write a message of up to 4,000 characters.')
     body = field(data, 'body', 4000)
     phone = field(data, 'phone', 20)
-    if kind not in ('question', 'showing', 'contact') or not body or data.get('consent') is not True:
+    if kind not in ('question', 'showing', 'contact') or (not body and not ids) or data.get('consent') is not True:
         return error('Add a message and confirm the brokerage may contact you.')
     listing_snapshot = None
     if listing_id and repliers_listings.valid_id(listing_id):
@@ -342,7 +378,12 @@ def send_inquiry(account, org):
     try:
         db.session.flush()
         inquiry_id = inquiry.id
+        bind_attachments(ids, org_id=org.id, owner_kind='browse', owner_id=account.id,
+            target_kind='new_inquiry', target_id=account.id, message_kind='initial', message_id=inquiry.id)
         db.session.commit()
+    except AttachmentError as exc:
+        db.session.rollback()
+        return error(str(exc), exc.status)
     except IntegrityError:
         db.session.rollback()
         org_context(org.id)
@@ -358,14 +399,21 @@ def send_inquiry(account, org):
 @client_discovery_bp.post('/inquiries/<int:inquiry_id>/messages')
 @authenticated
 def send_inquiry_message(account, org, inquiry_id):
+    from services.mobile_attachments import attachment_ids, bind_attachments, AttachmentError
     data = payload()
+    try:
+        ids = attachment_ids(data)
+    except AttachmentError as exc:
+        return error(str(exc), exc.status)
     request_id = field(data, 'request_id', 36)
+    if not isinstance(data.get('body', ''), str) or len(data.get('body', '')) > 4000:
+        return error('Write a message of up to 4,000 characters.')
     body = field(data, 'body', 4000)
     try:
         uuid.UUID(request_id)
     except ValueError:
         return error('A request ID is required.')
-    if not body:
+    if not body and not ids:
         return error('Write a message of up to 4,000 characters.')
     aid, oid = account.id, org.id
     # Authorize before rate limiting, which commits the current transaction.
@@ -375,7 +423,9 @@ def send_inquiry_message(account, org, inquiry_id):
     if limited('inquiry-message', 100, 86400, str(aid)):
         return error("You have reached today's message limit. Try again tomorrow.", 429)
     org_context(oid)
-    ClientBrowseAccount.query.filter_by(id=aid, organization_id=oid).with_for_update().populate_existing().one()
+    account = lock_browse_session(account, org)
+    if account is None:
+        return error('Sign in to your home-search account again.', 401)
     row = ClientBrowseInquiry.query.filter_by(id=inquiry_id, account_id=aid, organization_id=oid).first()
     if not row:
         return error('Conversation not found.', 404)
@@ -391,6 +441,12 @@ def send_inquiry_message(account, org, inquiry_id):
         db.session.flush()
         message_id = message.id
     saved_id = prior.id if prior else message_id
+    try:
+        bind_attachments(ids, org_id=oid, owner_kind='browse', owner_id=aid,
+            target_kind='inquiry', target_id=inquiry_id, message_kind='inquiry', message_id=saved_id, replay=prior is not None)
+    except AttachmentError as exc:
+        db.session.rollback()
+        return error(str(exc), exc.status)
     db.session.commit()
     if message_id:
         from services.device_push import enqueue_inquiry_push
@@ -613,3 +669,7 @@ def lock_browse_session(account, org):
     if account is None or account.session_version != g.browse_session_version:
         return None
     return account
+
+
+from routes.mobile_attachments import register_discovery as register_message_attachments
+register_message_attachments(client_discovery_bp)

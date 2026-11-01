@@ -103,6 +103,11 @@ def home(access):
         db.session.rollback()
 
     ctx = build_portal_context(access)
+    from services.portal_service import list_client_messages
+    ctx['chat_messages'] = list_client_messages(access)
+    for message in ctx['chat_messages']:
+        for attachment in message['attachments']:
+            attachment['url'] = url_for('portal.message_attachment', token=access.token, identifier=attachment['id'])
     return render_template('portal/show.html', token=access.token, **ctx)
 
 
@@ -229,3 +234,17 @@ def _notify_agent_of_message(access, body):
         action_url=url_for('transactions.view_transaction', id=tx.id),
         respect_preference=False,
     )
+
+
+@portal_bp.get('/<token>/attachments/<identifier>')
+@portal_access
+def message_attachment(access, identifier):
+    from routes.mobile_attachments import row_for, deal_message_exists
+    from services.mobile_attachments import attachment_payload
+    row = row_for(identifier, access.organization_id)
+    if row is None or (row.target_kind, row.target_id) != ('deal', access.participant_id) or not deal_message_exists(row):
+        abort(404)
+    url = attachment_payload(row)['url']
+    if not url:
+        abort(503)
+    return redirect(url)
