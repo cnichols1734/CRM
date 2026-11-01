@@ -15,51 +15,35 @@ def user_todo():
 @login_required
 def get_todos():
     """Get all todos for the current user."""
-    active_todos = UserTodo.query.filter_by(
-        user_id=current_user.id,
-        completed=False
-    ).order_by(UserTodo.order).all()
-    
-    completed_todos = UserTodo.query.filter_by(
-        user_id=current_user.id,
-        completed=True
-    ).order_by(UserTodo.order).all()
-    
-    return jsonify({
-        'active': [todo.text for todo in active_todos],
-        'completed': [todo.text for todo in completed_todos]
+    from services.personal_todos import snapshot, rows_for
+    rows = rows_for(current_user)
+    response = jsonify({
+        'active': [todo.text for todo in rows if not todo.completed],
+        'completed': [todo.text for todo in rows if todo.completed]
     })
+    response.headers['X-Todo-Revision'] = snapshot(rows)['revision']
+    return response
 
 @bp.route('/api/user_todos/save', methods=['POST'])
 @login_required
 def save_todos():
     """Save the current state of the todo lists."""
-    data = request.get_json()
-    
-    # Delete all existing todos for this user
-    UserTodo.query.filter_by(user_id=current_user.id).delete()
-    
-    # Add active todos
-    for i, text in enumerate(data.get('active', [])):
-        todo = UserTodo(
-            user_id=current_user.id,
-            organization_id=current_user.organization_id,
-            text=text,
-            completed=False,
-            order=i
-        )
-        db.session.add(todo)
-    
-    # Add completed todos
-    for i, text in enumerate(data.get('completed', [])):
-        todo = UserTodo(
-            user_id=current_user.id,
-            organization_id=current_user.organization_id,
-            text=text,
-            completed=True,
-            order=i
-        )
-        db.session.add(todo)
-    
+    from services.personal_todos import lock_owner, rows_for, snapshot, replace_web, valid_text
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error='Send your active and completed todos.'), 400
+    active, completed = data.get('active', []), data.get('completed', [])
+    if any(not isinstance(values, list) for values in (active, completed)) or any(
+        not valid_text(value) for value in active + completed
+    ) or len(active) + len(completed) > 10000:
+        return jsonify(error='Todos must contain 1 to 500 characters.'), 400
+    lock_owner(current_user)
+    revision = snapshot(rows_for(current_user))['revision']
+    if 'revision' in data and data['revision'] != revision:
+        return jsonify(error='Your todos changed elsewhere. Refresh and try again.'), 409
+    replace_web(current_user, active, completed)
+    revision = snapshot(rows_for(current_user))['revision']
     db.session.commit()
-    return jsonify({'status': 'success'}) 
+    response = jsonify(status='success')
+    response.headers['X-Todo-Revision'] = revision
+    return response

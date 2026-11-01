@@ -19,6 +19,8 @@ class TodoManager {
         this.config = config;
         this.todos = [];
         this.completedTodos = [];
+        this.revision = null;
+        this.saveQueue = Promise.resolve();
         
         // Cache DOM elements
         this.template = document.getElementById(config.templateId);
@@ -65,7 +67,9 @@ class TodoManager {
     async loadTodos() {
         try {
             const response = await fetch('/api/user_todos/get');
+            if (!response.ok) throw new Error('Could not load todos');
             const data = await response.json();
+            this.revision = response.headers.get('X-Todo-Revision');
             
             this.todos = data.active || [];
             this.completedTodos = data.completed || [];
@@ -87,22 +91,30 @@ class TodoManager {
      * Save todos to the server
      */
     async saveTodos() {
-        try {
-            await fetch('/api/user_todos/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    active: this.todos,
-                    completed: this.completedTodos
-                })
-            });
-            
-            if (this.config.onSave) {
-                this.config.onSave(this.todos, this.completedTodos);
+        const active = [...this.todos];
+        const completed = [...this.completedTodos];
+        const generation = this.loadGeneration || 0;
+        this.saveQueue = this.saveQueue.then(async () => {
+            if (generation !== (this.loadGeneration || 0)) return;
+            try {
+                if (!this.revision) throw new Error('Reload todos before saving.');
+                const response = await fetch('/api/user_todos/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active, completed, revision: this.revision })
+                });
+                if (!response.ok) throw new Error(response.status === 409
+                    ? 'Your todos changed elsewhere. The latest list has been loaded. Please try your change again.'
+                    : 'Your change could not be saved. Please try again.');
+                this.revision = response.headers.get('X-Todo-Revision');
+                if (this.config.onSave) this.config.onSave(active, completed);
+            } catch (error) {
+                this.loadGeneration = (this.loadGeneration || 0) + 1;
+                await this.loadTodos();
+                window.alert(error.message);
             }
-        } catch (error) {
-            console.error('Error saving todos:', error);
-        }
+        });
+        return this.saveQueue;
     }
 
     /**
