@@ -7,6 +7,12 @@ from routes import agent_bob
 from tests.test_agent_api import _owner_token, _auth
 
 
+@pytest.fixture(autouse=True)
+def offline_title_provider(monkeypatch):
+    from routes import ai_chat
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *args, **kwargs: 'Next steps')
+
+
 class ReceiptStore:
     def __init__(self):
         self.values = {}
@@ -572,3 +578,28 @@ def test_linked_todo_deletion_has_no_undo_in_native_history(app, client, seed):
 def test_natural_voice_decision(spoken, expected):
     from services.bob_voice import voice_decision
     assert voice_decision(spoken) == expected
+
+
+def test_voice_titles_replace_placeholders_and_preserve_named_threads(app, client, seed, monkeypatch):
+    from routes import ai_chat
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        conv.title = 'Voice conversation context follows. user: What is next?'
+        db.session.commit()
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *a, **k: 'Plan the next showing')
+    route = f'/api/agent/v1/bob/conversations/{cid}/title'
+    assert client.post(route, json={'message': 'Plan my next showing'}).status_code == 401
+    response = client.post(route, json={'message': 'Plan my next showing'}, headers=headers)
+    assert response.status_code == 200
+    assert response.json['title'] == 'Plan the next showing'
+    assert response.json['updated_at']
+    assert response.json['messages'] == []
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *a, **k: 'Should not replace this')
+    assert client.post(route, json={'message': 'Another topic'}, headers=headers).json['title'] == 'Plan the next showing'
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        conv.organization_id = seed['org_b']
+        db.session.commit()
+    assert client.post(route, json={'message': 'Private'}, headers=headers).status_code == 404

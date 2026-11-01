@@ -133,7 +133,9 @@ def load_user_from_jwt(token, now=None):
 
 
 def serialize_user(user):
+    from services.profile_photos import avatar_url
     return {
+        'avatar_url': avatar_url(user),
         'id': user.id,
         'email': user.email,
         'username': user.username,

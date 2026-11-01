@@ -32,6 +32,7 @@ def register(bp):
     bp.add_url_rule('/bob/attachments', 'bob_attachment', upload_attachment, methods=['POST'])
     bp.add_url_rule('/bob/actions/<int:aid>', 'bob_action', action, methods=['POST'])
     bp.add_url_rule('/bob/conversations/<int:cid>/voice', 'bob_voice', voice_session, methods=['POST'])
+    bp.add_url_rule('/bob/conversations/<int:cid>/title', 'bob_title', title_from_speech, methods=['POST'])
 
 
 def bob_required(view):
@@ -91,6 +92,35 @@ def conversation(user, cid):
     if not conv:
         return jsonify(error='Conversation not found.'), 404
     return jsonify(serialize(conv, user))
+
+
+def needs_title(conv):
+    return (not conv.title or conv.title.strip().lower() in {'voice chat', 'new conversation', 'new chat', 'untitled'}
+            or conv.title.startswith('Voice conversation context follows.'))
+
+
+def name_conversation(conv, message):
+    if needs_title(conv):
+        from routes.ai_chat import _generate_chat_title
+        if message.startswith('Voice conversation context follows.') and '\nuser: ' in message:
+            message = message.rsplit('\nuser: ', 1)[-1].split('\nassistant: ', 1)[0]
+        conv.title = _generate_chat_title(message) or ' '.join(message.split()[:6])[:100]
+
+
+@bob_required
+def title_from_speech(user, cid):
+    conv = scope(user).filter_by(id=cid).first()
+    if conv is None:
+        return jsonify(error='Conversation not found.'), 404
+    body = request.get_json(silent=True)
+    text = body.get('message') if isinstance(body, dict) else None
+    if not isinstance(text, str) or not text.strip() or len(text) > 12000:
+        return jsonify(error='A spoken message of up to 12,000 characters is required.'), 400
+    name_conversation(conv, text.strip())
+    conv.updated_at = datetime.utcnow()
+    result = serialize(conv, user)
+    db.session.commit()
+    return jsonify(result)
 
 
 def receipt_store():
@@ -274,7 +304,7 @@ def message(user, cid):
             saved.file_size = resolved.meta.size
             saved.file_storage_path = resolved.meta.storage_path
         db.session.add(saved)
-        conv.title = conv.title or text[:90]
+        name_conversation(conv, text)
         conv.updated_at = datetime.utcnow()
         db.session.commit()
         entity = hydrate_page_entity('transaction', conv.transaction_id) if conv.transaction_id else None

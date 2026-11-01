@@ -2,7 +2,8 @@
 from datetime import datetime
 
 from models import (db, User, Contact, Interaction, UserTodo, AuditEvent,
-                    ClientBrowseInquiry, ClientInquiryMessage)
+                    ClientBrowseInquiry, ClientInquiryMessage, ClientBrowseAccount)
+from services.profile_photos import avatar_url
 
 
 def inbox_admin(user):
@@ -15,21 +16,26 @@ def agent_name(agent):
 
 def events(inquiry):
     result = [dict(id=f'initial-{inquiry.id}', sender='client', body=inquiry.body,
-                   created_at=inquiry.created_at, author_name=None)]
+                   created_at=inquiry.created_at, author_name=None, request_id=inquiry.request_id)]
     # Keep old replies without inventing a send time that was never recorded.
     if inquiry.reply:
         result.append(dict(id=f'legacy-{inquiry.id}', sender='agent', body=inquiry.reply,
                            created_at=None, author_name=None))
     for message in inquiry.messages:
         result.append(dict(id=f'message-{message.id}', sender=message.sender, body=message.body,
-                           created_at=message.created_at, author_name=agent_name(message.author)))
+                           created_at=message.created_at, author_name=agent_name(message.author),
+                           request_id=message.request_id, sender_avatar_url=avatar_url(message.author)))
     return result
 
 
 def inquiry_payload(inquiry):
     history = events(inquiry)
+    account = ClientBrowseAccount.query.filter_by(id=inquiry.account_id, organization_id=inquiry.organization_id).first()
     agent = User.query.filter_by(id=inquiry.agent_id, organization_id=inquiry.organization_id).first() if inquiry.agent_id else None
+    for event in history:
+        event['sender_avatar_url'] = avatar_url(account) if event['sender'] == 'client' else event.get('sender_avatar_url', avatar_url(agent))
     return dict(id=inquiry.id, kind=inquiry.kind, body=inquiry.body,
+                client_avatar_url=avatar_url(account), agent_avatar_url=avatar_url(agent),
                 reply=next((m['body'] for m in reversed(history) if m['sender'] == 'agent'), None),
                 listing_id=inquiry.listing_id, listing_snapshot=inquiry.listing_snapshot,
                 created_at=inquiry.created_at.isoformat() + 'Z',

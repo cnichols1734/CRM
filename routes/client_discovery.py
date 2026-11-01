@@ -21,6 +21,7 @@ from models import (db, Organization, User, Contact, Interaction, UserTodo,
                     ClientBrowseAccount, ClientBrowseInquiry, ClientInquiryMessage, ClientBrowseRateLimit, TransactionParticipant, ClientPortalAccess, Transaction)
 from services.client_portal_auth import org_branding
 from services import repliers_listings
+from services.profile_photos import avatar_url, change_photo, PHOTO_REQUEST_BYTES
 from services.client_conversations import inquiry_payload, ensure_contact, record_inquiry, assign_client
 
 client_discovery_bp = Blueprint('client_discovery', __name__, url_prefix='/api/client/v1/discovery')
@@ -87,7 +88,7 @@ def profile(org, agent):
     brand.update(id=str(org.id), slug=org.slug)
     return {'branding': brand, 'agent': {
         'id': agent.id, 'name': f'{agent.first_name} {agent.last_name}'.strip(),
-        'phone': agent.phone or '',
+        'phone': agent.phone or '', 'avatar_url': avatar_url(agent),
     } if agent else None}
 
 
@@ -103,6 +104,7 @@ def field(data, name, maximum):
 
 def account_payload(account):
     return {'id': account.id, 'name': account.name, 'email': account.email, 'saved_ids': account.saved_ids,
+            'avatar_url': avatar_url(account),
             'agent_id': account.agent_id, 'email_verified': account.email_verified_at is not None}
 
 
@@ -133,7 +135,9 @@ def authenticated(view):
 
 @client_discovery_bp.before_request
 def bounded_request():
-    if request.content_length and request.content_length > 32768:
+    maximum = PHOTO_REQUEST_BYTES if request.endpoint == 'client_discovery.account_photo' else 32768
+    request.max_content_length = maximum
+    if request.content_length and request.content_length > maximum:
         return error('This request is too large.', 413)
 
 
@@ -200,6 +204,12 @@ def sign_in():
     return jsonify(result), 201 if creating else 200
 
 
+@client_discovery_bp.route('/account/photo', methods=['POST', 'DELETE'])
+@authenticated
+def account_photo(account, org):
+    return change_photo(account, 'browse')
+
+
 @client_discovery_bp.get('/account')
 @authenticated
 def account_get(account, org):
@@ -234,6 +244,10 @@ def delete_account(account, org):
     ClientInquiryMessage.query.filter(ClientInquiryMessage.organization_id == org.id,
         ClientInquiryMessage.inquiry_id.in_(inquiry_ids)).delete(synchronize_session=False)
     ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).delete()
+    from services.profile_photos import purge_identity_photos
+    if account.avatar_path and not purge_identity_photos(account, 'browse'):
+        db.session.rollback()
+        return error('Your photo could not be removed. Try deleting your account again.', 503)
     db.session.delete(account)
     db.session.commit()
     return jsonify(ok=True)
@@ -377,7 +391,10 @@ def send_inquiry_message(account, org, inquiry_id):
     if message_id:
         from services.device_push import enqueue_inquiry_push
         enqueue_inquiry_push(inquiry_id=inquiry_id, org_id=oid, message_id=message_id)
-    return jsonify(ok=True)
+    org_context(oid)
+    db.session.expire(row, ['messages'])
+    saved = next(m for m in inquiry_payload(row)['messages'] if m.get('request_id') == request_id and m['sender'] == 'client')
+    return jsonify(ok=True, message=saved)
 
 
 @client_discovery_bp.post('/connection')

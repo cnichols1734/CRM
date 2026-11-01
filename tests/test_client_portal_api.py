@@ -869,7 +869,7 @@ def test_client_v1_session_deal_messages_contract_unchanged(app, seed, client):
     )
     assert posted.status_code == 201
     assert set(posted.get_json().keys()) == {'message'}
-    assert set(posted.get_json()['message'].keys()) == CLIENT_MESSAGE_KEYS
+    assert set(posted.get_json()['message'].keys()) == CLIENT_MESSAGE_KEYS | {'request_id', 'sender_avatar_url'}
 
 
 def test_client_devices_register(app, seed, client):
