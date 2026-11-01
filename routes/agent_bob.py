@@ -19,6 +19,7 @@ from services.ai_service import run_tool_conversation
 from services.bob_tools.registry import action_is_undoable
 from services.bob_tools import BobContext, dispatch, openai_tool_schemas, confirm_action, reject_action, undo_action
 from services.bob_tools.notifications import ActionCollector, flush
+from services.bob_voice import voice_decision
 
 logger = logging.getLogger(__name__)
 
@@ -335,14 +336,8 @@ def action(user, aid):
     if spoken is not None:
         if not row.conversation_id or not isinstance(spoken, str) or len(spoken) > 120:
             return jsonify(error='A short spoken confirmation is required for this conversation.'), 400
-        import re
-        normalized = ' '.join(re.findall(r"[a-z0-9]+", spoken.lower()))
-        phrases = {
-            'approve': {'yes', 'yes please', 'yes go ahead', 'yes approve it', 'yes approve this change', 'approve this change', 'approve it'},
-            'reject': {'no', 'no thank you', 'no cancel it', 'cancel this change', 'cancel it', 'no reject it', 'reject it'},
-        }
-        if normalized not in phrases.get(decision, set()):
-            return jsonify(error='Say yes approve it, or no cancel it, after BOB describes the change.'), 400
+        if voice_decision(spoken) != decision or decision not in ('approve', 'reject'):
+            return jsonify(error='Please confirm whether to apply or cancel the pending change.'), 400
     operation = {'approve': confirm_action, 'reject': reject_action, 'undo': undo_action}.get(decision)
     if operation is None:
         return jsonify(error='Choose approve, reject, or undo.'), 400
@@ -396,8 +391,12 @@ def voice_session(user, cid):
         'Never invent contact details or claim an action succeeded before a backend result. '
         'Ask for clarification when a name, number, date or intended action is unclear. '
         'The app can approve a specific pending action by voice after you describe it. '
-        'Follow the app commentary to read the change and ask its exact approval question. '
-        'Ask the agent to say yes approve it or no cancel it, then delegate their reply to the app. '
+        'Follow the app commentary to read the full change before asking whether to apply it. '
+        'Use the app-provided approval question when it supplies one. '
+        'Accept natural replies such as yes, yeah, sure, go ahead, or please do; do not require a script. '
+        'Delegate the reply to the app to resolve the existing pending action, not create a new one. '
+        'If the app requests clarification, ask briefly without repeating the full change. '
+        'If the app requires review in chat, stop asking for spoken approval. '
         'Never interpret silence, ambiguous speech or the original request as approval. '
         'Never claim approval or execution succeeded until the app returns that result. '
         'An interruption stops your speech, not work already submitted. '
