@@ -226,7 +226,9 @@ def _iso_date(value):
 
 
 def _serialize_contact(contact):
+    from services.profile_photos import contact_avatar_url
     return {
+        'avatar_url': contact_avatar_url(contact),
         'id': contact.id,
         'first_name': contact.first_name,
         'last_name': contact.last_name,
@@ -446,6 +448,13 @@ def delete_session(user):
     return jsonify({'ok': True})
 
 
+@agent_api_bp.route('/me/photo', methods=['POST', 'DELETE'])
+@agent_jwt_required
+def profile_photo(user):
+    from services.profile_photos import change_photo
+    return change_photo(user, 'agent')
+
+
 @agent_api_bp.route('/me', methods=['GET'])
 @agent_jwt_required
 def get_me(user):
@@ -500,6 +509,8 @@ def list_contacts(user):
     pagination = query.order_by(Contact.last_name, Contact.first_name).paginate(
         page=page, per_page=per_page, error_out=False,
     )
+    from services.profile_photos import prime_contact_photos
+    prime_contact_photos(pagination.items)
     return jsonify({
         'contacts': [_serialize_contact(c) for c in pagination.items],
         'page': pagination.page,
@@ -1196,6 +1207,7 @@ def get_document_file(user, transaction_id, doc_id):
 @agent_jwt_required
 @transactions_flag_required
 def list_conversations(user):
+    from services.profile_photos import avatar_url
     txs = transactions_visible_query(user).options(
         joinedload(Transaction.transaction_type),
     ).all()
@@ -1236,6 +1248,7 @@ def list_conversations(user):
             'transaction_id': tx.id,
             'address': tx.street_address,
             'participant_id': participant.id,
+            'avatar_url': avatar_url(participant),
             'name': participant.display_name,
             'role': participant.role,
             'last_preview': last.body if last else None,
@@ -1301,33 +1314,32 @@ def post_conversation_message(user, participant_id):
     tx, participant, error = _conversation_access(user, participant_id)
     if error:
         return error
-    body = (_json_body().get('body') or '').strip()
-    if not body:
+    from services.mobile_messages import create_message
+    data = _json_body()
+    body = data.get('body')
+    if not isinstance(body, str) or not body.strip():
         return _json_error('Write a message before sending.', 400)
-    if len(body) > 4000:
-        body = body[:4000]
-    msg = PortalMessage(
-        organization_id=user.organization_id,
-        transaction_id=tx.id,
-        participant_id=participant.id,
-        sender='agent',
-        kind='message',
-        body=body,
-        author_user_id=user.id,
-    )
-    db.session.add(msg)
-    db.session.commit()
+    body = body.strip()[:4000]
     try:
-        enqueue_portal_push(msg)
-    except Exception:
-        logger.exception('Agent API: failed to enqueue APNs for agent message.')
+        msg, created = create_message(organization_id=user.organization_id,
+            transaction_id=tx.id, participant_id=participant.id, sender='agent',
+            body=body, request_id=data.get('request_id'), author_user_id=user.id)
+    except ValueError as exc:
+        db.session.rollback()
+        return _json_error(str(exc), 409 if 'belongs' in str(exc) else 400)
+    db.session.commit()
+    if created:
+        try:
+            enqueue_portal_push(msg)
+        except Exception:
+            logger.exception('Agent API: failed to enqueue APNs for agent message.')
     access = SimpleNamespace(
         transaction_id=tx.id,
         participant_id=participant.id,
         participant=participant,
     )
-    listed = list_client_messages(access)
-    return jsonify({'message': listed[-1] if listed else None}), 201
+    listed = list_client_messages(access, message_id=msg.id)
+    return jsonify({'message': listed[0]}), 201 if created else 200
 
 
 def _register_desk_extensions():

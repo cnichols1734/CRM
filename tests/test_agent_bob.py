@@ -7,6 +7,12 @@ from routes import agent_bob
 from tests.test_agent_api import _owner_token, _auth
 
 
+@pytest.fixture(autouse=True)
+def offline_title_provider(monkeypatch):
+    from routes import ai_chat
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *args, **kwargs: 'Next steps')
+
+
 class ReceiptStore:
     def __init__(self):
         self.values = {}
@@ -572,3 +578,72 @@ def test_linked_todo_deletion_has_no_undo_in_native_history(app, client, seed):
 def test_natural_voice_decision(spoken, expected):
     from services.bob_voice import voice_decision
     assert voice_decision(spoken) == expected
+
+
+def test_voice_titles_replace_placeholders_and_preserve_named_threads(app, client, seed, monkeypatch, receipts):
+    from routes import ai_chat
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        conv.title = 'Voice conversation context follows. user: What is next?'
+        db.session.commit()
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *a, **k: 'Plan the next showing')
+    route = f'/api/agent/v1/bob/conversations/{cid}/title'
+    assert client.post(route, json={'message': 'Plan my next showing'}).status_code == 401
+    response = client.post(route, json={'message': 'Plan my next showing'}, headers=headers)
+    assert response.status_code == 200
+    assert response.json['title'] == 'Plan the next showing'
+    assert response.json['updated_at']
+    assert response.json['messages'] == []
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *a, **k: 'Should not replace this')
+    assert client.post(route, json={'message': 'Another topic'}, headers=headers).json['title'] == 'Plan the next showing'
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        conv.organization_id = seed['org_b']
+        db.session.commit()
+    assert client.post(route, json={'message': 'Private'}, headers=headers).status_code == 404
+
+
+def test_old_voice_history_projects_title_without_writing(app, client, seed):
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        conv.title = 'Voice conversation context follows. Respond to the latest request only.'
+        db.session.add(ChatMessage(conversation_id=cid, role='user', content='Voice conversation context follows. Instructions.\nuser: Find my overdue client tasks\nassistant: I will check'))
+        db.session.commit()
+        original_date = conv.updated_at
+    listed = client.get('/api/agent/v1/bob/conversations', headers=headers).json['conversations']
+    assert next(row for row in listed if row['id'] == cid)['title'] == 'Find my overdue client tasks'
+    assert client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json['title'] == 'Find my overdue client tasks'
+    with app.app_context():
+        conv = db.session.get(ChatConversation, cid)
+        assert conv.title.startswith('Voice conversation context follows.')
+        assert conv.updated_at == original_date
+
+
+def test_voice_title_generation_is_bounded(client, seed, monkeypatch, receipts):
+    from routes import ai_chat
+    calls = []
+    monkeypatch.setattr(ai_chat, 'generate_response', lambda *a, **k: calls.append(1) or 'Showing plans')
+    headers = _auth(_owner_token(client))
+    for number in range(11):
+        cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+        response = client.post(f'/api/agent/v1/bob/conversations/{cid}/title',
+            json={'message': 'Plan the next showing'}, headers=headers)
+        assert response.status_code == (200 if number < 10 else 429)
+    assert len(calls) == 10
+
+
+def test_failed_title_provider_still_bounds_database_title(client, seed, monkeypatch, receipts):
+    from routes import ai_chat
+    def fail(*args, **kwargs):
+        raise RuntimeError('Provider unavailable')
+    monkeypatch.setattr(ai_chat, 'generate_response', fail)
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    response = client.post(f'/api/agent/v1/bob/conversations/{cid}/title',
+        json={'message': 'x' * 300}, headers=headers)
+    assert response.status_code == 200
+    assert response.json['title'] == 'x' * 100

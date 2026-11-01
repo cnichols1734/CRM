@@ -11,6 +11,7 @@ from routes.agent_api import agent_jwt_required
 from routes.client_discovery import org_context
 from services.client_conversations import assign_client, inquiry_payload
 from services.device_push import enqueue_inquiry_push
+from services.profile_photos import avatar_url
 
 
 def register(bp):
@@ -67,6 +68,7 @@ def inbox(user):
         timestamp = message.created_at if message else row.created_at
         result.append(dict(id=row.id, account_id=account.id, name=account.name, email=account.email,
             kind=row.kind, assigned=row.agent_id is not None, agent_id=row.agent_id,
+            client_avatar_url=avatar_url(account), agent_avatar_url=avatar_url(agent),
             agent_name=f'{agent.first_name} {agent.last_name}'.strip() if agent else None,
             created_at=row.created_at.isoformat() + 'Z', last_at=timestamp.isoformat() + 'Z',
             last_preview=(message.body if message else row.reply or row.body)[:240], messages=[]))

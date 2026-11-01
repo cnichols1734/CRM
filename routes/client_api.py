@@ -162,6 +162,13 @@ def delete_session(access):
     return jsonify({'ok': True})
 
 
+@client_api_bp.route('/profile/photo', methods=['POST', 'DELETE'])
+@client_jwt_required
+def profile_photo(access):
+    from services.profile_photos import change_photo
+    return change_photo(access.participant, 'participant')
+
+
 @client_api_bp.route('/deal', methods=['GET'])
 @client_jwt_required
 def get_deal(access):
@@ -179,39 +186,34 @@ def get_messages(access):
 @client_api_bp.route('/messages', methods=['POST'])
 @client_jwt_required
 def post_message(access):
+    from services.mobile_messages import create_message
     data = request.get_json(silent=True) or {}
-    body = (data.get('body') or request.form.get('body') or '').strip()
-    if not body:
+    if not isinstance(data, dict):
         return _json_error('Write a message before sending.', 400)
-    if len(body) > 4000:
-        body = body[:4000]
-
-    msg = PortalMessage(
-        organization_id=access.organization_id,
-        transaction_id=access.transaction_id,
-        participant_id=access.participant_id,
-        sender='client',
-        kind='message',
-        body=body,
-    )
-    db.session.add(msg)
+    body = data.get('body') or request.form.get('body')
+    if not isinstance(body, str) or not body.strip():
+        return _json_error('Write a message before sending.', 400)
+    body = body.strip()[:4000]
+    try:
+        msg, created = create_message(organization_id=access.organization_id,
+            transaction_id=access.transaction_id, participant_id=access.participant_id,
+            sender='client', body=body, request_id=data.get('request_id'))
+    except ValueError as exc:
+        db.session.rollback()
+        return _json_error(str(exc), 409 if 'belongs' in str(exc) else 400)
     db.session.commit()
-
-    try:
-        from services.device_push import enqueue_portal_push
-        enqueue_portal_push(msg)
-    except Exception:
-        logger.exception('Client API: failed to enqueue APNs for client message.')
-
-    try:
-        from routes.portal import _notify_agent_of_message
-        _notify_agent_of_message(access, body)
-    except Exception:
-        logger.exception('Client API: failed to notify agent of client message.')
-
-    return jsonify({
-        'message': list_client_messages(access)[-1],
-    }), 201
+    if created:
+        try:
+            from services.device_push import enqueue_portal_push
+            enqueue_portal_push(msg)
+        except Exception:
+            logger.exception('Client API: failed to enqueue APNs for client message.')
+        try:
+            from routes.portal import _notify_agent_of_message
+            _notify_agent_of_message(access, body)
+        except Exception:
+            logger.exception('Client API: failed to notify agent of client message.')
+    return jsonify(message=list_client_messages(access, message_id=msg.id)[0]), 201 if created else 200
 
 
 @client_api_bp.route('/milestones', methods=['GET'])

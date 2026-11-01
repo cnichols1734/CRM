@@ -20,11 +20,11 @@ os.environ.setdefault('SECRET_KEY', 'test-secret-key')
 os.environ.setdefault('FLASK_ENV', 'testing')
 os.environ['APP_BASE_URL'] = 'https://agentflow.origentechnolog.com'
 
-# Blank mail secrets BEFORE importing app. app.py calls load_dotenv() with
+# Blank mail and storage secrets BEFORE importing app. app.py calls load_dotenv() with
 # override=False, so an existing empty value stops a local or cloud-agent
-# .env from injecting a real SENDGRID_API_KEY into Config and pytest.
-for _mail_key in ('SENDGRID_API_KEY', 'MAIL_PASSWORD', 'MAIL_USERNAME'):
-    os.environ[_mail_key] = ''
+# .env from injecting mail or storage credentials into Config and pytest.
+for _service_key in ('SENDGRID_API_KEY', 'MAIL_PASSWORD', 'MAIL_USERNAME', 'SUPABASE_URL', 'SUPABASE_KEY'):
+    os.environ[_service_key] = ''
 
 from app import create_app
 from models import (

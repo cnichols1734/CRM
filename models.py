@@ -215,6 +215,7 @@ class PlatformAuditLog(db.Model):
         return f'<PlatformAuditLog {self.action} on org {self.target_org_id}>'
 
 class User(UserMixin, db.Model):
+    avatar_path = db.Column(db.String(500), nullable=True)
     id = db.Column(db.Integer, primary_key=True)
     deletion_identity = db.Column(db.String(32), nullable=True, unique=True, default=lambda: secrets.token_hex(16))
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -1137,6 +1138,7 @@ class TransactionParticipant(db.Model):
     """
     __tablename__ = 'transaction_participants'
     
+    avatar_path = db.Column(db.String(500), nullable=True)
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
@@ -4277,6 +4279,8 @@ class PortalMessage(db.Model):
     """
     __tablename__ = 'portal_messages'
 
+    __table_args__ = (db.UniqueConstraint('participant_id', 'sender', 'request_id', name='uq_portal_message_request'),)
+    request_id = db.Column(db.String(36), nullable=True)
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
                                 ondelete='RESTRICT'), nullable=False, index=True)
@@ -5040,6 +5044,7 @@ class MarketingSuppression(db.Model):
 class ClientBrowseAccount(db.Model):
     __tablename__ = 'client_browse_accounts'
     __table_args__ = (db.UniqueConstraint('organization_id', 'email'),)
+    avatar_path = db.Column(db.String(500), nullable=True)
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
     email = db.Column(db.String(120), nullable=False)

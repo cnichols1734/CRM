@@ -841,3 +841,36 @@ def test_dates_recompute_does_not_500(app, seed, client):
     assert 'milestones' in body['transaction']
     assert 'documents' in body['transaction']
 
+
+
+def test_deal_message_retry_returns_original_without_duplicate_delivery(app, seed, client, monkeypatch):
+    from uuid import uuid4
+    from tests.test_client_portal_api import _open_session
+    from routes import agent_api, portal
+    from services import device_push
+    deliveries = []
+    monkeypatch.setattr(agent_api, 'enqueue_portal_push', lambda msg: deliveries.append(msg.id))
+    monkeypatch.setattr(device_push, 'enqueue_portal_push', lambda msg: deliveries.append(msg.id))
+    monkeypatch.setattr(portal, '_notify_agent_of_message', lambda *args: None)
+    with app.app_context():
+        tx, seller, access = _seller_thread(seed)
+        db.session.commit()
+        participant_id, code = seller.id, access.invite_code
+    routes = [
+        (f'/api/agent/v1/conversations/{participant_id}/messages', _auth(_owner_token(client))),
+        ('/api/client/v1/messages', _auth(_open_session(client, code).json['token'])),
+    ]
+    for route, headers in routes:
+        body = {'body': 'This message should appear once.', 'request_id': str(uuid4())}
+        first = client.post(route, headers=headers, json=body)
+        assert first.status_code == 201
+        identifier = first.json['message']['id']
+        assert first.json['message']['request_id'] == body['request_id']
+        client.post(route, headers=headers, json={'body': 'A later message'})
+        retry = client.post(route, headers=headers, json=body)
+        assert retry.status_code == 200
+        assert retry.json['message']['id'] == identifier
+        assert deliveries.count(identifier) == 1
+        assert client.post(route, headers=headers, json={**body, 'body': 'Different'}).status_code == 409
+        with app.app_context():
+            assert PortalMessage.query.filter_by(participant_id=participant_id, request_id=body['request_id']).count() == 1

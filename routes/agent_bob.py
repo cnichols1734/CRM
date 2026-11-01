@@ -32,6 +32,7 @@ def register(bp):
     bp.add_url_rule('/bob/attachments', 'bob_attachment', upload_attachment, methods=['POST'])
     bp.add_url_rule('/bob/actions/<int:aid>', 'bob_action', action, methods=['POST'])
     bp.add_url_rule('/bob/conversations/<int:cid>/voice', 'bob_voice', voice_session, methods=['POST'])
+    bp.add_url_rule('/bob/conversations/<int:cid>/title', 'bob_title', title_from_speech, methods=['POST'])
 
 
 def bob_required(view):
@@ -65,7 +66,7 @@ def preview_text(value, indent=0):
 
 
 def serialize(conv, user):
-    data = conv.to_dict(include_messages=True)
+    data = conversation_payload(conv, include_messages=True)
     actions = BobAction.query.filter_by(conversation_id=conv.id, user_id=user.id,
                                        organization_id=user.organization_id).order_by(BobAction.id.desc()).limit(30).all()
     data['actions'] = [{**a.to_dict(), 'undoable': action_is_undoable(a),
@@ -82,7 +83,7 @@ def conversations(user):
         db.session.commit()
         return jsonify(serialize(conv, user)), 201
     rows = scope(user).order_by(ChatConversation.updated_at.desc()).limit(100).all()
-    return jsonify(conversations=[c.to_dict() for c in rows])
+    return jsonify(conversations=[conversation_payload(c) for c in rows])
 
 
 @bob_required
@@ -91,6 +92,65 @@ def conversation(user, cid):
     if not conv:
         return jsonify(error='Conversation not found.'), 404
     return jsonify(serialize(conv, user))
+
+
+def needs_title(conv):
+    return (not conv.title or conv.title.strip().lower() in {'voice chat', 'new conversation', 'new chat', 'untitled'}
+            or conv.title.startswith('Voice conversation context follows.'))
+
+
+def conversation_payload(conv, include_messages=False):
+    data = conv.to_dict(include_messages=include_messages)
+    if needs_title(conv):
+        first = conv.messages.filter_by(role='user').order_by(None).order_by(ChatMessage.id).first()
+        if first and first.content:
+            text = first.content
+            if text.startswith('Voice conversation context follows.'):
+                text = text.rsplit('\nuser: ', 1)[-1].split('\nassistant: ', 1)[0] if '\nuser: ' in text else ''
+            if text.strip():
+                data['title'] = ' '.join(text.split()[:8])[:90]
+    return data
+
+
+def name_conversation(conv, message):
+    if needs_title(conv):
+        from routes.ai_chat import _generate_chat_title
+        if message.startswith('Voice conversation context follows.') and '\nuser: ' in message:
+            message = message.rsplit('\nuser: ', 1)[-1].split('\nassistant: ', 1)[0]
+        conv.title = (_generate_chat_title(message) or ' '.join(message.split()[:6]))[:100]
+
+
+@bob_required
+def title_from_speech(user, cid):
+    conv = scope(user).filter_by(id=cid).first()
+    if conv is None:
+        return jsonify(error='Conversation not found.'), 404
+    body = request.get_json(silent=True)
+    text = body.get('message') if isinstance(body, dict) else None
+    if not isinstance(text, str) or not text.strip() or len(text) > 12000:
+        return jsonify(error='A spoken message of up to 12,000 characters is required.'), 400
+    if needs_title(conv):
+        from routes.ai_chat import check_rate_limit
+        allowed, _, daily_limit = check_rate_limit()
+        if not allowed:
+            return jsonify(error='Your daily BOB usage limit has been reached.'), 429
+        try:
+            store = receipt_store()
+            now = datetime.now(timezone.utc)
+            for period, cap, ttl in ((now.strftime('%Y%m%d%H%M'), 10, 120),
+                                     (now.strftime('%Y%m%d'), daily_limit or 1000, 86400)):
+                key = f'bob:voice-title:{user.organization_id}:{user.id}:{period}'
+                used = store.incr(key)
+                store.expire(key, ttl)
+                if used > cap:
+                    return jsonify(error='Please wait before naming another voice conversation.'), 429
+        except Exception:
+            return jsonify(error='Voice chat naming is temporarily unavailable.'), 503
+    name_conversation(conv, text.strip())
+    conv.updated_at = datetime.utcnow()
+    result = serialize(conv, user)
+    db.session.commit()
+    return jsonify(result)
 
 
 def receipt_store():
@@ -274,7 +334,7 @@ def message(user, cid):
             saved.file_size = resolved.meta.size
             saved.file_storage_path = resolved.meta.storage_path
         db.session.add(saved)
-        conv.title = conv.title or text[:90]
+        name_conversation(conv, text)
         conv.updated_at = datetime.utcnow()
         db.session.commit()
         entity = hydrate_page_entity('transaction', conv.transaction_id) if conv.transaction_id else None
