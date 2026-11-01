@@ -89,3 +89,40 @@ def test_agent_todos_require_bearer_and_preserve_other_users(client, owner_a_cli
     assert client.put(url, headers=headers, json={'revision': initial['revision'], 'items': []}).status_code == 200
     assert agent_a_client.get('/api/user_todos/get').json['active'] == ['Same org']
     assert owner_b_client.get('/api/user_todos/get').json['active'] == ['Other org']
+
+
+def test_details_survive_old_app_and_web_edits(client, owner_a_client, restore_todos):
+    import json
+    token = client.post('/api/agent/v1/session', json={'email': 'owner_a@test.com', 'password': 'password123'}).json['token']
+    headers = {'Authorization': f'Bearer {token}'}
+    url = '/api/agent/v1/todos'
+    original = client.get(url, headers=headers).json
+    original['items'] = [{'id': '12e74756-d158-4fde-b77c-a51cfdc98f50', 'text': 'Plan open house', 'completed': False, 'details': {
+        'description': 'Bring the signs', 'due_date': '2026-11-08', 'priority': 2,
+        'subtodos': [{'id': 'd1472301-45b1-48cb-807f-65905fa660d8', 'text': 'Print flyers', 'completed': False}],
+        'comments': [{'id': '7cfaebae-88dd-4ea4-851a-09bcb826b107', 'text': 'Key is ready', 'created_at': 'forged'}]
+    }}]
+    saved = client.put(url, headers=headers, json=original)
+    assert saved.status_code == 200
+    item = saved.json['items'][0]
+    assert item['id'] == original['items'][0]['id'], 'New client IDs must survive save for queued edits'
+    details = item['details']
+    assert details['comments'][0]['created_at'] != 'forged'
+    assert details['subtodos'][0]['text'] == 'Print flyers'
+    legacy = {'revision': saved.json['revision'], 'items': [{key: item[key] for key in ('id', 'text', 'completed')}]}
+    legacy['items'][0]['completed'] = True
+    assert client.put(url, headers=headers, json=legacy).status_code == 200
+    assert client.get(url, headers=headers).json['items'][0]['details'] == details
+    web = owner_a_client.get('/api/user_todos/get?include_ids=1')
+    todo_id = web.json['identities']['completed'][0]
+    response = owner_a_client.post('/api/user_todos/save', json={
+        'active': [], 'completed': ['Open house plan'], 'revision': web.headers['X-Todo-Revision'],
+        'identities': {'active': [], 'completed': [todo_id]}})
+    assert response.status_code == 200
+    updated = client.get(url, headers=headers).json
+    assert updated['items'][0]['text'] == 'Open house plan'
+    assert updated['items'][0]['details'] == details
+    invalid = dict(updated)
+    invalid['items'][0]['details']['subtodos'] *= 2
+    assert client.put(url, headers=headers, json=invalid).status_code == 400
+    assert client.get(url, headers=headers).json['items'][0]['details'] == details

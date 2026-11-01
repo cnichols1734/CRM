@@ -759,6 +759,8 @@ class UserTodo(db.Model):
     text = db.Column(db.String(500), nullable=False)
     completed = db.Column(db.Boolean, default=False, nullable=False)
     order = db.Column(db.Integer, nullable=False, default=0)
+    client_id = db.Column(db.String(36), nullable=True)
+    details = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

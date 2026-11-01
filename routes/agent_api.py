@@ -1357,7 +1357,7 @@ agent_account.register(agent_api_bp)
 @agent_api_bp.route('/todos', methods=['GET', 'PUT'])
 @agent_jwt_required
 def personal_todos(user):
-    from services.personal_todos import lock_owner, rows_for, snapshot, valid_text
+    from services.personal_todos import lock_owner, rows_for, snapshot, valid_text, validate_details
     from models import UserTodo
     from uuid import UUID
 
@@ -1378,19 +1378,29 @@ def personal_todos(user):
     rows = rows_for(user)
     if data.get('revision') != snapshot(rows)['revision']:
         return _json_error('Your todos changed elsewhere. Refresh and try again.', 409)
-    existing = {str(row.id): row for row in rows}
+    existing = {row.client_id or str(row.id): row for row in rows}
     for item in items:
         if item['id'] not in existing:
             try:
                 UUID(item['id'])
             except ValueError:
                 return _json_error('That todo is no longer available. Refresh and try again.', 409)
+    details_by_id = {}
+    try:
+        for item in items:
+            if 'details' in item:
+                previous = existing.get(item['id'])
+                details_by_id[item['id']] = validate_details(item['details'], previous.details if previous else None)
+    except ValueError as error:
+        return _json_error(str(error), 400)
     positions = {False: 0, True: 0}
     for item in items:
         row = existing.pop(item['id'], None)
         if row is None:
-            row = UserTodo(user_id=user.id, organization_id=user.organization_id)
+            row = UserTodo(user_id=user.id, organization_id=user.organization_id, client_id=item['id'])
             db.session.add(row)
+        if item['id'] in details_by_id:
+            row.details = details_by_id[item['id']]
         row.text = item['text'].strip()
         row.completed = item['completed']
         row.order = positions[row.completed]

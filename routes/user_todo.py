@@ -17,10 +17,16 @@ def get_todos():
     """Get all todos for the current user."""
     from services.personal_todos import snapshot, rows_for
     rows = rows_for(current_user)
-    response = jsonify({
+    payload = {
         'active': [todo.text for todo in rows if not todo.completed],
         'completed': [todo.text for todo in rows if todo.completed]
-    })
+    }
+    if request.args.get('include_ids') == '1':
+        payload['identities'] = {
+            'active': [row.client_id or str(row.id) for row in rows if not row.completed],
+            'completed': [row.client_id or str(row.id) for row in rows if row.completed]
+        }
+    response = jsonify(payload)
     response.headers['X-Todo-Revision'] = snapshot(rows)['revision']
     return response
 
@@ -41,7 +47,10 @@ def save_todos():
     revision = snapshot(rows_for(current_user))['revision']
     if 'revision' in data and data['revision'] != revision:
         return jsonify(error='Your todos changed elsewhere. Refresh and try again.'), 409
-    replace_web(current_user, active, completed)
+    try:
+        replace_web(current_user, active, completed, data.get('identities'))
+    except ValueError as error:
+        return jsonify(error=str(error)), 409
     revision = snapshot(rows_for(current_user))['revision']
     db.session.commit()
     response = jsonify(status='success')
