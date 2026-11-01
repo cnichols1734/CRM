@@ -1382,6 +1382,8 @@ def personal_todos(user):
     for item in items:
         if item['id'] not in existing:
             try:
+                if len(item['id']) > 36:
+                    raise ValueError()
                 UUID(item['id'])
             except ValueError:
                 return _json_error('That todo is no longer available. Refresh and try again.', 409)

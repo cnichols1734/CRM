@@ -150,3 +150,26 @@ def test_web_duplicate_titles_keep_their_own_details(client, owner_a_client, res
     payload['identities']['active'] = [ids[0], '99999999']
     assert owner_a_client.post('/api/user_todos/save', json=payload).status_code == 409
     assert client.get(url, headers=headers).json['items'] == items
+
+
+def test_legacy_duplicate_rename_and_overlong_ids_are_rejected(client, owner_a_client, restore_todos):
+    token = client.post('/api/agent/v1/session', json={'email': 'owner_a@test.com', 'password': 'password123'}).json['token']
+    headers = {'Authorization': f'Bearer {token}'}
+    url = '/api/agent/v1/todos'
+    snapshot = client.get(url, headers=headers).json
+    ids = ['70653d7c-40ed-4071-9dbe-926b78750cd2', '05b7304f-d252-438f-bb15-af3e3fa38acd']
+    snapshot['items'] = [
+        {'id': ids[0], 'text': 'Same title', 'completed': False},
+        {'id': ids[1], 'text': 'Same title', 'completed': False, 'details': {'description': 'Private note'}}
+    ]
+    assert client.put(url, headers=headers, json=snapshot).status_code == 200
+    saved = client.get(url, headers=headers).json
+    assert owner_a_client.post('/api/user_todos/save', json={
+        'active': ['Same title', 'Renamed detailed item'], 'completed': [], 'revision': saved['revision']}).status_code == 409
+    assert client.get(url, headers=headers).json == saved
+    for invalid_id in ['{' + ids[0] + '}', 'urn:uuid:' + ids[0]]:
+        invalid = {'items': [{'id': invalid_id, 'text': 'No', 'completed': False}], 'revision': saved['revision']}
+        assert client.put(url, headers=headers, json=invalid).status_code == 409
+        assert owner_a_client.post('/api/user_todos/save', json={
+            'active': ['No'], 'completed': [], 'identities': {'active': [invalid_id], 'completed': []}, 'revision': saved['revision']}).status_code == 409
+        assert client.get(url, headers=headers).json == saved

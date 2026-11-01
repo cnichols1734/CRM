@@ -160,3 +160,32 @@ def test_migration_preserves_legacy_history_and_enforces_cascades():
         assert conn.execute(sa.text('SELECT author_user_id FROM client_inquiry_messages')).scalar() is None
         conn.execute(sa.text('DELETE FROM client_browse_accounts WHERE id=1'))
         assert conn.execute(sa.text('SELECT count(*) FROM client_inquiry_messages')).scalar() == 0
+
+
+def test_reassignment_keeps_personal_todo_details_with_original_agent(app, client, agent_a_client, owner_a_client, seed):
+    aid, iid, _ = create(client)
+    path = f'/messages?thread=inquiry-{iid}'
+    agent_a_client.get(path)
+    assert agent_a_client.post(path, data={'action': 'claim', 'csrf_token': _csrf(agent_a_client)}).status_code == 302
+    with app.app_context():
+        row = db.session.get(ClientBrowseInquiry, iid)
+        original_id = row.followup_todo_id
+        original = db.session.get(UserTodo, original_id)
+        original.text = 'My private follow-up title'
+        original.details = {'description': 'Private planning notes', 'comments': [{'id': str(uuid.uuid4()), 'text': 'Private comment', 'created_at': '2026-11-01T12:00:00Z'}]}
+        db.session.commit()
+    owner_a_client.get(path)
+    assert owner_a_client.post(path, data={'action': 'assign', 'expected_agent': seed['agent_a'], 'agent_id': seed['owner_a'], 'csrf_token': _csrf(owner_a_client)}).status_code == 302
+    with app.app_context():
+        original = db.session.get(UserTodo, original_id)
+        assert original.user_id == seed['agent_a'] and original.details['description'] == 'Private planning notes'
+        replacement_id = db.session.get(ClientBrowseInquiry, iid).followup_todo_id
+        replacement = db.session.get(UserTodo, replacement_id)
+        assert replacement_id != original_id and replacement.user_id == seed['owner_a']
+        assert replacement.details is None and 'private' not in replacement.text
+        replacement.details = {'description': 'New owner notes'}
+        db.session.commit()
+    assert owner_a_client.post(path, data={'action': 'assign', 'expected_agent': seed['owner_a'], 'agent_id': '', 'csrf_token': _csrf(owner_a_client)}).status_code == 302
+    with app.app_context():
+        assert db.session.get(UserTodo, replacement_id).details['description'] == 'New owner notes'
+        assert db.session.get(UserTodo, original_id).user_id == seed['agent_a']

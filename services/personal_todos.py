@@ -38,6 +38,8 @@ def replace_web(user, active, completed, identities=None):
                     raise ValueError('Refresh your to-do list and try again.')
                 if identity not in existing:
                     try:
+                        if len(identity) > 36:
+                            raise ValueError()
                         UUID(identity)
                     except ValueError:
                         raise ValueError('That to-do changed. Refresh and try again.')
@@ -56,21 +58,24 @@ def replace_web(user, active, completed, identities=None):
 
     # Keep row identity, including references from follow-ups, when web users reorder.
     old_rows = rows_for(user)
-    old_texts = {row.text for row in old_rows}
-    new_texts = set(active + completed)
-    if new_texts - old_texts and any(row.details and row.text not in new_texts for row in old_rows):
-        raise ValueError('Reload this page before renaming a to-do with details.')
     available = defaultdict(deque)
     for row in old_rows:
         available[row.text].append(row)
+    plan = []
     for done, values in ((False, active), (True, completed)):
         for order, value in enumerate(values):
-            row = available[value].popleft() if available[value] else UserTodo(user_id=user.id, organization_id=user.organization_id)
-            row.text, row.completed, row.order = value, done, order
-            db.session.add(row)
-    for remaining in available.values():
-        for row in remaining:
-            db.session.delete(row)
+            row = available[value].popleft() if available[value] else None
+            plan.append((row, value, done, order))
+    removed = [row for remaining in available.values() for row in remaining]
+    if any(row is None for row, _, _, _ in plan) and any(row.details for row in removed):
+        raise ValueError('Reload this page before renaming a to-do with details.')
+    for row, value, done, order in plan:
+        if row is None:
+            row = UserTodo(user_id=user.id, organization_id=user.organization_id)
+        row.text, row.completed, row.order = value, done, order
+        db.session.add(row)
+    for row in removed:
+        db.session.delete(row)
     db.session.flush()
 
 
