@@ -20,6 +20,7 @@ class TodoManager {
         this.todos = [];
         this.completedTodos = [];
         this.revision = null;
+        this.identities = { active: [], completed: [] };
         this.saveQueue = Promise.resolve();
         
         // Cache DOM elements
@@ -66,11 +67,12 @@ class TodoManager {
      */
     async loadTodos() {
         try {
-            const response = await fetch('/api/user_todos/get');
+            const response = await fetch('/api/user_todos/get?include_ids=1');
             if (!response.ok) throw new Error('Could not load todos');
             const data = await response.json();
             this.revision = response.headers.get('X-Todo-Revision');
-            
+            this.identities = data.identities || { active: [], completed: [] };
+
             this.todos = data.active || [];
             this.completedTodos = data.completed || [];
             
@@ -93,6 +95,7 @@ class TodoManager {
     async saveTodos() {
         const active = [...this.todos];
         const completed = [...this.completedTodos];
+        const identities = { active: [...this.identities.active], completed: [...this.identities.completed] };
         const generation = this.loadGeneration || 0;
         this.saveQueue = this.saveQueue.then(async () => {
             if (generation !== (this.loadGeneration || 0)) return;
@@ -101,7 +104,7 @@ class TodoManager {
                 const response = await fetch('/api/user_todos/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ active, completed, revision: this.revision })
+                    body: JSON.stringify({ active, completed, identities, revision: this.revision })
                 });
                 if (!response.ok) throw new Error(response.status === 409
                     ? 'Your todos changed elsewhere. The latest list has been loaded. Please try your change again.'
@@ -121,13 +124,14 @@ class TodoManager {
      * Sync todos from DOM (useful after drag-drop reordering)
      */
     syncFromDOM() {
-        this.todos = [];
-        this.completedTodos = [];
+        if (this.activeList) { this.todos = []; this.identities.active = []; }
+        if (this.completedList) { this.completedTodos = []; this.identities.completed = []; }
 
         if (this.activeList) {
             this.activeList.querySelectorAll('.todo-text').forEach(el => {
                 if (!el.closest('.empty-state') && !el.closest('.text-center')) {
                     this.todos.push(el.textContent);
+                    this.identities.active.push(el.closest('.todo-item').dataset.todoId);
                 }
             });
         }
@@ -136,6 +140,7 @@ class TodoManager {
             this.completedList.querySelectorAll('.todo-text').forEach(el => {
                 if (!el.closest('.empty-state') && !el.closest('.text-center')) {
                     this.completedTodos.push(el.textContent);
+                    this.identities.completed.push(el.closest('.todo-item').dataset.todoId);
                 }
             });
         }
@@ -153,11 +158,13 @@ class TodoManager {
         if (!text) return;
 
         this.todos.push(text);
+        const identity = crypto.randomUUID();
+        this.identities.active.push(identity);
         this.input.value = '';
         
         // Add to DOM
         if (this.activeList) {
-            const element = this.createTodoElement(text, false);
+            const element = this.createTodoElement(text, false, identity);
             this.activeList.appendChild(element);
         }
         
@@ -173,6 +180,7 @@ class TodoManager {
     completeTodo(index) {
         const completedTodo = this.todos.splice(index, 1)[0];
         this.completedTodos.push(completedTodo);
+        this.identities.completed.push(this.identities.active.splice(index, 1)[0]);
         this.saveTodos();
         this.updateCounts();
         this.updateEmptyStates();
@@ -185,6 +193,7 @@ class TodoManager {
     uncompleteTodo(index) {
         const todo = this.completedTodos.splice(index, 1)[0];
         this.todos.push(todo);
+        this.identities.active.push(this.identities.completed.splice(index, 1)[0]);
         this.saveTodos();
         this.updateCounts();
         this.updateEmptyStates();
@@ -198,8 +207,10 @@ class TodoManager {
     deleteTodo(index, isCompleted = false) {
         if (isCompleted) {
             this.completedTodos.splice(index, 1);
+            this.identities.completed.splice(index, 1);
         } else {
             this.todos.splice(index, 1);
+            this.identities.active.splice(index, 1);
         }
         this.saveTodos();
         this.updateCounts();
@@ -229,7 +240,7 @@ class TodoManager {
      * @param {boolean} [completed=false] - Whether this is a completed todo
      * @returns {HTMLElement} The created todo element
      */
-    createTodoElement(text, completed = false) {
+    createTodoElement(text, completed = false, identity = crypto.randomUUID()) {
         if (!this.template) {
             console.error('Todo item template not found');
             return document.createElement('li');
@@ -242,6 +253,8 @@ class TodoManager {
         const editInput = clone.querySelector('.todo-edit-input');
         const checkbox = clone.querySelector('.todo-checkbox');
         const deleteBtn = clone.querySelector('.delete-todo');
+
+        todoItem.dataset.todoId = identity;
 
         // Set content
         todoText.textContent = text;
@@ -345,10 +358,11 @@ class TodoManager {
                         this.saveTodos();
                     } else {
                         const todoText = todoItem.querySelector('.todo-text').textContent;
-                        const activeIndex = this.todos.indexOf(todoText);
+                        const activeIndex = this.identities.active.indexOf(todoItem.dataset.todoId);
                         if (activeIndex !== -1) {
                             this.todos.splice(activeIndex, 1);
                             this.completedTodos.push(todoText);
+                            this.identities.completed.push(this.identities.active.splice(activeIndex, 1)[0]);
                         }
                         todoItem.remove();
                         this.saveTodos();
@@ -444,16 +458,18 @@ class TodoManager {
     render() {
         if (this.activeList) {
             this.activeList.innerHTML = '';
-            this.todos.forEach((text) => {
+            this.todos.forEach((text, index) => {
                 const element = this.createTodoElement(text, false);
+                if (this.identities.active[index]) element.dataset.todoId = this.identities.active[index];
                 this.activeList.appendChild(element);
             });
         }
 
         if (this.completedList) {
             this.completedList.innerHTML = '';
-            this.completedTodos.forEach((text) => {
+            this.completedTodos.forEach((text, index) => {
                 const element = this.createTodoElement(text, true);
+                if (this.identities.completed[index]) element.dataset.todoId = this.identities.completed[index];
                 this.completedList.appendChild(element);
             });
         }

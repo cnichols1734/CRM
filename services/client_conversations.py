@@ -71,8 +71,16 @@ def record_inquiry(inquiry, account, contact):
         inquiry.crm_recorded_at = datetime.utcnow()
     todo = UserTodo.query.filter_by(id=inquiry.followup_todo_id, organization_id=inquiry.organization_id).first() if inquiry.followup_todo_id else None
     if todo:
-        if not todo.completed:
-            todo.user_id = inquiry.agent_id
+        if not todo.completed and todo.user_id != inquiry.agent_id:
+            if todo.details:
+                # Personal notes stay with their author when client work moves.
+                replacement = UserTodo(organization_id=inquiry.organization_id, user_id=inquiry.agent_id,
+                    text=f'Follow up with {account.name}: {inquiry.kind} inquiry from AgentFlow. Contact #{contact.id}.'[:500])
+                db.session.add(replacement)
+                db.session.flush()
+                inquiry.followup_todo_id = replacement.id
+            else:
+                todo.user_id = inquiry.agent_id
     elif first_record:
         todo = UserTodo(organization_id=inquiry.organization_id, user_id=inquiry.agent_id,
             text=f'Follow up with {account.name}: {inquiry.kind} inquiry from AgentFlow. Contact #{contact.id}.'[:500])
@@ -85,6 +93,15 @@ def assign_client(account, org, agent, actor):
     """Caller holds the account lock, also used by inquiry creation and claims."""
     previous = account.agent_id
     rows = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account.id).order_by(ClientBrowseInquiry.id).all()
+    todo_ids = [row.followup_todo_id for row in rows if row.followup_todo_id]
+    owner_ids = {owner_id for (owner_id,) in db.session.query(UserTodo.user_id).filter(
+        UserTodo.organization_id == org.id, UserTodo.id.in_(todo_ids)).all()}
+    if actor:
+        owner_ids.add(actor.id)
+    if agent:
+        owner_ids.add(agent.id)
+    # Use the same owner locks as mobile/web saves before reading private details.
+    db.session.query(User.id).filter(User.organization_id == org.id, User.id.in_(owner_ids)).order_by(User.id).with_for_update().all()
     contact = None
     if agent and rows:
         phone = next((r.phone for r in reversed(rows) if r.phone), '')
@@ -98,7 +115,8 @@ def assign_client(account, org, agent, actor):
             todo = UserTodo.query.filter_by(id=row.followup_todo_id, organization_id=org.id, completed=False).first()
             if todo:
                 row.followup_todo_id = None
-                db.session.delete(todo)
+                if not todo.details:
+                    db.session.delete(todo)
     db.session.add(AuditEvent(organization_id=org.id, actor_id=actor.id if actor else None,
         event_type='client_inquiry_assignment', description='Changed app client inbox assignment.',
         event_data={'account_id': account.id, 'from_agent_id': previous, 'to_agent_id': account.agent_id}))
