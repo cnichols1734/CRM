@@ -4,7 +4,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from models import db, User, ClientBrowseAccount, Organization
+from models import db, ClientBrowseAccount, Organization
 from services import supabase_storage
 from tests.test_agent_api import _auth, _owner_token, _seller_thread
 from tests.test_client_discovery import signup, auth, BASE
@@ -79,6 +79,22 @@ def test_browse_and_deal_photos_have_separate_ownership(app, client, seed, photo
         assert uploaded.status_code == 200
         url = uploaded.json['avatar_url']
         assert client.get(BASE + '/account', headers=headers).json['account']['avatar_url'] == url
+        from models import ClientBrowseInquiry
+        from uuid import uuid4
+        with app.app_context():
+            browser = db.session.get(ClientBrowseAccount, account.json['account']['id'])
+            browser.contact_id = seed['contact_a']
+            browser.owns_contact = True
+            inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=browser.id,
+                agent_id=seed['owner_a'], request_id=str(uuid4()), kind='question', body='A private question')
+            db.session.add(inquiry)
+            db.session.commit()
+            inquiry_id = inquiry.id
+        agent_headers = _auth(_owner_token(client))
+        thread = client.get(f'/api/agent/v1/inquiries/{inquiry_id}', headers=agent_headers).json['inquiry']
+        assert thread['client_avatar_url'] == url
+        assert thread['messages'][0]['sender_avatar_url'] == url
+        assert client.get(f'/api/agent/v1/contacts/{seed["contact_a"]}', headers=agent_headers).json['contact']['avatar_url'] == url
         stranger = auth(signup(client))
         assert client.get(BASE + '/account', headers=stranger).json['account']['avatar_url'] is None
         assert client.post('/api/client/v1/profile/photo', headers=headers, data=photo()).status_code == 401
@@ -120,3 +136,17 @@ def test_photo_removal_purges_replaced_objects_without_touching_other_identity(a
     photo_storage[other] = b'other'
     assert client.delete('/api/agent/v1/me/photo', headers=headers).status_code == 200
     assert set(photo_storage) == {other}
+
+
+def test_failed_signing_preserves_existing_photo(app, client, seed, photo_storage, monkeypatch):
+    headers = _auth(_owner_token(client))
+    route = '/api/agent/v1/me/photo'
+    original = client.post(route, headers=headers, data=photo()).json['avatar_url']
+    stored_paths = set(photo_storage)
+    def fail_sign(*args, **kwargs):
+        raise RuntimeError('Signing unavailable')
+    monkeypatch.setattr(supabase_storage, 'get_signed_url', fail_sign)
+    assert client.post(route, headers=headers, data=photo()).status_code == 503
+    assert set(photo_storage) == stored_paths
+    assert client.get('/api/agent/v1/me', headers=headers).json['user']['avatar_url'] == original
+    client.delete(route, headers=headers)

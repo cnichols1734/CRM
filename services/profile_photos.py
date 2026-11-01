@@ -107,6 +107,8 @@ def change_photo(identity, kind):
             storage.upload_file(BUCKET, path, data, 'profile.jpg', 'image/jpeg')
         identity.avatar_path = path
         result_url = avatar_url(identity)
+        if path and result_url is None:
+            raise RuntimeError('The uploaded photo could not be signed')
         db.session.commit()
     except Exception:
         db.session.rollback()
