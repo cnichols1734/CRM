@@ -851,7 +851,12 @@ def delete_transaction(user, transaction_id):
     if error:
         return error
     from services.transaction_helpers import purge_transaction_dependent_rows
-    purge_transaction_dependent_rows(tx.id)
+    from services.mobile_attachments import AttachmentError
+    try:
+        purge_transaction_dependent_rows(tx.id)
+    except AttachmentError as exc:
+        db.session.rollback()
+        return _json_error(str(exc), exc.status)
     db.session.delete(tx)
     db.session.commit()
     return jsonify({'ok': True})
@@ -1251,7 +1256,7 @@ def list_conversations(user):
             'avatar_url': avatar_url(participant),
             'name': participant.display_name,
             'role': participant.role,
-            'last_preview': last.body if last else None,
+            'last_preview': (last.body or 'Attachment') if last else None,
             'last_at': last.created_at.isoformat() if last and last.created_at else None,
             'unread': unread_by_participant.get(participant.id, 0),
         })
@@ -1315,18 +1320,24 @@ def post_conversation_message(user, participant_id):
     if error:
         return error
     from services.mobile_messages import create_message
+    from services.mobile_attachments import attachment_ids, AttachmentError
     data = _json_body()
     body = data.get('body')
-    if not isinstance(body, str) or not body.strip():
+    body = body or ''
+    try:
+        ids = attachment_ids(data)
+    except AttachmentError as exc:
+        return _json_error(str(exc), exc.status)
+    if not isinstance(body, str) or (not body.strip() and not ids):
         return _json_error('Write a message before sending.', 400)
     body = body.strip()[:4000]
     try:
         msg, created = create_message(organization_id=user.organization_id,
             transaction_id=tx.id, participant_id=participant.id, sender='agent',
-            body=body, request_id=data.get('request_id'), author_user_id=user.id)
+            body=body, request_id=data.get('request_id'), author_user_id=user.id, attachment_ids=ids)
     except ValueError as exc:
         db.session.rollback()
-        return _json_error(str(exc), 409 if 'belongs' in str(exc) else 400)
+        return _json_error(str(exc), getattr(exc, 'status', 409 if 'belongs' in str(exc) else 400))
     db.session.commit()
     if created:
         try:
@@ -1430,3 +1441,7 @@ def personal_todos(user):
     result = snapshot(rows_for(user))
     db.session.commit()
     return jsonify(result)
+
+
+from routes.mobile_attachments import register_agent as register_message_attachments
+register_message_attachments(agent_api_bp)

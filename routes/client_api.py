@@ -187,20 +187,26 @@ def get_messages(access):
 @client_jwt_required
 def post_message(access):
     from services.mobile_messages import create_message
+    from services.mobile_attachments import attachment_ids, AttachmentError
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
         return _json_error('Write a message before sending.', 400)
     body = data.get('body') or request.form.get('body')
-    if not isinstance(body, str) or not body.strip():
+    body = body or ''
+    try:
+        ids = attachment_ids(data)
+    except AttachmentError as exc:
+        return _json_error(str(exc), exc.status)
+    if not isinstance(body, str) or (not body.strip() and not ids):
         return _json_error('Write a message before sending.', 400)
     body = body.strip()[:4000]
     try:
         msg, created = create_message(organization_id=access.organization_id,
             transaction_id=access.transaction_id, participant_id=access.participant_id,
-            sender='client', body=body, request_id=data.get('request_id'))
+            sender='client', body=body, request_id=data.get('request_id'), attachment_ids=ids)
     except ValueError as exc:
         db.session.rollback()
-        return _json_error(str(exc), 409 if 'belongs' in str(exc) else 400)
+        return _json_error(str(exc), getattr(exc, 'status', 409 if 'belongs' in str(exc) else 400))
     db.session.commit()
     if created:
         try:
@@ -210,7 +216,7 @@ def post_message(access):
             logger.exception('Client API: failed to enqueue APNs for client message.')
         try:
             from routes.portal import _notify_agent_of_message
-            _notify_agent_of_message(access, body)
+            _notify_agent_of_message(access, body or 'Sent an attachment.')
         except Exception:
             logger.exception('Client API: failed to notify agent of client message.')
     return jsonify(message=list_client_messages(access, message_id=msg.id)[0]), 201 if created else 200
@@ -390,3 +396,7 @@ def calendar_feed(token):
         'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer',
         'X-Content-Type-Options': 'nosniff',
     })
+
+
+from routes.mobile_attachments import register_client as register_message_attachments
+register_message_attachments(client_api_bp)

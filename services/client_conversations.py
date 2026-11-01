@@ -15,17 +15,28 @@ def agent_name(agent):
     return f'{agent.first_name} {agent.last_name}'.strip() if agent else None
 
 
+def prime_inquiry_attachments(inquiries):
+    from services.mobile_attachments import message_attachments
+    for org_id in {row.organization_id for row in inquiries}:
+        rows = [row for row in inquiries if row.organization_id == org_id]
+        message_attachments(org_id, 'initial', [row.id for row in rows])
+        message_attachments(org_id, 'inquiry', [message.id for row in rows for message in row.messages])
+
+
 def events(inquiry):
+    from services.mobile_attachments import message_attachments
+    initial = message_attachments(inquiry.organization_id, 'initial', [inquiry.id])
+    attachments = message_attachments(inquiry.organization_id, 'inquiry', [m.id for m in inquiry.messages])
     result = [dict(id=f'initial-{inquiry.id}', sender='client', body=inquiry.body,
-                   created_at=inquiry.created_at, author_name=None, request_id=inquiry.request_id)]
+                   created_at=inquiry.created_at, author_name=None, request_id=inquiry.request_id, attachments=initial[inquiry.id])]
     # Keep old replies without inventing a send time that was never recorded.
     if inquiry.reply:
         result.append(dict(id=f'legacy-{inquiry.id}', sender='agent', body=inquiry.reply,
-                           created_at=None, author_name=None))
+                           created_at=None, author_name=None, attachments=[]))
     for message in inquiry.messages:
         result.append(dict(id=f'message-{message.id}', sender=message.sender, body=message.body,
                            created_at=message.created_at, author_name=agent_name(message.author),
-                           request_id=message.request_id, sender_avatar_url=avatar_url(message.author)))
+                           request_id=message.request_id, sender_avatar_url=avatar_url(message.author), attachments=attachments.get(message.id, [])))
     return result
 
 

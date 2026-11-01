@@ -52,6 +52,11 @@ def run_retention_analytics():
     with app.app_context():
         changed = classify_customer_retention_stages()
         print(f'Retention analytics: {changed} stage transition(s)')
+        from models import db
+        from jobs.mobile_attachment_cleanup import cleanup_staged_attachments
+        db.session.remove()
+        removed = cleanup_staged_attachments()
+        print(f'Message attachments: removed {removed} expired upload(s)')
 
 
 if __name__ == '__main__':

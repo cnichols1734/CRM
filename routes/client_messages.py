@@ -95,7 +95,7 @@ def _threads():
                          email=account.email, subject=(f"{snapshot['street']}, {snapshot.get('city', '')} · Repliers sample" if snapshot.get('street') else f'Sample home {inquiry.listing_id}'
                          if inquiry.listing_id else 'General inquiry'),
                          label='Showing request' if inquiry.kind == 'showing' else 'Home inquiry',
-                         preview=last_body if last_body is not None else inquiry.reply or inquiry.body,
+                         preview=(last_body if last_body is not None else inquiry.reply or inquiry.body) or 'Attachment',
                          at=last_at or inquiry.created_at, last_sender=sender,
                          attention=sender == 'client', row=inquiry, account=account,
                          agent_name=agent_name(assigned), unassigned=inquiry.agent_id is None,
@@ -127,7 +127,7 @@ def _threads():
         for participant, tx, last, unread in conversations:
             rows.append(dict(key=f'deal-{participant.id}', kind='deal', name=participant.display_name,
                              email=participant.display_email or '', subject=tx.street_address or 'Transaction',
-                             label='Transaction', preview=last.body if last else 'Start a conversation',
+                             label='Transaction', preview=(last.body or 'Attachment') if last else 'Start a conversation',
                              at=last.created_at if last else None, attention=bool(unread),
                              last_sender=last.sender if last else None,
                              row=participant, transaction=tx))
@@ -148,6 +148,13 @@ def _messages(selected, mark_read=False):
     if not selected:
         return []
     org_id = current_user.organization_id
+    from services.mobile_attachments import message_attachments
+    def web_files(kind, ids):
+        grouped = message_attachments(org_id, kind, ids)
+        for values in grouped.values():
+            for value in values:
+                value['url'] = url_for('client_messages.attachment_file', identifier=value['id'])
+        return grouped
     if selected['kind'] == 'inquiry':
         inquiry = selected['row']
         messages = [dict(id=f'initial-{inquiry.id}', sender='client', body=inquiry.body,
@@ -159,10 +166,18 @@ def _messages(selected, mark_read=False):
             inquiry_id=inquiry.id).options(joinedload(ClientInquiryMessage.author)).order_by(ClientInquiryMessage.id).all()
         messages.extend(dict(id=f'message-{message.id}', sender=message.sender, body=message.body,
                              created_at=message.created_at, author_name=agent_name(message.author)) for message in replies)
+        initial_files = web_files('initial', [inquiry.id])
+        reply_files = web_files('inquiry', [message.id for message in replies])
+        for message in messages:
+            message['chat_attachments'] = (initial_files.get(inquiry.id, []) if message['id'].startswith('initial-') else
+                reply_files.get(int(message['id'][8:]), []) if message['id'].startswith('message-') else [])
         return messages
     messages = PortalMessage.query.filter_by(organization_id=org_id,
         transaction_id=selected['transaction'].id, participant_id=selected['row'].id).options(
             joinedload(PortalMessage.author)).order_by(PortalMessage.created_at, PortalMessage.id).all()
+    attachments = web_files('portal', [message.id for message in messages])
+    for message in messages:
+        message.chat_attachments = attachments.get(message.id, [])
     if mark_read:
         now = datetime.utcnow()
         changed = False
@@ -369,3 +384,28 @@ def inbox():
     if selected and selected.get('_marked_read'):
         db.session.commit()
     return response, status
+
+
+@client_messages_bp.get('/messages/attachments/<identifier>')
+@login_required
+def attachment_file(identifier):
+    from routes.mobile_attachments import row_for, inquiry_for, deal_message_exists
+    from services.mobile_attachments import attachment_payload
+    org_context(current_user.organization_id)
+    row = row_for(identifier, current_user.organization_id)
+    if row is None or row.message_id is None:
+        abort(404)
+    if row.target_kind == 'deal':
+        if not deal_message_exists(row):
+            abort(404)
+        key = f'deal-{row.target_id}'
+    else:
+        inquiry = inquiry_for(row)
+        if inquiry is None:
+            abort(404)
+        key = f'inquiry-{inquiry.id}'
+    _selected(_threads(), key)
+    url = attachment_payload(row)['url']
+    if not url:
+        abort(503)
+    return redirect(url)

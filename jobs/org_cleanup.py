@@ -67,6 +67,10 @@ def hard_delete_organization(org_id: int, org_name: str):
     # Set RLS context to the target org so DELETE statements can see its rows
     db.session.execute(text("SET LOCAL app.current_org_id = :oid"), {'oid': org_id})
     
+    from services.mobile_attachments import purge_org_attachments
+    if not purge_org_attachments(org_id):
+        raise RuntimeError('Message attachment storage cleanup failed')
+
     p = {'oid': org_id}
     _safe_delete(db, 'DELETE FROM client_browse_inquiries WHERE organization_id = :oid', p)
     _safe_delete(db, 'DELETE FROM client_browse_accounts WHERE organization_id = :oid', p)

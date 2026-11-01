@@ -124,12 +124,14 @@ def remove_participant(id, participant_id):
 
     participant = TransactionParticipant.query.filter_by(
         id=participant_id, transaction_id=transaction.id
-    ).first_or_404()
+    ).with_for_update().populate_existing().first_or_404()
 
     try:
         # Log audit event before deletion
         audit_service.log_participant_removed(transaction, participant)
 
+        from services.mobile_attachments import purge_deal_attachments
+        purge_deal_attachments(participant.organization_id, [participant.id])
         db.session.delete(participant)
         db.session.commit()
         return jsonify({'success': True})

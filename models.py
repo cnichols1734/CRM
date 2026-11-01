@@ -5121,3 +5121,28 @@ class AccountDeletionRequest(db.Model):
     completed_at = db.Column(db.DateTime)
     completion_evidence = db.Column(db.Text)
     notified_at = db.Column(db.DateTime)
+
+
+class MobileChatAttachment(db.Model):
+    __tablename__ = 'mobile_chat_attachments'
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'owner_kind', 'owner_id', 'target_kind', 'target_id', 'request_id', name='uq_mobile_attachment_upload'),
+        db.Index('ix_mobile_attachment_message', 'organization_id', 'message_kind', 'message_id'),
+        db.Index('ix_mobile_attachment_owner', 'organization_id', 'owner_kind', 'owner_id'),
+    )
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False)
+    owner_kind = db.Column(db.String(16), nullable=False)
+    owner_id = db.Column(db.Integer, nullable=False)
+    target_kind = db.Column(db.String(16), nullable=False)
+    target_id = db.Column(db.Integer, nullable=False)
+    request_id = db.Column(db.String(36), nullable=False)
+    filename = db.Column(db.String(180), nullable=False)
+    content_type = db.Column(db.String(120), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    kind = db.Column(db.String(16), nullable=False)
+    digest = db.Column(db.String(64), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    message_kind = db.Column(db.String(16), nullable=True)
+    message_id = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

@@ -274,6 +274,13 @@
   <section class="pp-sec" id="talk" data-reveal>
     <div class="pp-eyebrow">Questions?</div>
     <h2 class="pp-sec__title">Send {{ agent.name.split(' ')[0] }} a note</h2>
+    {% for message in chat_messages or [] %}
+    <div class="pp-update">
+      <div class="pp-update__meta">{{ message.author }}{% if message.date %} &middot; {{ message.date }}{% endif %}</div>
+      {% if message.body %}<div class="pp-update__body">{{ message.body }}</div>{% endif %}
+      {% for attachment in message.attachments %}<p><a href="{{ attachment.url }}" target="_blank" rel="noopener noreferrer">{{ attachment.filename }}</a></p>{% endfor %}
+    </div>
+    {% endfor %}
     <form class="pp-compose" method="POST" action="{{ url_for('portal.post_message', token=token) }}">
       <textarea class="pp-textarea" name="body" placeholder="Type your message&hellip;" maxlength="4000" required></textarea>
       <button type="submit" class="pp-btn pp-btn--ink pp-btn--block">
