@@ -1455,23 +1455,40 @@ class TestPersonalTodos:
             assert db.session.get(UserTodo, created['todo_id']) is None
             assert UserTodo.query.filter_by(client_id=created['client_id']).one().text == 'Recreated in app'
 
-    def test_single_item_edit_does_not_load_unrelated_details(self, app, ctx_owner_a):
+    @pytest.mark.parametrize('operation', ['add_todo_comment', 'reorder_todos'])
+    def test_single_item_edit_does_not_load_unrelated_details(self, app, ctx_owner_a, operation):
         from sqlalchemy import event
         with app.app_context():
             target = dispatch('add_todo', {'text': 'Target'}, ctx_owner_a).data['todo']['todo_id']
             unrelated = dispatch('add_todo', {'text': 'Unrelated', 'description': 'Other notes'}, ctx_owner_a).data['todo']['todo_id']
+            assert dispatch('complete_todo', {'todo_id': unrelated}, ctx_owner_a).ok
             db.session.expunge_all()
             loaded = set()
             def track_load(row, context):
                 loaded.add(row.id)
             event.listen(UserTodo, 'load', track_load)
             try:
-                result = dispatch('add_todo_comment', {'todo_id': target, 'comment': 'One update'}, ctx_owner_a)
+                args = {'todo_id': target, 'comment': 'One update'} if operation == 'add_todo_comment' else {'todo_ids': [target]}
+                result = dispatch(operation, args, ctx_owner_a)
                 assert result.ok, result.error
                 assert target in loaded
                 assert unrelated not in loaded
             finally:
                 event.remove(UserTodo, 'load', track_load)
+
+
+    def test_unicode_titles_resolve_for_completion_edit_and_duplicate_detection(self, app, ctx_owner_a):
+        with app.app_context():
+            created = dispatch('add_todo', {'text': 'Call Élodie'}, ctx_owner_a)
+            identity = created.data['todo']['todo_id']
+            duplicate = dispatch('add_todo', {'text': 'CALL E\u0301LODIE'}, ctx_owner_a)
+            assert duplicate.data['already_present'] is True
+            assert duplicate.data['todo']['todo_id'] == identity
+            assert dispatch('complete_todo', {'text': 'call élodie'}, ctx_owner_a).ok
+            edited = dispatch('update_todo', {'text': 'E\u0301lodie', 'description': 'Unicode match', 'completed': False}, ctx_owner_a)
+            assert edited.ok, edited.error
+            assert db.session.get(UserTodo, identity).details['description'] == 'Unicode match'
+            assert db.session.get(UserTodo, identity).completed is False
 
 
 class TestGroupAssignment:

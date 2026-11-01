@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from functools import wraps
 from uuid import uuid4
+import unicodedata
 
 from models import ClientBrowseInquiry, UserTodo, db
 from services.bob_tools.common import MAX_LIST_RESULTS, ToolError
@@ -17,10 +18,6 @@ MAX_TODOS = 10000
 def _scope(ctx):
     # Personal data stays private even when the caller is an org administrator.
     return UserTodo.query.filter_by(user_id=ctx.user_id, organization_id=ctx.organization_id)
-
-
-def _rows(ctx):
-    return _scope(ctx).order_by(UserTodo.completed, UserTodo.order, UserTodo.id).populate_existing().all()
 
 
 def _summarize(todo, *, full=True):
@@ -112,6 +109,20 @@ def _integer(value, name, *, minimum=0):
     return value
 
 
+def _title_matches(ctx, text, *, open_only=False, partial=True):
+    # Python normalizes titles consistently on PostgreSQL and SQLite. Select only
+    # IDs and titles so matching never loads unrelated descriptions or comments.
+    normalize = lambda value: unicodedata.normalize('NFC', value).casefold()
+    query = _scope(ctx).with_entities(UserTodo.id, UserTodo.text)
+    if open_only:
+        query = query.filter_by(completed=False)
+    titles = [(identity, normalize(title)) for identity, title in query.all()]
+    selector = normalize(text)
+    exact = [identity for identity, title in titles if title == selector]
+    matches = exact or ([identity for identity, title in titles if selector in title] if partial else [])
+    return matches[:6]
+
+
 def _resolve(ctx, args, *, open_only=False):
     todo_id = args.get('todo_id')
     if todo_id is not None:
@@ -123,12 +134,8 @@ def _resolve(ctx, args, *, open_only=False):
     text = args.get('text')
     if not isinstance(text, str) or not text.strip():
         raise ToolError('Pass todo_id or text to identify the to-do.')
-    query = _scope(ctx).populate_existing()
-    if open_only:
-        query = query.filter_by(completed=False)
-    lowered = text.strip().lower()
-    exact = query.filter(db.func.lower(UserTodo.text) == lowered).limit(6).all()
-    matches = exact or query.filter(db.func.lower(UserTodo.text).contains(lowered, autoescape=True)).limit(6).all()
+    identities = _title_matches(ctx, text.strip(), open_only=open_only)
+    matches = _scope(ctx).filter(UserTodo.id.in_(identities)).populate_existing().all()
     if len(matches) == 1:
         return matches[0]
     if not matches:
@@ -163,7 +170,8 @@ def get_todo(args, ctx):
 @_write
 def add_todo(args, ctx):
     text = _title(args.get('text'))
-    existing = _scope(ctx).filter(UserTodo.completed.is_(False), db.func.lower(UserTodo.text) == text.lower()).first()
+    identities = _title_matches(ctx, text, open_only=True, partial=False)
+    existing = _scope(ctx).filter_by(id=identities[0]).first() if identities else None
     if existing:
         result = _result(existing, f'Already on your list: {text}')
         result.data.update(already_present=True, note='Nothing was added or changed. Use update_todo to change this item.')
@@ -235,7 +243,7 @@ def reorder_todos(args, ctx):
     completed = args.get('completed', False)
     if type(completed) is not bool:
         raise ToolError('completed must be true or false.')
-    rows = [row for row in _rows(ctx) if row.completed == completed]
+    rows = _scope(ctx).filter_by(completed=completed).order_by(UserTodo.order, UserTodo.id).populate_existing().all()
     ordered = _reorder([{'id': row.id, 'row': row} for row in rows], args.get('todo_ids'), key='id')
     for position, entry in enumerate(ordered):
         entry['row'].order = position

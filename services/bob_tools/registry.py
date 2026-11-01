@@ -2228,6 +2228,13 @@ def reject_action(action_id: int, ctx: BobContext) -> ToolResult:
     )
 
 
+def action_is_undoable(action: BobAction) -> bool:
+    tool = TOOLS_BY_NAME.get(action.tool_name)
+    result = action.result or {}
+    available = result.get('undoable', bool(result.get('undo_target_id') or result.get('undo_payload')))
+    return bool(tool and tool.undo and action.status == BobAction.STATUS_EXECUTED and available)
+
+
 def undo_action(action_id: int, ctx: BobContext) -> ToolResult:
     """Reverse a previously executed action, when that tool supports it."""
     action = BobAction.query.filter_by(
@@ -2243,7 +2250,7 @@ def undo_action(action_id: int, ctx: BobContext) -> ToolResult:
         )
 
     tool = TOOLS_BY_NAME.get(action.tool_name)
-    if tool is None or tool.undo is None:
+    if not action_is_undoable(action):
         return ToolResult.failure('That action cannot be undone automatically.')
 
     try:
@@ -2453,7 +2460,7 @@ def _record_executed_action(tool: Tool, args: dict, result: ToolResult,
 
 def _undo_payload(result: ToolResult) -> dict:
     """Only the fields undo needs, kept out of what the model sees."""
-    payload = {}
+    payload = {'undoable': bool(result.undoable)}
     for key in ('undo_target_id', 'undo_payload'):
         if key in result.data:
             payload[key] = result.data.pop(key)
