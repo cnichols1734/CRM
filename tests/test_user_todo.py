@@ -126,3 +126,27 @@ def test_details_survive_old_app_and_web_edits(client, owner_a_client, restore_t
     invalid['items'][0]['details']['subtodos'] *= 2
     assert client.put(url, headers=headers, json=invalid).status_code == 400
     assert client.get(url, headers=headers).json['items'][0]['details'] == details
+
+
+def test_web_duplicate_titles_keep_their_own_details(client, owner_a_client, restore_todos):
+    token = client.post('/api/agent/v1/session', json={'email': 'owner_a@test.com', 'password': 'password123'}).json['token']
+    headers = {'Authorization': f'Bearer {token}'}
+    url = '/api/agent/v1/todos'
+    snapshot = client.get(url, headers=headers).json
+    ids = ['888b87f3-4fd2-43c8-943b-e8e7903d6b4c', '56f13525-e36b-4e92-92d4-e4e62d8a7381']
+    snapshot['items'] = [
+        {'id': identity, 'text': 'Call', 'completed': False, 'details': {'description': note}}
+        for identity, note in zip(ids, ['First person', 'Second person'])
+    ]
+    assert client.put(url, headers=headers, json=snapshot).status_code == 200
+    web = owner_a_client.get('/api/user_todos/get?include_ids=1')
+    payload = {'active': ['Call', 'Call'], 'completed': [], 'identities': {'active': ids[::-1], 'completed': []}, 'revision': web.headers['X-Todo-Revision']}
+    assert owner_a_client.post('/api/user_todos/save', json=payload).status_code == 200
+    items = client.get(url, headers=headers).json['items']
+    assert [item['id'] for item in items] == ids[::-1]
+    assert [item['details']['description'] for item in items] == ['Second person', 'First person']
+    web = owner_a_client.get('/api/user_todos/get?include_ids=1')
+    payload['revision'] = web.headers['X-Todo-Revision']
+    payload['identities']['active'] = [ids[0], '99999999']
+    assert owner_a_client.post('/api/user_todos/save', json=payload).status_code == 409
+    assert client.get(url, headers=headers).json['items'] == items
