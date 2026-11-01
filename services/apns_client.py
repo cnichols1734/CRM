@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 _TOPIC_BY_AUDIENCE = {
     'agent': ('APNS_BUNDLE_ID_AGENT', 'com.agentflow.agent'),
     'client': ('APNS_BUNDLE_ID_CLIENT', 'com.agentflow.client'),
+    'browse': ('APNS_BUNDLE_ID_CLIENT', 'com.agentflow.client'),
 }
 
 
@@ -22,7 +23,7 @@ def topic_for_audience(audience=None) -> str:
     return (os.environ.get('APNS_BUNDLE_ID') or '').strip()
 
 
-def send_alert(device_token: str, msg, audience=None) -> bool:
+def send_alert(device_token: str, msg, audience=None, environment=None) -> bool:
     preview = (msg.body or '').strip()
     if len(preview) > 120:
         preview = preview[:117] + '...'
@@ -37,10 +38,10 @@ def send_alert(device_token: str, msg, audience=None) -> bool:
         'message_id': msg.id,
     }
 
-    return send_payload(device_token, payload, audience)
+    return send_payload(device_token, payload, audience, environment=environment)
 
 
-def send_payload(device_token, payload, audience=None):
+def send_payload(device_token, payload, audience=None, environment=None):
     key_id = (os.environ.get('APNS_KEY_ID') or '').strip()
     team_id = (os.environ.get('APNS_TEAM_ID') or '').strip()
     key_pem = (os.environ.get('APNS_KEY') or '').strip()
@@ -49,7 +50,7 @@ def send_payload(device_token, payload, audience=None):
         return False
 
     host = 'api.push.apple.com'
-    if (os.environ.get('APNS_ENVIRONMENT') or '').strip().lower() == 'sandbox':
+    if (environment or os.environ.get('APNS_ENVIRONMENT') or '').strip().lower() == 'sandbox':
         host = 'api.sandbox.push.apple.com'
 
     token = _apns_jwt(key_id, team_id, key_pem)

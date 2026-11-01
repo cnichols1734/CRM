@@ -313,3 +313,103 @@ def test_date_alert_has_expiry_and_collapse_id(monkeypatch):
     assert int(calls[0]['headers']['apns-expiration']) > 0
     assert calls[0]['headers']['apns-collapse-id'] == 'dates-77'
     assert json.loads(calls[0]['content'])['kind'] == 'milestones'
+
+
+def test_inquiry_push_recipients_assignment_and_device_environments(app, seed, monkeypatch):
+    import json
+    import uuid
+    from datetime import datetime, timedelta
+    from models import ClientBrowseAccount, ClientBrowseInquiry, ClientInquiryMessage
+    from jobs.apns_push import send_inquiry_push
+
+    _set_apns_keys(monkeypatch, APNS_ENVIRONMENT='sandbox')
+    calls = _capture_httpx(monkeypatch)
+    with app.app_context():
+        account = ClientBrowseAccount(organization_id=seed['org_a'], name='Push Client',
+            email=f'{uuid.uuid4()}@example.com', password_hash='not-used')
+        db.session.add(account)
+        db.session.flush()
+        inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
+            kind='message', body='Can someone help?', request_id=str(uuid.uuid4()))
+        db.session.add(inquiry)
+        db.session.flush()
+        for user, token, org in [(seed['owner_a'], 'assigned', seed['org_a']),
+                (seed['agent_a'], 'unassigned', seed['org_a']), (seed['owner_b'], 'foreign', seed['org_b'])]:
+            db.session.add(DeviceToken(organization_id=org, user_id=user, token=token,
+                audience='agent', platform='ios', environment='production'))
+        db.session.add(DeviceToken(organization_id=seed['org_a'], browse_account_id=account.id,
+            audience='browse', platform='ios', token='browser', environment='sandbox',
+            expires_at=datetime.utcnow() + timedelta(days=1)))
+        db.session.add(DeviceToken(organization_id=seed['org_a'], browse_account_id=account.id,
+            audience='browse', platform='ios', token='expired-browser',
+            expires_at=datetime.utcnow() - timedelta(seconds=1)))
+        db.session.commit()
+        inquiry_id, account_id = inquiry.id, account.id
+
+    assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'])['sent'] == 2
+    assert {c['url'].rsplit('/', 1)[-1] for c in calls} == {'assigned', 'unassigned'}
+    assert all(c['url'].startswith('https://api.push.apple.com/') for c in calls)
+    calls.clear()
+    with app.app_context():
+        account = db.session.get(ClientBrowseAccount, account_id)
+        inquiry = db.session.get(ClientBrowseInquiry, inquiry_id)
+        account.agent_id = inquiry.agent_id = seed['owner_a']
+        reply = ClientInquiryMessage(organization_id=seed['org_a'], inquiry_id=inquiry_id,
+            sender='agent', author_user_id=seed['owner_a'], body='I can help.', request_id=str(uuid.uuid4()))
+        notice = ClientInquiryMessage(organization_id=seed['org_a'], inquiry_id=inquiry_id,
+            sender='agent', author_user_id=seed['owner_a'], body='Agent Test Owner has reviewed your message and will respond shortly.', request_id=str(uuid.uuid4()))
+        db.session.add_all([reply, notice])
+        db.session.commit()
+        reply_id, notice_id = reply.id, notice.id
+    assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'])['sent'] == 1
+    assert calls[0]['url'].endswith('/assigned')
+    calls.clear()
+    for message_id, assignment in [(reply_id, False), (notice_id, True)]:
+        assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'], message_id=message_id, assignment=assignment)['sent'] == 1
+    assert all(c['url'] == 'https://api.sandbox.push.apple.com/3/device/browser' for c in calls)
+    assert all(c['headers']['apns-topic'] == 'com.agentflow.client' for c in calls)
+    payload = json.loads(calls[-1]['content'])
+    assert payload['kind'] == 'inquiry_assignment'
+    assert payload['inquiry_id'] == inquiry_id and payload['account_id'] == account_id
+    assert payload['aps']['alert']['body'] == 'Agent Test Owner has reviewed your message and will respond shortly.'
+
+
+def test_portal_push_excludes_agents_without_transaction_access(app, seed, monkeypatch):
+    from jobs.apns_push import send_portal_push
+    _set_apns_keys(monkeypatch)
+    calls = _capture_httpx(monkeypatch)
+    with app.app_context():
+        tx, seller = _thread(seed, '503 Private Transaction Ln')
+        msg = _portal_message(seed, tx, seller, 'client', 'Private client message')
+        _device(seed, 'agent', 'transaction-owner')
+        db.session.add(DeviceToken(organization_id=seed['org_a'], user_id=seed['agent_a'],
+            audience='agent', platform='ios', token='unrelated-agent'))
+        db.session.commit()
+        message_id = msg.id
+    assert send_portal_push(message_id=message_id, org_id=seed['org_a'])['sent'] == 1
+    assert len(calls) == 1 and calls[0]['url'].endswith('/transaction-owner')
+
+
+def test_portal_retry_only_resends_failed_devices(app, seed, monkeypatch):
+    import rq
+    from jobs.apns_push import send_portal_push
+    _set_apns_keys(monkeypatch)
+    job = SimpleNamespace(meta={}, save_meta=lambda: None)
+    monkeypatch.setattr(rq, 'get_current_job', lambda: job)
+    attempts = []
+    def deliver(token, *_args):
+        attempts.append(token)
+        return token != 'retry-second' or attempts.count(token) > 1
+    monkeypatch.setattr('jobs.apns_push._send_one', deliver)
+    with app.app_context():
+        tx, seller = _thread(seed, '504 Retry Ln')
+        msg = _portal_message(seed, tx, seller, 'client', 'One notification per device')
+        _device(seed, 'agent', 'retry-first')
+        _device(seed, 'agent', 'retry-second')
+        db.session.commit()
+        message_id = msg.id
+    with pytest.raises(RuntimeError, match='1 devices'):
+        send_portal_push(message_id=message_id, org_id=seed['org_a'])
+    assert send_portal_push(message_id=message_id, org_id=seed['org_a']) == {'ok': True, 'sent': 1}
+    assert attempts.count('retry-first') == 1
+    assert attempts.count('retry-second') == 2

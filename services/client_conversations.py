@@ -121,6 +121,15 @@ def assign_client(account, org, agent, actor):
         event_type='client_inquiry_assignment', description='Changed app client inbox assignment.',
         event_data={'account_id': account.id, 'from_agent_id': previous, 'to_agent_id': account.agent_id}))
 
+    if agent and previous != agent.id and rows:
+        import uuid
+        notice = ClientInquiryMessage(organization_id=org.id, inquiry_id=rows[-1].id,
+            sender='agent', author_user_id=agent.id, request_id=str(uuid.uuid4()),
+            body=f'Agent {agent_name(agent)} has reviewed your message and will respond shortly.')
+        db.session.add(notice)
+        return notice
+    return None
+
 
 def append_reply(inquiry, body, author, request_id):
     prior = ClientInquiryMessage.query.filter_by(organization_id=inquiry.organization_id,

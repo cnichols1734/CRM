@@ -1,5 +1,5 @@
 """Public brokerage profiles and browsing accounts, independent of deal grants."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 import os
 from ipaddress import ip_address
@@ -11,7 +11,7 @@ from html import escape
 import time
 import uuid
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, g
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy import text, func
 from sqlalchemy.exc import IntegrityError
@@ -113,7 +113,8 @@ def authenticated(view):
         try:
             if not header.startswith('Bearer '):
                 raise BadSignature('missing')
-            claims = serializer().loads(header[7:], max_age=TTL)
+            claims, signed_at = serializer().loads(header[7:], max_age=TTL, return_timestamp=True)
+            g.browse_session_expires_at = signed_at.replace(tzinfo=None) + timedelta(seconds=TTL)
             if not isinstance(claims, dict) or claims.get('type') != 'browse':
                 raise BadSignature('type')
             org = db.session.get(Organization, int(claims['org']))
@@ -207,6 +208,8 @@ def account_get(account, org):
 @client_discovery_bp.delete('/session')
 @authenticated
 def sign_out(account, org):
+    from models import DeviceToken
+    DeviceToken.query.filter_by(organization_id=org.id, browse_account_id=account.id).delete()
     account.session_version += 1
     db.session.commit()
     return jsonify(ok=True)
@@ -218,6 +221,8 @@ def delete_account(account, org):
     password = payload().get('password', '')
     if not isinstance(password, str) or len(password) > 128 or not check_password_hash(account.password_hash, password):
         return error('Password is incorrect.', 403)
+    from models import DeviceToken
+    DeviceToken.query.filter_by(organization_id=org.id, browse_account_id=account.id).delete()
     inquiry_ids = db.session.query(ClientBrowseInquiry.id).filter_by(organization_id=org.id, account_id=account.id)
     ClientInquiryMessage.query.filter(ClientInquiryMessage.organization_id == org.id,
         ClientInquiryMessage.inquiry_id.in_(inquiry_ids)).delete(synchronize_session=False)
@@ -321,6 +326,8 @@ def send_inquiry(account, org):
         if prior:
             return jsonify(id=prior.id), 200
         raise
+    from services.device_push import enqueue_inquiry_push
+    enqueue_inquiry_push(inquiry_id=inquiry_id, org_id=org.id)
     return jsonify(id=inquiry_id), 201
 
 
@@ -350,10 +357,19 @@ def send_inquiry_message(account, org, inquiry_id):
         return error('Conversation not found.', 404)
     prior = ClientInquiryMessage.query.filter_by(organization_id=oid, inquiry_id=inquiry_id,
         sender='client', request_id=request_id).first()
+    if prior and prior.body != body:
+        return error('This message request was already used. Refresh before sending again.', 409)
+    message_id = None
     if not prior:
-        db.session.add(ClientInquiryMessage(organization_id=oid, inquiry_id=inquiry_id,
-            sender='client', body=body, request_id=request_id))
+        message = ClientInquiryMessage(organization_id=oid, inquiry_id=inquiry_id,
+            sender='client', body=body, request_id=request_id)
+        db.session.add(message)
+        db.session.flush()
+        message_id = message.id
     db.session.commit()
+    if message_id:
+        from services.device_push import enqueue_inquiry_push
+        enqueue_inquiry_push(inquiry_id=inquiry_id, org_id=oid, message_id=message_id)
     return jsonify(ok=True)
 
 
@@ -433,15 +449,21 @@ def verify_email(account, org):
     account.email_verified_at = datetime.utcnow()
     account.verification_hash = None
     account.verification_expires_at = None
+    notice = None
     contacts = Contact.query.filter(Contact.organization_id == org.id,
         func.lower(func.trim(Contact.email)) == account.email).limit(2).all()
     if len(contacts) == 1:
         account.owns_contact = account.owns_contact and account.contact_id == contacts[0].id
         account.contact_id = contacts[0].id
         if agent_for(org, contacts[0].user_id):
-            assign_client(account, org, agent_for(org, contacts[0].user_id), None)
+            notice = assign_client(account, org, agent_for(org, contacts[0].user_id), None)
     result = {'account': account_payload(account), **profile(org, agent_for(org, account.agent_id))}
+    db.session.flush()
+    notice_args = dict(inquiry_id=notice.inquiry_id, org_id=org.id, message_id=notice.id, assignment=True) if notice else None
     db.session.commit()
+    if notice_args:
+        from services.device_push import enqueue_inquiry_push
+        enqueue_inquiry_push(**notice_args)
     return jsonify(result)
 
 
@@ -528,3 +550,26 @@ def listing_detail(slug, listing_id):
         return jsonify(listing=repliers_listings.get_listing(listing_id))
     except repliers_listings.ListingError as exc:
         return error(str(exc), exc.status)
+
+
+@client_discovery_bp.route('/devices', methods=['POST', 'DELETE'])
+@authenticated
+def account_device(account, org):
+    from models import DeviceToken
+    from services.device_push import register_device
+    data = payload()
+    token = field(data, 'token', 255)
+    if not token:
+        return error('A device token is required.')
+    if request.method == 'DELETE':
+        DeviceToken.query.filter_by(organization_id=org.id, audience=DeviceToken.AUDIENCE_BROWSE,
+            browse_account_id=account.id, token=token).delete()
+        db.session.commit()
+        return jsonify(ok=True)
+    try:
+        row = register_device(organization_id=org.id, audience=DeviceToken.AUDIENCE_BROWSE,
+            browse_account_id=account.id, token=token, platform=data.get('platform'),
+            environment=data.get('environment'), expires_at=g.browse_session_expires_at)
+    except ValueError as exc:
+        return error(str(exc))
+    return jsonify(ok=True, device_id=row.id), 201

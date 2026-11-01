@@ -4322,7 +4322,8 @@ class DeviceToken(db.Model):
 
     AUDIENCE_AGENT = 'agent'
     AUDIENCE_CLIENT = 'client'
-    AUDIENCES = {AUDIENCE_AGENT, AUDIENCE_CLIENT}
+    AUDIENCE_BROWSE = 'browse'
+    AUDIENCES = {AUDIENCE_AGENT, AUDIENCE_CLIENT, AUDIENCE_BROWSE}
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
@@ -4338,6 +4339,9 @@ class DeviceToken(db.Model):
         nullable=True,
         index=True,
     )
+    browse_account_id = db.Column(db.Integer, db.ForeignKey('client_browse_accounts.id', ondelete='CASCADE'), nullable=True, index=True)
+    environment = db.Column(db.String(20), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_seen_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

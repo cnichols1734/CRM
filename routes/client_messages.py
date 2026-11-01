@@ -16,7 +16,7 @@ from feature_flags import can_access_transactions
 from models import (db, User, Organization, AuditEvent, ClientBrowseAccount, ClientBrowseInquiry,
                     ClientInquiryMessage, PortalMessage, Transaction, TransactionParticipant)
 from routes.client_discovery import org_context
-from services.device_push import enqueue_portal_push
+from services.device_push import enqueue_portal_push, enqueue_inquiry_push
 from services.client_conversations import inbox_admin, agent_name, assign_client, append_reply
 from services.portal_service import CLIENT_PORTAL_ROLES
 from services.transaction_auth import CAP_SEND_COMMS, has_capability, transactions_visible_query
@@ -218,11 +218,15 @@ def _post(selected, csrf_token):
             if target_id and not target:
                 abort(400, 'Choose an agent from this brokerage.')
             try:
-                assign_client(account, db.session.get(Organization, org_id), target, current_user)
+                notice = assign_client(account, db.session.get(Organization, org_id), target, current_user)
             except ValueError as exc:
                 db.session.rollback()
                 abort(409, str(exc))
+            db.session.flush()
+            push = dict(inquiry_id=notice.inquiry_id, org_id=org_id, message_id=notice.id, assignment=True) if notice else None
             db.session.commit()
+            if push:
+                enqueue_inquiry_push(**push)
             return 'Client assigned.' if target else 'Client returned to the general inbox.', 'mine' if target_id == current_user.id else 'all'
         if action != 'reply' or row.agent_id is None or (row.agent_id != current_user.id and not inbox_admin(current_user)):
             abort(403)
@@ -235,12 +239,17 @@ def _post(selected, csrf_token):
         abort(400, 'Write a message of up to 4,000 characters.')
     request_id = _request_id()
     message = None
+    inquiry_push = None
     if selected['kind'] == 'inquiry':
         prior = ClientInquiryMessage.query.filter_by(organization_id=org_id,
             inquiry_id=selected['row'].id, sender='agent', request_id=request_id).first()
         if prior and (prior.body != body or prior.author_user_id != current_user.id):
             abort(409, 'This send was already used for another message. Review the conversation before sending again.')
         append_reply(selected['row'], body, current_user, request_id)
+        if not prior:
+            db.session.flush()
+            created = ClientInquiryMessage.query.filter_by(organization_id=org_id, inquiry_id=selected['row'].id, sender='agent', request_id=request_id).one()
+            inquiry_push = dict(inquiry_id=created.inquiry_id, org_id=org_id, message_id=created.id)
     else:
         participant = TransactionParticipant.query.filter_by(id=selected['row'].id,
             transaction_id=selected['transaction'].id, organization_id=org_id).filter(
@@ -271,6 +280,8 @@ def _post(selected, csrf_token):
                 event_data={'request_id': request_id, 'participant_id': participant.id,
                             'message_id': message.id, 'body_hash': body_hash}))
     db.session.commit()
+    if inquiry_push:
+        enqueue_inquiry_push(**inquiry_push)
     if message:
         try:
             enqueue_portal_push(message)

@@ -333,3 +333,83 @@ def test_forwarded_ip_is_ignored_off_railway(app, monkeypatch):
     monkeypatch.setenv('RAILWAY_ENVIRONMENT_ID', 'test-production')
     with app.test_request_context(headers={'X-Real-IP': 'invalid'}, environ_base={'REMOTE_ADDR': '127.0.0.1'}):
         assert client_ip() == '127.0.0.1'
+
+
+def test_native_agents_claim_inquiries_reply_and_notify_once(app, seed, client, monkeypatch):
+    from tests.test_agent_api import _agent_session, _auth
+    from models import ClientInquiryMessage
+    from routes import agent_inquiries
+    from services import device_push
+    pushes = []
+    monkeypatch.setattr(device_push, 'enqueue_inquiry_push', lambda **kw: pushes.append(kw))
+    monkeypatch.setattr(agent_inquiries, 'enqueue_inquiry_push', lambda **kw: pushes.append(kw))
+    browser = signup(client)
+    client_headers = auth(browser)
+    account_id = browser.json['account']['id']
+    ids = []
+    for text in ('First inquiry', 'Second inquiry'):
+        data = dict(kind='contact', body=text, consent=True, request_id=str(uuid.uuid4()))
+        response = client.post(BASE + '/inquiries', headers=client_headers, json=data)
+        assert response.status_code == 201
+        ids.append(response.json['id'])
+        assert client.post(BASE + '/inquiries', headers=client_headers, json=data).status_code == 200
+    assert len(pushes) == 2
+    agent = _auth(_agent_session(client, email='agent_a@test.com').json['token'])
+    owner = _auth(_agent_session(client, email='owner_a@test.com').json['token'])
+    foreign = _auth(_agent_session(client, email='owner_b@test.com').json['token'])
+    path = f'/api/agent/v1/inquiries/{ids[0]}'
+    assert client.get(path, headers=foreign).status_code == 404
+    assert client.post(path + '/claim', headers=foreign).status_code == 404
+    assert client.post(path + '/messages', headers=agent, json={'body':'Premature', 'request_id':str(uuid.uuid4())}).status_code == 403
+    listed = client.get('/api/agent/v1/inquiries', headers=agent).json['inquiries']
+    assert all(not row['assigned'] for row in listed if row['id'] in ids)
+    claimed = client.post(path + '/claim', headers=agent)
+    assert claimed.status_code == 200
+    assert claimed.json['inquiry']['assigned'] is True
+    assert client.post(path + '/claim', headers=agent).status_code == 200
+    assert client.post(path + '/claim', headers=owner).status_code == 409
+    assert client.get(path, headers=owner).status_code == 404
+    assert len(pushes) == 3 and pushes[-1]['assignment'] is True
+    with app.app_context():
+        assert db.session.get(ClientBrowseAccount, account_id).agent_id == seed['agent_a']
+        assert {r.agent_id for r in ClientBrowseInquiry.query.filter_by(account_id=account_id)} == {seed['agent_a']}
+        assert 'has reviewed your message' in ClientInquiryMessage.query.filter_by(inquiry_id=ids[-1]).one().body
+    payload = {'body':'Happy to help.', 'request_id':str(uuid.uuid4())}
+    assert client.post(path + '/messages', headers=owner, json=payload).status_code == 403
+    assert client.post(path + '/messages', headers=agent, json=payload).status_code == 201
+    assert client.post(path + '/messages', headers=agent, json=payload).status_code == 200
+    assert len(pushes) == 4
+    assert client.post(path + '/messages', headers=agent, json={**payload,'body':'Changed'}).status_code == 409
+    client_rows = client.get(BASE + '/inquiries', headers=client_headers).json['inquiries']
+    assert next(r for r in client_rows if r['id'] == ids[0])['messages'][-1]['body'] == 'Happy to help.'
+    followup = {'body':'Thanks!', 'request_id':str(uuid.uuid4())}
+    for _ in range(2):
+        assert client.post(BASE + f'/inquiries/{ids[0]}/messages', headers=client_headers, json=followup).status_code == 200
+    assert len(pushes) == 5
+
+
+def test_browse_push_registration_is_separate_and_revoked(app, seed, client):
+    from models import DeviceToken
+    response = signup(client)
+    headers = auth(response)
+    aid = response.json['account']['id']
+    data = dict(token='browse-test-token', platform='ios', environment='production')
+    assert client.post(BASE + '/devices', json=data).status_code == 401
+    assert client.post(BASE + '/devices', headers=headers, json=data).status_code == 201
+    with app.app_context():
+        row = DeviceToken.query.filter_by(token=data['token']).one()
+        assert row.browse_account_id == aid and row.participant_id is None
+        assert row.environment == 'production' and row.audience == 'browse'
+        assert row.expires_at is not None
+    assert client.post(BASE + '/devices', headers=headers, json={**data, 'environment':'invalid'}).status_code == 400
+    assert client.delete(BASE + '/session', headers=headers).status_code == 200
+    with app.app_context():
+        assert DeviceToken.query.filter_by(browse_account_id=aid).count() == 0
+
+    second = signup(client)
+    second_headers = auth(second)
+    second_id = second.json['account']['id']
+    assert client.post(BASE + '/devices', headers=second_headers, json=data).status_code == 201
+    assert client.delete(BASE + '/account', headers=second_headers, json={'password':'test-password-123'}).status_code == 200
+    with app.app_context():
+        assert DeviceToken.query.filter_by(browse_account_id=second_id).count() == 0
