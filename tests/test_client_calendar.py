@@ -112,7 +112,7 @@ def test_date_push_scopes_recipients(app, seed, monkeypatch):
     monkeypatch.setattr('jobs.apns_push.apns_configured', lambda: True)
     monkeypatch.setattr('services.device_push.enqueue_date_push', lambda **kw: None)
     sent = []
-    monkeypatch.setattr('services.apns_client.send_payload', lambda token, payload, audience: sent.append((token, payload, audience)) or True)
+    monkeypatch.setattr('services.apns_client.send_payload', lambda token, payload, audience, environment=None: sent.append((token, payload, audience)) or True)
     with app.app_context():
         access, _ = _setup(seed)
         other, _ = _setup(seed)

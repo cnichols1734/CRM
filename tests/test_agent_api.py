@@ -333,23 +333,26 @@ def test_dates_allowlist(app, seed, client):
     assert dates['actual_close_date'] == '2026-06-02'
 
 
-def test_conversations_include_empty_threads(app, seed, client):
+def test_conversations_only_include_active_threads(app, seed, client):
     token = _owner_token(client)
     with app.app_context():
         tx, seller, _access = _seller_thread(seed, '403 Empty Thread Ln')
         db.session.commit()
         participant_id = seller.id
+        transaction_id = tx.id
         assert PortalMessage.query.filter_by(participant_id=participant_id).count() == 0
 
     listed = client.get('/api/agent/v1/conversations', headers=_auth(token))
     assert listed.status_code == 200
     rows = listed.get_json()['conversations']
     ids = [row['participant_id'] for row in rows]
-    assert participant_id in ids
-    empty = next(row for row in rows if row['participant_id'] == participant_id)
-    assert empty['last_preview'] is None
-    assert empty['unread'] == 0
-    assert empty['address'] == '403 Empty Thread Ln'
+    assert participant_id not in ids
+    with app.app_context():
+        db.session.add(PortalMessage(organization_id=seed['org_a'], transaction_id=transaction_id,
+            participant_id=participant_id, sender='client', kind='message', body='Hello'))
+        db.session.commit()
+    active = client.get('/api/agent/v1/conversations', headers=_auth(token)).json['conversations']
+    assert next(row for row in active if row['participant_id'] == participant_id)['last_preview'] == 'Hello'
 
 
 def test_agent_message_visible_on_client_list(app, seed, client):

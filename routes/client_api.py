@@ -155,6 +155,8 @@ def create_session():
 @client_api_bp.route('/session', methods=['DELETE'])
 @client_jwt_required
 def delete_session(access):
+    DeviceToken.query.filter_by(organization_id=access.organization_id,
+        audience=DeviceToken.AUDIENCE_CLIENT, participant_id=access.participant_id).delete(synchronize_session=False)
     access.bump_session()
     db.session.commit()
     return jsonify({'ok': True})
@@ -245,16 +247,15 @@ def register_client_device(access):
             organization_id=access.organization_id,
             audience=DeviceToken.AUDIENCE_CLIENT,
             token=data.get('token'),
+            environment=data.get('environment'),
             platform=data.get('platform') or request.form.get('platform'),
             participant_id=access.participant_id,
         )
     except ValueError as exc:
         return _json_error(str(exc), 400)
-    return jsonify({
-        'ok': True,
-        'device_id': row.id,
-        'platform': row.platform,
-    }), 201
+    result = {'ok': True, 'device_id': row.id, 'platform': row.platform}
+    db.session.commit()
+    return jsonify(result), 201
 
 
 @client_api_bp.route('/showings', methods=['GET'])

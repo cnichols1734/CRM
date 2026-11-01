@@ -439,6 +439,8 @@ def create_session():
 @agent_api_bp.route('/session', methods=['DELETE'])
 @agent_jwt_required
 def delete_session(user):
+    DeviceToken.query.filter_by(organization_id=user.organization_id,
+        audience=DeviceToken.AUDIENCE_AGENT, user_id=user.id).delete(synchronize_session=False)
     user.bump_session()
     db.session.commit()
     return jsonify({'ok': True})
@@ -459,16 +461,15 @@ def register_agent_device(user):
             organization_id=user.organization_id,
             audience=DeviceToken.AUDIENCE_AGENT,
             token=data.get('token'),
+            environment=data.get('environment'),
             platform=data.get('platform'),
             user_id=user.id,
         )
     except ValueError as exc:
         return _json_error(str(exc), 400)
-    return jsonify({
-        'ok': True,
-        'device_id': row.id,
-        'platform': row.platform,
-    }), 201
+    result = {'ok': True, 'device_id': row.id, 'platform': row.platform}
+    db.session.commit()
+    return jsonify(result), 201
 
 
 @agent_api_bp.route('/dashboard', methods=['GET'])
@@ -1229,6 +1230,8 @@ def list_conversations(user):
         if tx is None:
             continue
         last = latest_by_participant.get(participant.id)
+        if last is None:
+            continue
         conversations.append({
             'transaction_id': tx.id,
             'address': tx.street_address,
@@ -1330,6 +1333,8 @@ def post_conversation_message(user, participant_id):
 def _register_desk_extensions():
     from routes import agent_bob
     agent_bob.register(agent_api_bp)
+    from routes import agent_inquiries
+    agent_inquiries.register(agent_api_bp)
     try:
         from routes import agent_contact_desk
         agent_contact_desk.register(agent_api_bp)
