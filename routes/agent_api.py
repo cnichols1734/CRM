@@ -851,7 +851,12 @@ def delete_transaction(user, transaction_id):
     if error:
         return error
     from services.transaction_helpers import purge_transaction_dependent_rows
-    purge_transaction_dependent_rows(tx.id)
+    from services.mobile_attachments import AttachmentError
+    try:
+        purge_transaction_dependent_rows(tx.id)
+    except AttachmentError as exc:
+        db.session.rollback()
+        return _json_error(str(exc), exc.status)
     db.session.delete(tx)
     db.session.commit()
     return jsonify({'ok': True})

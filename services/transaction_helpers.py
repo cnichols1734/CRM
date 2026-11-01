@@ -788,6 +788,12 @@ def purge_transaction_dependent_rows(transaction_id: int) -> None:
         db,
     )
 
+    from models import TransactionParticipant
+    from services.mobile_attachments import purge_deal_attachments
+    participants = TransactionParticipant.query.filter_by(transaction_id=transaction_id).with_for_update().all()
+    if participants:
+        purge_deal_attachments(participants[0].organization_id, [row.id for row in participants])
+
     def _ids(model):
         return [
             row[0]

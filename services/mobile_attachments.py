@@ -157,6 +157,12 @@ def upload(owner, owner_kind, target_kind, target_id):
         return jsonify(error=str(exc)), exc.status
     except (ValueError, TypeError, AttributeError):
         return jsonify(error='Use a valid upload request ID.'), 400
+    if target_kind == 'deal':
+        from models import TransactionParticipant
+        participant = TransactionParticipant.query.filter_by(id=target_id,
+            organization_id=owner.organization_id).with_for_update().populate_existing().first()
+        if participant is None:
+            return jsonify(error='Conversation not found.'), 404
     version = getattr(owner, 'session_version', None)
     owner = type(owner).query.filter_by(id=owner.id, organization_id=owner.organization_id).with_for_update().populate_existing().first()
     if owner is None or (version is not None and owner.session_version != version):
@@ -236,9 +242,24 @@ def message_attachments(org_id, message_kind, message_ids):
     if missing:
         for identifier in missing:
             cache[(org_id, message_kind, identifier)] = []
-        rows = MobileChatAttachment.query.filter(MobileChatAttachment.organization_id == org_id,
-            MobileChatAttachment.message_kind == message_kind, MobileChatAttachment.message_id.in_(missing)).order_by(
-            MobileChatAttachment.created_at, MobileChatAttachment.id).all()
+        from models import PortalMessage, ClientInquiryMessage, ClientBrowseInquiry
+        query = MobileChatAttachment.query.filter(MobileChatAttachment.organization_id == org_id,
+            MobileChatAttachment.message_kind == message_kind, MobileChatAttachment.message_id.in_(missing))
+        if message_kind == 'portal':
+            query = query.join(PortalMessage, db.and_(PortalMessage.id == MobileChatAttachment.message_id,
+                PortalMessage.organization_id == org_id, MobileChatAttachment.target_kind == 'deal',
+                PortalMessage.participant_id == MobileChatAttachment.target_id))
+        elif message_kind == 'inquiry':
+            query = query.join(ClientInquiryMessage, db.and_(ClientInquiryMessage.id == MobileChatAttachment.message_id,
+                ClientInquiryMessage.organization_id == org_id, MobileChatAttachment.target_kind == 'inquiry',
+                ClientInquiryMessage.inquiry_id == MobileChatAttachment.target_id))
+        elif message_kind == 'initial':
+            query = query.join(ClientBrowseInquiry, db.and_(ClientBrowseInquiry.id == MobileChatAttachment.message_id,
+                ClientBrowseInquiry.organization_id == org_id, MobileChatAttachment.target_kind == 'new_inquiry',
+                ClientBrowseInquiry.account_id == MobileChatAttachment.target_id))
+        else:
+            return {identifier: [] for identifier in message_ids}
+        rows = query.order_by(MobileChatAttachment.created_at, MobileChatAttachment.id).all()
         for row in rows:
             cache[(org_id, message_kind, row.message_id)].append(row)
     return {identifier: [attachment_payload(row) for row in cache[(org_id, message_kind, identifier)]] for identifier in message_ids}
@@ -325,3 +346,17 @@ def purge_org_attachments(org_id):
         db.session.delete(row)
     db.session.flush()
     return True
+
+
+def purge_deal_attachments(org_id, participant_ids):
+    rows = MobileChatAttachment.query.filter_by(organization_id=org_id, target_kind='deal').filter(
+        MobileChatAttachment.target_id.in_(participant_ids)).with_for_update().populate_existing().all()
+    for row in rows:
+        if not delete_object(row.storage_path):
+            raise AttachmentError('Message files could not be removed. Try deleting again.', 503)
+    for participant_id in participant_ids:
+        if not purge_owner_prefix(org_id, 'participant', participant_id):
+            raise AttachmentError('Message files could not be removed. Try deleting again.', 503)
+    for row in rows:
+        db.session.delete(row)
+    db.session.flush()

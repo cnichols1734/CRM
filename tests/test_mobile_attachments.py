@@ -196,3 +196,42 @@ def test_daily_cleanup_removes_only_expired_unsent_files(app, seed, client, file
         assert db.session.get(MobileChatAttachment, sent) is not None
         assert db.session.get(MobileChatAttachment, fresh) is not None
     assert len(file_storage) == 2
+
+
+@pytest.mark.parametrize('remove_participant', [False, True])
+def test_deal_deletion_purges_sent_and_staged_files(app, seed, client, file_storage, remove_participant):
+    from models import TransactionParticipant
+    from tests.conftest import login
+    participant, client_headers = deal(app, seed, client)
+    agent = _auth(_owner_token(client))
+    sent_file = upload(client, '/api/client/v1/attachments', client_headers).json['attachment']['id']
+    assert client.post('/api/client/v1/messages', headers=client_headers, json=dict(
+        body='', request_id=str(uuid4()), attachment_ids=[sent_file])).status_code == 201
+    upload(client, f'/api/agent/v1/conversations/{participant}/attachments', agent)
+    with app.app_context():
+        transaction_id = db.session.get(TransactionParticipant, participant).transaction_id
+    if remove_participant:
+        login(client, 'owner_a')
+        deleted = client.delete(f'/transactions/{transaction_id}/participants/{participant}')
+    else:
+        deleted = client.delete(f'/api/agent/v1/transactions/{transaction_id}', headers=agent)
+    assert deleted.status_code == 200, deleted.json
+    assert not file_storage
+    with app.app_context():
+        assert MobileChatAttachment.query.filter_by(target_kind='deal', target_id=participant).count() == 0
+    assert client.get('/api/client/v1/attachments/' + sent_file, headers=client_headers).status_code in (401, 404)
+
+
+def test_message_projection_does_not_sign_orphaned_thread_binding(app, seed, client, file_storage):
+    from services.mobile_attachments import message_attachments
+    participant, client_headers = deal(app, seed, client)
+    other, _ = deal(app, seed, client)
+    identifier = upload(client, '/api/client/v1/attachments', client_headers).json['attachment']['id']
+    response = client.post('/api/client/v1/messages', headers=client_headers, json=dict(
+        body='', request_id=str(uuid4()), attachment_ids=[identifier]))
+    message_id = response.json['message']['id']
+    with app.test_request_context():
+        row = db.session.get(MobileChatAttachment, identifier)
+        row.target_id = other
+        db.session.commit()
+        assert message_attachments(seed['org_a'], 'portal', [message_id])[message_id] == []
