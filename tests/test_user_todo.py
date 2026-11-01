@@ -9,6 +9,8 @@ def restore_todos(app, db, seed):
     with app.app_context():
         saved = [{column.name: getattr(todo, column.name) for column in UserTodo.__table__.columns}
                  for todo in UserTodo.query.filter(UserTodo.user_id.in_(users))]
+        UserTodo.query.filter(UserTodo.user_id.in_(users)).delete(synchronize_session=False)
+        db.session.commit()
     yield
     with app.app_context():
         UserTodo.query.filter(UserTodo.user_id.in_(users)).delete(synchronize_session=False)
@@ -42,7 +44,7 @@ def test_saving_one_users_todos_preserves_other_users(owner_a_client, agent_a_cl
         assert response.json == value
 
 
-def test_agent_todos_share_web_order_and_reject_stale_writes(client, owner_a_client, restore_todos):
+def test_agent_todos_share_web_order_and_reject_stale_writes(app, client, owner_a_client, restore_todos):
     token = client.post('/api/agent/v1/session', json={'email': 'owner_a@test.com', 'password': 'password123'}).json['token']
     headers = {'Authorization': f'Bearer {token}'}
     url = '/api/agent/v1/todos'
@@ -53,6 +55,8 @@ def test_agent_todos_share_web_order_and_reject_stale_writes(client, owner_a_cli
     changed = {'revision': initial['revision'], 'items': [items[1], items[0], items[2]]}
     saved = client.put(url, headers=headers, json=changed)
     assert saved.status_code == 200
+    with app.app_context():
+        assert all(row.details is None for row in UserTodo.query.filter_by(text='Call'))
     assert owner_a_client.get('/api/user_todos/get').json == {'active': ['Plan'], 'completed': ['Call', 'Done']}
     assert client.put(url, headers=headers, json=changed).status_code == 409
     assert client.get(url, headers=headers).json == saved.json
@@ -167,6 +171,10 @@ def test_legacy_duplicate_rename_and_overlong_ids_are_rejected(client, owner_a_c
     assert owner_a_client.post('/api/user_todos/save', json={
         'active': ['Same title', 'Renamed detailed item'], 'completed': [], 'revision': saved['revision']}).status_code == 409
     assert client.get(url, headers=headers).json == saved
+    for active, completed in [(['Same title'], []), (['Same title'], ['Same title'])]:
+        assert owner_a_client.post('/api/user_todos/save', json={
+            'active': active, 'completed': completed, 'revision': saved['revision']}).status_code == 409
+        assert client.get(url, headers=headers).json == saved
     for invalid_id in ['{' + ids[0] + '}', 'urn:uuid:' + ids[0]]:
         invalid = {'items': [{'id': invalid_id, 'text': 'No', 'completed': False}], 'revision': saved['revision']}
         assert client.put(url, headers=headers, json=invalid).status_code == 409

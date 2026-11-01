@@ -61,6 +61,12 @@ def replace_web(user, active, completed, identities=None):
     available = defaultdict(deque)
     for row in old_rows:
         available[row.text].append(row)
+    # Old pages cannot identify which duplicate was renamed, removed or completed.
+    ambiguous = any(len(group) > 1 and any(row.details for row in group)
+                    for group in available.values())
+    if ambiguous and (active != [row.text for row in old_rows if not row.completed]
+                      or completed != [row.text for row in old_rows if row.completed]):
+        raise ValueError('Reload this page before changing duplicate to-dos with details.')
     plan = []
     for done, values in ((False, active), (True, completed)):
         for order, value in enumerate(values):
@@ -138,4 +144,4 @@ def validate_details(value, previous=None):
                 old = previous_comments.get(item['id'])
                 entry['created_at'] = old['created_at'] if old else datetime.now(timezone.utc).isoformat()
             result[key].append(entry)
-    return result
+    return result if result != empty_details() else None
