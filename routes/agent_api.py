@@ -1352,3 +1352,52 @@ _register_desk_extensions()
 
 from routes import agent_account
 agent_account.register(agent_api_bp)
+
+
+@agent_api_bp.route('/todos', methods=['GET', 'PUT'])
+@agent_jwt_required
+def personal_todos(user):
+    from services.personal_todos import lock_owner, rows_for, snapshot, valid_text
+    from models import UserTodo
+    from uuid import UUID
+
+    if request.method == 'GET':
+        return jsonify(snapshot(rows_for(user)))
+    data = _json_body()
+    items = data.get('items')
+    if not isinstance(items, list) or len(items) > 10000:
+        return _json_error('Send a list of todos.', 400)
+    ids = set()
+    for item in items:
+        if (not isinstance(item, dict) or not isinstance(item.get('id'), str)
+                or item['id'] in ids or not valid_text(item.get('text'))
+                or type(item.get('completed')) is not bool):
+            return _json_error('Each todo needs a unique ID and 1 to 500 characters.', 400)
+        ids.add(item['id'])
+    lock_owner(user)
+    rows = rows_for(user)
+    if data.get('revision') != snapshot(rows)['revision']:
+        return _json_error('Your todos changed elsewhere. Refresh and try again.', 409)
+    existing = {str(row.id): row for row in rows}
+    for item in items:
+        if item['id'] not in existing:
+            try:
+                UUID(item['id'])
+            except ValueError:
+                return _json_error('That todo is no longer available. Refresh and try again.', 409)
+    positions = {False: 0, True: 0}
+    for item in items:
+        row = existing.pop(item['id'], None)
+        if row is None:
+            row = UserTodo(user_id=user.id, organization_id=user.organization_id)
+            db.session.add(row)
+        row.text = item['text'].strip()
+        row.completed = item['completed']
+        row.order = positions[row.completed]
+        positions[row.completed] += 1
+    for row in existing.values():
+        db.session.delete(row)
+    db.session.flush()
+    result = snapshot(rows_for(user))
+    db.session.commit()
+    return jsonify(result)
