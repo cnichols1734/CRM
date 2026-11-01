@@ -16,7 +16,8 @@ from feature_flags import org_has_feature
 from models import BobAction, ChatConversation, ChatMessage, db
 from routes.agent_api import agent_jwt_required
 from services.ai_service import run_tool_conversation
-from services.bob_tools import BobContext, dispatch, openai_tool_schemas, confirm_action, reject_action, undo_action, TOOLS_BY_NAME
+from services.bob_tools.registry import action_is_undoable
+from services.bob_tools import BobContext, dispatch, openai_tool_schemas, confirm_action, reject_action, undo_action
 from services.bob_tools.notifications import ActionCollector, flush
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,7 @@ def serialize(conv, user):
     data = conv.to_dict(include_messages=True)
     actions = BobAction.query.filter_by(conversation_id=conv.id, user_id=user.id,
                                        organization_id=user.organization_id).order_by(BobAction.id.desc()).limit(30).all()
-    data['actions'] = [{**a.to_dict(), 'undoable': bool(TOOLS_BY_NAME.get(a.tool_name) and TOOLS_BY_NAME[a.tool_name].undo and a.status == 'executed'),
+    data['actions'] = [{**a.to_dict(), 'undoable': action_is_undoable(a),
                         'preview_text': preview_text(a.preview) if a.preview else None}
                        for a in actions]
     return data
@@ -384,6 +385,8 @@ def voice_session(user, cid):
         'Do not append or speak a BOB sign-off at the end of replies. '
         'Discuss work, planning, follow-ups and real estate. '
         'Delegate all requests for CRM facts or actions to the existing BOB backend. '
+        'This includes personal to-dos, due dates, priorities, sub-to-dos, comments, '
+        'completion, reopening, deletion and reordering. '
         'Delegate questions about attached photos or files too; the backend can view them. '
         'Also delegate questions needing current public information or internet search, '
         'including current mortgage interest rates, lender programs, and market news. '

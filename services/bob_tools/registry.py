@@ -82,6 +82,17 @@ def _obj(properties: dict, required: list[str] | None = None) -> dict:
     }
 
 
+_TODO_SELECTOR = {
+    'todo_id': {'type': 'integer', 'description': 'Numeric ID returned by list_todos or get_todo. Preferred.'},
+    'text': {'type': 'string', 'description': 'Existing parent to-do title or unambiguous words from it, when todo_id is unknown.'},
+}
+_TODO_DETAILS = {
+    'description': {'type': 'string', 'description': 'Description, up to 10,000 characters. Empty string clears it.'},
+    'due_date': {'type': ['string', 'null'], 'description': 'YYYY-MM-DD in the agent timezone, or null to clear. A personal due date does not create a calendar entry.'},
+    'priority': {'type': 'integer', 'enum': [0, 1, 2, 3], 'description': '0 means no priority; 1, 2 and 3 match the app priority labels.'},
+}
+
+
 _CONTACT_PRESENCE_FIELDS = [
     'first_name', 'last_name', 'email', 'phone', 'street_address', 'city',
     'state', 'zip_code', 'notes', 'potential_commission', 'last_email_date',
@@ -370,10 +381,11 @@ TOOLS: tuple[Tool, ...] = (
         name='list_todos',
         description=(
             'The agent\'s personal scratch list. This is not the CRM task list: '
-            'these items have no contact, due date, or calendar entry. Use '
-            'list_tasks or get_agenda for client follow-ups.'
+            'items can have due dates, priorities, descriptions, sub-to-dos and comments, but no contact or calendar entry. Use '
+            'list_tasks or get_agenda for client follow-ups. Returns a page of summaries; get_todo reads full details. Follow next_offset for more items.'
         ),
         parameters=_obj({
+            'offset': {'type': 'integer', 'description': 'Start at 0; pass next_offset to read the next page.'},
             'include_completed': {
                 'type': 'boolean',
                 'description': (
@@ -725,47 +737,116 @@ TOOLS: tuple[Tool, ...] = (
         undo=contact_tools.undo_append_contact_note,
     ),
     Tool(
+        name='get_todo',
+        description='Read a personal to-do, including description, due date, priority, all sub-to-dos and comments with their IDs. Completed items are included in title matching. Read before editing children or comments; never invent IDs.',
+        parameters=_obj(_TODO_SELECTOR),
+        risk=RISK_READ,
+        handler=todo_tools.get_todo,
+    ),
+    Tool(
         name='add_todo',
-        description=(
-            'Add an item to the agent\'s personal scratch list. Use this only '
-            'for things with no contact attached, like "order more signs". '
-            'Anything tied to a client belongs in create_task so it shows on '
-            'their timeline and the agenda.'
-        ),
-        parameters=_obj({
-            'text': {
-                'type': 'string',
-                'description': 'The item, 500 chars max.',
-            },
-        }, ['text']),
+        description='Create a personal to-do with optional description, due date and priority. A to-do has no contact or calendar entry. Use create_task for client follow-ups. If an open title already exists, returns it without changing its details.',
+        parameters=_obj({'text': {'type': 'string', 'description': 'Title, 1 to 500 characters.'}, **_TODO_DETAILS}, ['text']),
         risk=RISK_LOW_WRITE,
         handler=todo_tools.add_todo,
-        undo=todo_tools.undo_add_todo,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='update_todo',
+        description='Edit a personal to-do. Send only changed fields. Set completed=true to check it off or false to reopen it. title is the replacement title; text identifies the existing item. Omitted details, sub-to-dos and comments remain unchanged.',
+        parameters=_obj({**_TODO_SELECTOR, **_TODO_DETAILS,
+                         'title': {'type': 'string', 'description': 'New title, 1 to 500 characters.'},
+                         'completed': {'type': 'boolean', 'description': 'true completes; false reopens.'}}),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.update_todo,
+        undo=todo_tools.undo_todo_change,
     ),
     Tool(
         name='complete_todo',
-        description=(
-            'Check an item off the agent\'s personal scratch list. Identify it '
-            'by todo_id from list_todos when you have it; otherwise pass the '
-            'text and it will be matched against open items.'
-        ),
-        parameters=_obj({
-            'todo_id': {
-                'type': 'integer',
-                'description': 'From list_todos. Preferred over text.',
-            },
-            'text': {
-                'type': 'string',
-                'description': (
-                    'Words from the item, used only when todo_id is unknown. '
-                    'An ambiguous match returns the candidates instead of '
-                    'guessing.'
-                ),
-            },
-        }),
+        description='Check off a personal to-do by todo_id or unambiguous open-item text. Use update_todo with completed=false to reopen.',
+        parameters=_obj(_TODO_SELECTOR),
         risk=RISK_LOW_WRITE,
         handler=todo_tools.complete_todo,
-        undo=todo_tools.undo_complete_todo,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='delete_todo',
+        description='Delete a personal to-do and its description, sub-to-dos and comments, only when asked to delete it. To mark work done, use complete_todo. Ordinary personal deletions support guarded undo. Linked inquiry follow-ups cannot be undone.',
+        parameters=_obj(_TODO_SELECTOR),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.delete_todo,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='reorder_todos',
+        description='Set the order of all open or all completed personal to-dos. Read every list_todos page first and provide every ID in the chosen group exactly once. Does not change completion.',
+        parameters=_obj({
+            'todo_ids': {'type': 'array', 'items': {'type': 'integer'}, 'description': 'All IDs in the chosen group, in the desired order.'},
+            'completed': {'type': 'boolean', 'description': 'false for the open group, true for the completed group. Default false.'},
+        }, ['todo_ids']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.reorder_todos,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='add_subtodo',
+        description='Add an open sub-to-do to a personal to-do. The server assigns its ID. Other children and parent details remain unchanged.',
+        parameters=_obj({**_TODO_SELECTOR, 'title': {'type': 'string', 'description': 'Sub-to-do text, 1 to 500 characters.'}}, ['title']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.add_subtodo,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='update_subtodo',
+        description='Rename, complete or reopen a sub-to-do. Use subtodo_id from get_todo. Send only changes; completed=true completes and false reopens.',
+        parameters=_obj({**_TODO_SELECTOR,
+            'subtodo_id': {'type': 'string', 'description': 'Sub-to-do UUID from get_todo.'},
+            'title': {'type': 'string', 'description': 'New sub-to-do text.'},
+            'completed': {'type': 'boolean', 'description': 'true completes this sub-to-do; false reopens it.'},
+        }, ['subtodo_id']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.update_subtodo,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='delete_subtodo',
+        description='Delete one sub-to-do from its parent, only when asked. Other details remain unchanged.',
+        parameters=_obj({**_TODO_SELECTOR, 'subtodo_id': {'type': 'string', 'description': 'Sub-to-do UUID from get_todo.'}}, ['subtodo_id']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.delete_subtodo,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='reorder_subtodos',
+        description='Reorder sub-to-dos within one parent. Read get_todo first, then pass every subtodo ID exactly once in the desired order.',
+        parameters=_obj({**_TODO_SELECTOR, 'subtodo_ids': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Every sub-to-do UUID from get_todo, in the desired order.'}}, ['subtodo_ids']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.reorder_subtodos,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='add_todo_comment',
+        description='Add a comment to a personal to-do. The server assigns its ID and creation time. Read comments with get_todo.',
+        parameters=_obj({**_TODO_SELECTOR, 'comment': {'type': 'string', 'description': 'Comment text, 1 to 4,000 characters.'}}, ['comment']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.add_todo_comment,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='update_todo_comment',
+        description='Edit one personal to-do comment while preserving its creation time. Use comment_id from get_todo.',
+        parameters=_obj({**_TODO_SELECTOR, 'comment_id': {'type': 'string', 'description': 'Comment UUID returned by get_todo.'}, 'comment': {'type': 'string', 'description': 'Replacement comment, 1 to 4,000 characters.'}}, ['comment_id', 'comment']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.update_todo_comment,
+        undo=todo_tools.undo_todo_change,
+    ),
+    Tool(
+        name='delete_todo_comment',
+        description='Delete one comment from a personal to-do, only when asked. Use comment_id from get_todo.',
+        parameters=_obj({**_TODO_SELECTOR, 'comment_id': {'type': 'string', 'description': 'Comment UUID returned by get_todo.'}}, ['comment_id']),
+        risk=RISK_LOW_WRITE,
+        handler=todo_tools.delete_todo_comment,
+        undo=todo_tools.undo_todo_change,
     ),
     Tool(
         name='get_daily_briefing',
@@ -2147,6 +2228,13 @@ def reject_action(action_id: int, ctx: BobContext) -> ToolResult:
     )
 
 
+def action_is_undoable(action: BobAction) -> bool:
+    tool = TOOLS_BY_NAME.get(action.tool_name)
+    result = action.result or {}
+    available = result.get('undoable', bool(result.get('undo_target_id') or result.get('undo_payload')))
+    return bool(tool and tool.undo and action.status == BobAction.STATUS_EXECUTED and available)
+
+
 def undo_action(action_id: int, ctx: BobContext) -> ToolResult:
     """Reverse a previously executed action, when that tool supports it."""
     action = BobAction.query.filter_by(
@@ -2162,7 +2250,7 @@ def undo_action(action_id: int, ctx: BobContext) -> ToolResult:
         )
 
     tool = TOOLS_BY_NAME.get(action.tool_name)
-    if tool is None or tool.undo is None:
+    if not action_is_undoable(action):
         return ToolResult.failure('That action cannot be undone automatically.')
 
     try:
@@ -2372,7 +2460,7 @@ def _record_executed_action(tool: Tool, args: dict, result: ToolResult,
 
 def _undo_payload(result: ToolResult) -> dict:
     """Only the fields undo needs, kept out of what the model sees."""
-    payload = {}
+    payload = {'undoable': bool(result.undoable)}
     for key in ('undo_target_id', 'undo_payload'):
         if key in result.data:
             payload[key] = result.data.pop(key)

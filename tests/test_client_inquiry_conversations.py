@@ -189,3 +189,20 @@ def test_reassignment_keeps_personal_todo_details_with_original_agent(app, clien
     with app.app_context():
         assert db.session.get(UserTodo, replacement_id).details['description'] == 'New owner notes'
         assert db.session.get(UserTodo, original_id).user_id == seed['agent_a']
+
+
+def test_bob_deleting_linked_followup_does_not_offer_broken_undo(app, client, agent_a_client, seed):
+    from services.bob_tools import BobContext, dispatch
+    aid, iid, headers = create(client)
+    path = f'/messages?thread=inquiry-{iid}'
+    agent_a_client.get(path)
+    assert agent_a_client.post(path, data={'action': 'claim', 'csrf_token': _csrf(agent_a_client)}).status_code == 302
+    with app.app_context():
+        identity = db.session.get(ClientBrowseInquiry, iid).followup_todo_id
+        ctx = BobContext(user_id=seed['agent_a'], organization_id=seed['org_a'])
+        result = dispatch('delete_todo', {'todo_id': identity}, ctx)
+        assert result.ok, result.error
+        assert result.undoable is False
+        assert result.action_id is None
+        assert result.data['undo_unavailable'] is True
+        assert db.session.get(UserTodo, identity) is None

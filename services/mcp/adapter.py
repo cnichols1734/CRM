@@ -92,7 +92,7 @@ def grouped_tool_names(ctx: BobContext, scopes: list[str]) -> dict[str, list[str
         'get_agenda', 'list_tasks', 'list_task_types', 'create_task',
         'update_task', 'complete_task', 'delete_task',
     }
-    todo_names = {'list_todos', 'add_todo', 'complete_todo'}
+    todo_names = {tool.name for tool in select_tools(ctx) if 'todo' in tool.name}
     marketing_names = {
         'get_email_template_guidelines', 'list_email_templates',
         'get_email_template', 'preview_email_template',

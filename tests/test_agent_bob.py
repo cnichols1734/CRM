@@ -459,3 +459,88 @@ def test_dictation_provider_failure_does_not_expose_secrets(client, seed, monkey
     assert result.status_code == 502
     assert 'private-provider-detail' not in result.get_data(as_text=True)
     assert 'retried' in result.json['error']
+
+
+def test_native_chat_and_delegated_voice_edit_personal_todos(app, client, seed, monkeypatch, receipts):
+    from types import SimpleNamespace as NS
+    from services import ai_service
+    from models import UserTodo
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    route = f'/api/agent/v1/bob/conversations/{cid}/messages'
+    calls = []
+    title = f'Voice parity {uuid4().hex}'
+    def respond(**kwargs):
+        calls.append(kwargs)
+        names = {tool.get('name') for tool in kwargs['tools']}
+        assert {'add_todo', 'get_todo', 'update_todo', 'reorder_todos', 'add_subtodo',
+                'update_subtodo', 'delete_subtodo', 'reorder_subtodos', 'delete_todo',
+                'add_todo_comment', 'update_todo_comment', 'delete_todo_comment'} <= names
+        if len(calls) == 1:
+            output = [NS(type='function_call', name='add_todo', arguments=json.dumps({
+                'text': title, 'description': 'Created in chat', 'due_date': '2026-11-12', 'priority': 2}), call_id='todo-chat')]
+        elif len(calls) == 3:
+            output = [NS(type='function_call', name='update_todo', arguments=json.dumps({
+                'text': title, 'description': 'Updated by voice', 'completed': True}), call_id='todo-voice')]
+        else:
+            return NS(output=[], output_text='Your personal to-do was saved.', model='test', usage=None, id=f'r{len(calls)}')
+        return NS(output=output, model='test', usage=None, id=f'r{len(calls)}')
+    monkeypatch.setattr(ai_service.Config, 'OPENAI_API_KEY', 'test')
+    monkeypatch.setattr(ai_service.openai, 'OpenAI', lambda **kw: NS(responses=NS(create=respond)))
+    try:
+        body = {'message': f'Add {title} to my personal list for November 12 with priority 2', 'request_id': str(uuid4())}
+        chat = client.post(route, json=body, headers=headers)
+        assert chat.status_code == 200
+        assert chat.json['actions'][-1]['tool_name'] == 'add_todo'
+        assert chat.json['actions'][-1]['undoable'] is True
+        voice = client.post(route, headers=headers, json={'request_id': str(uuid4()),
+            'message': f'Voice conversation context follows. Earlier requests may already be executed.\nuser: Complete {title} and set its description to Updated by voice'})
+        assert voice.status_code == 200
+        with app.app_context():
+            row = UserTodo.query.filter_by(user_id=seed['owner_a'], text=title).one()
+            assert row.completed is True
+            assert row.details['description'] == 'Updated by voice'
+            assert row.details['due_date'] == '2026-11-12'
+            assert row.details['priority'] == 2
+        assert len(calls) == 4
+    finally:
+        with app.app_context():
+            UserTodo.query.filter_by(user_id=seed['owner_a'], text=title).delete(synchronize_session=False)
+            db.session.commit()
+
+
+def test_linked_todo_deletion_has_no_undo_in_native_history(app, client, seed):
+    from models import ClientBrowseAccount, ClientBrowseInquiry, UserTodo
+    from services.bob_tools import BobContext, dispatch
+    headers = _auth(_owner_token(client))
+    cid = client.post('/api/agent/v1/bob/conversations', json={}, headers=headers).json['id']
+    with app.app_context():
+        ctx = BobContext(user_id=seed['owner_a'], organization_id=seed['org_a'])
+        todo = dispatch('add_todo', {'text': f'Linked native deletion {uuid4().hex}'}, ctx).data['todo']
+        account = ClientBrowseAccount(organization_id=seed['org_a'], email=f'{uuid4().hex}@example.test',
+                                      name='Synthetic', password_hash='not-a-login', agent_id=seed['owner_a'])
+        db.session.add(account)
+        db.session.flush()
+        inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
+                                      agent_id=seed['owner_a'], request_id=str(uuid4()), kind='question',
+                                      body='Synthetic inquiry', followup_todo_id=todo['todo_id'])
+        db.session.add(inquiry)
+        db.session.commit()
+        account_id, inquiry_id = account.id, inquiry.id
+        deleted = dispatch('delete_todo', {'todo_id': todo['todo_id']}, ctx, conversation_id=cid)
+        assert deleted.ok, deleted.error
+    try:
+        history = client.get(f'/api/agent/v1/bob/conversations/{cid}', headers=headers).json
+        action = history['actions'][0]
+        assert action['tool_name'] == 'delete_todo'
+        assert action['undoable'] is False
+        attempt = client.post(f"/api/agent/v1/bob/actions/{action['action_id']}", headers=headers,
+                              json={'decision': 'undo'})
+        assert attempt.status_code == 400
+        with app.app_context():
+            assert db.session.get(UserTodo, todo['todo_id']) is None
+    finally:
+        with app.app_context():
+            ClientBrowseInquiry.query.filter_by(id=inquiry_id).delete(synchronize_session=False)
+            ClientBrowseAccount.query.filter_by(id=account_id).delete(synchronize_session=False)
+            db.session.commit()

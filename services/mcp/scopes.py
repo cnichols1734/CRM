@@ -15,12 +15,12 @@ DEFAULT_CONSENT_SCOPES = (SCOPE_READ, SCOPE_WRITE, SCOPE_OFFLINE)
 SCOPE_LABELS = {
     SCOPE_READ: 'Look up contacts, tasks, todos, agenda, and deals you can already open',
     SCOPE_WRITE: 'Create, update, log, and complete the same records you can in the app',
-    SCOPE_DESTRUCTIVE: 'Permanently delete contacts or tasks',
+    SCOPE_DESTRUCTIVE: 'Delete contacts, tasks, personal to-dos, sub-to-dos or comments',
     SCOPE_OFFLINE: 'Stay connected until you revoke access',
 }
 
 ATTACHMENT_TOOLS = frozenset({'inspect_attachment', 'import_contacts'})
-DESTRUCTIVE_TOOLS = frozenset({'delete_contact', 'delete_task'})
+DESTRUCTIVE_TOOLS = frozenset({'delete_contact', 'delete_task', 'delete_todo', 'delete_subtodo', 'delete_todo_comment'})
 MCP_ONLY_TOOLS = frozenset({'whoami', 'get_capabilities'})
 
 
