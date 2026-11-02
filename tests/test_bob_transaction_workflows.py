@@ -632,7 +632,7 @@ def test_unfiled_sensitive_bootstrap_is_not_exposed(deal, surface):
         classification={'side': 'tenant', 'document_type': 'lease'}, original_filename='lease.pdf',
         extracted_candidates={'private': {'value': 'private-tenant-value'}})
     try:
-        org.feature_flags = {**(previous or {}), 'BOB_VTC_PILOT': True}
+        org.feature_flags = {**(previous or {}), 'BOB_VTC_PILOT': True, 'BOB_VTC_PRIVACY_CONTROLS': True}
         db.session.add(row)
         db.session.commit()
         result = dispatch('get_contract_inbox', {'session_id': row.id}, replace(ctx, surface=surface))
@@ -641,6 +641,12 @@ def test_unfiled_sensitive_bootstrap_is_not_exposed(deal, surface):
         inbox = apply('get_contract_inbox', {}, replace(ctx, surface=surface))
         restricted = next(item for item in inbox.data['sessions'] if item['id'] == row.id)
         assert restricted['content_restricted'] and 'original_filename' not in restricted
+        row.classification = {'side': 'seller', 'document_type': 'residential_contract'}
+        db.session.commit()
+        changed = apply('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'match',
+            'fields': {'decision': 'create_new', 'side': 'tenant'}}, replace(ctx, surface=surface))
+        assert changed.data['content_restricted']
+        assert 'private-tenant-value' not in str(changed.for_model())
     finally:
         db.session.delete(row)
         org.feature_flags = previous

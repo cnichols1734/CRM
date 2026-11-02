@@ -383,6 +383,12 @@ def execute(operation, args, ctx):
     result = invoke(ctx, spec.endpoint, ids=ids, fields=fields, method=spec.method,
                     form=spec.form, upload_ref=args.get('_attachment_ref') if spec.upload else None)
     if result.ok:
+        if operation.startswith('bootstrap.') and args.get('session_id'):
+            try:
+                bootstrap_session(ctx, args['session_id'])
+            except ToolError:
+                return ToolResult.success('Contract inbox item updated. Review restricted contents in the CRM.',
+                    {'session_id': args['session_id'], 'content_restricted': True})
         if operation == 'bootstrap.match' and isinstance(result.data.get('review'), dict):
             result.data['review'] = filter_bootstrap_candidates(result.data['review'], ctx)
         if operation == 'preview_offer_email':
