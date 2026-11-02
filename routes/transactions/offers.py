@@ -77,12 +77,10 @@ def _can_manage_transaction(transaction):
 
 def _get_offer_transaction(id):
     """Load an org-scoped transaction that supports offer threads (buyer or seller)."""
-    transaction = Transaction.query.filter_by(
-        id=id,
-        organization_id=current_user.organization_id,
-    ).first_or_404()
-    if not _can_manage_transaction(transaction):
-        abort(403)
+    from services.transaction_auth import CAP_EDIT, get_transaction_for_user
+    transaction, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not transaction:
+        abort(404 if decision.reason == 'not_found' else 403)
     if not supports_offers(transaction):
         return None
     return transaction

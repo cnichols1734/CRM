@@ -525,6 +525,8 @@ def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
         agent = BobContext(user_id=seed['agent_a'], organization_id=ctx.organization_id)
         result = apply('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'match', 'fields': {'decision': 'manual'}}, agent)
         assert result.data['review']['match_candidates'] == []
+        assert 'parties' not in result.data['review']
+        assert 'parties' not in result.data['review']['bob_questions']
         row.uploader_user_id = ctx.user_id
         db.session.commit()
         args = {'session_id': row.id, 'action': 'match', 'fields': {'decision': 'attach', 'transaction_id': tid}}
@@ -665,3 +667,17 @@ def test_document_field_edits_preserve_server_metadata(deal):
     apply('manage_transaction_document', {'transaction_id': tid, 'document_id': doc.id, 'action': 'save_fields', 'fields': {'field_data': {'amount': '200', '_document_identity': {'kind': 'changed'}}}}, ctx)
     assert doc.field_data['amount'] == '200'
     assert {key: doc.field_data[key] for key in metadata} == metadata
+
+
+def test_assigned_editor_can_accept_offer_and_update_listing(deal, seed):
+    from models import TransactionAssignment
+    ctx, tid = deal
+    db.session.add(TransactionAssignment(organization_id=ctx.organization_id, transaction_id=tid,
+        user_id=seed['agent_a'], role='collaborator', capabilities={'edit': True}))
+    db.session.commit()
+    editor = BobContext(user_id=seed['agent_a'], organization_id=ctx.organization_id)
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Editor Buyer', 'offer_price': 400000}, editor)
+    accepted = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01'}, editor)
+    assert accepted.data['accepted_contract_id']
+    result = apply('update_listing_operations', {'transaction_id': tid, 'fields': {'pet_notes': 'Cat inside'}}, editor)
+    assert result.ok

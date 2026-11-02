@@ -183,7 +183,10 @@ def filter_bootstrap_candidates(payload, ctx):
             visible.append(candidate)
         except ToolError:
             continue
-    return {**payload, 'match_candidates': visible}
+    # Party matching belongs to the CRM participant workflow, not BOB.
+    safe = {key: value for key, value in payload.items() if key != 'parties'}
+    safe['bob_questions'] = {key: value for key, value in (payload.get('bob_questions') or {}).items() if key != 'parties'}
+    return {**safe, 'match_candidates': visible}
 
 
 def bootstrap_session(ctx, session_id):
