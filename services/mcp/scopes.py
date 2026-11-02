@@ -71,7 +71,7 @@ def tool_allowed(name: str, scopes: list[str] | tuple[str, ...]) -> bool:
 
 def annotations_for_tool(name: str) -> dict:
     tool = TOOLS_BY_NAME.get(name)
-    destructive = name in DESTRUCTIVE_TOOLS or name in DESTRUCTIVE_ACTIONS
+    destructive = name in DESTRUCTIVE_TOOLS or name in DESTRUCTIVE_ACTIONS or name == 'manage_transaction_contract'
     read_only = tool is not None and tool.risk == RISK_READ and name not in {'select_transaction_context'}
     return {
         'readOnlyHint': read_only,

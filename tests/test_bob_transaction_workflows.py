@@ -85,6 +85,7 @@ def test_accept_offer_creates_contract_and_rejects_second_primary(deal):
     assert SellerOfferVersion.query.filter_by(offer_id=oid).count() == 1
     pending = dispatch('accept_offer', {'offer_id': oid, 'effective_date': '2026-11-01'}, ctx)
     assert pending.requires_confirmation, pending.error
+    assert any(c['field'] == 'effective_date' and c['to'] == '2026-11-01' for c in pending.data['preview']['changes'])
     result = confirm_action(pending.action_id, ctx)
     assert result.ok, result.error
     contract = SellerAcceptedContract.query.filter_by(transaction_id=tid, offer_id=oid).one()
@@ -533,7 +534,10 @@ def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
         assert not confirm_action(pending.action_id, ctx).ok
         assert row.matched_transaction_id is None
         apply('manage_transaction_bootstrap', args, ctx)
-        pending = dispatch('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'approve'}, ctx)
+        row.extracted_candidates = {'sales_price': {'value': '400000', 'evidence': {}}}
+        db.session.commit()
+        pending = dispatch('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'approve', 'fields': {'selected': {'sales_price': True}, 'corrections': {'sales_price': '415000'}}}, ctx)
+        assert any(c['field'] == 'sales_price' and c['to'] == '415000' for c in pending.data['preview']['changes'])
         assert pending.requires_confirmation, pending.error
         tx.city = 'Changed after approval preview'
         db.session.commit()
@@ -544,3 +548,61 @@ def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
         db.session.delete(row)
         org.feature_flags = previous
         db.session.commit()
+
+
+@pytest.mark.parametrize('supplied_id', [None, 0])
+def test_selected_transaction_is_pinned_in_pending_action(deal, supplied_id):
+    from dataclasses import replace
+    ctx, tid = deal
+    selected = replace(ctx, selected_transaction_id=tid)
+    pending = dispatch('update_transaction_details', {'transaction_id': supplied_id, 'fields': {'city': 'Austin'}}, selected)
+    assert pending.requires_confirmation, pending.error
+    switched = replace(ctx, selected_transaction_id=-999)
+    result = confirm_action(pending.action_id, switched)
+    assert result.ok, result.error
+    assert db.session.get(Transaction, tid).city == 'Austin'
+
+
+def test_contract_edits_survive_unrelated_amendment_and_mcp_remove_needs_scope(deal):
+    from models import SellerAcceptedContract, SellerContractAmendment, SellerContractAmendmentVersion, SellerContractMilestone
+    from services.mcp.adapter import call_mcp_tool
+    from services.mcp.scopes import annotations_for_tool
+    ctx, tid = deal
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Alias Buyer', 'offer_price': 400000, 'proposed_close_date': '2026-12-01'}, ctx)
+    cid = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01'}, ctx).data['accepted_contract_id']
+    apply('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid, 'action': 'update_details', 'fields': {'accepted_price': 425000, 'closing_date': '2026-12-15'}}, ctx)
+    amendment = SellerContractAmendment(organization_id=ctx.organization_id, transaction_id=tid, accepted_contract_id=cid, created_by_id=ctx.user_id, amendment_type='other', status='received')
+    db.session.add(amendment)
+    db.session.flush()
+    version = SellerContractAmendmentVersion(organization_id=ctx.organization_id, transaction_id=tid, amendment_id=amendment.id, created_by_id=ctx.user_id, direction='buyer_amendment', terms_data={'option_period_days': 10})
+    db.session.add(version)
+    db.session.flush()
+    amendment.current_version_id = version.id
+    db.session.commit()
+    pending = dispatch('manage_transaction_amendment', {'transaction_id': tid, 'amendment_id': amendment.id, 'action': 'accept'}, ctx)
+    assert pending.requires_confirmation, pending.error
+    assert any(c['field'] == 'option_period_days' and c['to'] == '10' for c in pending.data['preview']['changes'])
+    assert confirm_action(pending.action_id, ctx).ok
+    contract = db.session.get(SellerAcceptedContract, cid)
+    assert float(contract.accepted_price) == 425000
+    assert str(contract.closing_date) == '2026-12-15'
+    milestone = SellerContractMilestone.query.filter_by(accepted_contract_id=cid).first()
+    args = {'transaction_id': tid, 'contract_id': cid, 'milestone_id': milestone.id, 'action': 'update_milestone', 'fields': {'action': 'remove'}}
+    assert call_mcp_tool('manage_transaction_contract', args, ctx, ['read', 'write'])['isError']
+    assert not (milestone.source_data or {}).get('removed_at')
+    assert not call_mcp_tool('manage_transaction_contract', args, ctx, ['read', 'write', 'destructive'])['isError']
+    assert milestone.source_data.get('removed_at')
+    assert annotations_for_tool('manage_transaction_contract')['destructiveHint']
+
+
+def test_proposal_preview_shows_selected_corrected_values(deal):
+    from models import TransactionChangeProposal
+    ctx, tid = deal
+    row = TransactionChangeProposal(organization_id=ctx.organization_id, transaction_id=tid, change_type='extracted_fields', status='pending', proposed_changes={'street_address': 'Extracted address', 'closing_date': '2026-12-01'})
+    db.session.add(row)
+    db.session.commit()
+    pending = dispatch('manage_transaction_review', {'transaction_id': tid, 'proposal_id': row.id, 'action': 'approve_fields', 'fields': {'selected': {'street_address': True, 'closing_date': False}, 'corrections': {'street_address': 'Corrected address'}}}, ctx)
+    assert pending.requires_confirmation, pending.error
+    changes = pending.data['preview']['changes']
+    assert {'field': 'street_address', 'from': '901 Parity Lane', 'to': 'Corrected address'} in changes
+    assert not any(c['field'] in ('closing_date', 'selected', 'corrections') for c in changes)

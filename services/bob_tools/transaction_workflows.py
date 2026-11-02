@@ -225,6 +225,7 @@ def validate(operation, args, ctx):
     else:
         capability = CAP_SEND_COMMS if operation == 'send_offer_email' else CAP_VIEW if operation in ('preview_offer_email', 'intake.preview_changes') else CAP_EDIT
         tx = transaction(ctx, args.get('transaction_id'), capability)
+        args['transaction_id'] = tx.id
         require_document_access(tx, ctx)
     for key in spec.ids:
         if not args.get(key):
@@ -384,6 +385,53 @@ def email_receipt_payload(ctx, tid, fields, content_digest):
             'transaction_id': tid, 'fields': fields, 'content_digest': content_digest}
 
 
+def proposed_approval_values(operation, args, fields, ctx, tx):
+    """Resolve saved terms using the same selection rules as the CRM action."""
+    before, after = {}, {}
+    if operation == 'amendment.accept':
+        from services.amendment_service import diff_against_contract
+        row = related(ctx, tx, 'amendment_id', args['amendment_id'])
+        selected = fields.get('selected')
+        for entry in diff_against_contract(row):
+            if (entry['changed'] if selected is None else selected.get(entry['key'])) and entry['proposed'] is not None:
+                before[entry['key']] = json_value(entry['current'])
+                after[entry['key']] = json_value(entry['proposed'])
+    elif operation in ('review.approve_fields', 'bootstrap.approve'):
+        from services.document_classification_policy import normalize_selected_field_flags, ClassificationPolicyError
+        try:
+            selected = normalize_selected_field_flags(fields.get('selected') or {})
+        except ClassificationPolicyError as exc:
+            raise ToolError(str(exc)) from exc
+        corrections = fields.get('corrections') or {}
+        if operation == 'bootstrap.approve':
+            from services.contract_bootstrap import build_review_payload, _normalize_date_value, _DATE_FIELD_KEYS
+            row = bootstrap_session(ctx, args['session_id'])
+            candidates = {key: value.get('value') for key, value in (row.extracted_candidates or {}).items()}
+            allowed = set(candidates) | {'property_address'}
+            before = {field['key']: field.get('crm_value') for field in build_review_payload(session=row)['fields']}
+        else:
+            from services.controlling_contracts import get_active_primary_contract
+            from services.amendment_service import _current_term_value
+            row = related(ctx, tx, 'proposal_id', args['proposal_id'])
+            candidates = row.proposed_changes or {}
+            allowed = set(candidates) | set(corrections)
+            contract = get_active_primary_contract(tx.id, tx.organization_id)
+            for key in allowed:
+                if key in ('street_address', 'property_address'):
+                    before[key] = tx.street_address
+                elif key in ('expected_close_date', 'closing_date', 'close_date', 'proposed_close_date'):
+                    before[key] = json_value(tx.expected_close_date)
+                else:
+                    before[key] = json_value(_current_term_value(contract, key)) if contract else None
+        for key, enabled in selected.items():
+            if enabled and key in allowed and (key in corrections or key in candidates):
+                value = corrections[key] if key in corrections else candidates[key]
+                if operation == 'bootstrap.approve' and (key in _DATE_FIELD_KEYS or str(key).endswith('_date')):
+                    value = _normalize_date_value(value)
+                after[key] = json_value(value)
+    return before, after
+
+
 def preview(operation, args, ctx):
     tx, fields = validate(operation, args, ctx)
     spec = OPERATIONS[operation]
@@ -393,6 +441,11 @@ def preview(operation, args, ctx):
     if spec.merge:
         merged = _merge_fields(operation, spec, ctx, tx, args, {})
         result['before'] = merged
+    if operation in ('amendment.accept', 'review.approve_fields', 'bootstrap.approve'):
+        before, after = proposed_approval_values(operation, args, fields, ctx, tx)
+        result['before'] = before
+        result['after'] = {key: value for key, value in result['after'].items() if key not in ('selected', 'corrections')}
+        result['after'].update(after)
     if spec.upload:
         from services.bob_attachment_refs import parse_attachment_ref
         meta = parse_attachment_ref(args['_attachment_ref'], user_id=ctx.user_id, organization_id=ctx.organization_id)

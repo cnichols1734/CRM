@@ -807,16 +807,20 @@ def accept_offer(ctx: BobContext, *, offer_id: int, as_backup: bool = False,
 
 
 def preview_accept_offer(args: dict, ctx: BobContext) -> dict:
-    from services.bob_tools.transaction_workflows import require_document_access, transaction
+    from services.bob_tools.transaction_workflows import require_document_access, transaction, approval_changes
     offer, err = _load_offer(ctx, args.get('offer_id'), CAP_EDIT)
     if err:
         return {'action': 'accept_offer', 'error': err.error}
-    require_document_access(transaction(ctx, offer.transaction_id, CAP_EDIT), ctx)
-    return {
-        'action': 'accept_offer',
+    tx = transaction(ctx, offer.transaction_id, CAP_EDIT)
+    require_document_access(tx, ctx)
+    result = {
+        'kind': 'transaction_workflow', 'action': 'accept_offer', 'address': tx.full_address,
         'before': {'status': offer.status},
         'after': {**args, 'status': 'accepted_backup' if args.get('as_backup') else 'accepted_primary', 'creates_contract': True},
     }
+    result['changes'] = approval_changes(result)
+    result['summary'] = '\n'.join(f"{change['field'].replace('_', ' ')}: {change['to']}" for change in result['changes'])
+    return result
 
 
 def expire_offer(ctx: BobContext, *, offer_id: int) -> ToolResult:

@@ -154,8 +154,11 @@ def call_mcp_tool(name: str, arguments: dict, ctx: BobContext, scopes: list[str]
     if not tool_allowed(name, scopes):
         return _error(f'This connection does not include the {scope_for_tool(name)} permission needed for {name}.')
 
-    if ((arguments or {}).get('action') in DESTRUCTIVE_ACTIONS.get(name, ())
-            and SCOPE_DESTRUCTIVE not in scopes):
+    args = arguments or {}
+    fields = args.get('fields') or {}
+    removes_milestone = (name == 'manage_transaction_contract' and args.get('action') == 'update_milestone'
+                         and isinstance(fields, dict) and fields.get('action') == 'remove')
+    if (args.get('action') in DESTRUCTIVE_ACTIONS.get(name, ()) or removes_milestone) and SCOPE_DESTRUCTIVE not in scopes:
         return _error('Deleting transaction records requires the destructive permission.')
 
     if name == 'select_transaction_context':

@@ -150,6 +150,11 @@ def _sync_contract_frozen_terms(contract):
         'buyer_agent_commission_flat',
     ):
         terms[field] = _json_safe_value(getattr(contract, field))
+    terms['offer_price'] = terms['accepted_price']
+    terms['sales_price'] = terms['accepted_price']
+    terms['purchase_price'] = terms['accepted_price']
+    terms['proposed_close_date'] = terms['closing_date']
+    terms['close_date'] = terms['closing_date']
     contract.frozen_terms = terms
     flag_modified(contract, 'frozen_terms')
 
