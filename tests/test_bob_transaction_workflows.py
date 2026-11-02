@@ -685,3 +685,39 @@ def test_assigned_editor_can_accept_offer_and_update_listing(deal, seed):
     assert accepted.data['accepted_contract_id']
     result = apply('update_listing_operations', {'transaction_id': tid, 'fields': {'pet_notes': 'Cat inside'}}, editor)
     assert result.ok
+
+
+def test_bootstrap_address_approval_does_not_create_participants(deal, monkeypatch):
+    from models import ContractBootstrapSession, Organization, Contact, TransactionParticipant
+    from services.transaction_helpers import purge_transaction_dependent_rows
+    ctx, tid = deal
+    org = db.session.get(Organization, ctx.organization_id)
+    previous = org.feature_flags
+    row = ContractBootstrapSession(organization_id=ctx.organization_id, uploader_user_id=ctx.user_id,
+        original_filename='listing.pdf', status='awaiting_review', match_status='create_new',
+        classification={'side': 'seller', 'document_type': 'listing_agreement', 'seller_name': 'Unselected Person', 'seller_email': 'unselected@example.test'},
+        extracted_candidates={'property_address': {'value': '12 Explicit Review Road'}, 'seller_name': {'value': 'Unselected Person'}})
+    new_tid = None
+    monkeypatch.setattr('services.contract_bootstrap._link_document_to_transaction', lambda **kwargs: None)
+    try:
+        org.feature_flags = {**(previous or {}), 'BOB_VTC_PILOT': True}
+        db.session.add(row)
+        db.session.commit()
+        before_contacts = Contact.query.count()
+        pending = dispatch('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'approve', 'fields': {'selected': {'property_address': True}}}, ctx)
+        assert pending.requires_confirmation, pending.error
+        result = confirm_action(pending.action_id, ctx)
+        assert result.ok, result.error
+        new_tid = row.matched_transaction_id
+        assert new_tid and db.session.get(Transaction, new_tid).street_address == '12 Explicit Review Road'
+        assert TransactionParticipant.query.filter_by(transaction_id=new_tid).count() == 0
+        assert Contact.query.count() == before_contacts
+    finally:
+        db.session.delete(row)
+        db.session.flush()
+        if new_tid:
+            Task.query.filter_by(transaction_id=new_tid).delete(synchronize_session=False)
+            purge_transaction_dependent_rows(new_tid)
+            db.session.delete(db.session.get(Transaction, new_tid))
+        org.feature_flags = previous
+        db.session.commit()

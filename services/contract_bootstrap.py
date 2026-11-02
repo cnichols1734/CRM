@@ -2468,7 +2468,7 @@ def approve_selected(
             route=route,
         )
         session.matched_transaction_id = transaction.id
-        if not party_resolutions:
+        if party_resolutions is None:
             party_resolutions = default_party_resolutions(session, user_id)
         _apply_party_resolutions(
             transaction=transaction,

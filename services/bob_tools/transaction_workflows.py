@@ -372,6 +372,9 @@ def execute(operation, args, ctx):
         if not args.get('_email_digest') or args['_email_digest'] != draft.data.get('content_digest'):
             return ToolResult.failure('The email draft changed. Ask BOB to prepare it again for review.')
     fields = _merge_fields(operation, spec, ctx, tx, args, fields)
+    if operation == 'bootstrap.approve':
+        # Participant changes are outside BOB's transaction tool scope.
+        fields['parties'] = []
     ids = {('doc_id' if key == 'document_id' else key): args[key] for key in spec.ids}
     if tx:
         ids['id'] = tx.id
