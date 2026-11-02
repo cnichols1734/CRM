@@ -633,3 +633,22 @@ def test_unfiled_sensitive_bootstrap_is_not_exposed(deal, surface):
         db.session.delete(row)
         org.feature_flags = previous
         db.session.commit()
+
+
+def test_approved_proposal_replaces_original_offer_aliases(deal):
+    from models import TransactionChangeProposal, SellerAcceptedContract
+    ctx, tid = deal
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Proposal Buyer', 'offer_price': 400000, 'proposed_close_date': '2026-12-01'}, ctx)
+    cid = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01'}, ctx).data['accepted_contract_id']
+    row = TransactionChangeProposal(organization_id=ctx.organization_id, transaction_id=tid, change_type='extracted_fields', status='pending', proposed_changes={'sales_price': '425000', 'closing_date': '2026-12-15'})
+    db.session.add(row)
+    db.session.commit()
+    pending = dispatch('manage_transaction_review', {'transaction_id': tid, 'proposal_id': row.id, 'action': 'approve_fields', 'fields': {'selected': {'sales_price': True, 'closing_date': True}}}, ctx)
+    assert pending.requires_confirmation, pending.error
+    result = confirm_action(pending.action_id, ctx)
+    assert result.ok, result.error
+    contract = db.session.get(SellerAcceptedContract, cid)
+    assert float(contract.accepted_price) == 425000
+    assert str(contract.closing_date) == '2026-12-15'
+    assert contract.frozen_terms['offer_price'] == contract.frozen_terms['sales_price']
+    assert contract.frozen_terms['proposed_close_date'] == contract.frozen_terms['closing_date']
