@@ -724,3 +724,25 @@ def test_bootstrap_address_approval_does_not_create_participants(deal, monkeypat
             db.session.delete(db.session.get(Transaction, new_tid))
         org.feature_flags = previous
         db.session.commit()
+
+
+@pytest.mark.parametrize('source', ['manual', 'listing_agreement_extraction'])
+def test_partial_commission_approval_honors_explicit_clear(deal, source):
+    from models import SellerCommissionTerms
+    from services.transaction_helpers import sync_seller_commission_terms_from_listing
+    ctx, tid = deal
+    terms = SellerCommissionTerms(organization_id=ctx.organization_id, transaction_id=tid, created_by_id=ctx.user_id,
+        listing_commission_percent=3, coop_compensation_percent=2, source=source)
+    db.session.add(terms)
+    db.session.flush()
+    sync_seller_commission_terms_from_listing(transaction=db.session.get(Transaction, tid),
+        field_data={'listing_side_percent': '', 'listing_side_flat': '8000'},
+        user_id=ctx.user_id, org_id=ctx.organization_id, partial=True)
+    assert terms.listing_commission_percent is None
+    assert float(terms.listing_commission_flat) == 8000
+    assert float(terms.coop_compensation_percent) == 2
+    sync_seller_commission_terms_from_listing(transaction=db.session.get(Transaction, tid),
+        field_data={'listing_side_flat': '', 'buyer_agent_commission_percent': ''},
+        user_id=ctx.user_id, org_id=ctx.organization_id, partial=True)
+    assert terms.listing_commission_flat is None
+    assert terms.coop_compensation_percent is None
