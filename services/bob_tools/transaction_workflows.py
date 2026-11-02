@@ -185,6 +185,8 @@ def filter_bootstrap_candidates(payload, ctx):
             continue
     # Party matching belongs to the CRM participant workflow, not BOB.
     safe = {key: value for key, value in payload.items() if key != 'parties'}
+    safe['classification'] = {key: value for key, value in (payload.get('classification') or {}).items()
+                              if key not in ('parties', 'local_cache_path', 'storage_backend')}
     safe['bob_questions'] = {key: value for key, value in (payload.get('bob_questions') or {}).items() if key != 'parties'}
     return {**safe, 'match_candidates': visible}
 

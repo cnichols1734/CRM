@@ -517,7 +517,8 @@ def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
     org = db.session.get(Organization, ctx.organization_id)
     previous = org.feature_flags
     row = ContractBootstrapSession(organization_id=ctx.organization_id, uploader_user_id=seed['agent_a'],
-        match_candidates=[{'transaction_id': tid, 'address': 'Unassigned address'}], classification={'side': 'seller'})
+        match_candidates=[{'transaction_id': tid, 'address': 'Unassigned address'}],
+        classification={'side': 'seller', 'parties': [{'matches': [{'email': 'private-contact@example.test'}]}]})
     try:
         org.feature_flags = {**(previous or {}), 'BOB_VTC_PILOT': True}
         db.session.add(row)
@@ -527,6 +528,9 @@ def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
         assert result.data['review']['match_candidates'] == []
         assert 'parties' not in result.data['review']
         assert 'parties' not in result.data['review']['bob_questions']
+        assert 'private-contact@example.test' not in str(result.for_model())
+        inbox = apply('get_contract_inbox', {'session_id': row.id}, agent)
+        assert 'private-contact@example.test' not in str(inbox.for_model())
         row.uploader_user_id = ctx.user_id
         db.session.commit()
         args = {'session_id': row.id, 'action': 'match', 'fields': {'decision': 'attach', 'transaction_id': tid}}
