@@ -74,10 +74,10 @@ OPERATIONS = {
         'offer_id buyer_names buyer_agent_name buyer_agent_email buyer_agent_phone buyer_agent_brokerage received_at response_deadline_at document_type', form=True, upload=True),
     'offer.confirm_review': op('confirm_offer_package_review', 'draft', 'offer_id'),
     'offer.highest_and_best': op('request_highest_and_best', 'deadline_at message offer_ids', description='Record highest-and-best deadline and selected offers. This does not send any messages.'),
-    'preview_offer_email': op('preview_offer_client_email', 'offer_ids subject preheader greeting intro closing note terms'),
+    'preview_offer_email': op('preview_offer_client_email', 'offer_ids to cc subject preheader greeting intro closing note terms'),
     'send_offer_email': op('send_offer_client_email', 'offer_ids to cc subject preheader greeting intro closing note terms', description='Send the reviewed offer summary email. Requires explicit recipients and approval of the exact draft.'),
     'contract.update_details': op('update_seller_contract_details',
-        'accepted_price effective_date effective_at closing_date option_period_days financing_approval_deadline financing_type survey_choice survey_furnished_by residential_service_contract cash_down_payment financing_amount seller_concessions_amount buyer_agent_commission_percent buyer_agent_commission_flat', 'contract_id'),
+        'accepted_price effective_date effective_at closing_date option_period_days financing_approval_deadline financing_type survey_choice survey_furnished_by residential_service_contract cash_down_payment financing_amount seller_concessions_amount buyer_agent_commission_percent buyer_agent_commission_flat', 'contract_id', merge='contract'),
     'contract.create_milestone': op('create_seller_contract_milestone', 'title due_at status responsible_party notes', 'contract_id'),
     'contract.update_milestone': op('update_seller_contract_milestone', 'title due_at status responsible_party notes action', 'contract_id milestone_id', merge='milestone', description='Patch a milestone, or use action=remove, restore, or automatic to reset its calculated date.'),
     'contract.upload': op('upload_seller_contract_document', 'document_type', 'contract_id', form=True, upload=True),
@@ -160,6 +160,32 @@ def related(ctx, tx, key, value):
     return row
 
 
+def document_allowed(doc, ctx):
+    from services.document_privacy import may_use_in_llm, may_send_to_telegram
+    return may_use_in_llm(doc) and (ctx.surface != 'telegram' or may_send_to_telegram(doc))
+
+
+def require_document_access(tx, ctx):
+    from models import TransactionDocument
+    docs = TransactionDocument.query.filter_by(transaction_id=tx.id, organization_id=ctx.organization_id).all()
+    if any(not document_allowed(doc, ctx) for doc in docs):
+        # Derived transaction values do not consistently retain source provenance.
+        raise ToolError('This transaction has documents restricted from BOB on this channel. Review its contents in the CRM.')
+
+
+def filter_bootstrap_candidates(payload, ctx):
+    visible = []
+    for candidate in payload.get('match_candidates') or []:
+        try:
+            if not candidate.get('transaction_id'):
+                continue
+            transaction(ctx, candidate['transaction_id'])
+            visible.append(candidate)
+        except ToolError:
+            continue
+    return {**payload, 'match_candidates': visible}
+
+
 def bootstrap_session(ctx, session_id):
     from models import ContractBootstrapSession
     from feature_flags import org_has_feature
@@ -169,8 +195,10 @@ def bootstrap_session(ctx, session_id):
     row = ContractBootstrapSession.query.filter_by(id=session_id, organization_id=ctx.organization_id).first()
     if row is None or (row.uploader_user_id != ctx.user_id and user.org_role not in ('owner', 'admin')):
         raise ToolError('Contract inbox item not found or not authorized.')
+    if row.document is not None and not document_allowed(row.document, ctx):
+        raise ToolError('This document is restricted from BOB on this channel.')
     if row.matched_transaction_id:
-        transaction(ctx, row.matched_transaction_id, CAP_EDIT)
+        require_document_access(transaction(ctx, row.matched_transaction_id, CAP_EDIT), ctx)
     return row
 
 
@@ -193,9 +221,10 @@ def validate(operation, args, ctx):
         if operation != 'bootstrap.upload':
             bootstrap_session(ctx, args.get('session_id'))
         if fields.get('transaction_id'):
-            transaction(ctx, fields['transaction_id'], CAP_EDIT)
+            require_document_access(transaction(ctx, fields['transaction_id'], CAP_EDIT), ctx)
     else:
         tx = transaction(ctx, args.get('transaction_id'), CAP_VIEW if operation in ('preview_offer_email', 'intake.preview_changes') else CAP_EDIT)
+        require_document_access(tx, ctx)
     for key in spec.ids:
         if not args.get(key):
             raise ToolError(f'{key} is required.')
@@ -302,6 +331,10 @@ def _merge_fields(operation, spec, ctx, tx, args, fields):
     if spec.merge == 'milestone':
         milestone = related(ctx, tx, 'milestone_id', args['milestone_id'])
         return {**columns(milestone, ('title', 'due_at', 'status', 'responsible_party', 'notes')), **fields}
+    if spec.merge == 'contract' and any(key in fields for key in ('effective_date', 'effective_at')):
+        contract = related(ctx, tx, 'contract_id', args['contract_id'])
+        return {'effective_date': contract.effective_date.isoformat() if contract.effective_date else None,
+                'effective_at': contract.effective_at.strftime('%Y-%m-%d %H:%M:%S') if contract.effective_at else None, **fields}
     if spec.merge in ('listing', 'commission'):
         model = models.SellerListingProfile if spec.merge == 'listing' else models.SellerCommissionTerms
         row = model.query.filter_by(transaction_id=tx.id, organization_id=ctx.organization_id).first()
@@ -329,10 +362,25 @@ def execute(operation, args, ctx):
     result = invoke(ctx, spec.endpoint, ids=ids, fields=fields, method=spec.method,
                     form=spec.form, upload_ref=args.get('_attachment_ref') if spec.upload else None)
     if result.ok:
+        if operation == 'bootstrap.match' and isinstance(result.data.get('review'), dict):
+            result.data['review'] = filter_bootstrap_candidates(result.data['review'], ctx)
+        if operation == 'preview_offer_email':
+            result.data['recipients'] = {'to': fields.get('to'), 'cc': fields.get('cc')}
+            result.data['preview_receipt'] = email_receipt_signer().dumps(email_receipt_payload(ctx, tx.id, fields, result.data['content_digest']))
         if result.summary == 'CRM operation completed.':
             result.summary = operation.replace('.', ' ').replace('_', ' ').capitalize() + (f' for {tx.street_address}.' if tx else '.')
         result.record_url = f'/transactions/{tx.id}' if tx and operation != 'delete_transaction' else '/transactions'
     return result
+
+
+def email_receipt_signer():
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='bob-offer-email-preview')
+
+
+def email_receipt_payload(ctx, tid, fields, content_digest):
+    return {'user_id': ctx.user_id, 'organization_id': ctx.organization_id,
+            'transaction_id': tid, 'fields': fields, 'content_digest': content_digest}
 
 
 def preview(operation, args, ctx):
@@ -352,6 +400,14 @@ def preview(operation, args, ctx):
         draft = execute('preview_offer_email', {**args, 'fields': {k: v for k, v in fields.items() if k in OPERATIONS['preview_offer_email'].fields}}, ctx)
         if not draft.ok:
             raise ToolError(draft.error)
+        if ctx.surface == 'mcp':
+            from itsdangerous import BadData
+            try:
+                receipt = email_receipt_signer().loads(args.get('preview_receipt') or '', max_age=900)
+            except BadData as exc:
+                raise ToolError('Preview the email with its recipients first and pass the reviewed preview_receipt.') from exc
+            if receipt != email_receipt_payload(ctx, tx.id, fields, draft.data.get('content_digest')):
+                raise ToolError('The reviewed email or recipients changed. Preview it again before sending.')
         result['draft'] = draft.data.get('draft')
         args['_email_digest'] = draft.data.get('content_digest')
         result['sender'] = draft.data.get('sender')
@@ -384,6 +440,8 @@ def read_workspace(args, ctx):
     section = args.get('section', 'details')
     page = max(1, int(args.get('page') or 1))
     record_id = args.get('record_id')
+    if section not in ('documents', 'document_templates'):
+        require_document_access(tx, ctx)
     if section == 'intake':
         from services.intake_service import get_intake_schema
         return ToolResult.success('Questionnaire and saved answers.', {'schema': get_intake_schema(tx.transaction_type.name, tx.ownership_status), 'intake_data': tx.intake_data or {}})
@@ -422,6 +480,10 @@ def read_workspace(args, ctx):
     if section == 'documents':
         from services.documents import DocumentLoader
         for item, row in zip(items, rows):
+            if not document_allowed(row, ctx):
+                item.clear()
+                item.update({'id': row.id, 'status': row.status, 'content_restricted': True})
+                continue
             definition = DocumentLoader.get(row.template_slug)
             item['schema'] = document_schema(definition) if definition else None
     return ToolResult.success('Transaction records.', {'transaction_id': tx.id, 'section': section,
@@ -440,14 +502,7 @@ def read_bootstrap(args, ctx):
         row = bootstrap_session(ctx, args['session_id'])
         payload = build_review_payload(session=row)
         # Match proposals may contain transactions not visible to this agent.
-        visible = []
-        for candidate in payload.get('match_candidates') or []:
-            try:
-                transaction(ctx, candidate.get('transaction_id'))
-                visible.append(candidate)
-            except ToolError:
-                continue
-        payload['match_candidates'] = visible
+        payload = filter_bootstrap_candidates(payload, ctx)
         return ToolResult.success('Contract inbox review.', payload)
     rows = ContractBootstrapSession.query.filter_by(organization_id=ctx.organization_id,
         uploader_user_id=ctx.user_id).order_by(ContractBootstrapSession.id.desc()).limit(50).all()
@@ -489,6 +544,8 @@ def build_tools(Tool, obj):
         properties = {'transaction_id': {'type': 'integer', 'description': 'Authorized transaction ID from a read tool.'},
             'fields': {'type': 'object', 'description': 'Only fields supported by this operation. Call get_transaction_operation_schema first; read the relevant workspace section before changing it.'}}
         required = [] if name == 'manage_transaction_bootstrap' else ['transaction_id']
+        if name == 'send_offer_email':
+            properties['preview_receipt'] = {'type': 'string', 'description': 'For MCP, required receipt returned by preview_offer_email with the same fields and recipients. Show the preview before requesting send approval.'}
         if grouped:
             properties['action'] = {'type': 'string', 'description': 'CRM workflow action to perform.', 'enum': [key.split('.', 1)[1] for key in operations]}
             required = required + ['action']
@@ -540,18 +597,25 @@ def record_version(args, ctx):
     import models
     tid = args.get('transaction_id')
     sid = args.get('session_id')
+    bootstrap = models.ContractBootstrapSession.query.filter_by(id=sid, organization_id=ctx.organization_id).first() if sid else None
     if not tid and args.get('offer_id'):
         offer = models.SellerOffer.query.filter_by(id=args['offer_id'], organization_id=ctx.organization_id).first()
         tid = offer.transaction_id if offer else None
-    state = {}
+    tids = set(args.get('transaction_ids') or [])
     if tid:
+        tids.add(tid)
+    if (args.get('fields') or {}).get('transaction_id'):
+        tids.add(args['fields']['transaction_id'])
+    if bootstrap and bootstrap.matched_transaction_id:
+        tids.add(bootstrap.matched_transaction_id)
+    state = {}
+    for target_id in sorted(tids):
         for model_name in sorted({item[0] for item in READ_SECTIONS.values()}):
             model = getattr(models, model_name)
             query = model.query.filter_by(organization_id=ctx.organization_id)
-            query = query.filter_by(id=tid) if model_name == 'Transaction' else query.filter_by(transaction_id=tid)
-            state[model_name] = [columns(row, [col.name for col in model.__table__.columns])
+            query = query.filter_by(id=target_id) if model_name == 'Transaction' else query.filter_by(transaction_id=target_id)
+            state[f'{target_id}:{model_name}'] = [columns(row, [col.name for col in model.__table__.columns])
                                 for row in query.order_by(model.id).all()]
     if sid:
-        row = models.ContractBootstrapSession.query.filter_by(id=sid, organization_id=ctx.organization_id).first()
-        state['bootstrap'] = columns(row, [col.name for col in models.ContractBootstrapSession.__table__.columns]) if row else None
-    return {'transaction_id': tid, 'session_id': sid, 'digest': digest(state)} if state else None
+        state['bootstrap'] = columns(bootstrap, [col.name for col in models.ContractBootstrapSession.__table__.columns]) if bootstrap else None
+    return {'transaction_id': tid, 'transaction_ids': sorted(tids), 'session_id': sid, 'digest': digest(state)} if state else None

@@ -387,3 +387,107 @@ def test_bootstrap_upload_returns_readable_session(deal, monkeypatch):
     finally:
         org.feature_flags = original
         db.session.commit()
+
+
+def test_mcp_email_requires_unchanged_reviewed_preview(deal, monkeypatch):
+    from dataclasses import replace
+    from models import SellerOffer
+    from services.mcp.adapter import call_mcp_tool
+    ctx, tid = deal
+    ctx = replace(ctx, surface='mcp')
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Receipt Buyer', 'offer_price': 400000}, ctx)
+    fields = {'offer_ids': [offer.data['offer_id']], 'to': 'synthetic@example.test', 'subject': 'Reviewed subject'}
+    sent = []
+    def send(draft, **kw):
+        sent.append(kw)
+        return {'recipients': kw['to_emails'], 'cc': [], 'skipped': False, 'via': 'test'}
+    monkeypatch.setattr('routes.transactions.offers.send_draft', send)
+    args = {'transaction_id': tid, 'fields': fields}
+    assert call_mcp_tool('send_offer_email', args, ctx, ['read', 'write'])['isError']
+    preview = apply('preview_offer_email', args, ctx)
+    args['preview_receipt'] = preview.data['preview_receipt']
+    assert call_mcp_tool('send_offer_email', {**args, 'fields': {**fields, 'to': 'other@example.test'}}, ctx, ['read', 'write'])['isError']
+    row = db.session.get(SellerOffer, offer.data['offer_id'])
+    row.buyer_names = 'Changed Buyer'
+    db.session.commit()
+    assert call_mcp_tool('send_offer_email', args, ctx, ['read', 'write'])['isError']
+    assert sent == []
+    args['preview_receipt'] = apply('preview_offer_email', args, ctx).data['preview_receipt']
+    assert not call_mcp_tool('send_offer_email', args, ctx, ['read', 'write'])['isError']
+    assert len(sent) == 1 and sent[0]['to_emails'] == ['synthetic@example.test']
+
+
+@pytest.mark.parametrize('surface,allowed,sensitivity', [('bob_chat', False, 'internal'), ('telegram', True, 'confidential')])
+def test_restricted_document_content_is_not_returned(deal, surface, allowed, sensitivity):
+    from dataclasses import replace
+    from models import TransactionDocument, DocumentReviewReport, TransactionChangeProposal
+    ctx, tid = deal
+    ctx = replace(ctx, surface=surface)
+    doc = TransactionDocument(organization_id=ctx.organization_id, transaction_id=tid,
+        template_slug='survey', template_name='Private file', status='pending',
+        field_data={'private': 'private-document-value'}, ai_processing_allowed=allowed, sensitivity_class=sensitivity)
+    db.session.add(doc)
+    db.session.flush()
+    db.session.add(DocumentReviewReport(organization_id=ctx.organization_id, transaction_id=tid,
+        document_id=doc.id, title='Review', summary='private-document-value', status='open', severity='attention'))
+    db.session.commit()
+    result = apply('get_transaction_workspace', {'transaction_id': tid, 'section': 'documents'}, ctx)
+    assert result.data['records'] == [{'id': doc.id, 'status': 'pending', 'content_restricted': True}]
+    for section in ('reviews', 'proposals', 'intake', 'history', 'document_routing', 'offer_versions'):
+        denied = dispatch('get_transaction_workspace', {'transaction_id': tid, 'section': section}, ctx)
+        assert not denied.ok and 'private-document-value' not in str(denied.for_model())
+
+
+def test_contract_effective_date_and_time_partial_edits(deal):
+    from datetime import datetime, date
+    from models import SellerAcceptedContract
+    ctx, tid = deal
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Time Buyer', 'offer_price': 400000}, ctx)
+    result = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01', 'effective_at': '2026-11-01T12:30'}, ctx)
+    cid = result.data['accepted_contract_id']
+    args = {'transaction_id': tid, 'contract_id': cid, 'action': 'update_details'}
+    apply('manage_transaction_contract', {**args, 'fields': {'effective_date': '2026-11-02'}}, ctx)
+    contract = db.session.get(SellerAcceptedContract, cid)
+    assert contract.effective_date == date(2026, 11, 2)
+    assert contract.effective_at == datetime(2026, 11, 1, 12, 30)
+    apply('manage_transaction_contract', {**args, 'fields': {'effective_at': '2026-11-02T14:15'}}, ctx)
+    assert contract.effective_date == date(2026, 11, 2)
+    assert contract.effective_at == datetime(2026, 11, 2, 14, 15)
+
+
+def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
+    from models import ContractBootstrapSession, Organization
+    ctx, tid = deal
+    org = db.session.get(Organization, ctx.organization_id)
+    previous = org.feature_flags
+    row = ContractBootstrapSession(organization_id=ctx.organization_id, uploader_user_id=seed['agent_a'],
+        match_candidates=[{'transaction_id': tid, 'address': 'Unassigned address'}], classification={'side': 'seller'})
+    try:
+        org.feature_flags = {**(previous or {}), 'BOB_VTC_PILOT': True}
+        db.session.add(row)
+        db.session.commit()
+        agent = BobContext(user_id=seed['agent_a'], organization_id=ctx.organization_id)
+        result = apply('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'match', 'fields': {'decision': 'manual'}}, agent)
+        assert result.data['review']['match_candidates'] == []
+        row.uploader_user_id = ctx.user_id
+        db.session.commit()
+        args = {'session_id': row.id, 'action': 'match', 'fields': {'decision': 'attach', 'transaction_id': tid}}
+        pending = dispatch('manage_transaction_bootstrap', args, ctx)
+        assert pending.requires_confirmation, pending.error
+        tx = db.session.get(Transaction, tid)
+        tx.city = 'Changed after preview'
+        db.session.commit()
+        assert not confirm_action(pending.action_id, ctx).ok
+        assert row.matched_transaction_id is None
+        apply('manage_transaction_bootstrap', args, ctx)
+        pending = dispatch('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'approve'}, ctx)
+        assert pending.requires_confirmation, pending.error
+        tx.city = 'Changed after approval preview'
+        db.session.commit()
+        denied = confirm_action(pending.action_id, ctx)
+        assert not denied.ok and 'changed after the preview' in denied.error
+        assert tx.city == 'Changed after approval preview'
+    finally:
+        db.session.delete(row)
+        org.feature_flags = previous
+        db.session.commit()
