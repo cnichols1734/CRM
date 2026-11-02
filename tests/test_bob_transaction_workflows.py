@@ -636,6 +636,9 @@ def test_unfiled_sensitive_bootstrap_is_not_exposed(deal, surface):
         result = dispatch('get_contract_inbox', {'session_id': row.id}, replace(ctx, surface=surface))
         assert not result.ok
         assert 'private-tenant-value' not in str(result.for_model())
+        inbox = apply('get_contract_inbox', {}, replace(ctx, surface=surface))
+        restricted = next(item for item in inbox.data['sessions'] if item['id'] == row.id)
+        assert restricted['content_restricted'] and 'original_filename' not in restricted
     finally:
         db.session.delete(row)
         org.feature_flags = previous

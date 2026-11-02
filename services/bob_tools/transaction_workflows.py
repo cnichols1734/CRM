@@ -604,8 +604,15 @@ def read_bootstrap(args, ctx):
         return ToolResult.success('Contract inbox review.', payload)
     rows = ContractBootstrapSession.query.filter_by(organization_id=ctx.organization_id,
         uploader_user_id=ctx.user_id).order_by(ContractBootstrapSession.id.desc()).limit(50).all()
-    return ToolResult.success('Your contract inbox.', {'sessions': [columns(row,
-        ('id', 'original_filename', 'status', 'match_status', 'matched_transaction_id')) for row in rows]})
+    sessions = []
+    for row in rows:
+        try:
+            bootstrap_session(ctx, row.id)
+        except ToolError:
+            sessions.append({'id': row.id, 'status': row.status, 'content_restricted': True})
+            continue
+        sessions.append(columns(row, ('id', 'original_filename', 'status', 'match_status', 'matched_transaction_id')))
+    return ToolResult.success('Your contract inbox.', {'sessions': sessions})
 
 
 def operation_schema(args, ctx):

@@ -2222,24 +2222,6 @@ def _link_document_to_transaction(
     # classify pages even when AI returned a single listing_agreement label.
     _split_listing_package_if_needed(doc, file_bytes)
 
-    if template_slug == 'listing-agreement' or identity_kind == 'listing_agreement':
-        actor_id = session.uploader_user_id or session.applied_by_id
-        if actor_id:
-            try:
-                from services.transaction_helpers import (
-                    sync_seller_commission_terms_from_listing,
-                )
-                sync_seller_commission_terms_from_listing(
-                    transaction=transaction,
-                    field_data=doc.field_data or field_data,
-                    user_id=actor_id,
-                    org_id=session.organization_id,
-                )
-            except Exception:
-                logger.exception(
-                    'Failed to sync seller commission terms from listing bootstrap %s',
-                    session.id,
-                )
 
     return doc
 
@@ -2510,6 +2492,12 @@ def approve_selected(
                 )
 
     doc = _link_document_to_transaction(session=session, transaction=transaction)
+    if doc and doc.template_slug == 'listing-agreement':
+        from services.transaction_helpers import sync_seller_commission_terms_from_listing
+        sync_seller_commission_terms_from_listing(
+            transaction=transaction, field_data=applied_fields,
+            user_id=user_id, org_id=session.organization_id, partial=True,
+        )
 
     offer = None
     if route.action in (ACTION_CREATE_INBOUND_OFFER, ACTION_CREATE_BUYER_OFFER) and doc:

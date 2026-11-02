@@ -110,6 +110,8 @@ def test_seller_listing_real_link_creates_listing_not_under_contract(app, seed):
             identity=identity,
             fields={
                 'property_address': '700 Listing Lane',
+                'listing_side_percent': '3',
+                'buyer_agent_percent': '3',
                 'list_price': '525000',
                 'listing_start_date': '2026-08-01',
                 'seller_name': 'Pat Seller',
@@ -120,6 +122,8 @@ def test_seller_listing_real_link_creates_listing_not_under_contract(app, seed):
             'property_address': True,
             'list_price': True,
             'listing_start_date': True,
+            'listing_side_percent': False,
+            'buyer_agent_percent': True,
         }
         with patch(
             'services.contract_bootstrap.read_bootstrap_file',
@@ -132,10 +136,14 @@ def test_seller_listing_real_link_creates_listing_not_under_contract(app, seed):
                 session=session,
                 user_id=user.id,
                 selected_fields=selected,
-                corrections={},
+                corrections={'buyer_agent_percent': '2'},
                 confirmed_side='seller',
             )
 
+        from models import SellerCommissionTerms
+        commission = SellerCommissionTerms.query.filter_by(transaction_id=transaction.id).one()
+        assert commission.listing_commission_percent is None
+        assert float(commission.coop_compensation_percent) == 2
         assert transaction.transaction_type.name == 'seller'
         assert transaction.status == 'preparing_to_list'
         assert transaction.expected_close_date is None
