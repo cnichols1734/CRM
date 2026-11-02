@@ -642,6 +642,7 @@ def test_unfiled_sensitive_bootstrap_is_not_exposed(deal, surface):
         restricted = next(item for item in inbox.data['sessions'] if item['id'] == row.id)
         assert restricted['content_restricted'] and 'original_filename' not in restricted
         row.classification = {'side': 'seller', 'document_type': 'residential_contract'}
+        row.original_filename = 'contract.pdf'
         db.session.commit()
         changed = apply('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'match',
             'fields': {'decision': 'create_new', 'side': 'tenant'}}, replace(ctx, surface=surface))
