@@ -546,6 +546,8 @@ def test_bootstrap_candidates_and_target_stale_approval(deal, seed):
         db.session.commit()
         pending = dispatch('manage_transaction_bootstrap', {'session_id': row.id, 'action': 'approve', 'fields': {'selected': {'sales_price': True}, 'corrections': {'sales_price': '415000'}}}, ctx)
         assert any(c['field'] == 'sales_price' and c['to'] == '415000' for c in pending.data['preview']['changes'])
+        assert pending.data['preview']['transaction_id'] == tid
+        assert '901 Parity Lane' in pending.data['preview']['address']
         assert pending.requires_confirmation, pending.error
         tx.city = 'Changed after approval preview'
         db.session.commit()
@@ -746,3 +748,20 @@ def test_partial_commission_approval_honors_explicit_clear(deal, source):
         user_id=ctx.user_id, org_id=ctx.organization_id, partial=True)
     assert terms.listing_commission_flat is None
     assert terms.coop_compensation_percent is None
+
+
+def test_milestone_notes_preserve_automatic_date_precision(deal):
+    from datetime import datetime
+    from models import SellerContractMilestone
+    ctx, tid = deal
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Milestone Buyer', 'offer_price': 400000}, ctx)
+    cid = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01'}, ctx).data['accepted_contract_id']
+    milestone = SellerContractMilestone(organization_id=ctx.organization_id, transaction_id=tid, accepted_contract_id=cid,
+        milestone_key='regression', title='Automatic deadline', source='effective_date', due_at=datetime(2026, 11, 7, 12, 30, 45))
+    db.session.add(milestone)
+    db.session.commit()
+    apply('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid, 'milestone_id': milestone.id,
+        'action': 'update_milestone', 'fields': {'notes': 'Call before deadline'}}, ctx)
+    assert milestone.notes == 'Call before deadline'
+    assert milestone.due_at == datetime(2026, 11, 7, 12, 30, 45)
+    assert milestone.source == 'effective_date'

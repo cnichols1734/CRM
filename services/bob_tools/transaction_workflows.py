@@ -348,7 +348,7 @@ def _merge_fields(operation, spec, ctx, tx, args, fields):
         return {'field_data': {**visible_field_data(doc.field_data), **fields.get('field_data', {})}}
     if spec.merge == 'milestone':
         milestone = related(ctx, tx, 'milestone_id', args['milestone_id'])
-        return {**columns(milestone, ('title', 'due_at', 'status', 'responsible_party', 'notes')), **fields}
+        return {**columns(milestone, ('title', 'status', 'responsible_party', 'notes')), **fields}
     if spec.merge == 'contract' and any(key in fields for key in ('effective_date', 'effective_at')):
         contract = related(ctx, tx, 'contract_id', args['contract_id'])
         return {'effective_date': contract.effective_date.isoformat() if contract.effective_date else None,
@@ -457,10 +457,21 @@ def preview(operation, args, ctx):
     result = {'kind': 'transaction_workflow', 'action': operation, 'transaction_id': tx.id if tx else None,
               'address': tx.full_address if tx else None,
               'after': {**{key: args[key] for key in spec.ids}, **fields}}
+    if operation.startswith('bootstrap.') and operation != 'bootstrap.upload':
+        inbox = bootstrap_session(ctx, args['session_id'])
+        target_id = fields.get('transaction_id') or inbox.matched_transaction_id
+        if target_id:
+            target = transaction(ctx, target_id)
+            result.update(transaction_id=target.id, address=target.full_address)
+            result['after']['transaction_id'] = target.id
+        else:
+            result['after']['destination'] = inbox.match_status
     if spec.merge:
         merged = _merge_fields(operation, spec, ctx, tx, args, {})
         result['before'] = (columns(related(ctx, tx, 'contract_id', args['contract_id']), spec.fields)
                             if spec.merge == 'contract' else merged)
+    if spec.merge == 'milestone':
+        result['before']['due_at'] = json_value(related(ctx, tx, 'milestone_id', args['milestone_id']).due_at)
     if operation in ('amendment.accept', 'review.approve_fields', 'bootstrap.approve'):
         before, after = proposed_approval_values(operation, args, fields, ctx, tx)
         result['before'] = before
