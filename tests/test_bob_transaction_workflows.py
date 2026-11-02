@@ -772,3 +772,29 @@ def test_milestone_notes_preserve_automatic_date_precision(deal):
     assert milestone.notes == 'Call before deadline'
     assert milestone.due_at == datetime(2026, 11, 7, 12, 30, 45)
     assert milestone.source == 'effective_date'
+
+
+@pytest.mark.parametrize('action', ['update', 'confirm_review'])
+def test_legacy_offer_partial_actions_preserve_terms(deal, action):
+    from datetime import date
+    from models import SellerOffer
+    ctx, tid = deal
+    offer = SellerOffer(organization_id=ctx.organization_id, transaction_id=tid, created_by_id=ctx.user_id,
+        buyer_names='Legacy Buyer', status='new', offer_price=400000, earnest_money=5000, proposed_close_date=date(2026, 12, 1), terms_summary={'option_fee': '250'})
+    db.session.add(offer)
+    db.session.commit()
+    fields = {'buyer_agent_phone': '555-0100'} if action == 'update' else {}
+    apply('manage_transaction_offer', {'transaction_id': tid, 'offer_id': offer.id, 'action': action, 'fields': fields}, ctx)
+    assert float(offer.offer_price) == 400000
+    assert float(offer.earnest_money) == 5000
+    assert float(offer.option_fee) == 250
+    assert str(offer.proposed_close_date) == '2026-12-01'
+
+
+def test_listing_override_patch_retains_explicit_date_clear(deal):
+    ctx, tid = deal
+    apply('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_date', 'fields': {'field': 'listing_end_date', 'value': '', 'action': 'set'}}, ctx)
+    apply('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_overrides', 'fields': {'list_price': '450000'}}, ctx)
+    overrides = db.session.get(Transaction, tid).extra_data['listing_info_overrides']
+    assert overrides['listing_end_date'] == ''
+    assert overrides['list_price'] == '450000'

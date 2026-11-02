@@ -502,7 +502,10 @@ def confirm_offer_package(
         version.extraction_reviewed_by_id = actor_id
         apply_offer_terms(offer, merged)
     else:
-        apply_offer_terms(offer, terms)
+        from services.seller_workflow import legacy_offer_terms
+        merged = {**legacy_offer_terms(offer), **terms}
+        drop_cleared_offer_terms(merged, incoming)
+        apply_offer_terms(offer, merged)
 
     if not draft and offer.status in ('new', 'needs_review', 'draft'):
         offer.status = 'reviewing'

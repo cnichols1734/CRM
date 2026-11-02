@@ -873,7 +873,8 @@ def update_seller_offer(id, offer_id):
             version.terms_data = merged_terms
             version.status = 'reviewed'
         else:
-            merged_terms = dict(terms)
+            from services.seller_workflow import legacy_offer_terms
+            merged_terms = {**legacy_offer_terms(offer), **terms}
             drop_cleared_offer_terms(merged_terms, terms)
             version = SellerOfferVersion(
                 organization_id=current_user.organization_id,
