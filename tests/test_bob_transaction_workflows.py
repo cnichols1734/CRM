@@ -586,11 +586,13 @@ def test_contract_edits_survive_unrelated_amendment_and_mcp_remove_needs_scope(d
     contract = db.session.get(SellerAcceptedContract, cid)
     assert float(contract.accepted_price) == 425000
     assert str(contract.closing_date) == '2026-12-15'
-    milestone = SellerContractMilestone.query.filter_by(accepted_contract_id=cid).first()
+    created = apply('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid, 'action': 'create_milestone', 'fields': {'title': 'Permission regression milestone'}}, ctx)
+    milestone = db.session.get(SellerContractMilestone, created.data['milestone']['id'])
     args = {'transaction_id': tid, 'contract_id': cid, 'milestone_id': milestone.id, 'action': 'update_milestone', 'fields': {'action': 'remove'}}
     assert call_mcp_tool('manage_transaction_contract', args, ctx, ['read', 'write'])['isError']
     assert not (milestone.source_data or {}).get('removed_at')
-    assert not call_mcp_tool('manage_transaction_contract', args, ctx, ['read', 'write', 'destructive'])['isError']
+    result = call_mcp_tool('manage_transaction_contract', args, ctx, ['read', 'write', 'destructive'])
+    assert not result['isError'], result
     assert milestone.source_data.get('removed_at')
     assert annotations_for_tool('manage_transaction_contract')['destructiveHint']
 
