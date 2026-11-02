@@ -195,7 +195,18 @@ def bootstrap_session(ctx, session_id):
     row = ContractBootstrapSession.query.filter_by(id=session_id, organization_id=ctx.organization_id).first()
     if row is None or (row.uploader_user_id != ctx.user_id and user.org_role not in ('owner', 'admin')):
         raise ToolError('Contract inbox item not found or not authorized.')
-    if row.document is not None and not document_allowed(row.document, ctx):
+    document = row.document
+    if document is None:
+        from types import SimpleNamespace
+        from services.document_privacy import infer_sensitivity_class
+        classification = row.classification or {}
+        identity = classification.get('document_identity') or {}
+        sensitivity = infer_sensitivity_class(
+            document_type=classification.get('document_type') or identity.get('kind'),
+            template_slug=identity.get('template_slug'),
+            template_name=row.original_filename, transaction_side=classification.get('side'))
+        document = SimpleNamespace(sensitivity_class=sensitivity, ai_processing_allowed=sensitivity not in ('confidential', 'restricted_tenant'))
+    if not document_allowed(document, ctx):
         raise ToolError('This document is restricted from BOB on this channel.')
     if row.matched_transaction_id:
         require_document_access(transaction(ctx, row.matched_transaction_id, CAP_EDIT), ctx)
@@ -440,7 +451,8 @@ def preview(operation, args, ctx):
               'after': {**{key: args[key] for key in spec.ids}, **fields}}
     if spec.merge:
         merged = _merge_fields(operation, spec, ctx, tx, args, {})
-        result['before'] = merged
+        result['before'] = (columns(related(ctx, tx, 'contract_id', args['contract_id']), spec.fields)
+                            if spec.merge == 'contract' else merged)
     if operation in ('amendment.accept', 'review.approve_fields', 'bootstrap.approve'):
         before, after = proposed_approval_values(operation, args, fields, ctx, tx)
         result['before'] = before

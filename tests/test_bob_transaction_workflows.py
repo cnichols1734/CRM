@@ -459,7 +459,9 @@ def test_contract_effective_date_and_time_partial_edits(deal):
     result = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01', 'effective_at': '2026-11-01T12:30'}, ctx)
     cid = result.data['accepted_contract_id']
     args = {'transaction_id': tid, 'contract_id': cid, 'action': 'update_details'}
-    apply('manage_transaction_contract', {**args, 'fields': {'effective_date': '2026-11-02'}}, ctx)
+    pending = dispatch('manage_transaction_contract', {**args, 'fields': {'effective_date': '2026-11-02'}}, ctx)
+    assert {'field': 'effective_date', 'from': '2026-11-01', 'to': '2026-11-02'} in pending.data['preview']['changes']
+    assert confirm_action(pending.action_id, ctx).ok
     contract = db.session.get(SellerAcceptedContract, cid)
     assert contract.effective_date == date(2026, 11, 2)
     assert contract.effective_at == datetime(2026, 11, 1, 12, 30)
@@ -608,3 +610,26 @@ def test_proposal_preview_shows_selected_corrected_values(deal):
     changes = pending.data['preview']['changes']
     assert {'field': 'street_address', 'from': '901 Parity Lane', 'to': 'Corrected address'} in changes
     assert not any(c['field'] in ('closing_date', 'selected', 'corrections') for c in changes)
+
+
+@pytest.mark.parametrize('surface', ['bob_chat', 'bob_telegram'])
+def test_unfiled_sensitive_bootstrap_is_not_exposed(deal, surface):
+    from dataclasses import replace
+    from models import ContractBootstrapSession, Organization
+    ctx, tid = deal
+    org = db.session.get(Organization, ctx.organization_id)
+    previous = org.feature_flags
+    row = ContractBootstrapSession(organization_id=ctx.organization_id, uploader_user_id=ctx.user_id,
+        classification={'side': 'tenant', 'document_type': 'lease'}, original_filename='lease.pdf',
+        extracted_candidates={'private': {'value': 'private-tenant-value'}})
+    try:
+        org.feature_flags = {**(previous or {}), 'BOB_VTC_PILOT': True}
+        db.session.add(row)
+        db.session.commit()
+        result = dispatch('get_contract_inbox', {'session_id': row.id}, replace(ctx, surface=surface))
+        assert not result.ok
+        assert 'private-tenant-value' not in str(result.for_model())
+    finally:
+        db.session.delete(row)
+        org.feature_flags = previous
+        db.session.commit()
