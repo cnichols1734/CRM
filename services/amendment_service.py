@@ -426,6 +426,14 @@ def accept(
         terms = dict(contract.frozen_terms or {})
         for key, value in applied_terms.items():
             terms[key] = value
+        # Accepted offer baselines retain the original offer aliases. Keep
+        # them aligned so they cannot override a newly approved amendment.
+        if 'closing_date' in applied_terms:
+            terms['proposed_close_date'] = applied_terms['closing_date']
+        if 'sales_price' in applied_terms:
+            terms['offer_price'] = applied_terms['sales_price']
+        elif 'offer_price' in applied_terms:
+            terms['sales_price'] = applied_terms['offer_price']
         apply_contract_terms(contract, terms)
         from services.seller_workflow import create_contract_milestones
         create_contract_milestones(contract, replace=True)

@@ -11,6 +11,8 @@ from services.bob_tools.context import DEFAULT_TIMEZONE
 from services.mcp.instructions import whoami_payload
 from services.mcp.scopes import (
     ATTACHMENT_TOOLS,
+    DESTRUCTIVE_ACTIONS,
+    SCOPE_DESTRUCTIVE,
     annotations_for_tool,
     scope_for_tool,
     tool_allowed,
@@ -66,7 +68,7 @@ def mcp_tool_catalog(ctx: BobContext, scopes: list[str]) -> list[dict]:
         tools.append({
             'name': tool.name,
             'title': tool.name.replace('_', ' ').capitalize(),
-            'description': MCP_DESCRIPTION_OVERRIDES.get(tool.name, tool.description),
+            'description': MCP_DESCRIPTION_OVERRIDES.get(tool.name, tool.description.replace('Requires approval before applying.', 'Applies immediately after the host approves the tool call.')),
             'inputSchema': tool.parameters or {'type': 'object', 'additionalProperties': False},
             'annotations': annotations_for_tool(tool.name),
         })
@@ -151,6 +153,10 @@ def call_mcp_tool(name: str, arguments: dict, ctx: BobContext, scopes: list[str]
         return _error('File import is not available over MCP.')
     if not tool_allowed(name, scopes):
         return _error(f'This connection does not include the {scope_for_tool(name)} permission needed for {name}.')
+
+    if ((arguments or {}).get('action') in DESTRUCTIVE_ACTIONS.get(name, ())
+            and SCOPE_DESTRUCTIVE not in scopes):
+        return _error('Deleting transaction records requires the destructive permission.')
 
     if name == 'select_transaction_context':
         # Stateless MCP: validate the id by reading the deal, then tell the
