@@ -791,11 +791,12 @@ def accept_offer(ctx: BobContext, *, offer_id: int, as_backup: bool = False,
                  effective_date: str | None = None, effective_at: str | None = None,
                  backup_position: int | None = None,
                  backup_addendum_document_id: int | None = None) -> ToolResult:
-    from services.bob_tools.transaction_workflows import invoke, related, transaction
+    from services.bob_tools.transaction_workflows import invoke, related, transaction, require_document_access
     offer, err = _load_offer(ctx, offer_id, CAP_EDIT)
     if err:
         return err
     tx = transaction(ctx, offer.transaction_id, CAP_EDIT)
+    require_document_access(tx, ctx)
     if backup_addendum_document_id:
         related(ctx, tx, 'document_id', backup_addendum_document_id)
     return invoke(ctx, 'accept_seller_offer', ids={'id': tx.id, 'offer_id': offer.id},
@@ -806,9 +807,11 @@ def accept_offer(ctx: BobContext, *, offer_id: int, as_backup: bool = False,
 
 
 def preview_accept_offer(args: dict, ctx: BobContext) -> dict:
+    from services.bob_tools.transaction_workflows import require_document_access, transaction
     offer, err = _load_offer(ctx, args.get('offer_id'), CAP_EDIT)
     if err:
         return {'action': 'accept_offer', 'error': err.error}
+    require_document_access(transaction(ctx, offer.transaction_id, CAP_EDIT), ctx)
     return {
         'action': 'accept_offer',
         'before': {'status': offer.status},

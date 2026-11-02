@@ -21,7 +21,7 @@ from werkzeug.test import EnvironBuilder
 from models import db
 from services.bob_tools.common import ToolError
 from services.bob_tools.context import ToolResult
-from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
+from services.transaction_auth import CAP_EDIT, CAP_VIEW, CAP_SEND_COMMS, get_transaction_for_user
 
 
 @dataclass(frozen=True)
@@ -162,7 +162,7 @@ def related(ctx, tx, key, value):
 
 def document_allowed(doc, ctx):
     from services.document_privacy import may_use_in_llm, may_send_to_telegram
-    return may_use_in_llm(doc) and (ctx.surface != 'telegram' or may_send_to_telegram(doc))
+    return may_use_in_llm(doc) and (ctx.surface not in ('telegram', 'bob_telegram') or may_send_to_telegram(doc))
 
 
 def require_document_access(tx, ctx):
@@ -223,7 +223,8 @@ def validate(operation, args, ctx):
         if fields.get('transaction_id'):
             require_document_access(transaction(ctx, fields['transaction_id'], CAP_EDIT), ctx)
     else:
-        tx = transaction(ctx, args.get('transaction_id'), CAP_VIEW if operation in ('preview_offer_email', 'intake.preview_changes') else CAP_EDIT)
+        capability = CAP_SEND_COMMS if operation == 'send_offer_email' else CAP_VIEW if operation in ('preview_offer_email', 'intake.preview_changes') else CAP_EDIT
+        tx = transaction(ctx, args.get('transaction_id'), capability)
         require_document_access(tx, ctx)
     for key in spec.ids:
         if not args.get(key):
@@ -304,7 +305,7 @@ def invoke(ctx, endpoint, *, ids=None, fields=None, method='POST', form=False, u
             if isinstance(data, list):
                 data = {'items': data}
             if endpoint == 'preview_offer_client_email':
-                data['content_digest'] = digest({'draft': data.get('draft'), 'html': data.get('html'), 'sender': data.get('sender')})
+                data['content_digest'] = digest({'draft': data.get('draft'), 'html': data.get('html'), 'text': data.get('text'), 'sender': data.get('sender')})
             data.pop('html', None)
             return ToolResult.success(data.get('message') or 'CRM operation completed.', data)
     except HTTPException as exc:
@@ -386,7 +387,7 @@ def email_receipt_payload(ctx, tid, fields, content_digest):
 def preview(operation, args, ctx):
     tx, fields = validate(operation, args, ctx)
     spec = OPERATIONS[operation]
-    result = {'action': operation, 'transaction_id': tx.id if tx else None,
+    result = {'kind': 'transaction_workflow', 'action': operation, 'transaction_id': tx.id if tx else None,
               'address': tx.full_address if tx else None,
               'after': {**{key: args[key] for key in spec.ids}, **fields}}
     if spec.merge:
@@ -409,10 +410,34 @@ def preview(operation, args, ctx):
             if receipt != email_receipt_payload(ctx, tx.id, fields, draft.data.get('content_digest')):
                 raise ToolError('The reviewed email or recipients changed. Preview it again before sending.')
         result['draft'] = draft.data.get('draft')
+        result['email_body'] = draft.data.get('text')
         args['_email_digest'] = draft.data.get('content_digest')
         result['sender'] = draft.data.get('sender')
         result['recipients'] = {'to': fields.get('to'), 'cc': fields.get('cc')}
+    result['changes'] = approval_changes(result)
+    result['summary'] = '\n'.join(f"{change['field'].replace('_', ' ')}: {change['to']}" for change in result['changes'])
     return result
+
+
+def approval_changes(preview):
+    """Use the existing web change rows and Telegram summary contract."""
+    import json
+    def display(value):
+        if value is None or value == '':
+            return 'empty'
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False, default=str)
+        return str(value)
+    before = preview.get('before') or {}
+    values = {'action': preview['action'], 'address': preview.get('address'), **preview['after']}
+    for key in ('attachment', 'sender', 'recipients', 'email_body'):
+        if key in preview:
+            values[key] = preview[key]
+    if preview.get('draft'):
+        values['email_subject'] = preview['draft'].get('subject')
+        values['email_preheader'] = preview['draft'].get('preheader')
+    return [{'field': key, 'from': display(before.get(key)), 'to': display(value)}
+            for key, value in values.items() if value != before.get(key)]
 
 
 READ_SECTIONS = {

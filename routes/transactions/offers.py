@@ -21,6 +21,7 @@ from services.offer_summary_email import (
     _pick,
     build_draft,
     render_html,
+    render_text,
     resolve_sender,
     selectable_offers,
     send_draft,
@@ -705,6 +706,7 @@ def preview_offer_client_email(id):
         'success': True,
         'draft': draft.as_payload(),
         'html': render_html(draft),
+        'text': render_text(draft),
         'candidates': _client_email_candidates(available, {o.id for o in chosen}),
         'sender': resolve_sender(current_user),
     })

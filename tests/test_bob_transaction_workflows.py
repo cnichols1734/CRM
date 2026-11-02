@@ -42,6 +42,8 @@ def test_detail_change_requires_approval_and_preserves_other_fields(deal):
     pending = dispatch('update_transaction_details', {'transaction_id': tid, 'fields': {'city': 'Austin'}}, ctx)
     assert pending.requires_confirmation, pending.error
     assert db.session.get(Transaction, tid).city == 'Houston'
+    changes = pending.data['preview']['changes']
+    assert {'field': 'city', 'from': 'Houston', 'to': 'Austin'} in changes
     result = confirm_action(pending.action_id, ctx)
     assert result.ok, result.error
     tx = db.session.get(Transaction, tid)
@@ -250,6 +252,14 @@ def test_email_preview_send_and_changed_draft(deal, monkeypatch):
     pending = dispatch('send_offer_email', {'transaction_id': tid, 'fields': fields}, ctx)
     assert pending.requires_confirmation, pending.error
     assert pending.data['preview']['draft']['subject'] == 'Reviewed offer'
+    changes = {row['field']: row['to'] for row in pending.data['preview']['changes']}
+    assert changes['email_subject'] == 'Reviewed offer'
+    assert 'synthetic@example.test' in changes['recipients']
+    assert 'Please review this offer.' in changes['email_body']
+    from routes.agent_bob import preview_text
+    from services.messaging.conversation import _format_pending_preview
+    for rendered in (preview_text(pending.data['preview']), _format_pending_preview(pending.data, 'Review email')):
+        assert 'synthetic@example.test' in rendered and 'Please review this offer.' in rendered
     assert sent == []
     result = confirm_action(pending.action_id, ctx)
     assert result.ok, result.error
@@ -321,6 +331,8 @@ def test_mcp_write_scope_cannot_delete_transaction_or_document(deal):
     assert call_mcp_tool('delete_transaction', {'transaction_id': tid}, ctx, ['read', 'write'])['isError']
     assert call_mcp_tool('manage_transaction_document', {'transaction_id': tid, 'document_id': doc.id,
         'action': 'remove'}, ctx, ['read', 'write'])['isError']
+    assert call_mcp_tool('manage_transaction_intake', {'transaction_id': tid,
+        'action': 'generate_package'}, ctx, ['read', 'write'])['isError']
     assert db.session.get(Transaction, tid) and db.session.get(TransactionDocument, doc.id)
 
 
@@ -417,10 +429,10 @@ def test_mcp_email_requires_unchanged_reviewed_preview(deal, monkeypatch):
     assert len(sent) == 1 and sent[0]['to_emails'] == ['synthetic@example.test']
 
 
-@pytest.mark.parametrize('surface,allowed,sensitivity', [('bob_chat', False, 'internal'), ('telegram', True, 'confidential')])
+@pytest.mark.parametrize('surface,allowed,sensitivity', [('bob_chat', False, 'internal'), ('telegram', True, 'confidential'), ('bob_telegram', True, 'confidential')])
 def test_restricted_document_content_is_not_returned(deal, surface, allowed, sensitivity):
     from dataclasses import replace
-    from models import TransactionDocument, DocumentReviewReport, TransactionChangeProposal
+    from models import TransactionDocument, DocumentReviewReport
     ctx, tid = deal
     ctx = replace(ctx, surface=surface)
     doc = TransactionDocument(organization_id=ctx.organization_id, transaction_id=tid,
@@ -453,6 +465,47 @@ def test_contract_effective_date_and_time_partial_edits(deal):
     apply('manage_transaction_contract', {**args, 'fields': {'effective_at': '2026-11-02T14:15'}}, ctx)
     assert contract.effective_date == date(2026, 11, 2)
     assert contract.effective_at == datetime(2026, 11, 2, 14, 15)
+
+
+def test_accept_offer_rechecks_document_privacy_at_confirmation(deal):
+    from models import TransactionDocument, SellerAcceptedContract
+    ctx, tid = deal
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Private Buyer', 'offer_price': 400000}, ctx)
+    doc = TransactionDocument(organization_id=ctx.organization_id, transaction_id=tid,
+        template_slug='seller-offer-contract', template_name='Offer', status='pending', ai_processing_allowed=True)
+    db.session.add(doc)
+    db.session.commit()
+    args = {'offer_id': offer.data['offer_id']}
+    pending = dispatch('accept_offer', args, ctx)
+    assert pending.requires_confirmation
+    doc.ai_processing_allowed = False
+    db.session.commit()
+    assert not confirm_action(pending.action_id, ctx).ok
+    assert not dispatch('accept_offer', args, ctx, confirmation=CONFIRM_PRECLEARED).ok
+    assert SellerAcceptedContract.query.filter_by(transaction_id=tid).count() == 0
+
+
+def test_send_only_collaborator_can_send_reviewed_email(deal, seed, monkeypatch):
+    from models import TransactionAssignment
+    ctx, tid = deal
+    offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Collaborator Buyer', 'offer_price': 400000}, ctx)
+    assignment = TransactionAssignment(organization_id=ctx.organization_id, transaction_id=tid,
+        user_id=seed['agent_a'], role='collaborator', capabilities={'send_comms': True})
+    db.session.add(assignment)
+    db.session.commit()
+    collaborator = BobContext(user_id=seed['agent_a'], organization_id=ctx.organization_id)
+    assert not dispatch('update_transaction_details', {'transaction_id': tid, 'fields': {'city': 'Denied'}}, collaborator).ok
+    sent = []
+    def send(draft, **kw):
+        sent.append(kw)
+        return {'recipients': kw['to_emails'], 'cc': [], 'skipped': False, 'via': 'test'}
+    monkeypatch.setattr('routes.transactions.offers.send_draft', send)
+    pending = dispatch('send_offer_email', {'transaction_id': tid,
+        'fields': {'offer_ids': [offer.data['offer_id']], 'to': 'synthetic@example.test'}}, collaborator)
+    assert pending.requires_confirmation, pending.error
+    result = confirm_action(pending.action_id, collaborator)
+    assert result.ok, result.error
+    assert len(sent) == 1
 
 
 def test_bootstrap_candidates_and_target_stale_approval(deal, seed):

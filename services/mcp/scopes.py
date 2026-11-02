@@ -22,6 +22,7 @@ SCOPE_LABELS = {
 ATTACHMENT_TOOLS = frozenset({'inspect_attachment', 'import_contacts'})
 DESTRUCTIVE_TOOLS = frozenset({'delete_contact', 'delete_task', 'delete_todo', 'delete_subtodo', 'delete_todo_comment', 'delete_transaction'})
 DESTRUCTIVE_ACTIONS = {
+    'manage_transaction_intake': frozenset({'generate_package'}),
     'manage_transaction_document': frozenset({'remove'}),
     'manage_transaction_requirement': frozenset({'remove'}),
 }
