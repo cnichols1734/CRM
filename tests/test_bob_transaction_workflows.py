@@ -572,7 +572,7 @@ def test_contract_edits_survive_unrelated_amendment_and_mcp_remove_needs_scope(d
     ctx, tid = deal
     offer = apply('create_offer', {'transaction_id': tid, 'buyer_names': 'Alias Buyer', 'offer_price': 400000, 'proposed_close_date': '2026-12-01'}, ctx)
     cid = apply('accept_offer', {'offer_id': offer.data['offer_id'], 'effective_date': '2026-11-01'}, ctx).data['accepted_contract_id']
-    apply('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid, 'action': 'update_details', 'fields': {'accepted_price': 425000, 'closing_date': '2026-12-15'}}, ctx)
+    apply('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid, 'action': 'update_details', 'fields': {'accepted_price': 425000, 'closing_date': '2026-12-15', 'effective_at': '2026-11-02T14:15'}}, ctx)
     amendment = SellerContractAmendment(organization_id=ctx.organization_id, transaction_id=tid, accepted_contract_id=cid, created_by_id=ctx.user_id, amendment_type='other', status='received')
     db.session.add(amendment)
     db.session.flush()
@@ -587,6 +587,7 @@ def test_contract_edits_survive_unrelated_amendment_and_mcp_remove_needs_scope(d
     assert confirm_action(pending.action_id, ctx).ok
     contract = db.session.get(SellerAcceptedContract, cid)
     assert float(contract.accepted_price) == 425000
+    assert str(contract.effective_at) == '2026-11-02 14:15:00'
     assert str(contract.closing_date) == '2026-12-15'
     created = apply('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid, 'action': 'create_milestone', 'fields': {'title': 'Permission regression milestone'}}, ctx)
     milestone = db.session.get(SellerContractMilestone, created.data['milestone']['id'])
@@ -652,3 +653,15 @@ def test_approved_proposal_replaces_original_offer_aliases(deal):
     assert str(contract.closing_date) == '2026-12-15'
     assert contract.frozen_terms['offer_price'] == contract.frozen_terms['sales_price']
     assert contract.frozen_terms['proposed_close_date'] == contract.frozen_terms['closing_date']
+
+
+def test_document_field_edits_preserve_server_metadata(deal):
+    from models import TransactionDocument
+    ctx, tid = deal
+    metadata = {'_document_identity': {'kind': 'purchase_contract'}, '_controlling_baseline': {'contract_id': 123}, '_meta': {'amount': {'page': 1}}}
+    doc = TransactionDocument(organization_id=ctx.organization_id, transaction_id=tid, template_slug='custom-regression', template_name='Regression', status='pending', field_data={**metadata, 'amount': '100'})
+    db.session.add(doc)
+    db.session.commit()
+    apply('manage_transaction_document', {'transaction_id': tid, 'document_id': doc.id, 'action': 'save_fields', 'fields': {'field_data': {'amount': '200', '_document_identity': {'kind': 'changed'}}}}, ctx)
+    assert doc.field_data['amount'] == '200'
+    assert {key: doc.field_data[key] for key in metadata} == metadata
