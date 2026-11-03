@@ -874,3 +874,48 @@ def test_deal_message_retry_returns_original_without_duplicate_delivery(app, see
         assert client.post(route, headers=headers, json={**body, 'body': 'Different'}).status_code == 409
         with app.app_context():
             assert PortalMessage.query.filter_by(participant_id=participant_id, request_id=body['request_id']).count() == 1
+
+
+def test_history_preview_preserves_unread_until_open(app, seed, client):
+    token = _owner_token(client)
+    with app.app_context():
+        tx, seller, _access = _seller_thread(seed, '412 Preview Lane')
+        db.session.flush()
+        message = PortalMessage(organization_id=seed['org_a'], transaction_id=tx.id,
+            participant_id=seller.id, sender='client', kind='message', body='Ready for the showing')
+        db.session.add(message)
+        for index in range(55):
+            db.session.add(PortalMessage(organization_id=seed['org_a'], transaction_id=tx.id,
+                participant_id=seller.id, sender='client', kind='message', body=f'History {index}'))
+        db.session.commit()
+        participant_id, message_id = seller.id, message.id
+    route = f'/api/agent/v1/conversations/{participant_id}/messages'
+    preview = client.get(route + '/preview', headers=_auth(token))
+    assert preview.status_code == 200
+    assert len(preview.json['messages']) == 56
+    assert 'Ready for the showing' in [row['body'] for row in preview.json['messages']]
+    assert preview.headers['Cache-Control'] == 'private, no-store'
+    with app.app_context():
+        assert db.session.get(PortalMessage, message_id).read_by_agent_at is None
+    assert client.get(route + '/preview').status_code == 401
+    other = _agent_session(client, email='owner_b@test.com')
+    assert other.status_code == 200
+    assert client.get(route + '/preview', headers=_auth(other.json['token'])).status_code == 403
+    from models import Organization
+    with app.app_context():
+        original_tier = db.session.get(Organization, seed['org_b']).subscription_tier
+    try:
+        with app.app_context():
+            db.session.get(Organization, seed['org_b']).subscription_tier = db.session.get(Organization, seed['org_a']).subscription_tier
+            db.session.commit()
+        assert client.get(route + '/preview', headers=_auth(other.json['token'])).status_code == 404
+    finally:
+        with app.app_context():
+            db.session.rollback()
+            db.session.get(Organization, seed['org_b']).subscription_tier = original_tier
+            db.session.commit()
+    opened = client.get(route + '?full_history=1', headers=_auth(token))
+    assert opened.status_code == 200
+    assert opened.json['messages'] == preview.json['messages']
+    with app.app_context():
+        assert db.session.get(PortalMessage, message_id).read_by_agent_at is not None
