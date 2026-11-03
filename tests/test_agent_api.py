@@ -903,9 +903,17 @@ def test_history_preview_preserves_unread_until_open(app, seed, client):
     assert client.get(route + '/preview', headers=_auth(other.json['token'])).status_code == 403
     from models import Organization
     with app.app_context():
-        db.session.get(Organization, seed['org_b']).subscription_tier = db.session.get(Organization, seed['org_a']).subscription_tier
-        db.session.commit()
-    assert client.get(route + '/preview', headers=_auth(other.json['token'])).status_code == 404
+        original_tier = db.session.get(Organization, seed['org_b']).subscription_tier
+    try:
+        with app.app_context():
+            db.session.get(Organization, seed['org_b']).subscription_tier = db.session.get(Organization, seed['org_a']).subscription_tier
+            db.session.commit()
+        assert client.get(route + '/preview', headers=_auth(other.json['token'])).status_code == 404
+    finally:
+        with app.app_context():
+            db.session.rollback()
+            db.session.get(Organization, seed['org_b']).subscription_tier = original_tier
+            db.session.commit()
     opened = client.get(route + '?full_history=1', headers=_auth(token))
     assert opened.status_code == 200
     assert opened.json['messages'] == preview.json['messages']
