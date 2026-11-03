@@ -177,6 +177,10 @@ def test_intake_document_and_requirement_changes(deal):
     apply('manage_transaction_requirement', {'transaction_id': tid, 'action': 'set_due_date', 'requirement_id': rid, 'fields': {'due_date': '2026-11-12'}}, ctx)
     req = db.session.get(TransactionRequirement, rid)
     assert str(req.due_at.date()) == '2026-11-12' and req.due_at_manual_override
+    missing_date = dispatch('manage_transaction_requirement', {'transaction_id': tid,
+        'action': 'set_due_date', 'requirement_id': rid}, ctx)
+    assert not missing_date.ok and not missing_date.requires_confirmation
+    assert str(req.due_at.date()) == '2026-11-12'
     apply('manage_transaction_requirement', {'transaction_id': tid, 'action': 'remove', 'requirement_id': rid}, ctx)
     apply('manage_transaction_document', {'transaction_id': tid, 'document_id': doc.id, 'action': 'remove'}, ctx)
     assert db.session.get(TransactionDocument, doc.id) is None
@@ -772,6 +776,35 @@ def test_milestone_notes_preserve_automatic_date_precision(deal):
     assert milestone.notes == 'Call before deadline'
     assert milestone.due_at == datetime(2026, 11, 7, 12, 30, 45)
     assert milestone.source == 'effective_date'
+    pending = dispatch('manage_transaction_contract', {'transaction_id': tid, 'contract_id': cid,
+        'milestone_id': milestone.id, 'action': 'update_milestone', 'fields': {'due_at': '2026-11-08T12:30'}}, ctx)
+    assert pending.requires_confirmation, pending.error
+    milestone.due_at = datetime(2026, 11, 7, 12, 30, 50)
+    db.session.commit()
+    assert not confirm_action(pending.action_id, ctx).ok
+    assert milestone.due_at == datetime(2026, 11, 7, 12, 30, 50)
+
+
+@pytest.mark.parametrize('tool,action,field', [
+    ('manage_transaction_listing_property', 'set_lockbox', 'lockbox_combo'),
+    ('save_listing_description', None, 'listing_description'),
+])
+def test_listing_setters_require_explicit_clear(deal, tool, action, field):
+    from models import SellerListingProfile
+    ctx, tid = deal
+    args = {'transaction_id': tid, **({'action': action} if action else {})}
+    apply(tool, {**args, 'fields': {field: 'Saved value'}}, ctx)
+    def saved_value():
+        row = db.session.get(Transaction, tid) if action else SellerListingProfile.query.filter_by(transaction_id=tid).one()
+        db.session.refresh(row)
+        return (row.extra_data or {}).get(field)
+    pending = dispatch(tool, args, ctx)
+    assert not pending.ok and not pending.requires_confirmation
+    assert saved_value() == 'Saved value'
+    clear = dispatch(tool, {**args, 'fields': {field: ''}}, ctx)
+    assert clear.requires_confirmation, clear.error
+    assert confirm_action(clear.action_id, ctx).ok
+    assert not saved_value()
 
 
 @pytest.mark.parametrize('action', ['update', 'confirm_review'])

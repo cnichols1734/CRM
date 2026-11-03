@@ -114,6 +114,12 @@ ID_MODELS = {
     'proposal_id': 'TransactionChangeProposal', 'report_id': 'DocumentReviewReport',
 }
 
+REQUIRED_FIELDS = {
+    'requirement.set_due_date': ('due_date',),
+    'listing_property.set_lockbox': ('lockbox_combo',),
+    'save_listing_description': ('listing_description',),
+}
+
 
 def json_value(value):
     if isinstance(value, datetime):
@@ -232,6 +238,9 @@ def validate(operation, args, ctx):
     unknown = set(fields) - set(spec.fields)
     if unknown:
         raise ToolError('Unsupported fields: ' + ', '.join(sorted(unknown)))
+    missing = set(REQUIRED_FIELDS.get(operation, ())) - set(fields)
+    if missing:
+        raise ToolError('Supply these fields explicitly, using an empty string to clear: ' + ', '.join(sorted(missing)))
     if operation.startswith('bootstrap.'):
         tx = None
         if operation != 'bootstrap.upload':
@@ -648,6 +657,7 @@ def operation_schema(args, ctx):
                           'supported_keys': [key for key, _ in CLIENT_TERMS + LONG_FORM_TERMS]}
     return ToolResult.success('Operation inputs.', {**extra, 'operation': key, 'description': spec.description,
         'required_record_ids': list(spec.ids), 'allowed_fields': list(spec.fields),
+        'required_fields': list(REQUIRED_FIELDS.get(key, ())),
         'upload_required': spec.upload,
         'date_format': 'YYYY-MM-DD; date/time YYYY-MM-DDTHH:MM',
         'patch_semantics': 'Omitted fields are preserved. Read the workspace section first to obtain IDs and current values.'})
@@ -736,8 +746,8 @@ def record_version(args, ctx):
             model = getattr(models, model_name)
             query = model.query.filter_by(organization_id=ctx.organization_id)
             query = query.filter_by(id=target_id) if model_name == 'Transaction' else query.filter_by(transaction_id=target_id)
-            state[f'{target_id}:{model_name}'] = [columns(row, [col.name for col in model.__table__.columns])
+            state[f'{target_id}:{model_name}'] = [{col.name: getattr(row, col.name) for col in model.__table__.columns}
                                 for row in query.order_by(model.id).all()]
     if sid:
-        state['bootstrap'] = columns(bootstrap, [col.name for col in models.ContractBootstrapSession.__table__.columns]) if bootstrap else None
+        state['bootstrap'] = {col.name: getattr(bootstrap, col.name) for col in models.ContractBootstrapSession.__table__.columns} if bootstrap else None
     return {'transaction_id': tid, 'transaction_ids': sorted(tids), 'session_id': sid, 'digest': digest(state)} if state else None
