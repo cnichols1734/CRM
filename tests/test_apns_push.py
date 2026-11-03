@@ -413,3 +413,26 @@ def test_portal_retry_only_resends_failed_devices(app, seed, monkeypatch):
     assert send_portal_push(message_id=message_id, org_id=seed['org_a']) == {'ok': True, 'sent': 1}
     assert attempts.count('retry-first') == 1
     assert attempts.count('retry-second') == 2
+
+
+def test_deal_push_matches_inbox_ownership_and_assignments(app, seed, monkeypatch):
+    from jobs.apns_push import send_portal_push
+    from models import TransactionAssignment
+
+    _set_apns_keys(monkeypatch)
+    calls = _capture_httpx(monkeypatch)
+    with app.app_context():
+        tx, seller = _thread(seed, '503 Recipient Scope Ln')
+        msg = _portal_message(seed, tx, seller, 'client', 'A deal reply.')
+        _device(seed, DeviceToken.AUDIENCE_AGENT, 'creator-device')
+        for user_key, token in [('admin_a', 'unassigned-admin'), ('agent_a', 'assigned-agent')]:
+            db.session.add(DeviceToken(organization_id=seed['org_a'], audience='agent',
+                user_id=seed[user_key], token=token, platform='ios'))
+        db.session.add(TransactionAssignment(organization_id=seed['org_a'], transaction_id=tx.id,
+            user_id=seed['agent_a'], role='collaborator'))
+        db.session.commit()
+        message_id = msg.id
+
+    result = send_portal_push(message_id=message_id, org_id=seed['org_a'])
+    assert result == {'ok': True, 'sent': 2}
+    assert {call['url'].rsplit('/', 1)[-1] for call in calls} == {'creator-device', 'assigned-agent'}
