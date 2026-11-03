@@ -851,6 +851,10 @@ def test_offer_alias_edits_replace_saved_terms(deal, existing_version):
 
 def test_listing_override_patch_retains_explicit_date_clear(deal):
     ctx, tid = deal
+    apply('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_date', 'fields': {'field': 'listing_end_date', 'value': '2026-12-01'}}, ctx)
+    missing = dispatch('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_date', 'fields': {'field': 'listing_end_date'}}, ctx)
+    assert not missing.ok and not missing.requires_confirmation
+    assert db.session.get(Transaction, tid).extra_data['listing_info_overrides']['listing_end_date'] == '2026-12-01'
     apply('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_date', 'fields': {'field': 'listing_end_date', 'value': '', 'action': 'set'}}, ctx)
     apply('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_overrides', 'fields': {'list_price': '450000'}}, ctx)
     overrides = db.session.get(Transaction, tid).extra_data['listing_info_overrides']

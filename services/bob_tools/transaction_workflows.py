@@ -117,6 +117,7 @@ ID_MODELS = {
 REQUIRED_FIELDS = {
     'requirement.set_due_date': ('due_date',),
     'listing_property.set_lockbox': ('lockbox_combo',),
+    'listing_property.set_date': ('field',),
     'save_listing_description': ('listing_description',),
 }
 
@@ -239,6 +240,8 @@ def validate(operation, args, ctx):
     if unknown:
         raise ToolError('Unsupported fields: ' + ', '.join(sorted(unknown)))
     missing = set(REQUIRED_FIELDS.get(operation, ())) - set(fields)
+    if operation == 'listing_property.set_date' and fields.get('action') != 'reset' and 'value' not in fields:
+        missing.add('value')
     if missing:
         raise ToolError('Supply these fields explicitly, using an empty string to clear: ' + ', '.join(sorted(missing)))
     if operation.startswith('bootstrap.'):
