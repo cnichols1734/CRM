@@ -1280,6 +1280,19 @@ def _conversation_access(user, participant_id):
     return tx, participant, None
 
 
+@agent_api_bp.route('/conversations/<int:participant_id>/messages/preview', methods=['GET'])
+@agent_jwt_required
+@transactions_flag_required
+def preview_conversation_messages(user, participant_id):
+    tx, participant, error = _conversation_access(user, participant_id)
+    if error:
+        return error
+    access = SimpleNamespace(transaction_id=tx.id, participant_id=participant.id, participant=participant)
+    response = jsonify({'messages': list_client_messages(access, limit=None)})
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
+
+
 @agent_api_bp.route(
     '/conversations/<int:participant_id>/messages',
     methods=['GET'],
@@ -1295,7 +1308,7 @@ def list_conversation_messages(user, participant_id):
         participant_id=participant.id,
         participant=participant,
     )
-    messages = list_client_messages(access)
+    messages = list_client_messages(access, limit=None if request.args.get('full_history') == '1' else 50)
     unread = PortalMessage.query.filter_by(
         transaction_id=tx.id,
         participant_id=participant.id,
