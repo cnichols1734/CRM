@@ -154,6 +154,12 @@ def _pending_offer_extraction_documents(offer):
 
 def _normalize_terms(data):
     terms = dict(data.get('terms_data') or data.get('terms') or {})
+    for canonical, alias in (('offer_price', 'sales_price'),
+                             ('proposed_close_date', 'closing_date'),
+                             ('financing_amount', 'total_financing_amount')):
+        if canonical in terms or alias in terms:
+            value = terms[canonical] if canonical in terms else terms[alias]
+            terms[canonical] = terms[alias] = value
     for key in ('response_deadline_at',):
         if isinstance(terms.get(key), str):
             terms[key] = _parse_datetime(terms[key])

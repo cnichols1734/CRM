@@ -791,6 +791,31 @@ def test_legacy_offer_partial_actions_preserve_terms(deal, action):
     assert str(offer.proposed_close_date) == '2026-12-01'
 
 
+@pytest.mark.parametrize('existing_version', [False, True])
+def test_offer_alias_edits_replace_saved_terms(deal, existing_version):
+    from datetime import date
+    from models import SellerOffer
+    ctx, tid = deal
+    offer = SellerOffer(organization_id=ctx.organization_id, transaction_id=tid, created_by_id=ctx.user_id,
+        buyer_names='Alias Buyer', status='new', offer_price=400000, earnest_money=5000,
+        financing_amount=300000, proposed_close_date=date(2026, 12, 1))
+    db.session.add(offer)
+    db.session.commit()
+    args = {'transaction_id': tid, 'offer_id': offer.id, 'action': 'update'}
+    if existing_version:
+        apply('manage_transaction_offer', {**args, 'fields': {'buyer_agent_phone': '555-0100'}}, ctx)
+    pending = dispatch('manage_transaction_offer', {**args, 'fields': {'terms_data': {
+        'sales_price': '425000', 'closing_date': '2026-12-15', 'total_financing_amount': '325000'}}}, ctx)
+    assert pending.requires_confirmation, pending.error
+    result = confirm_action(pending.action_id, ctx)
+    assert result.ok, result.error
+    db.session.refresh(offer)
+    assert float(offer.offer_price) == 425000
+    assert offer.proposed_close_date == date(2026, 12, 15)
+    assert float(offer.financing_amount) == 325000
+    assert float(offer.earnest_money) == 5000
+
+
 def test_listing_override_patch_retains_explicit_date_clear(deal):
     ctx, tid = deal
     apply('manage_transaction_listing_property', {'transaction_id': tid, 'action': 'set_date', 'fields': {'field': 'listing_end_date', 'value': '', 'action': 'set'}}, ctx)
