@@ -28,7 +28,7 @@ def send_portal_push(*, message_id: int, org_id: int):
         return {'ok': False, 'reason': 'apns_unconfigured'}
 
     from app import app
-    from models import DeviceToken, PortalMessage, Organization, db
+    from models import DeviceToken, PortalMessage, Organization, Transaction, db
 
     with app.app_context():
         set_job_org_context(org_id)
@@ -48,8 +48,11 @@ def send_portal_push(*, message_id: int, org_id: int):
                 organization_id=org_id,
                 audience=DeviceToken.AUDIENCE_AGENT, platform='ios',
             ).all()
-            from services.transaction_auth import can_view_transaction
-            tokens = [row for row in tokens if row.user and can_view_transaction(msg.transaction, row.user).allowed]
+            from services.transaction_auth import transactions_visible_query
+            # Match the agent inbox, not organization-wide admin access.
+            tokens = [row for row in tokens if row.user and transactions_visible_query(row.user).filter(
+                Transaction.id == msg.transaction_id,
+            ).first() is not None]
         else:
             tokens = DeviceToken.query.filter_by(
                 organization_id=org_id,
