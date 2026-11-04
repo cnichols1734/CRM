@@ -1336,17 +1336,24 @@ TRANSACTION_TOOLS = (
     Tool(
         name='accept_offer',
         description=(
-            'Mark an offer accepted_primary or accepted_backup. Does not run '
-            'contract bootstrap, change other offers, or send notices. Use '
-            'only when the agent asked to record that decision in the CRM.'
+            'Accept an offer through the CRM controlling-contract workflow, creating '
+            'the baseline and deadlines with the same conflict and extraction checks. '
+            'Does not send notices.'
         ),
         parameters=_obj({
             'offer_id': {'type': 'integer', 'description': 'Offer id from compare_offers or create_offer.'},
-            'as_backup': {'type': 'boolean', 'description': 'True to mark accepted_backup instead of primary.'},
+            'as_backup': {'type': 'boolean', 'description': 'True for a backup contract.'},
+            'effective_date': {'type': 'string', 'description': 'YYYY-MM-DD, if known.'},
+            'effective_at': {'type': 'string', 'description': 'YYYY-MM-DDTHH:MM, if known.'},
+            'backup_position': {'type': 'integer', 'description': 'Order of the backup contract.'},
+            'backup_addendum_document_id': {'type': 'integer', 'description': 'Authorized backup addendum document ID.'},
         }, ['offer_id']),
         risk=RISK_HIGH_WRITE,
         handler=lambda args, ctx: tx_tools.accept_offer(
             ctx, offer_id=args['offer_id'], as_backup=bool(args.get('as_backup')),
+            effective_date=args.get('effective_date'), effective_at=args.get('effective_at'),
+            backup_position=args.get('backup_position'),
+            backup_addendum_document_id=args.get('backup_addendum_document_id'),
         ),
         preview=tx_tools.preview_accept_offer,
     ),
@@ -1408,6 +1415,8 @@ TRANSACTION_TOOLS = (
             'go_live_date': {'type': 'string', 'description': 'Go-live date, YYYY-MM-DD.'},
             'occupancy_status': {'type': 'string', 'description': 'vacant, owner_occupied, or tenant_occupied.'},
             'public_showing_instructions': {'type': 'string', 'description': 'Public showing instructions.'},
+            'price_change_reason': {'type': 'string', 'description': 'Reason to record in price-change history.'},
+            'price_change_notes': {'type': 'string', 'description': 'Notes for price-change history.'},
         }, ['transaction_id']),
         risk=RISK_HIGH_WRITE,
         handler=lambda args, ctx: listing_tools.update_listing_fields(
@@ -1419,6 +1428,8 @@ TRANSACTION_TOOLS = (
             go_live_date=args.get('go_live_date', ''),
             occupancy_status=args.get('occupancy_status', ''),
             public_showing_instructions=args.get('public_showing_instructions', ''),
+            price_change_reason=args.get('price_change_reason', ''),
+            price_change_notes=args.get('price_change_notes', ''),
         ),
         preview=listing_tools.preview_update_listing_fields,
     ),
@@ -1936,6 +1947,9 @@ MARKETING_TOOLS = (
     ),
 )
 
+from services.bob_tools.transaction_workflows import build_tools, UPLOAD_TOOL_NAMES
+TRANSACTION_WORKFLOW_TOOLS = build_tools(Tool, _obj)
+TRANSACTION_TOOLS = TRANSACTION_TOOLS + TRANSACTION_WORKFLOW_TOOLS
 TOOLS = TOOLS + TRANSACTION_TOOLS + MARKETING_TOOLS
 TOOLS_BY_NAME: dict[str, Tool] = {tool.name: tool for tool in TOOLS}
 
@@ -1958,6 +1972,8 @@ TX_WRITE_TOOL_NAMES = frozenset({
     'update_listing_fields', 'generate_listing_description',
     'complete_requirement', 'update_requirement_status',
 })
+TX_READ_TOOL_NAMES |= frozenset(t.name for t in TRANSACTION_WORKFLOW_TOOLS if t.risk == RISK_READ)
+TX_WRITE_TOOL_NAMES |= frozenset(t.name for t in TRANSACTION_WORKFLOW_TOOLS if t.risk != RISK_READ)
 MARKETING_TOOL_NAMES = frozenset(t.name for t in MARKETING_TOOLS)
 
 
@@ -2079,10 +2095,10 @@ def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
         return blocked
 
     args = sanitize_arguments(tool, raw_args)
-    if name in {'import_contacts', 'inspect_attachment'}:
+    if name in {'import_contacts', 'inspect_attachment'} or name in UPLOAD_TOOL_NAMES:
         turn = getattr(ctx, 'attachment', None)
         if turn and turn.attachment_ref:
-            args['attachment_ref'] = turn.attachment_ref
+            args['_attachment_ref' if name in UPLOAD_TOOL_NAMES else 'attachment_ref'] = turn.attachment_ref
 
     if confirmation not in (CONFIRM_INTERACTIVE, CONFIRM_PRECLEARED):
         confirmation = CONFIRM_INTERACTIVE
@@ -2376,6 +2392,11 @@ def _capture_record_version(tool_name: str, args: dict, ctx: BobContext) -> dict
                 ),
                 'status': getattr(tx, 'status', None),
             }
+    if tool_name in {t.name for t in TRANSACTION_WORKFLOW_TOOLS} | {'accept_offer', 'update_listing_fields'}:
+        from services.bob_tools.transaction_workflows import record_version
+        version = record_version(args, ctx)
+        if version:
+            versions['workflow'] = version
     return versions or None
 
 
@@ -2389,6 +2410,13 @@ def _stale_record_version_failure(action: BobAction) -> ToolResult | None:
 
     def _iso(value):
         return value.isoformat() if value is not None else None
+
+    if 'workflow' in snapshot:
+        from services.bob_tools.transaction_workflows import record_version
+        ctx = BobContext(user_id=action.user_id, organization_id=action.organization_id)
+        current = record_version(snapshot['workflow'], ctx)
+        if current != snapshot['workflow']:
+            return ToolResult.failure('This transaction changed after the preview. Ask BOB to prepare the action again.')
 
     if 'contact' in snapshot:
         snap = snapshot['contact']
@@ -2469,7 +2497,9 @@ def _undo_payload(result: ToolResult) -> dict:
 
 def _pending_summary(tool: Tool, preview: dict) -> str:
     label = tool.name.replace('_', ' ').capitalize()
-    target = preview.get('contact_name') or preview.get('subject')
+    if tool.name in {t.name for t in TRANSACTION_WORKFLOW_TOOLS}:
+        label = str(preview.get('action') or tool.name).replace('.', ' ').replace('_', ' ').capitalize()
+    target = preview.get('address') or preview.get('contact_name') or preview.get('subject')
     return f'{label}: {target}' if target else label
 
 

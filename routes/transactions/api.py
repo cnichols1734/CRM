@@ -315,7 +315,7 @@ def update_listing_info_overrides(id):
         if value is None:
             continue
         normalized = str(value).strip()
-        if normalized:
+        if normalized or field in ('go_live_date', 'listing_start_date', 'listing_end_date'):
             cleaned[field] = normalized
 
     try:

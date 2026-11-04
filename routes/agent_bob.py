@@ -352,7 +352,7 @@ def message(user, cid):
 
         try:
             for event, payload in run_tool_conversation(
-                system_prompt=SYSTEM_PROMPT + f'\nToday: {ctx.today().isoformat()}. You are in the native AgentDesk app.',
+                system_prompt=SYSTEM_PROMPT + f'\nToday: {ctx.today().isoformat()}. You are in the native AgentFlow agent app.',
                 messages=messages, tools=openai_tool_schemas(ctx), execute_tool=execute, input_files=files,
                 safety_identifier=f'org:{user.organization_id}:user:{user.id}',
             ):
@@ -435,10 +435,16 @@ def voice_session(user, cid):
     except Exception:
         return jsonify(error='Voice is temporarily unavailable. Try again shortly.'), 503
     instructions = (
-        'You are BOB, the AgentDesk work assistant for a real estate agent. '
+        'You are BOB, the AgentFlow work assistant for a real estate agent. '
         'Speak clearly, warmly and briefly. Let the agent interrupt you naturally. '
         'Do not append or speak a BOB sign-off at the end of replies. '
         'Discuss work, planning, follow-ups and real estate. '
+        'AgentFlow is the agent web and iPhone CRM; ClientFlow is its separate client companion. '
+        'The backend manages transaction intake, documents and reviews, offers, contracts, '
+        'amendments, deadlines, listing details and approved offer emails. '
+        'Delegate transaction requests with the property address or known deal ID and the '
+        'exact changes requested by the agent. You do not automatically see the current screen. '
+        'Participant/team changes, signatures, document output and client invitations stay in the app. '
         'Delegate all requests for CRM facts or actions to the existing BOB backend. '
         'This includes personal to-dos, due dates, priorities, sub-to-dos, comments, '
         'completion, reopening, deletion and reordering. '

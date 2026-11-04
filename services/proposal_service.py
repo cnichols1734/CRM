@@ -333,6 +333,13 @@ class ProposalService:
             else:
                 terms[key] = value
 
+        # The new selected value must take precedence over aliases saved
+        # with the original offer. Keep all aliases aligned for later edits.
+        for aliases in (('offer_price', 'sales_price', 'purchase_price'),
+                        ('proposed_close_date', 'closing_date', 'close_date')):
+            value = next((term_updates[key] for key in aliases if term_updates.get(key) not in (None, '')), None)
+            if value is not None:
+                terms.update({key: value for key in aliases})
         from services.seller_workflow import apply_contract_terms, create_contract_milestones
         apply_contract_terms(contract, terms)
         create_contract_milestones(contract, replace=True)

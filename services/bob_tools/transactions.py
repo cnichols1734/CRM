@@ -335,7 +335,7 @@ def get_next_step(
         transaction_id=tx.id,
     ).all():
         if (
-            req.work_status not in ('completed', 'not_applicable', 'superseded')
+            req.work_status not in ('completed', 'waived', 'cancelled', 'not_applicable', 'superseded')
             and req.due_at
             and req.due_at < datetime.utcnow()
         ):
@@ -349,7 +349,12 @@ def get_next_step(
         )
         open_prep = first_open_listing_prep_item(listing_prep_groups(tx))
 
-    if open_prep:
+    if open_reviews or pending_proposals:
+        next_step = {
+            'action': 'review_documents',
+            'summary': f'Review {len(open_reviews)} document report(s) and {pending_proposals} proposed change(s).',
+        }
+    elif open_prep:
         next_step = {
             'action': 'listing_prep',
             'summary': f'Next on the listing checklist: {open_prep["title"]}.',
@@ -359,6 +364,11 @@ def get_next_step(
         next_step = {
             'action': 'complete_questionnaire',
             'summary': 'Finish the property questionnaire — HOA, year built, and districts.',
+        }
+    elif missing:
+        next_step = {
+            'action': 'upload_documents',
+            'summary': f'Upload or review {len(missing)} missing document(s).',
         }
     elif overdue:
         next_step = {
@@ -629,21 +639,9 @@ def update_transaction_status(
     transaction_id: int,
     status: str,
 ) -> ToolResult:
-    tx, err = _load_tx(ctx, transaction_id, CAP_EDIT)
-    if err:
-        return err
-    new_status = (status or '').strip().lower()
-    if new_status not in TX_STATUSES:
-        return ToolResult.failure(f'status must be one of: {", ".join(TX_STATUSES)}.')
-    old = tx.status
-    tx.status = new_status
-    db.session.add(_status_audit(ctx, tx, old, new_status))
-    db.session.commit()
-    return ToolResult.success(
-        f'Status updated from {old} to {new_status}.',
-        {'transaction_id': tx.id, 'old_status': old, 'status': new_status},
-        record_url=f'/transactions/{tx.id}',
-    )
+    from services.bob_tools.transaction_workflows import invoke, transaction
+    tx = transaction(ctx, transaction_id, CAP_EDIT)
+    return invoke(ctx, 'update_status', ids={'id': tx.id}, fields={'status': status})
 
 
 def preview_update_transaction_status(args: dict, ctx: BobContext) -> dict:
@@ -740,55 +738,20 @@ def create_offer(
     option_period_days=None,
     proposed_close_date: str = '',
 ) -> ToolResult:
-    from decimal import Decimal, InvalidOperation
-    from models import SellerOffer
-    from services.seller_workflow import create_offer_activity
-
-    tx, err = _load_tx(ctx, transaction_id, CAP_EDIT)
-    if err:
-        return err
-    names = (buyer_names or '').strip()
-    if not names:
-        return ToolResult.failure('buyer_names is required.')
-
-    def _money(value):
-        if value in (None, ''):
-            return None
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError, ValueError):
-            return None
-
-    close = None
-    if proposed_close_date:
-        try:
-            close = datetime.strptime(proposed_close_date, '%Y-%m-%d').date()
-        except ValueError:
-            return ToolResult.failure('proposed_close_date must be YYYY-MM-DD.')
-
-    offer = SellerOffer(
-        organization_id=ctx.organization_id,
-        transaction_id=tx.id,
-        created_by_id=ctx.user_id,
-        buyer_names=names[:500],
-        offer_price=_money(offer_price),
-        financing_type=(financing_type or '').strip()[:100] or None,
-        earnest_money=_money(earnest_money),
-        option_fee=_money(option_fee),
-        option_period_days=int(option_period_days) if option_period_days not in (None, '') else None,
-        proposed_close_date=close,
-        creation_source='manual_entry',
-        status='new',
-    )
-    db.session.add(offer)
-    db.session.flush()
-    create_offer_activity(offer, 'offer_created', 'Offer entered', actor_id=ctx.user_id)
-    db.session.commit()
-    return ToolResult.success(
-        f'Offer {offer.id} recorded for {tx.street_address}.',
-        {'offer_id': offer.id, 'transaction_id': tx.id, 'status': offer.status},
-        record_url=f'/transactions/{tx.id}',
-    )
+    from services.bob_tools.transaction_workflows import invoke, transaction
+    tx = transaction(ctx, transaction_id, CAP_EDIT)
+    terms = {key: value for key, value in {
+        'offer_price': offer_price, 'financing_type': financing_type,
+        'earnest_money': earnest_money, 'option_fee': option_fee,
+        'option_period_days': option_period_days,
+        'proposed_close_date': proposed_close_date,
+    }.items() if value not in (None, '')}
+    result = invoke(ctx, 'create_seller_offer', ids={'id': tx.id},
+                    fields={'buyer_names': buyer_names, 'terms_data': terms})
+    if result.ok:
+        result.data['offer_id'] = result.data.get('offer', {}).get('id')
+        result.data['transaction_id'] = tx.id
+    return result
 
 
 def preview_create_offer(args: dict, ctx: BobContext) -> dict:
@@ -824,35 +787,40 @@ def review_offer(ctx: BobContext, *, offer_id: int, status: str = 'reviewing') -
     )
 
 
-def accept_offer(ctx: BobContext, *, offer_id: int, as_backup: bool = False) -> ToolResult:
-    from services.seller_workflow import create_offer_activity
-
+def accept_offer(ctx: BobContext, *, offer_id: int, as_backup: bool = False,
+                 effective_date: str | None = None, effective_at: str | None = None,
+                 backup_position: int | None = None,
+                 backup_addendum_document_id: int | None = None) -> ToolResult:
+    from services.bob_tools.transaction_workflows import invoke, related, transaction, require_document_access
     offer, err = _load_offer(ctx, offer_id, CAP_EDIT)
     if err:
         return err
-    new_status = 'accepted_backup' if as_backup else 'accepted_primary'
-    old = offer.status
-    offer.status = new_status
-    create_offer_activity(
-        offer, 'offer_accepted', f'Offer marked {new_status}', actor_id=ctx.user_id,
-    )
-    db.session.commit()
-    return ToolResult.success(
-        f'Offer {offer.id} marked {new_status}. Contract bootstrap still happens in the app.',
-        {'offer_id': offer.id, 'old_status': old, 'status': new_status},
-        record_url=f'/transactions/{offer.transaction_id}',
-    )
+    tx = transaction(ctx, offer.transaction_id, CAP_EDIT)
+    require_document_access(tx, ctx)
+    if backup_addendum_document_id:
+        related(ctx, tx, 'document_id', backup_addendum_document_id)
+    return invoke(ctx, 'accept_seller_offer', ids={'id': tx.id, 'offer_id': offer.id},
+        fields={'position': 'backup' if as_backup else 'primary',
+                'effective_date': effective_date, 'effective_at': effective_at,
+                'backup_position': backup_position,
+                'backup_addendum_document_id': backup_addendum_document_id})
 
 
 def preview_accept_offer(args: dict, ctx: BobContext) -> dict:
+    from services.bob_tools.transaction_workflows import require_document_access, transaction, approval_changes
     offer, err = _load_offer(ctx, args.get('offer_id'), CAP_EDIT)
     if err:
         return {'action': 'accept_offer', 'error': err.error}
-    return {
-        'action': 'accept_offer',
+    tx = transaction(ctx, offer.transaction_id, CAP_EDIT)
+    require_document_access(tx, ctx)
+    result = {
+        'kind': 'transaction_workflow', 'action': 'accept_offer', 'address': tx.full_address,
         'before': {'status': offer.status},
-        'after': {'status': 'accepted_backup' if args.get('as_backup') else 'accepted_primary'},
+        'after': {**args, 'status': 'accepted_backup' if args.get('as_backup') else 'accepted_primary', 'creates_contract': True},
     }
+    result['changes'] = approval_changes(result)
+    result['summary'] = '\n'.join(f"{change['field'].replace('_', ' ')}: {change['to']}" for change in result['changes'])
+    return result
 
 
 def expire_offer(ctx: BobContext, *, offer_id: int) -> ToolResult:

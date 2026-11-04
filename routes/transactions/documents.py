@@ -416,16 +416,17 @@ def save_document_form(id, doc_id):
                     field_data[key[6:]] = request.form.get(key)
         
         # Track changed fields for audit
-        from services.document_extractor import field_provenance, visible_field_data
+        from services.document_extractor import visible_field_data
 
-        existing_provenance = field_provenance(doc.field_data)
         old_fields = set(visible_field_data(doc.field_data))
         new_fields = set(field_data.keys())
         changed_fields = list(new_fields - old_fields) if old_fields != new_fields else list(new_fields)
 
-        # Save field data, keeping extraction provenance for the review viewer.
-        if existing_provenance:
-            field_data = {**field_data, '_meta': existing_provenance}
+        # Preserve server-owned provenance, classification and baseline metadata.
+        # Form edits can change visible values but cannot replace private keys.
+        private_fields = {key: value for key, value in (doc.field_data or {}).items()
+                          if str(key).startswith('_')}
+        field_data = {**visible_field_data(field_data), **private_fields}
         doc.field_data = field_data
         doc.status = 'filled'
 
