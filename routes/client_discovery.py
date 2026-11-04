@@ -303,7 +303,14 @@ def inquiries(account, org):
 @authenticated
 def send_inquiry(account, org):
     from services.mobile_attachments import attachment_ids, bind_attachments, AttachmentError
+    from services.shared_web_listings import web_listing
     data = payload()
+    try:
+        shared_home = web_listing(data.get('web_listing'))
+    except ValueError as exc:
+        return error(str(exc))
+    if shared_home and data.get('listing_id'):
+        return error('Choose one home for this inquiry.')
     try:
         ids = attachment_ids(data)
     except AttachmentError as exc:
@@ -320,7 +327,8 @@ def send_inquiry(account, org):
     if prior:
         try:
             if (prior.body != field(data, 'body', 4000) or prior.kind != field(data, 'kind', 20)
-                    or prior.listing_id != (field(data, 'listing_id', 80) or None)):
+                    or prior.listing_id != (field(data, 'listing_id', 80) or None)
+                    or (prior.listing_snapshot or {}).get('web_listing') != shared_home):
                 return error('This request ID belongs to another inquiry.', 409)
             bind_attachments(ids, org_id=org.id, owner_kind='browse', owner_id=account.id,
                 target_kind='new_inquiry', target_id=account.id, message_kind='initial', message_id=prior.id, replay=True)
@@ -338,7 +346,8 @@ def send_inquiry(account, org):
     if prior:
         try:
             if (prior.body != field(data, 'body', 4000) or prior.kind != field(data, 'kind', 20)
-                    or prior.listing_id != (field(data, 'listing_id', 80) or None)):
+                    or prior.listing_id != (field(data, 'listing_id', 80) or None)
+                    or (prior.listing_snapshot or {}).get('web_listing') != shared_home):
                 return error('This request ID belongs to another inquiry.', 409)
             bind_attachments(ids, org_id=org.id, owner_kind='browse', owner_id=account.id,
                 target_kind='new_inquiry', target_id=account.id, message_kind='initial', message_id=prior.id, replay=True)
@@ -353,7 +362,8 @@ def send_inquiry(account, org):
     phone = field(data, 'phone', 20)
     if kind not in ('question', 'showing', 'contact') or (not body and not ids) or data.get('consent') is not True:
         return error('Add a message and confirm the brokerage may contact you.')
-    listing_snapshot = None
+    listing_snapshot = (dict(street=shared_home['address'], city='', state='', source='zillow',
+                             web_listing=shared_home) if shared_home else None)
     if listing_id and repliers_listings.valid_id(listing_id):
         try:
             listing = repliers_listings.get_listing(listing_id)
@@ -389,6 +399,9 @@ def send_inquiry(account, org):
         org_context(org.id)
         prior = ClientBrowseInquiry.query.filter_by(organization_id=org.id, account_id=account_id, request_id=request_id).first()
         if prior:
+            if (prior.body != body or prior.kind != kind or prior.listing_id != listing_id
+                    or (prior.listing_snapshot or {}).get('web_listing') != shared_home):
+                return error('This request ID belongs to another inquiry.', 409)
             return jsonify(id=prior.id), 200
         raise
     from services.device_push import enqueue_inquiry_push
