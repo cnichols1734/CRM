@@ -29,6 +29,9 @@ def events(inquiry):
     attachments = message_attachments(inquiry.organization_id, 'inquiry', [m.id for m in inquiry.messages])
     result = [dict(id=f'initial-{inquiry.id}', sender='client', body=inquiry.body,
                    created_at=inquiry.created_at, author_name=None, request_id=inquiry.request_id, attachments=initial[inquiry.id])]
+    shared_home = (inquiry.listing_snapshot or {}).get('web_listing')
+    if shared_home:
+        result[0]['web_listing'] = shared_home
     # Keep old replies without inventing a send time that was never recorded.
     if inquiry.reply:
         result.append(dict(id=f'legacy-{inquiry.id}', sender='agent', body=inquiry.reply,
@@ -55,7 +58,8 @@ def inquiry_payload(inquiry):
     return dict(id=inquiry.id, kind=inquiry.kind, body=inquiry.body,
                 client_avatar_url=avatar_url(account), agent_avatar_url=avatar_url(agent),
                 reply=next((m['body'] for m in reversed(history) if m['sender'] == 'agent'), None),
-                listing_id=inquiry.listing_id, listing_snapshot=inquiry.listing_snapshot,
+                listing_id=inquiry.listing_id,
+                listing_snapshot=None if (inquiry.listing_snapshot or {}).get('web_listing') else inquiry.listing_snapshot,
                 created_at=inquiry.created_at.isoformat() + 'Z',
                 agent_name=agent_name(agent), assigned=inquiry.agent_id is not None,
                 messages=[{**m, 'created_at': m['created_at'].isoformat() + 'Z' if m['created_at'] else None} for m in history])
