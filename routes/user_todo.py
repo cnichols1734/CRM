@@ -15,7 +15,7 @@ def user_todo():
 @login_required
 def get_todos():
     """Get all todos for the current user."""
-    from services.personal_todos import snapshot, rows_for
+    from services.personal_todos import snapshot, rows_for, empty_details
     rows = rows_for(current_user)
     payload = {
         'active': [todo.text for todo in rows if not todo.completed],
@@ -26,6 +26,10 @@ def get_todos():
             'active': [row.client_id or str(row.id) for row in rows if not row.completed],
             'completed': [row.client_id or str(row.id) for row in rows if row.completed]
         }
+        payload['subtodos'] = {
+            row.client_id or str(row.id): (row.details or empty_details()).get('subtodos', [])
+            for row in rows
+        }
     response = jsonify(payload)
     response.headers['X-Todo-Revision'] = snapshot(rows)['revision']
     return response
@@ -34,7 +38,7 @@ def get_todos():
 @login_required
 def save_todos():
     """Save the current state of the todo lists."""
-    from services.personal_todos import lock_owner, rows_for, snapshot, replace_web, valid_text
+    from services.personal_todos import lock_owner, rows_for, snapshot, replace_web, valid_text, validate_details, empty_details
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify(error='Send your active and completed todos.'), 400
@@ -47,10 +51,38 @@ def save_todos():
     revision = snapshot(rows_for(current_user))['revision']
     if 'revision' in data and data['revision'] != revision:
         return jsonify(error='Your todos changed elsewhere. Refresh and try again.'), 409
+    subtodos = data.get('subtodos')
+    if 'subtodos' in data:
+        identities = data.get('identities')
+        if not data.get('revision') or not isinstance(identities, dict) or not isinstance(subtodos, dict):
+            return jsonify(error='Reload your to-do list before editing sub-to-dos.'), 400
+        ids = []
+        for key in ('active', 'completed'):
+            values = identities.get(key)
+            if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+                return jsonify(error='Invalid to-do identities.'), 400
+            ids.extend(values)
+        if not set(subtodos).issubset(ids):
+            return jsonify(error='Sub-to-dos must belong to a to-do in this list.'), 400
+        existing = {row.client_id or str(row.id): row for row in rows_for(current_user)}
+        try:
+            details = {}
+            for identity, entries in subtodos.items():
+                row = existing.get(identity)
+                previous = (row.details if row else None) or empty_details()
+                details[identity] = validate_details({**previous, 'subtodos': entries}, previous)
+        except ValueError as error:
+            return jsonify(error=str(error)), 400
     try:
         replace_web(current_user, active, completed, data.get('identities'))
     except ValueError as error:
+        db.session.rollback()
         return jsonify(error=str(error)), 409
+    if 'subtodos' in data:
+        for row in rows_for(current_user):
+            identity = row.client_id or str(row.id)
+            if identity in details:
+                row.details = details[identity]
     revision = snapshot(rows_for(current_user))['revision']
     db.session.commit()
     response = jsonify(status='success')

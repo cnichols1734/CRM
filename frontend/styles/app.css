@@ -5249,3 +5249,26 @@ html.am-skin .crm-contact-detail .crm-contact-profile .crm-avatar {
   .crm-contact-detail #editContactName { flex-wrap: wrap; }
   .crm-contact-detail .file-item .opacity-0 { opacity: 1; }
 }
+
+/* Shared personal sub-to-dos on the dashboard and full list. */
+.crm-subtodos { padding: 0 14px 12px; color: var(--ink); font-size: 13px; }
+.crm-subtodos > summary { cursor: pointer; color: var(--ink-3); padding: 8px 0; }
+.crm-subtodos__list { list-style: none; margin: 0; padding: 0; }
+.crm-subtodos__row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.crm-subtodos__row > input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+.crm-subtodos__text { flex: 1; min-width: 0; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px 4px; }
+.crm-subtodos__text.is-completed { color: var(--ink-4); text-decoration: line-through; }
+.crm-subtodos__actions { display: flex; flex-shrink: 0; }
+.crm-subtodos .crm-btn { min-height: 44px; padding: 8px; }
+.crm-subtodos button:disabled { opacity: .4; cursor: default; }
+.crm-subtodos__form, .crm-subtodos__editor { display: flex; align-items: flex-start; gap: 8px; width: 100%; }
+.crm-subtodos__form { margin-top: 8px; }
+.crm-subtodos .crm-input { flex: 1; min-width: 0; resize: vertical; }
+.crm-subtodos :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .crm-subtodos__row { flex-wrap: wrap; }
+  .crm-subtodos__text { flex-basis: calc(100% - 34px); }
+  .crm-subtodos__actions { margin-left: auto; }
+  .crm-subtodos__editor { flex-wrap: wrap; }
+  .crm-subtodos__editor .crm-input { flex-basis: 100%; }
+}

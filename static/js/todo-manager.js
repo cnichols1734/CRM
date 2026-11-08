@@ -22,6 +22,7 @@ class TodoManager {
         this.revision = null;
         this.identities = { active: [], completed: [] };
         this.saveQueue = Promise.resolve();
+        this.subtodos = {};
         
         // Cache DOM elements
         this.template = document.getElementById(config.templateId);
@@ -72,6 +73,7 @@ class TodoManager {
             const data = await response.json();
             this.revision = response.headers.get('X-Todo-Revision');
             this.identities = data.identities || { active: [], completed: [] };
+            this.subtodos = data.subtodos || {};
 
             this.todos = data.active || [];
             this.completedTodos = data.completed || [];
@@ -96,6 +98,8 @@ class TodoManager {
         const active = [...this.todos];
         const completed = [...this.completedTodos];
         const identities = { active: [...this.identities.active], completed: [...this.identities.completed] };
+        const subtodos = Object.fromEntries([...identities.active, ...identities.completed].map(id =>
+            [id, (this.subtodos[id] || []).map(child => ({ ...child }))]));
         const generation = this.loadGeneration || 0;
         this.saveQueue = this.saveQueue.then(async () => {
             if (generation !== (this.loadGeneration || 0)) return;
@@ -104,7 +108,7 @@ class TodoManager {
                 const response = await fetch('/api/user_todos/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ active, completed, identities, revision: this.revision })
+                    body: JSON.stringify({ active, completed, identities, subtodos, revision: this.revision })
                 });
                 if (!response.ok) throw new Error(response.status === 409
                     ? 'Your todos changed elsewhere. The latest list has been loaded. Please try your change again.'
@@ -112,6 +116,7 @@ class TodoManager {
                 this.revision = response.headers.get('X-Todo-Revision');
                 if (this.config.onSave) this.config.onSave(active, completed);
             } catch (error) {
+                this.revision = null;
                 this.loadGeneration = (this.loadGeneration || 0) + 1;
                 await this.loadTodos();
                 window.alert(error.message);
@@ -232,6 +237,146 @@ class TodoManager {
         this.saveTodos();
     }
 
+    attachSubtodos(todoItem, identity) {
+        const section = document.createElement('details');
+        section.className = 'crm-subtodos';
+        const summary = document.createElement('summary');
+        const list = document.createElement('ul');
+        list.className = 'crm-subtodos__list';
+        list.setAttribute('aria-label', 'Sub-to-dos');
+        const form = document.createElement('form');
+        form.className = 'crm-subtodos__form';
+        const input = document.createElement('textarea');
+        input.className = 'crm-input';
+        input.rows = 1;
+        input.placeholder = 'Add sub-to-do';
+        input.setAttribute('aria-label', 'New sub-to-do');
+        const button = (text, label, action) => {
+            const control = document.createElement('button');
+            control.type = 'button';
+            control.className = 'crm-btn crm-btn-ghost';
+            control.textContent = text;
+            control.setAttribute('aria-label', label);
+            control.addEventListener('click', action);
+            return control;
+        };
+        const validText = field => {
+            const text = field.value.trim();
+            field.setCustomValidity(!text ? 'Enter a sub-to-do.' :
+                [...text].length > 500 ? 'Use 500 characters or fewer.' : '');
+            return field.reportValidity() ? text : null;
+        };
+        input.addEventListener('input', () => input.setCustomValidity(''));
+        const add = button('Add', 'Add sub-to-do', () => form.requestSubmit());
+        form.append(input, add);
+        section.append(summary, list, form);
+        todoItem.append(section);
+        const children = () => this.subtodos[identity] || [];
+        const refreshSummary = () => {
+            const items = children();
+            summary.textContent = items.length
+                ? `Sub-to-dos · ${items.filter(child => child.completed).length}/${items.length}`
+                : 'Sub-to-dos';
+            input.disabled = add.disabled = items.length >= 100;
+        };
+        const persist = () => {
+            refreshSummary();
+            this.saveTodos();
+        };
+        const render = (focusId, focusAction = 'edit') => {
+            list.replaceChildren();
+            children().forEach((child, index) => {
+                const row = document.createElement('li');
+                row.className = 'crm-subtodos__row';
+                row.dataset.subtodoId = child.id;
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = child.completed;
+                checkbox.setAttribute('aria-label', `Complete sub-to-do: ${child.text}`);
+                checkbox.addEventListener('change', () => {
+                    child.completed = checkbox.checked;
+                    edit.classList.toggle('is-completed', child.completed);
+                    persist();
+                });
+                const edit = button(child.text, `Edit sub-to-do: ${child.text}`, () => {
+                    const editor = document.createElement('form');
+                    editor.className = 'crm-subtodos__editor';
+                    const field = document.createElement('textarea');
+                    field.className = 'crm-input';
+                    field.rows = 2;
+                    field.value = child.text;
+                    field.setAttribute('aria-label', 'Edit sub-to-do');
+                    field.addEventListener('input', () => field.setCustomValidity(''));
+                    const save = button('Save', 'Save sub-to-do', () => editor.requestSubmit());
+                    const cancel = button('Cancel', 'Cancel edit', () => render(child.id));
+                    editor.append(field, save, cancel);
+                    editor.addEventListener('submit', event => {
+                        event.preventDefault();
+                        const text = validText(field);
+                        if (!text) return;
+                        child.text = text;
+                        persist();
+                        render(child.id);
+                    });
+                    field.addEventListener('keydown', event => {
+                        if (event.key === 'Escape') { event.preventDefault(); render(child.id); }
+                    });
+                    row.replaceChildren(editor);
+                    field.focus();
+                    field.select();
+                });
+                edit.className = 'crm-subtodos__text';
+                edit.classList.toggle('is-completed', child.completed);
+                edit.dataset.action = 'edit';
+                const actions = document.createElement('div');
+                actions.className = 'crm-subtodos__actions';
+                for (const [direction, offset, symbol] of [['up', -1, '↑'], ['down', 1, '↓']]) {
+                    const move = button(symbol, `Move sub-to-do ${direction}: ${child.text}`, () => {
+                        const items = children();
+                        [items[index], items[index + offset]] = [items[index + offset], items[index]];
+                        persist();
+                        render(child.id, direction);
+                    });
+                    move.dataset.action = direction;
+                    move.disabled = index + offset < 0 || index + offset >= children().length;
+                    actions.append(move);
+                }
+                actions.append(button('Delete', `Delete sub-to-do: ${child.text}`, () => {
+                    this.subtodos[identity] = children().filter(item => item.id !== child.id);
+                    persist();
+                    render();
+                    const next = list.children[Math.min(index, list.children.length - 1)];
+                    (next?.querySelector('[data-action="edit"]') || input).focus();
+                }));
+                row.append(checkbox, edit, actions);
+                list.append(row);
+                if (child.id === focusId) {
+                    const target = row.querySelector(`[data-action="${focusAction}"]`);
+                    (target && !target.disabled ? target : edit).focus();
+                }
+            });
+            refreshSummary();
+        };
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            if (children().length >= 100) return;
+            const text = validText(input);
+            if (!text) return;
+            this.subtodos[identity] = [...children(), { id: crypto.randomUUID(), text, completed: false }];
+            input.value = '';
+            persist();
+            render();
+            (input.disabled ? summary : input).focus();
+        });
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
+        render();
+    }
+
     // ==================== DOM Creation ====================
 
     /**
@@ -273,6 +418,7 @@ class TodoManager {
 
         // Bind events
         this.bindTodoEvents(todoItem, todoText, editContainer, editInput, checkbox, deleteBtn);
+        this.attachSubtodos(todoItem, identity);
 
         // Animate in
         setTimeout(() => {
@@ -459,8 +605,7 @@ class TodoManager {
         if (this.activeList) {
             this.activeList.innerHTML = '';
             this.todos.forEach((text, index) => {
-                const element = this.createTodoElement(text, false);
-                if (this.identities.active[index]) element.dataset.todoId = this.identities.active[index];
+                const element = this.createTodoElement(text, false, this.identities.active[index]);
                 this.activeList.appendChild(element);
             });
         }
@@ -468,8 +613,7 @@ class TodoManager {
         if (this.completedList) {
             this.completedList.innerHTML = '';
             this.completedTodos.forEach((text, index) => {
-                const element = this.createTodoElement(text, true);
-                if (this.identities.completed[index]) element.dataset.todoId = this.identities.completed[index];
+                const element = this.createTodoElement(text, true, this.identities.completed[index]);
                 this.completedList.appendChild(element);
             });
         }

@@ -165,6 +165,7 @@
         display: flex;
         align-items: center;
     }
+    .todo-edit-container.hidden { display: none; }
     .todo-edit-input {
         width: 100%;
         padding: 6px 10px;
@@ -207,9 +208,12 @@
         font-style: italic;
     }
 
+    .edit-hint { display: none; }
+
     /* Edit hint shown only on hover (desktop) */
     @media (min-width: 768px) {
         .edit-hint {
+            display: block;
             position: absolute;
             right: 10px;
             top: 50%;

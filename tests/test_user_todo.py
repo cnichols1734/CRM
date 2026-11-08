@@ -219,3 +219,67 @@ def test_bob_details_invalidate_native_and_web_snapshots(app, client, owner_a_cl
     with app.app_context():
         assert not undo_action(changed.action_id, ctx).ok
     assert client.get(url, headers=headers).json['items'][0]['details']['description'] == 'Later native edit'
+
+
+def test_web_subtodos_round_trip_to_native_and_preserve_details(client, owner_a_client, restore_todos):
+    from tests.test_agent_api import _owner_token, _auth
+    headers = _auth(_owner_token(client))
+    url = '/api/agent/v1/todos'
+    original = client.get(url, headers=headers).json
+    identity = '6a6c9788-66d9-455c-8fd2-16b5d26069b3'
+    original['items'] = [{'id': identity, 'text': 'Open house', 'completed': False, 'details': {
+        'description': 'Bring signs', 'priority': 2, 'due_date': '2026-11-09',
+        'comments': [{'id': '02fdd301-f80d-4bfb-bb44-14f55563cac2', 'text': 'Keys ready'}]}}]
+    saved = client.put(url, headers=headers, json=original).json
+    preserved = saved['items'][0]['details']
+    web = owner_a_client.get('/api/user_todos/get?include_ids=1')
+    payload = {**web.json, 'revision': web.headers['X-Todo-Revision']}
+    children = [
+        {'id': '642447f6-ef26-49bb-9a30-5407ac5c723c', 'text': 'Print flyers', 'completed': False},
+        {'id': 'a3b23ff4-ef44-4893-93d5-a1c728c673a0', 'text': 'Pack signs', 'completed': False}]
+    payload['subtodos'] = {identity: children}
+    for expected in [children, [{**children[1], 'text': 'Pack both signs', 'completed': True}, children[0]],
+                     [children[0]], []]:
+        payload['subtodos'][identity] = expected
+        response = owner_a_client.post('/api/user_todos/save', json=payload)
+        assert response.status_code == 200
+        native = client.get(url, headers=headers).json
+        assert native['items'][0]['details'] == {**preserved, 'subtodos': expected}
+        web = owner_a_client.get('/api/user_todos/get?include_ids=1')
+        assert web.json['subtodos'][identity] == expected
+        payload['revision'] = web.headers['X-Todo-Revision']
+    # A native edit makes the browser snapshot stale, including sub-to-do changes.
+    native['items'][0]['details']['description'] = 'Updated from phone'
+    assert client.put(url, headers=headers, json=native).status_code == 200
+    payload['subtodos'][identity] = children
+    assert owner_a_client.post('/api/user_todos/save', json=payload).status_code == 409
+    assert client.get(url, headers=headers).json['items'][0]['details']['subtodos'] == []
+
+
+def test_web_subtodos_validate_before_writes_and_reject_foreign_ids(owner_a_client, agent_a_client, owner_b_client, restore_todos):
+    import copy
+    identity = '0e72b991-6da3-40b0-8ab6-e419e025195e'
+    child = {'id': '86ae5da0-7c9b-4b27-b6d8-a83393964cc5', 'text': 'Call', 'completed': False}
+    web = owner_a_client.get('/api/user_todos/get?include_ids=1')
+    payload = {'active': ['New'], 'completed': [], 'identities': {'active': [identity], 'completed': []},
+               'revision': web.headers['X-Todo-Revision'], 'subtodos': {identity: [child]}}
+    assert owner_a_client.post('/api/user_todos/save', json=payload).status_code == 200
+    current = owner_a_client.get('/api/user_todos/get?include_ids=1')
+    payload['revision'] = current.headers['X-Todo-Revision']
+    for entries in [[child, child], [{**child, 'text': ' '}], [{**child, 'text': 'x' * 501}],
+                    [{**child, 'completed': 'false'}], [child] * 101, None]:
+        invalid = copy.deepcopy(payload)
+        invalid['active'] = ['Must not rename']
+        invalid['subtodos'][identity] = entries
+        assert owner_a_client.post('/api/user_todos/save', json=invalid).status_code == 400
+        assert owner_a_client.get('/api/user_todos/get?include_ids=1').json == current.json
+    invalid = {**payload, 'revision': None}
+    assert owner_a_client.post('/api/user_todos/save', json=invalid).status_code == 409
+    invalid.pop('revision')
+    assert owner_a_client.post('/api/user_todos/save', json=invalid).status_code == 400
+    for other in [agent_a_client, owner_b_client]:
+        foreign = other.get('/api/user_todos/get?include_ids=1')
+        attack = {**foreign.json, 'revision': foreign.headers['X-Todo-Revision'], 'subtodos': {identity: []}}
+        assert other.post('/api/user_todos/save', json=attack).status_code == 400
+        assert other.get('/api/user_todos/get?include_ids=1').json == foreign.json
+    assert owner_a_client.get('/api/user_todos/get?include_ids=1').json == current.json
