@@ -50,6 +50,7 @@ from services.agent_auth import (
     serialize_user,
 )
 from services.agent_dashboard import build_dashboard, me_payload
+from services.message_safety import is_blocked, screened_text, screened_messages
 from services.contact_group_service import (
     ContactGroupError,
     list_user_groups,
@@ -1249,6 +1250,7 @@ def list_conversations(user):
         last = latest_by_participant.get(participant.id)
         if last is None:
             continue
+        blocked = is_blocked(user, participant=participant)
         conversations.append({
             'transaction_id': tx.id,
             'address': tx.street_address,
@@ -1256,9 +1258,10 @@ def list_conversations(user):
             'avatar_url': avatar_url(participant),
             'name': participant.display_name,
             'role': participant.role,
-            'last_preview': (last.body or 'Attachment') if last else None,
+            'blocked': blocked,
+            'last_preview': 'Client blocked' if blocked else screened_text(last.body or 'Attachment') if last else None,
             'last_at': last.created_at.isoformat() if last and last.created_at else None,
-            'unread': unread_by_participant.get(participant.id, 0),
+            'unread': 0 if blocked else unread_by_participant.get(participant.id, 0),
         })
     conversations.sort(key=lambda row: row['last_at'] or '', reverse=True)
     return jsonify({'conversations': conversations})
@@ -1287,8 +1290,10 @@ def preview_conversation_messages(user, participant_id):
     tx, participant, error = _conversation_access(user, participant_id)
     if error:
         return error
+    if is_blocked(user, participant=participant):
+        return jsonify(messages=[], blocked=True)
     access = SimpleNamespace(transaction_id=tx.id, participant_id=participant.id, participant=participant)
-    response = jsonify({'messages': list_client_messages(access, limit=None)})
+    response = jsonify({'messages': screened_messages(list_client_messages(access, limit=None))})
     response.headers['Cache-Control'] = 'private, no-store'
     return response
 
@@ -1303,6 +1308,8 @@ def list_conversation_messages(user, participant_id):
     tx, participant, error = _conversation_access(user, participant_id)
     if error:
         return error
+    if is_blocked(user, participant=participant):
+        return jsonify(messages=[], blocked=True)
     access = SimpleNamespace(
         transaction_id=tx.id,
         participant_id=participant.id,
@@ -1319,7 +1326,7 @@ def list_conversation_messages(user, participant_id):
         msg.read_by_agent_at = now
     if unread:
         db.session.commit()
-    return jsonify({'messages': messages})
+    return jsonify({'messages': screened_messages(messages)})
 
 
 @agent_api_bp.route(
@@ -1332,6 +1339,8 @@ def post_conversation_message(user, participant_id):
     tx, participant, error = _conversation_access(user, participant_id)
     if error:
         return error
+    if is_blocked(user, participant=participant):
+        return _json_error('Unblock this client before replying.', 403)
     from services.mobile_messages import create_message
     from services.mobile_attachments import attachment_ids, AttachmentError
     data = _json_body()
@@ -1369,6 +1378,8 @@ def post_conversation_message(user, participant_id):
 def _register_desk_extensions():
     from routes import agent_bob
     agent_bob.register(agent_api_bp)
+    from routes import agent_safety
+    agent_safety.register(agent_api_bp)
     from routes import agent_inquiries
     agent_inquiries.register(agent_api_bp)
     try:

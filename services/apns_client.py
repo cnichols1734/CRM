@@ -24,7 +24,8 @@ def topic_for_audience(audience=None) -> str:
 
 
 def send_alert(device_token: str, msg, audience=None, environment=None) -> bool:
-    preview = (msg.body or 'Sent an attachment.').strip()
+    from services.message_safety import screened_text
+    preview = screened_text((msg.body or 'Sent an attachment.').strip())
     if len(preview) > 120:
         preview = preview[:117] + '...'
     title = 'New message' if msg.sender == 'client' else 'Update from your agent'

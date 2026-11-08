@@ -12,6 +12,7 @@ from routes.client_discovery import org_context
 from services.client_conversations import assign_client, inquiry_payload
 from services.device_push import enqueue_inquiry_push
 from services.profile_photos import avatar_url
+from services.message_safety import is_blocked, screened_text, screened_messages
 
 
 def register(bp):
@@ -27,13 +28,17 @@ def visible(user):
         (ClientBrowseInquiry.agent_id == user.id) | ClientBrowseInquiry.agent_id.is_(None))
 
 
-def native_payload(row):
+def native_payload(row, user=None):
     account = ClientBrowseAccount.query.filter_by(id=row.account_id, organization_id=row.organization_id).one()
     result = inquiry_payload(row)
+    result['messages'] = screened_messages(result['messages'])
+    result['body'] = screened_text(result.get('body'))
     history = result['messages']
     result.update(account_id=account.id, name=account.name, email=account.email,
                   agent_id=row.agent_id, last_preview=history[-1]['body'] or 'Attachment',
                   last_at=history[-1]['created_at'] or result['created_at'])
+    if user and is_blocked(user, account=account):
+        result.update(blocked=True, messages=[], body="", reply=None, last_preview="Client blocked", listing_snapshot=None)
     return result
 
 
@@ -66,12 +71,13 @@ def inbox(user):
     result = []
     for row, account, agent, message in rows[:page_size]:
         timestamp = message.created_at if message else row.created_at
-        result.append(dict(id=row.id, account_id=account.id, name=account.name, email=account.email,
+        blocked = is_blocked(user, account=account)
+        result.append(dict(blocked=blocked, id=row.id, account_id=account.id, name=account.name, email=account.email,
             kind=row.kind, assigned=row.agent_id is not None, agent_id=row.agent_id,
             client_avatar_url=avatar_url(account), agent_avatar_url=avatar_url(agent),
             agent_name=f'{agent.first_name} {agent.last_name}'.strip() if agent else None,
             created_at=row.created_at.isoformat() + 'Z', last_at=timestamp.isoformat() + 'Z',
-            last_preview=(message.body if message else row.reply or row.body)[:240] or 'Attachment', messages=[]))
+            last_preview='Client blocked' if blocked else screened_text((message.body if message else row.reply or row.body)[:240] or 'Attachment'), messages=[]))
     next_cursor = None
     if len(rows) > page_size:
         row, _, _, message = rows[page_size - 1]
@@ -86,7 +92,7 @@ def detail(user, inquiry_id):
     row = visible(user).filter_by(id=inquiry_id).first()
     if not row:
         return jsonify(error='Conversation not found.'), 404
-    return jsonify(inquiry=native_payload(row))
+    return jsonify(inquiry=native_payload(row, user))
 
 
 def locked_inquiry(user, inquiry_id):
@@ -107,7 +113,7 @@ def claim(user, inquiry_id):
     if account is None or row is None:
         return jsonify(error='Conversation not found.'), 404
     if account.agent_id == user.id and row.agent_id == user.id:
-        return jsonify(inquiry=native_payload(row))
+        return jsonify(inquiry=native_payload(row, user))
     if account.agent_id is not None or row.agent_id is not None:
         return jsonify(error='Another agent already accepted this client.'), 409
     try:
@@ -123,7 +129,7 @@ def claim(user, inquiry_id):
         enqueue_inquiry_push(inquiry_id=notice_inquiry_id, org_id=user.organization_id,
                              message_id=notice_id, assignment=True)
     org_context(user.organization_id)
-    return jsonify(inquiry=native_payload(row))
+    return jsonify(inquiry=native_payload(row, user))
 
 
 @agent_jwt_required
@@ -147,6 +153,8 @@ def reply(user, inquiry_id):
     account, row = locked_inquiry(user, inquiry_id)
     if account is None or row is None or row.agent_id != user.id or account.agent_id != user.id:
         return jsonify(error='Claim this client before replying.'), 403
+    if is_blocked(user, account=account):
+        return jsonify(error='Unblock this client before replying.'), 403
     prior = ClientInquiryMessage.query.filter_by(organization_id=user.organization_id,
         inquiry_id=row.id, sender='agent', request_id=request_id).first()
     if prior and (prior.body != body or prior.author_user_id != user.id):
@@ -170,4 +178,4 @@ def reply(user, inquiry_id):
         enqueue_inquiry_push(inquiry_id=row.id, org_id=user.organization_id, message_id=message_id)
     org_context(user.organization_id)
     db.session.expire(row, ['messages'])
-    return jsonify(inquiry=native_payload(row)), 201 if message_id else 200
+    return jsonify(inquiry=native_payload(row, user)), 201 if message_id else 200

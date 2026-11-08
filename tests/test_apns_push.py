@@ -364,6 +364,18 @@ def test_inquiry_push_recipients_assignment_and_device_environments(app, seed, m
     assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'])['sent'] == 1
     assert calls[0]['url'].endswith('/assigned')
     calls.clear()
+    with app.app_context():
+        from models import User
+        owner = db.session.get(User, seed['owner_a'])
+        previous = owner.notification_prefs
+        owner.notification_prefs = {**(previous or {}), 'blocked_clients': [f'browse:{account_id}']}
+        db.session.commit()
+    assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'])['sent'] == 0
+    assert calls == []
+    with app.app_context():
+        db.session.get(User, seed['owner_a']).notification_prefs = previous
+        db.session.commit()
+    calls.clear()
     for message_id, assignment in [(reply_id, False), (notice_id, True)]:
         assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'], message_id=message_id, assignment=assignment)['sent'] == 1
     assert all(c['url'] == 'https://api.sandbox.push.apple.com/3/device/browser' for c in calls)
