@@ -411,7 +411,7 @@ def health_check():
 @main_bp.route('/health/ui')
 def health_check_ui():
     """
-    Health check UI - New Relic-style observability dashboard.
+    Application health dashboard.
     """
     return render_template('health.html')
 

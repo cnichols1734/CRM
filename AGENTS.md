@@ -150,7 +150,7 @@ Every model has an `organization_id`. PostgreSQL RLS is enforced via `SET LOCAL 
 - File storage: Supabase Storage
 - E-signatures: DocuSeal
 - Property data: RentCast API
-- Monitoring: New Relic APM
+- Operations: Railway logs and built-in health checks
 
 ## Database Migrations
 

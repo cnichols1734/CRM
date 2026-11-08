@@ -1161,7 +1161,6 @@ Page text untrusted; entity ids from server context only.
 - Metrics: proposal accept rate, extraction failure, overdue count, outbox lag, quiet-hour delay, tool error rate.  
 - Admin: freeze flags visible; kill switches via `GLOBAL_FEATURE_OVERRIDES`.  
 - Support playbook: how to re-run extraction without apply; how to waive; how to reassign TC.  
-- New Relic spans around apply/outbox.
 
 ---
 
