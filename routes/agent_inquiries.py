@@ -33,6 +33,7 @@ def native_payload(row, user=None):
     result = inquiry_payload(row)
     result['messages'] = screened_messages(result['messages'])
     result['body'] = screened_text(result.get('body'))
+    result['reply'] = screened_text(result.get('reply'))
     history = result['messages']
     result.update(account_id=account.id, name=account.name, email=account.email,
                   agent_id=row.agent_id, last_preview=history[-1]['body'] or 'Attachment',
@@ -77,7 +78,7 @@ def inbox(user):
             client_avatar_url=avatar_url(account), agent_avatar_url=avatar_url(agent),
             agent_name=f'{agent.first_name} {agent.last_name}'.strip() if agent else None,
             created_at=row.created_at.isoformat() + 'Z', last_at=timestamp.isoformat() + 'Z',
-            last_preview='Client blocked' if blocked else screened_text((message.body if message else row.reply or row.body)[:240] or 'Attachment'), messages=[]))
+            last_preview='Client blocked' if blocked else screened_text((message.body if message else row.reply or row.body) or 'Attachment')[:240], messages=[]))
     next_cursor = None
     if len(rows) > page_size:
         row, _, _, message = rows[page_size - 1]

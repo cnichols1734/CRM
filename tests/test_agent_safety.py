@@ -81,3 +81,64 @@ def test_filter_masks_threats_without_sending_content_to_another_service():
     row = screened_messages([{'body': threat, 'attachments': [{'url': 'private'}], 'web_listing': {'url': 'private'}}])[0]
     assert row['attachments'] == [] and row['web_listing'] is None
     assert 'KILL' not in row['body']
+
+
+def test_invitation_link_blocks_without_contact_reassignment_and_reuses_index(app, client, seed):
+    from sqlalchemy import event
+    from services.message_safety import is_blocked
+    with app.app_context():
+        _, participant, access = _seller_thread(seed, 'Invitation-only link')
+        account = ClientBrowseAccount(organization_id=seed['org_a'], email='linked-safety@example.com',
+            name='Linked client', password_hash='unused', contact_id=None, agent_id=seed['owner_a'],
+            linked_access_ids=[access.id])
+        db.session.add(account)
+        db.session.flush()
+        inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
+            agent_id=seed['owner_a'], request_id='linked-safety', kind='general', body='Linked inquiry')
+        db.session.add(inquiry)
+        db.session.commit()
+        aid, iid, pid = account.id, inquiry.id, participant.id
+    headers = _auth(_owner_token(client))
+    assert client.put(BASE + f'/inquiries/{iid}/block', headers=headers, json={'blocked': True}).json['blocked']
+    assert client.get(BASE + f'/conversations/{pid}/messages', headers=headers).json['blocked']
+    with app.app_context():
+        owner = db.session.get(User, seed['owner_a'])
+        account = db.session.get(ClientBrowseAccount, aid)
+        from models import TransactionParticipant
+        participant = db.session.get(TransactionParticipant, pid)
+        assert account.contact_id is None
+        queries = []
+        def count(*args):
+            queries.append(1)
+        event.listen(db.engine, 'before_cursor_execute', count)
+        try:
+            for _ in range(100):
+                assert is_blocked(owner, account=account)
+                assert is_blocked(owner, participant=participant)
+        finally:
+            event.remove(db.engine, 'before_cursor_execute', count)
+        assert len(queries) == 3
+    assert client.put(BASE + f'/conversations/{pid}/block', headers=headers, json={'blocked': False}).json == {'blocked': False}
+    assert not client.get(BASE + f'/inquiries/{iid}', headers=headers).json['inquiry'].get('blocked', False)
+
+
+def test_inquiry_reply_and_preview_are_screened_before_truncation(app, client, seed):
+    from models import ClientInquiryMessage
+    with app.app_context():
+        account = ClientBrowseAccount(organization_id=seed['org_a'], email='filtered-safety@example.com',
+            name='Filtered client', password_hash='unused', agent_id=seed['owner_a'])
+        db.session.add(account)
+        db.session.flush()
+        inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
+            agent_id=seed['owner_a'], request_id='filtered-safety', kind='general', body='Hello')
+        db.session.add(inquiry)
+        db.session.flush()
+        db.session.add(ClientInquiryMessage(organization_id=seed['org_a'], inquiry_id=inquiry.id,
+            sender='agent', author_user_id=seed['owner_a'], body=('a' * 230) + ' I will kill you', request_id='filtered-message'))
+        db.session.commit()
+        iid = inquiry.id
+    headers = _auth(_owner_token(client))
+    detail = client.get(BASE + f'/inquiries/{iid}', headers=headers).json['inquiry']
+    assert detail['reply'].startswith('Message hidden')
+    row = next(r for r in client.get(BASE + '/inquiries', headers=headers).json['inquiries'] if r['id'] == iid)
+    assert row['last_preview'].startswith('Message hidden')

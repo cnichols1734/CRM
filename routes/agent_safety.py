@@ -73,6 +73,7 @@ def report(user):
     if failure:
         return failure
     from datetime import datetime, timedelta
+    User.query.filter_by(id=user.id, organization_id=user.organization_id).with_for_update().one()
     recent = AuditEvent.query.filter(AuditEvent.actor_id == user.id,
         AuditEvent.organization_id == user.organization_id, AuditEvent.event_type == 'content_report',
         AuditEvent.created_at > datetime.utcnow() - timedelta(hours=24)).count()

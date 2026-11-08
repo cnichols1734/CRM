@@ -330,7 +330,7 @@ def test_inquiry_push_recipients_assignment_and_device_environments(app, seed, m
         db.session.add(account)
         db.session.flush()
         inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
-            kind='message', body='Can someone help?', request_id=str(uuid.uuid4()))
+            kind='message', body=('a' * 115) + ' I will kill you', request_id=str(uuid.uuid4()))
         db.session.add(inquiry)
         db.session.flush()
         for user, token, org in [(seed['owner_a'], 'assigned', seed['org_a']),
@@ -349,6 +349,7 @@ def test_inquiry_push_recipients_assignment_and_device_environments(app, seed, m
     assert send_inquiry_push(inquiry_id=inquiry_id, org_id=seed['org_a'])['sent'] == 2
     assert {c['url'].rsplit('/', 1)[-1] for c in calls} == {'assigned', 'unassigned'}
     assert all(c['url'].startswith('https://api.push.apple.com/') for c in calls)
+    assert all(json.loads(c['content'])['aps']['alert']['body'].startswith('Message hidden') for c in calls)
     calls.clear()
     with app.app_context():
         account = db.session.get(ClientBrowseAccount, account_id)

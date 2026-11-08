@@ -188,7 +188,7 @@ def send_inquiry_push(*, inquiry_id, org_id, message_id=None, assignment=False):
         for device in tokens:
             if device.id in delivered:
                 continue
-            payload = {'aps': {'alert': {'title': title, 'body': screened_text(body if assignment else body[:120])}, 'sound': 'default'},
+            payload = {'aps': {'alert': {'title': title, 'body': screened_text(body) if assignment else screened_text(body)[:120]}, 'sound': 'default'},
                 'kind': 'inquiry_assignment' if assignment else 'inquiry_message',
                 'inquiry_id': row.id, 'account_id': account.id}
             if send_payload(device.token, payload, audience=device.audience, environment=device.environment):
