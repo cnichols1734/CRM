@@ -968,8 +968,6 @@ def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: s
         audio_file.name = filename  # Whisper needs the filename for format detection
         
         # Call Whisper API
-        # Use "json" format instead of "text" to avoid New Relic instrumentation
-        # issues with plain string responses
         response = client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
