@@ -25,7 +25,9 @@ def test_block_is_private_persistent_and_covers_linked_threads(app, client, seed
     headers = _auth(_owner_token(client))
     route = BASE + f'/conversations/{pid}/block'
     assert client.put(route, headers=headers, json={'blocked': 'yes'}).status_code == 400
-    assert client.put(route, headers=headers, json={'blocked': True}).json == {'blocked': True}
+    blocked_response = client.put(route, headers=headers, json={'blocked': True}).json
+    assert blocked_response['blocked'] is True
+    assert {str(pid), str(other_id), f'inquiry-{iid}'} <= set(blocked_response['conversation_ids'])
     for thread in (pid, other_id):
         for suffix in ('', '/preview'):
             response = client.get(BASE + f'/conversations/{thread}/messages' + suffix, headers=headers)
@@ -45,7 +47,7 @@ def test_block_is_private_persistent_and_covers_linked_threads(app, client, seed
     other_token = _agent_session(client, email='owner_b@test.com').json['token']
     assert client.put(route, headers=_auth(other_token), json={'blocked': False}).status_code == 404
     # Unblocking from another linked conversation clears the same person's block.
-    assert client.put(BASE + f'/inquiries/{iid}/block', headers=headers, json={'blocked': False}).json == {'blocked': False}
+    assert client.put(BASE + f'/inquiries/{iid}/block', headers=headers, json={'blocked': False}).json['blocked'] is False
     assert client.get(BASE + f'/conversations/{pid}/messages', headers=headers).json['messages']
 
 
@@ -118,7 +120,7 @@ def test_invitation_link_blocks_without_contact_reassignment_and_reuses_index(ap
         finally:
             event.remove(db.engine, 'before_cursor_execute', count)
         assert len(queries) == 3
-    assert client.put(BASE + f'/conversations/{pid}/block', headers=headers, json={'blocked': False}).json == {'blocked': False}
+    assert client.put(BASE + f'/conversations/{pid}/block', headers=headers, json={'blocked': False}).json['blocked'] is False
     assert not client.get(BASE + f'/inquiries/{iid}', headers=headers).json['inquiry'].get('blocked', False)
 
 
@@ -225,3 +227,32 @@ def test_new_and_replayed_send_responses_are_screened(app, client, seed, monkeyp
         assert response.status_code == expected
         assert response.json['message']['body'].startswith('Message hidden')
         assert response.json['message']['attachments'] == []
+
+
+def test_unblock_remembers_invitation_group_after_grant_revocation(app, client, seed):
+    from models import ClientPortalAccess
+    with app.app_context():
+        _, participant, access = _seller_thread(seed, 'Revoked invitation block')
+        participant.contact_id = None
+        participant.email = 'revoked-grant-only@example.com'
+        account = ClientBrowseAccount(organization_id=seed['org_a'], email='different-revoked@example.com',
+            name='Invitation client', password_hash='unused', agent_id=seed['owner_a'], linked_access_ids=[access.id])
+        db.session.add(account)
+        db.session.flush()
+        inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
+            agent_id=seed['owner_a'], request_id='revoked-safety', kind='general', body='Invitation inquiry')
+        db.session.add(inquiry)
+        db.session.commit()
+        iid, pid, grant_id = inquiry.id, participant.id, access.id
+    headers = _auth(_owner_token(client))
+    route = BASE + f'/inquiries/{iid}/block'
+    client.put(route, headers=headers, json={'blocked': True})
+    with app.app_context():
+        db.session.get(ClientPortalAccess, grant_id).is_active = False
+        db.session.commit()
+    response = client.put(route, headers=headers, json={'blocked': False}).json
+    assert not response['blocked'] and str(pid) in response['conversation_ids']
+    with app.app_context():
+        db.session.get(ClientPortalAccess, grant_id).is_active = True
+        db.session.commit()
+    assert not client.get(BASE + f'/conversations/{pid}/messages', headers=headers).json.get('blocked', False)

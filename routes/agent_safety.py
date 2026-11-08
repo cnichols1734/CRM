@@ -1,6 +1,6 @@
 from flask import jsonify, request
 
-from models import AuditEvent, ChatConversation, ClientBrowseAccount, User, db
+from models import AuditEvent, ChatConversation, ClientBrowseAccount, ClientBrowseInquiry, Transaction, TransactionParticipant, User, db
 from routes.agent_api import agent_jwt_required, _conversation_access, _set_org_context
 from services.message_safety import identity_keys, is_blocked
 
@@ -41,14 +41,34 @@ def update_block(user, kind, subject_id):
     prefs = dict(owner.notification_prefs or {})
     keys = identity_keys(**target)
     blocked = set(prefs.get('blocked_clients', []))
+    groups = [set(group) for group in prefs.get('blocked_client_groups', []) if isinstance(group, list)]
+    remaining = groups
+    while True:
+        matched = [group for group in remaining if group & keys]
+        if not matched:
+            break
+        keys = keys.union(*matched)
+        remaining = [group for group in remaining if group not in matched]
     blocked = blocked | keys if data['blocked'] else blocked - keys
     if len(blocked) > 10000:
         return jsonify(error='Contact support to manage additional blocked clients.'), 400
     prefs['blocked_clients'] = sorted(blocked)
+    prefs['blocked_client_groups'] = [sorted(group) for group in remaining] + ([sorted(keys)] if data['blocked'] else [])
     owner.notification_prefs = prefs
+    from routes.agent_api import transactions_visible_query
+    from routes.agent_inquiries import visible
+    participant_ids = [int(key.split(':')[1]) for key in keys if key.startswith('participant:')]
+    account_ids = [int(key.split(':')[1]) for key in keys if key.startswith('browse:')]
+    visible_transactions = transactions_visible_query(user).with_entities(Transaction.id)
+    affected = [str(row.id) for row in TransactionParticipant.query.filter(
+        TransactionParticipant.organization_id == user.organization_id,
+        TransactionParticipant.id.in_(participant_ids),
+        TransactionParticipant.transaction_id.in_(visible_transactions)).all()]
+    affected += [f'inquiry-{row.id}' for row in visible(user).filter(
+        ClientBrowseInquiry.account_id.in_(account_ids)).all()]
     db.session.commit()
     _set_org_context(user.organization_id)
-    return jsonify(blocked=is_blocked(owner, **target))
+    return jsonify(blocked=is_blocked(owner, **target), conversation_ids=sorted(affected))
 
 
 @agent_jwt_required
