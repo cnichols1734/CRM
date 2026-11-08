@@ -33,7 +33,7 @@ psycopg2-binary==2.9.13
 supabase==2.31.0
 
 # Security / serialization / templating dependencies
-Authlib==1.8.0
+Authlib==1.9.1
 itsdangerous==2.2.0
 PyYAML==6.0.3
 jsonschema==4.26.0
@@ -41,7 +41,7 @@ cryptography==50.0.1
 bleach==6.4.0
 
 # Image processing (for signature image resizing)
-Pillow==12.3.0
+Pillow==13.0.0
 openpyxl==3.1.5
 xlrd==2.0.2
 python-docx==1.2.0

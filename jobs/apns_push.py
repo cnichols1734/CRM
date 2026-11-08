@@ -49,10 +49,13 @@ def send_portal_push(*, message_id: int, org_id: int):
                 audience=DeviceToken.AUDIENCE_AGENT, platform='ios',
             ).all()
             from services.transaction_auth import transactions_visible_query
+            from services.message_safety import is_blocked
+            from models import TransactionParticipant
+            participant = db.session.get(TransactionParticipant, msg.participant_id)
             # Match the agent inbox, not organization-wide admin access.
             tokens = [row for row in tokens if row.user and transactions_visible_query(row.user).filter(
                 Transaction.id == msg.transaction_id,
-            ).first() is not None]
+            ).first() is not None and not is_blocked(row.user, participant=participant)]
         else:
             tokens = DeviceToken.query.filter_by(
                 organization_id=org_id,
@@ -148,6 +151,7 @@ def send_inquiry_push(*, inquiry_id, org_id, message_id=None, assignment=False):
     from app import app
     from models import db, DeviceToken, ClientBrowseInquiry, ClientBrowseAccount, ClientInquiryMessage, Organization
     from services.apns_client import send_payload
+    from services.message_safety import screened_text
     from rq import get_current_job
     with app.app_context():
         set_job_org_context(org_id)
@@ -168,7 +172,9 @@ def send_inquiry_push(*, inquiry_id, org_id, message_id=None, assignment=False):
             query = DeviceToken.query.filter_by(organization_id=org_id, audience=DeviceToken.AUDIENCE_AGENT, platform='ios')
             if row.agent_id:
                 query = query.filter_by(user_id=row.agent_id)
-            tokens = [device for device in query.all() if device.user and device.user.organization_id == org_id]
+            from services.message_safety import is_blocked
+            tokens = [device for device in query.all() if device.user and device.user.organization_id == org_id
+                      and not is_blocked(device.user, account=account)]
             title = 'New client message' if row.agent_id else 'New unassigned client'
         else:
             tokens = DeviceToken.query.filter_by(organization_id=org_id, audience=DeviceToken.AUDIENCE_BROWSE,
@@ -182,7 +188,7 @@ def send_inquiry_push(*, inquiry_id, org_id, message_id=None, assignment=False):
         for device in tokens:
             if device.id in delivered:
                 continue
-            payload = {'aps': {'alert': {'title': title, 'body': body if assignment else body[:120]}, 'sound': 'default'},
+            payload = {'aps': {'alert': {'title': title, 'body': screened_text(body) if assignment else screened_text(body)[:120]}, 'sound': 'default'},
                 'kind': 'inquiry_assignment' if assignment else 'inquiry_message',
                 'inquiry_id': row.id, 'account_id': account.id}
             if send_payload(device.token, payload, audience=device.audience, environment=device.environment):
