@@ -1,6 +1,8 @@
 """Per-agent delivery preferences shared by the native inbox and APNs worker."""
 from flask import g
-from models import ClientBrowseAccount, ClientPortalAccess, TransactionParticipant, db
+from sqlalchemy import func
+from models import ClientBrowseAccount, ClientPortalAccess, Contact, Transaction, TransactionParticipant, db
+from services.portal_service import CLIENT_PORTAL_ROLES
 
 
 def identity_index(org_id):
@@ -19,20 +21,39 @@ def identity_index(org_id):
     def link(left, right):
         parents[root(left)] = root(right)
 
-    participants = db.session.query(TransactionParticipant.id, TransactionParticipant.contact_id).filter_by(
-        organization_id=org_id).all()
-    for participant_id, contact_id in participants:
+    participants = db.session.query(TransactionParticipant.id, TransactionParticipant.contact_id,
+        func.lower(func.trim(func.coalesce(func.nullif(Contact.email, ''), TransactionParticipant.email))),
+        TransactionParticipant.role, TransactionParticipant.user_id, Contact.organization_id).join(
+        Transaction, (Transaction.id == TransactionParticipant.transaction_id) & (Transaction.organization_id == org_id)
+        ).outerjoin(Contact, Contact.id == TransactionParticipant.contact_id).filter(
+        TransactionParticipant.organization_id == org_id).all()
+    client_ids = set()
+    email_ids = {}
+    for participant_id, contact_id, email, role, user_id, contact_org in participants:
         key = f'participant:{participant_id}'
         root(key)
-        if contact_id:
+        if contact_id and contact_org == org_id:
             link(key, f'contact:{contact_id}')
-    grants = dict(db.session.query(ClientPortalAccess.id, ClientPortalAccess.participant_id).join(
-        TransactionParticipant, (TransactionParticipant.id == ClientPortalAccess.participant_id)
+        if role in CLIENT_PORTAL_ROLES:
+            client_ids.add(participant_id)
+            if user_id is None and (contact_id is None or contact_org == org_id) and email:
+                email_ids.setdefault(email, set()).add(participant_id)
+    grants = {}
+    latest_active = {}
+    access_rows = db.session.query(ClientPortalAccess.id, ClientPortalAccess.participant_id,
+        ClientPortalAccess.is_active).join(TransactionParticipant,
+        (TransactionParticipant.id == ClientPortalAccess.participant_id)
         & (TransactionParticipant.transaction_id == ClientPortalAccess.transaction_id)
-        & (TransactionParticipant.organization_id == org_id)).filter(ClientPortalAccess.organization_id == org_id).all())
+        & (TransactionParticipant.organization_id == org_id)).filter(
+        ClientPortalAccess.organization_id == org_id).order_by(ClientPortalAccess.id).all()
+    for access_id, participant_id, active in access_rows:
+        latest_active[participant_id] = active
+        if active and participant_id in client_ids:
+            grants[access_id] = participant_id
     accounts = db.session.query(ClientBrowseAccount.id, ClientBrowseAccount.contact_id,
-        ClientBrowseAccount.linked_access_ids).filter_by(organization_id=org_id).all()
-    for account_id, contact_id, linked_ids in accounts:
+        ClientBrowseAccount.linked_access_ids, ClientBrowseAccount.email, ClientBrowseAccount.email_verified_at
+        ).filter_by(organization_id=org_id).all()
+    for account_id, contact_id, linked_ids, email, verified_at in accounts:
         key = f'browse:{account_id}'
         root(key)
         if contact_id:
@@ -40,6 +61,10 @@ def identity_index(org_id):
         for access_id in linked_ids or []:
             if type(access_id) is int and access_id in grants:
                 link(key, f'participant:{grants[access_id]}')
+        if verified_at:
+            for participant_id in email_ids.get(email, set()):
+                if latest_active.get(participant_id, True):
+                    link(key, f'participant:{participant_id}')
     groups = {}
     for key in list(parents):
         groups.setdefault(root(key), set()).add(key)

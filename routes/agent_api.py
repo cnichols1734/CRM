@@ -1371,7 +1371,7 @@ def post_conversation_message(user, participant_id):
         participant_id=participant.id,
         participant=participant,
     )
-    listed = list_client_messages(access, message_id=msg.id)
+    listed = screened_messages(list_client_messages(access, message_id=msg.id))
     return jsonify({'message': listed[0]}), 201 if created else 200
 
 

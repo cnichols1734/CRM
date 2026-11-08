@@ -142,3 +142,86 @@ def test_inquiry_reply_and_preview_are_screened_before_truncation(app, client, s
     assert detail['reply'].startswith('Message hidden')
     row = next(r for r in client.get(BASE + '/inquiries', headers=headers).json['inquiries'] if r['id'] == iid)
     assert row['last_preview'].startswith('Message hidden')
+
+
+def test_verified_email_blocks_both_directions_and_respects_revocation(app, client, seed):
+    from datetime import datetime
+    from models import ClientPortalAccess
+    with app.app_context():
+        _, participant, access = _seller_thread(seed, 'Verified email only')
+        participant.contact_id = None
+        participant.email = 'verified-only-safety@example.com'
+        account = ClientBrowseAccount(organization_id=seed['org_a'], email=participant.display_email.strip().lower(),
+            name='Verified client', password_hash='unused', agent_id=seed['owner_a'], email_verified_at=datetime.utcnow())
+        db.session.add(account)
+        db.session.flush()
+        inquiry = ClientBrowseInquiry(organization_id=seed['org_a'], account_id=account.id,
+            agent_id=seed['owner_a'], request_id='email-safety', kind='general', body='Email linked inquiry')
+        db.session.add(inquiry)
+        db.session.commit()
+        aid, iid, pid, grant_id = account.id, inquiry.id, participant.id, access.id
+    headers = _auth(_owner_token(client))
+    inquiry_route = BASE + f'/inquiries/{iid}'
+    deal_route = BASE + f'/conversations/{pid}'
+    assert client.put(inquiry_route + '/block', headers=headers, json={'blocked': True}).json['blocked']
+    assert client.get(deal_route + '/messages', headers=headers).json['blocked']
+    assert not client.put(deal_route + '/block', headers=headers, json={'blocked': False}).json['blocked']
+    assert not client.get(inquiry_route, headers=headers).json['inquiry'].get('blocked', False)
+    assert client.put(deal_route + '/block', headers=headers, json={'blocked': True}).json['blocked']
+    assert client.get(inquiry_route, headers=headers).json['inquiry']['blocked']
+    client.put(inquiry_route + '/block', headers=headers, json={'blocked': False})
+    with app.app_context():
+        db.session.get(ClientPortalAccess, grant_id).is_active = False
+        db.session.commit()
+    client.put(inquiry_route + '/block', headers=headers, json={'blocked': True})
+    assert not client.get(deal_route + '/messages', headers=headers).json.get('blocked', False)
+    client.put(inquiry_route + '/block', headers=headers, json={'blocked': False})
+    with app.app_context():
+        db.session.get(ClientPortalAccess, grant_id).is_active = True
+        db.session.get(ClientBrowseAccount, aid).email_verified_at = None
+        db.session.commit()
+    client.put(inquiry_route + '/block', headers=headers, json={'blocked': True})
+    assert not client.get(deal_route + '/messages', headers=headers).json.get('blocked', False)
+    client.put(inquiry_route + '/block', headers=headers, json={'blocked': False})
+
+
+def test_report_delivery_preserves_concurrent_operator_resolution(app, client, seed, monkeypatch):
+    from sqlalchemy.orm import Session
+    def resolve_while_sending(*args, **kwargs):
+        with Session(db.engine) as operator:
+            report_id = int(args[1].rsplit('AF-', 1)[1])
+            row = operator.query(AuditEvent).filter_by(id=report_id, event_type='content_report').one()
+            row.event_data = {**row.event_data, 'status': 'resolved', 'operator': 'test-operator',
+                'outcome': 'Synthetic investigation complete', 'resolved_at': '2026-11-08T00:00:00Z'}
+            operator.commit()
+        return True
+    monkeypatch.setattr('services.sendgrid_outbound._send_html', resolve_while_sending)
+    with app.app_context():
+        _, participant, _ = _seller_thread(seed, 'Report resolution race')
+        pid = participant.id
+        db.session.commit()
+    response = client.post(BASE + '/content-reports', headers=_auth(_owner_token(client)),
+        json={'kind': 'deal', 'subject_id': pid, 'reason': 'Synthetic report'})
+    assert response.status_code == 201
+    with app.app_context():
+        row = db.session.get(AuditEvent, int(response.json['receipt'][3:]))
+        assert row.event_data['status'] == 'resolved'
+        assert row.event_data['operator'] == 'test-operator'
+        assert row.event_data['outcome'] == 'Synthetic investigation complete'
+        assert row.event_data['resolved_at'] == '2026-11-08T00:00:00Z'
+        assert row.event_data['notification_sent']
+
+
+def test_new_and_replayed_send_responses_are_screened(app, client, seed, monkeypatch):
+    monkeypatch.setattr('routes.agent_api.enqueue_portal_push', lambda *args: None)
+    with app.app_context():
+        _, participant, _ = _seller_thread(seed, 'Screen sent message')
+        pid = participant.id
+        db.session.commit()
+    headers = _auth(_owner_token(client))
+    body = {'body': 'I will kill you', 'request_id': '54c51f78-3fe2-49fc-9fa9-4f053479be20'}
+    for expected in (201, 200):
+        response = client.post(BASE + f'/conversations/{pid}/messages', headers=headers, json=body)
+        assert response.status_code == expected
+        assert response.json['message']['body'].startswith('Message hidden')
+        assert response.json['message']['attachments'] == []

@@ -88,6 +88,8 @@ def report(user):
     from services.sendgrid_outbound import _send_html
     notified = _send_html('chrisnichols17@gmail.com', f'AgentFlow content report AF-{entry.id}',
         f'<p>Report AF-{entry.id} is awaiting review in the AgentFlow content report queue. No conversation content is included in this email.</p>')
+    entry = AuditEvent.query.filter_by(id=entry.id, organization_id=user.organization_id,
+        event_type='content_report').with_for_update().populate_existing().one()
     entry.event_data = {**entry.event_data, 'notification_sent': notified}
     db.session.commit()
     _set_org_context(user.organization_id)
