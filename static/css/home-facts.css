@@ -135,7 +135,7 @@ fieldset.hf-field { border: 0; padding: 0; min-width: 0; }
 .hf-agent dd { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .hf-agent .hf-file { border-color: var(--hairline); }
 .hf-agent .hf-conflict { background: var(--canvas); color: var(--ink); border-color: var(--hairline); }
-.hf-activity { padding-left: 18px; font-size: 13px; }
+.hf-activity { padding-left: 18px; padding-right: 12px; font-size: 13px; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .hf-activity li { padding-bottom: 16px; }
 .hf-activity time { color: var(--ink-3,#596767); display: block; margin-top: 4px; }
 @media(max-width:1200px) {

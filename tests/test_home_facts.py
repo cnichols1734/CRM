@@ -77,6 +77,14 @@ def test_save_retry_conflict_clear_and_partial_submission(app,home):
         snapshot=HomeFactsRevision.query.filter_by(response_id=home['id']).one()
         assert snapshot.answers=={'living_love':'Full answer '*200}
         assert HomeFactsJob.query.filter_by(response_id=home['id'],kind='generate').count()==1
+        response=hf.load_response(home['id'],home['org'])
+        for _ in range(105):
+            hf.event(response,'saved','participant',home['participant'],revision=2)
+        db.session.flush()
+        activity=hf.serialize(response,agent=True)['activity']
+        assert {'created','submitted'} <= {item['kind'] for item in activity}
+        assert all(item['kind']!='saved' for item in activity)
+        assert HomeFactsEvent.query.filter_by(response_id=home['id'],kind='saved').count()>=105
 
 
 def test_agent_and_client_boundaries_and_revocation(app,home,owner_a_client):

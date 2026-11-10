@@ -277,17 +277,9 @@ function renderReports() {
   const view = el('section', null, { class: 'hf-review' });
   view.append(el('h1', recipient ? 'Your property documents' : 'Your agent has your Home Facts'), el('p', recipient
     ? 'These are the exact documents selected for you. Contact your agent with any questions.'
-    : 'Thank you. Your answers are saved. Your agent will review the Property Brief and Home Guide with you before sharing them.'));
+    : 'Thank you. Your answers are saved. You can open your completed questionnaire and property documents below.'));
   const artifacts = data.artifacts.filter(a => recipient || a.kind === 'attachment' || a.revision === data.submitted_revision);
   filesUI(view, artifacts);
-  if (!recipient && data.artifact_hash && !data.seller_reviewed) {
-    view.append(el('h2', 'Review your reports'), el('p', 'Open both the Appraiser Property Brief and Buyer Home Guide above. If something needs changing, contact your agent. Confirm when both reflect the information you shared.'));
-    const confirm = button('I reviewed both reports', async () => {
-      confirm.disabled = true;
-      try { draft.reconcile(await api('/actions/review', { method: 'POST', body: JSON.stringify({ revision: data.submitted_revision, artifact_hash: data.artifact_hash }) })); render(); }
-      catch (error) { showError(error.message); confirm.disabled = false; }
-    }, 'hf-primary'); view.append(confirm);
-  } else if (data.seller_reviewed) view.append(el('p', 'Your review is recorded for this report version.'));
   if (!recipient && !data.artifact_hash) view.append(el('p', 'Your reports are being prepared. You can close this page and return later.'));
   app.append(view);
   clearTimeout(reportTimer);

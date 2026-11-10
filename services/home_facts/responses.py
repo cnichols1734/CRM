@@ -241,7 +241,8 @@ def serialize(response, *, agent=False):
             for g in HomeFactsGrant.query.filter_by(organization_id=response.organization_id,response_id=response.id).all()]
         data['activity'] = [{'kind': e.kind, 'at': e.created_at.isoformat()+'Z', 'details': e.details,
                             'actor_kind': e.actor_kind, 'actor_id': e.actor_id}
-            for e in HomeFactsEvent.query.filter_by(organization_id=response.organization_id,response_id=response.id).order_by(HomeFactsEvent.created_at.desc()).limit(100)]
+            for e in HomeFactsEvent.query.filter_by(organization_id=response.organization_id,response_id=response.id)
+                .filter(HomeFactsEvent.kind != 'saved').order_by(HomeFactsEvent.created_at.desc()).limit(50)]
         data['jobs'] = [{'id':j.id,'kind':j.kind,'state':j.state,'error':j.last_error}
             for j in HomeFactsJob.query.filter_by(organization_id=response.organization_id,response_id=response.id).order_by(HomeFactsJob.created_at.desc()).limit(40)]
     return data

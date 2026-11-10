@@ -3,6 +3,14 @@
 Companion PRs: [CRM #506](https://github.com/cnichols1734/CRM/pull/506), [ClientFlow #24](https://github.com/cnichols1734/clientflow/pull/24), [AgentFlow #77](https://github.com/cnichols1734/agentflow/pull/77). All remain unmerged for owner review.
 
 
+## Completed-page simplification, November 9
+
+The owner requested a read-only completed workspace in CRM and AgentFlow: documents, seller answers and compact activity. Completed pages no longer show invitations, correction requests, report approvals or document email controls. ClientFlow and the browser completion page no longer ask sellers to approve reports. Draft invitations and automatic PDF generation remain available.
+
+Activity projections omit autosaves before applying the latest-50-event limit, so editing cannot crowd out submissions or delivery events. The full event history remains in the database. CRM and AgentFlow bound the visible timeline to a scrollable area. ClientFlow does not display an activity feed.
+
+Existing review, correction and sharing API operations remain compatible for older builds; their authorization and review requirements have not been weakened. No additional migration is needed for this UI change. Earlier sharing descriptions below document those retained backend capabilities rather than controls on the current completed screens.
+
 ## Release hold
 
 The owner asked on November 9 to keep this work off main while reviewing the HTML and app design. All three companion PRs must remain unmerged. Do not run the production migration, deploy this backend, or distribute a TestFlight build until that hold is lifted.
