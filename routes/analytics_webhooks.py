@@ -55,7 +55,7 @@ def sendgrid_events():
     if not isinstance(events, list):
         return ('ok', 200)
 
-    from jobs.base import set_job_org_context
+    from services.mobile_org_context import set_org_context
     from models import db
     from services.marketing.attribution import apply_event as apply_marketing_event
 
@@ -79,13 +79,14 @@ def sendgrid_events():
         )
         if org_hint:
             try:
-                set_job_org_context(int(org_hint))
+                set_org_context(int(org_hint))
             except Exception:
                 db.session.rollback()
 
         try:
             if apply_marketing_event(item):
                 marketing_touched = True
+                db.session.commit()
                 continue
         except Exception:
             logger.exception('Marketing webhook event failed')
