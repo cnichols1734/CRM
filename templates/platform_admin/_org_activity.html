@@ -1,0 +1,94 @@
+<section class="crm-surface p-5 mb-6" aria-labelledby="usage-title">
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+        <div>
+            <h2 id="usage-title" class="text-lg font-semibold">Organization usage</h2>
+            <p class="crm-analytics-muted text-sm">Saved records across all users in this organization.</p>
+        </div>
+        <form method="post" action="{{ url_for('platform.refresh_org_metrics', org_id=org.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+            <button class="crm-btn crm-btn-secondary" type="submit">Refresh counts</button>
+        </form>
+    </div>
+    {% if metrics %}
+    <dl class="crm-analytics-totals">
+        {% for label, value in [('Users', metrics.user_count), ('Contacts', metrics.contact_count), ('Tasks', metrics.task_count), ('Transactions', metrics.transaction_count)] %}
+        <div><dt class="crm-analytics-muted text-sm">{{ label }}</dt><dd class="text-2xl font-semibold tabular-nums mt-1">{{ '{:,}'.format(value or 0) }}</dd></div>
+        {% endfor %}
+    </dl>
+    {% if metrics.usage_summary %}
+    <dl class="crm-analytics-totals crm-analytics-divider mt-5 pt-5">
+        {% for label, key in [('BOB messages sent', 'bob_user_messages'), ('Saved BOB replies', 'bob_replies'), ('Logged interactions', 'interactions'), ('Inbox messages received', 'inbox_messages'), ('Pending tasks', 'tasks_pending'), ('Completed tasks', 'tasks_completed')] %}
+        <div><dt class="crm-analytics-muted text-sm">{{ label }}</dt><dd class="text-xl font-semibold tabular-nums mt-1">{{ '{:,}'.format(metrics.usage_summary.get(key, 0)) }}</dd></div>
+        {% endfor %}
+    </dl>
+    {% else %}
+    <p class="crm-analytics-muted text-sm mt-4">Refresh counts to load BOB, inbox and task details.</p>
+    {% endif %}
+    <p class="crm-analytics-muted text-xs mt-5">Count snapshot {{ metrics.updated_at.strftime('%b %d, %Y at %H:%M UTC') if metrics.updated_at else 'not available' }}. BOB counts cover saved messages only.</p>
+    {% else %}
+    <p class="crm-analytics-muted">No count snapshot yet. Refresh counts to load this organization.</p>
+    {% endif %}
+</section>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <section class="crm-surface p-5 lg:col-span-2" aria-labelledby="activity-title">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+            <div>
+                <h2 id="activity-title" class="text-lg font-semibold">Meaningful activity</h2>
+                <p class="crm-analytics-muted text-sm">Last 30 days, including today. Dates use UTC.</p>
+            </div>
+            <div class="text-right"><p class="text-2xl font-semibold tabular-nums">{{ activity.actions_30d }}</p><p class="crm-analytics-muted text-xs">recorded actions</p></div>
+        </div>
+        <div class="crm-activity-chart" role="img" aria-label="Daily meaningful actions over 30 days. {{ activity.actions_30d }} recorded actions. Daily counts follow below.">
+            {% for day in activity.days %}
+            <div class="crm-activity-chart__column" title="{{ day.date }}: {{ day.count }} actions">
+                <div class="crm-activity-chart__bar" style="height: {{ day.count / activity.max_daily * 100 }}%;"></div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="flex justify-between crm-analytics-muted text-xs mt-2"><span>{{ activity.days[0].date }}</span><span>Peak {{ activity.max_daily if activity.actions_30d else 0 }} / day</span><span>{{ activity.days[-1].date }}</span></div>
+        {% if not activity.actions_30d %}<p class="crm-analytics-muted text-sm mt-4">No meaningful actions recorded in this period.</p>{% endif %}
+        <dl class="mt-5 space-y-2">
+            {% for label, count in activity.actions %}<div class="flex justify-between text-sm gap-3"><dt>{{ label }}</dt><dd class="font-semibold tabular-nums">{{ count }}</dd></div>{% endfor %}
+        </dl>
+        <details class="mt-5 text-sm">
+            <summary class="cursor-pointer crm-analytics-muted">Daily counts</summary>
+            <table class="w-full mt-3"><caption class="sr-only">Meaningful actions by UTC date</caption><thead><tr><th class="text-left">Date</th><th class="text-right">Actions</th></tr></thead><tbody>
+            {% for day in activity.days %}<tr><td>{{ day.date }}</td><td class="text-right tabular-nums">{{ day.count }}</td></tr>{% endfor %}
+            </tbody></table>
+        </details>
+        <p class="crm-analytics-muted text-xs mt-5">{{ activity.actions_total }} lifetime recorded actions · {{ activity.daily_visits }} recorded daily user visits. Visits count at most once per user per UTC day, not every session. These records do not measure time spent.</p>
+    </section>
+    <section class="crm-surface p-5" aria-labelledby="source-title">
+        <h2 id="source-title" class="text-lg font-semibold">How they found us</h2>
+        <p class="text-xl font-semibold mt-4 break-words">{{ activity.source.label }}</p>
+        <p class="crm-analytics-muted text-sm mt-2">Source of the organization's first recorded signup.</p>
+        <dl class="space-y-4 mt-5 text-sm">
+            {% for label, value in [('Campaign', activity.source.campaign), ('Medium', activity.source.medium), ('First landing page', activity.source.landing), ('First visit, UTC', activity.source.first_visit)] %}
+            {% if value %}<div><dt class="crm-analytics-muted">{{ label }}</dt><dd class="mt-1 break-words">{{ value }}</dd></div>{% endif %}
+            {% endfor %}
+        </dl>
+        {% if not activity.source.captured %}<p class="crm-analytics-muted text-sm mt-5">The original visit was not captured. Older signup campaign tags may still be available.</p>{% endif %}
+        <div class="crm-analytics-divider mt-5 pt-5">
+            <p class="crm-analytics-muted text-sm">Latest recorded app activity</p>
+            <p class="text-sm font-medium mt-1">{{ activity.last_activity.strftime('%b %d, %Y at %H:%M UTC') if activity.last_activity else 'No activity recorded' }}</p>
+            <p class="crm-analytics-muted text-xs mt-2">Scheduled retention updates and automated emails are excluded.</p>
+        </div>
+    </section>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <section class="crm-surface p-5">
+        <h2 class="text-lg font-semibold mb-4">Activation milestones</h2>
+        <ol class="space-y-4">
+            {% for label, at in activity.milestones %}<li><p class="text-sm font-medium">{{ label }}</p><time class="crm-analytics-muted text-xs" datetime="{{ at.isoformat() }}Z">{{ at.strftime('%b %d, %Y at %H:%M UTC') }}</time></li>{% else %}<li class="crm-analytics-muted text-sm">No activation milestones recorded.</li>{% endfor %}
+        </ol>
+        <p class="crm-analytics-muted text-xs mt-5">Earliest recorded milestone across this organization's users.</p>
+    </section>
+    <section class="crm-surface p-5">
+        <h2 class="text-lg font-semibold mb-4">Recent activity</h2>
+        <ol class="space-y-3">
+            {% for item in activity.timeline %}<li class="flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm"><span>{{ item.label }}</span><time class="crm-analytics-muted text-xs" datetime="{{ item.at.isoformat() }}Z">{{ item.at.strftime('%b %d, %H:%M UTC') }}</time></li>{% else %}<li class="crm-analytics-muted text-sm">No app activity recorded.</li>{% endfor %}
+        </ol>
+        <p class="crm-analytics-muted text-xs mt-5">Latest 20 recorded events. Tracking began after some organizations joined.</p>
+    </section>
+</div>

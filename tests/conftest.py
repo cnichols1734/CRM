@@ -7,11 +7,14 @@ transactions, groups, etc.
 """
 import os
 import sys
+from tempfile import TemporaryDirectory
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_TEST_DB = 'sqlite:////tmp/test_integration.db'
+_TEST_DIR = TemporaryDirectory(prefix='crm-tests-')
+_TEST_DB_PATH = os.path.join(_TEST_DIR.name, 'integration.db')
+_TEST_DB = f'sqlite:///{_TEST_DB_PATH}'
 
 # Force pytest onto an isolated local database, even if the shell env points
 # at a hosted database such as Supabase.
@@ -45,8 +48,8 @@ from models import (
 def app():
     """Create the Flask application for testing."""
     os.environ['DATABASE_URL'] = _TEST_DB
-    if os.path.exists('/tmp/test_integration.db'):
-        os.remove('/tmp/test_integration.db')
+    if os.path.exists(_TEST_DB_PATH):
+        os.remove(_TEST_DB_PATH)
 
     application = create_app()
     application.config.update(
@@ -66,8 +69,8 @@ def app():
         _db.session.remove()
         _db.drop_all()
 
-    if os.path.exists('/tmp/test_integration.db'):
-        os.remove('/tmp/test_integration.db')
+    if os.path.exists(_TEST_DB_PATH):
+        os.remove(_TEST_DB_PATH)
 
 
 @pytest.fixture(scope='session')

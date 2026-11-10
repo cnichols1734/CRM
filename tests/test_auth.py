@@ -7,7 +7,7 @@ user management (admin), and access control.
 from pathlib import Path
 import pytest
 from conftest import login
-from models import ContactGroup, TaskType, TransactionType, User
+from models import ActivationEvent, ContactGroup, TaskType, TransactionType, User
 
 
 class TestLogin:
@@ -93,6 +93,74 @@ class TestProfile:
 
 class TestRegistration:
     """Registration form."""
+
+    @pytest.mark.parametrize('posthog_unavailable', [False, True])
+    def test_first_visit_survives_navigation_and_signup_retry(
+        self, client, app, seed, monkeypatch, posthog_unavailable,
+    ):
+        from unittest.mock import MagicMock
+        from services.acquisition import COOKIE_NAME
+        from services.activation_service import sync_person_properties
+
+        sdk = MagicMock()
+        if posthog_unavailable:
+            sdk.capture.side_effect = RuntimeError('analytics unavailable')
+            sdk.alias.side_effect = RuntimeError('analytics unavailable')
+            sdk.identify.side_effect = RuntimeError('analytics unavailable')
+        monkeypatch.setattr('services.product_analytics._get_client', lambda: sdk)
+        monkeypatch.setitem(app.config, 'POSTHOG_ENABLED', True)
+
+        first = client.get(
+            '/free-real-estate-crm?utm_source=newsletter&utm_medium=email'
+            '&utm_campaign=nov-launch&utm_content=hero',
+            headers={'Referer': 'https://example.org/article?email=private@example.org'},
+        )
+        assert first.status_code == 200
+        visit_cookie = client.get_cookie(COOKIE_NAME).value
+        # A later campaign and an invalid form must not replace the first visit.
+        client.get('/register?utm_source=later-campaign')
+        assert client.post('/register', data={'email': 'invalid'}).status_code == 200
+        assert client.get_cookie(COOKIE_NAME).value == visit_cookie
+        email = f'attribution-{posthog_unavailable}@test.com'
+        response = client.post('/register', data={
+            'company_name': 'Attribution Test Realty',
+            'first_name': 'Test', 'last_name': 'Agent', 'email': email,
+            'password': 'supersecure123', 'confirm_password': 'supersecure123',
+        })
+        assert response.status_code == 302
+        assert response.headers['Location'].endswith('/dashboard')
+        assert client.get_cookie(COOKIE_NAME) is None
+        with app.app_context():
+            user = User.query.filter_by(email=email).one()
+            signup = ActivationEvent.query.filter_by(
+                user_id=user.id, event='account_created',
+            ).one()
+            assert signup.event_data['source'] == 'self_serve'
+            expected = {
+                'first_touch_landing_path': '/free-real-estate-crm',
+                'first_touch_referring_domain': 'example.org',
+                'first_touch_referrer_kind': 'external',
+                'first_touch_utm_source': 'newsletter',
+                'first_touch_utm_medium': 'email',
+                'first_touch_utm_campaign': 'nov-launch',
+                'first_touch_campaign_variant': 'hero',
+            }
+            assert expected.items() <= signup.event_data.items()
+            assert signup.event_data['utm_source'] == 'newsletter'
+            assert signup.event_data['first_touch_at']
+            assert 'private@example.org' not in str(signup.event_data)
+            first_visits = [call for call in sdk.capture.call_args_list
+                            if call.args == ('first_visit',)]
+            assert len(first_visits) == 1
+            sdk.alias.assert_called_once_with(
+                previous_id=first_visits[0].kwargs['distinct_id'],
+                distinct_id=f'user_{user.id}',
+            )
+            if not posthog_unavailable:
+                sync_person_properties(user)
+                mirrored = sdk.identify.call_args.kwargs['properties']['$set_once']
+                assert expected.items() <= mirrored.items()
+                assert mirrored['utm_source'] == 'newsletter'
 
     def test_register_template_shows_confirm_password_and_not_phone(self, seed):
         template = Path(__file__).resolve().parents[1] / 'templates' / 'auth' / 'register.html'

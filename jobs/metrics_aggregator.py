@@ -2,7 +2,7 @@
 """
 Updates organization_metrics table with aggregate counts.
 Run via scheduler every 15-60 minutes.
-Platform admin dashboard reads ONLY from this table.
+Platform pages read these snapshots alongside activation milestones.
 """
 
 from datetime import datetime
@@ -12,7 +12,7 @@ from sqlalchemy import text
 def update_all_org_metrics():
     """
     Update metrics for all active organizations.
-    Uses raw SQL to bypass RLS (this is intentional and safe - only counts, no PII).
+    Uses the application database role with explicit organization filters.
     """
     from models import db, Organization
     
@@ -42,7 +42,7 @@ def update_all_org_metrics():
 def update_single_org_metrics(org_id: int):
     """
     Update metrics for a single organization.
-    Uses raw SQL to get counts (bypasses RLS, but only gets counts - no PII).
+    Queries only counts and timestamps, with explicit organization filters.
     """
     from models import db, OrganizationMetrics
     
@@ -52,8 +52,7 @@ def update_single_org_metrics(org_id: int):
         metrics = OrganizationMetrics(organization_id=org_id)
         db.session.add(metrics)
     
-    # Use raw SQL to get counts (bypasses RLS, but only gets counts - no PII)
-    # This is the ONLY place we bypass RLS, and it's for aggregates only
+    # The application database role reads aggregates without loading tenant content.
     
     metrics.user_count = db.session.execute(
         text('SELECT COUNT(*) FROM "user" WHERE organization_id = :oid'),
@@ -91,6 +90,30 @@ def update_single_org_metrics(org_id: int):
         {'oid': org_id}
     ).scalar()
     
+    # Raw SQLite MAX timestamps are strings; PostgreSQL returns datetime values.
+    for field in ('last_user_login_at', 'last_contact_created_at', 'last_transaction_created_at'):
+        value = getattr(metrics, field)
+        if isinstance(value, str):
+            setattr(metrics, field, datetime.fromisoformat(value))
+
+    from models import ChatConversation, ChatMessage, Interaction, Task, InboundMessage
+    from sqlalchemy import func
+
+    # Only counts leave these queries. Message bodies and contact details stay private.
+    messages = db.session.query(ChatMessage.role, func.count(ChatMessage.id)).join(
+        ChatConversation, ChatMessage.conversation_id == ChatConversation.id,
+    ).filter(ChatConversation.organization_id == org_id).group_by(ChatMessage.role).all()
+    task_counts = dict(db.session.query(Task.status, func.count(Task.id)).filter(
+        Task.organization_id == org_id,
+    ).group_by(Task.status).all())
+    metrics.usage_summary = {
+        'bob_user_messages': dict(messages).get('user', 0),
+        'bob_replies': dict(messages).get('assistant', 0),
+        'interactions': db.session.query(func.count(Interaction.id)).filter(Interaction.organization_id == org_id).scalar(),
+        'inbox_messages': db.session.query(func.count(InboundMessage.id)).filter(InboundMessage.organization_id == org_id).scalar(),
+        'tasks_pending': task_counts.get('pending', 0),
+        'tasks_completed': task_counts.get('completed', 0),
+    }
     metrics.updated_at = datetime.utcnow()
 
 

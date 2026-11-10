@@ -286,9 +286,11 @@ def sync_person_properties(user, *, extra_set=None, extra_set_once=None):
             event=ActivationEvent.ACCOUNT_CREATED,
         ).order_by(ActivationEvent.created_at.asc()).first()
         if account and isinstance(account.event_data, dict):
+            from services.acquisition import FIRST_TOUCH_FIELDS
             for key in (
                 'source', 'utm_source', 'utm_medium', 'utm_campaign',
                 'utm_content', 'ref', 'activation_experience_version',
+                *FIRST_TOUCH_FIELDS,
             ):
                 if account.event_data.get(key) is not None:
                     set_once[key] = account.event_data.get(key)

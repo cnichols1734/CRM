@@ -1,0 +1,20 @@
+<section class="crm-surface p-5 mb-8" aria-labelledby="acquisition-title">
+    <div class="flex flex-wrap justify-between gap-3 mb-5">
+        <div><h2 id="acquisition-title" class="text-lg font-semibold">Acquisition and usage</h2><p class="crm-analytics-muted text-sm">Organizations matching the filters below. Activity uses UTC dates.</p></div>
+        <p class="crm-analytics-muted text-sm">Click an organization for its activity report.</p>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <dl class="crm-analytics-totals">
+            {% for label, value in [('Active in the last 30 days', analytics.active_orgs), ('Meaningful actions, 30 days', analytics.actions), ('First visits captured', analytics.captured), ('Organizations', orgs|length)] %}
+            <div><dt class="crm-analytics-muted text-sm">{{ label }}</dt><dd class="text-2xl font-semibold tabular-nums mt-1">{{ value }}</dd></div>
+            {% endfor %}
+        </dl>
+        <div>
+            <h3 class="text-sm font-semibold mb-3">Signup sources</h3>
+            {% for label, count in analytics.sources %}
+            <div class="mb-3"><div class="flex justify-between gap-4 text-sm mb-1"><span class="break-words">{{ label }}</span><span class="tabular-nums">{{ count }}</span></div><div class="crm-analytics-track" aria-hidden="true"><div style="width: {{ count / (orgs|length or 1) * 100 }}%"></div></div></div>
+            {% else %}<p class="crm-analytics-muted text-sm">No organizations match these filters.</p>{% endfor %}
+            <p class="crm-analytics-muted text-xs mt-4">One source per organization, from its first recorded signup. Direct / unknown means a first visit was captured without an external referrer. Not captured means the original visit is missing.</p>
+        </div>
+    </div>
+</section>

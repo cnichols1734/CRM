@@ -122,7 +122,7 @@ class Organization(db.Model):
 class OrganizationMetrics(db.Model):
     """
     Aggregate metrics ONLY - NO PII.
-    This is the ONLY table platform admin routes query for org data.
+    Platform usage counts come from this table; activity comes from activation_events.
     Updated by background job every 15-60 minutes.
     """
     __tablename__ = 'organization_metrics'
@@ -137,6 +137,8 @@ class OrganizationMetrics(db.Model):
     task_count = db.Column(db.Integer, default=0)
     transaction_count = db.Column(db.Integer, default=0)
     
+    usage_summary = db.Column(db.JSON, nullable=True)
+
     # Activity timestamps (no PII, just timing)
     last_user_login_at = db.Column(db.DateTime)
     last_contact_created_at = db.Column(db.DateTime)

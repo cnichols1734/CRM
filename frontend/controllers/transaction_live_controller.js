@@ -19,23 +19,40 @@ export default class extends Controller {
     this.lastVersion = null;
     this.timer = null;
     this.activityStartedAt = Date.now();
+    this.requestController = new AbortController();
 
     this._onUploaded = () => this._wake();
     this._onRefresh = () => this._wake();
     this._onVisibility = () => this._handleVisibility();
+    this._onPageHide = () => this._cancelPolling();
+    this._onPageShow = (event) => {
+      if (!event.persisted) return;
+      this.requestController = new AbortController();
+      this._wake();
+    };
 
     window.addEventListener("transaction-document-uploaded", this._onUploaded);
     window.addEventListener("transaction:refresh", this._onRefresh);
     document.addEventListener("visibilitychange", this._onVisibility);
+    window.addEventListener("pagehide", this._onPageHide);
+    window.addEventListener("pageshow", this._onPageShow);
 
     this._fetchThenSchedule();
   }
 
   disconnect() {
-    this._clearTimer();
+    this._cancelPolling();
     window.removeEventListener("transaction-document-uploaded", this._onUploaded);
     window.removeEventListener("transaction:refresh", this._onRefresh);
     document.removeEventListener("visibilitychange", this._onVisibility);
+    window.removeEventListener("pagehide", this._onPageHide);
+    window.removeEventListener("pageshow", this._onPageShow);
+  }
+
+  _cancelPolling() {
+    this.stopped = true;
+    this._clearTimer();
+    this.requestController?.abort();
   }
 
   _clearTimer() {
@@ -84,25 +101,31 @@ export default class extends Controller {
   }
 
   async _fetchThenSchedule() {
+    const controller = this.requestController;
     const data = await this._fetchOnce();
-    if (this.stopped) return;
+    if (this.stopped || controller !== this.requestController || controller.signal.aborted) return;
     if (data) this._processPayload(data);
     if (!this.stopped) this._schedule();
   }
 
   async _fetchOnce() {
+    const controller = this.requestController;
+    if (controller.signal.aborted) return null;
     try {
       const resp = await fetch(this.urlValue, {
         credentials: "same-origin",
         headers: { Accept: "application/json" },
         cache: "no-store",
+        signal: controller.signal,
       });
       if (!resp.ok) throw new Error("bad status");
       const data = await resp.json();
+      if (controller.signal.aborted) return null;
       this.errorCount = 0;
       window.dispatchEvent(new CustomEvent("transaction:live", { detail: data }));
       return data;
     } catch (_err) {
+      if (controller.signal.aborted) return null;
       this.errorCount += 1;
       if (this.errorCount >= MAX_CONSECUTIVE_ERRORS) {
         this._stop("error");
@@ -142,6 +165,7 @@ export default class extends Controller {
   }
 
   _wake() {
+    if (this.requestController.signal.aborted) return;
     this.backoffIndex = 0;
     this.idleStreak = 0;
     this.stopped = false;
@@ -156,8 +180,9 @@ export default class extends Controller {
     if (!this.stopped) return;
 
     const prevVersion = this.lastVersion;
+    const controller = this.requestController;
     const data = await this._fetchOnce();
-    if (!data) return;
+    if (!data || controller !== this.requestController || controller.signal.aborted) return;
 
     const versionChanged = prevVersion !== null && data.version !== prevVersion;
     if (data.in_flight || versionChanged) {

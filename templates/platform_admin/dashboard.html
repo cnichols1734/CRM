@@ -187,6 +187,8 @@
         </div>
     </div>
 
+    {% include "platform_admin/_acquisition_overview.html" %}
+
     <section class="admin-card mb-8 overflow-hidden">
         <div class="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -431,7 +433,7 @@
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Users</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Contacts</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Transactions</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Active</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Recorded activity</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
@@ -444,7 +446,7 @@
                                 <i class="fas fa-crown text-yellow-500 mr-2" title="Platform Admin"></i>
                                 {% endif %}
                                 <div>
-                                    <div class="text-sm font-medium text-slate-800">{{ org.name }}</div>
+                                    <a href="{{ url_for('platform.view_org', org_id=org.id) }}" class="text-sm font-medium hover:underline" style="color: var(--ink);">{{ org.name }}</a>
                                     <div class="text-sm text-slate-400">{{ org.slug }}</div>
                                 </div>
                             </div>
@@ -500,10 +502,10 @@
                             {{ org.transaction_count or 0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                            {% if org.last_user_login_at %}
-                                {{ org.last_user_login_at.strftime('%b %d, %Y') }}
+                            {% if analytics.orgs[org.id].last_activity %}
+                                {{ analytics.orgs[org.id].last_activity.strftime('%b %d, %Y') }} UTC
                             {% else %}
-                                <span class="text-slate-300">Never</span>
+                                <span class="text-slate-400">Not recorded</span>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
