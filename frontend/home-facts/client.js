@@ -9,7 +9,52 @@ const recipient = root.dataset.recipient === 'true';
 let retryTimer, retryDelay = 1500, reportTimer, submissionPending = false, uploading = false;
 let draft, timer, saving = false, mode = 'editor', pdfTimer, pdfVersion = 0, pdfBytes;
 let previewOpen = false;
+const compactPreview = window.matchMedia('(max-width: 1200px)');
+let previewBackground = [], previewOverflow;
 const expandedRows = new Set();
+
+function releasePreviewFocus() {
+  previewBackground.forEach(node => { node.inert = false; });
+  previewBackground = [];
+  if (previewOverflow !== undefined) document.body.style.overflow = previewOverflow;
+  previewOverflow = undefined;
+}
+function syncPreviewFocus() {
+  releasePreviewFocus();
+  const preview = app.querySelector('.hf-preview');
+  if (!preview) return;
+  const modal = previewOpen && compactPreview.matches;
+  if (modal) preview.setAttribute('aria-modal', 'true');
+  else preview.removeAttribute('aria-modal');
+  preview.setAttribute('role', modal ? 'dialog' : 'complementary');
+  if (!modal) return;
+  let child = preview;
+  while (child.parentElement && child !== root) {
+    for (const sibling of child.parentElement.children) {
+      if (sibling !== child && !sibling.inert) { sibling.inert = true; previewBackground.push(sibling); }
+    }
+    child = child.parentElement;
+  }
+  previewOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  if (!preview.contains(document.activeElement)) preview.querySelector('.hf-preview-close')?.focus();
+}
+function closePreview() {
+  previewOpen = false;
+  app.querySelector('.hf-preview')?.classList.remove('is-open');
+  syncPreviewFocus();
+  app.querySelector('[data-open-preview]')?.focus();
+}
+compactPreview.addEventListener('change', syncPreviewFocus);
+document.addEventListener('keydown', event => {
+  if (!previewOpen || !compactPreview.matches) return;
+  if (event.key === 'Escape') { event.preventDefault(); closePreview(); return; }
+  if (event.key !== 'Tab') return;
+  const controls = [...app.querySelectorAll('.hf-preview button:not(:disabled), .hf-preview a[href], .hf-preview [tabindex="0"]')].filter(node => node.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});
 
 function el(tag, text, attributes = {}) {
   const node = document.createElement(tag);
@@ -140,6 +185,7 @@ function fieldControl(field) {
   return wrapper;
 }
 function render() {
+  releasePreviewFocus();
   app.replaceChildren(); app.setAttribute('aria-busy', 'false');
   if (recipient || draft.server.state === 'submitted') { renderReports(); return; }
   if (mode === 'review') { renderReview(); return; }
@@ -187,13 +233,16 @@ function render() {
   next.replaceChildren(el('span', draft.position.section === sections.length - 1 ? 'Review answers' : 'Continue'), el('span', '→', { 'aria-hidden': 'true' }));
   controls.append(next);
   const utilities = el('div', null, { class: 'hf-utilities' });
-  utilities.append(button('View original PDF', () => { previewOpen = true; document.querySelector('.hf-preview')?.classList.add('is-open'); renderPDF(); }, 'hf-link'), button('Review answers', () => { mode = 'review'; render(); }, 'hf-link'));
+  const openPreview = button('View original PDF', () => { previewOpen = true; document.querySelector('.hf-preview')?.classList.add('is-open'); syncPreviewFocus(); renderPDF(); }, 'hf-link');
+  openPreview.setAttribute('data-open-preview', '');
+  utilities.append(openPreview, button('Review answers', () => { mode = 'review'; render(); }, 'hf-link'));
   editor.append(utilities, controls);
   const preview = el('aside', null, { class: `hf-preview${previewOpen ? ' is-open' : ''}`, 'aria-label': 'Original questionnaire preview' });
   const heading = el('div', null, { class: 'hf-preview-heading' });
-  heading.append(el('p', 'Your PDF · Current device answers'), button('Close PDF', () => { previewOpen = false; preview.classList.remove('is-open'); }, 'hf-secondary hf-preview-close'));
+  heading.append(el('p', 'Your PDF · Current device answers'), button('Close PDF', closePreview, 'hf-secondary hf-preview-close'));
   preview.append(heading, el('div', null, { id: 'hf-pdf-page', class: 'hf-pdf-page' }), el('p', 'Tap a field to answer it. Long answers print on continuation pages.', { class: 'hf-context' }));
   layout.append(nav, editor, preview); app.append(layout);
+  syncPreviewFocus();
   root.dataset.pdfPage = group.fields[0].widgets[0].page;
   renderPDF();
 }

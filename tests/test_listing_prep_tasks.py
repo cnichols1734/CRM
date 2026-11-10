@@ -5,6 +5,7 @@ from datetime import datetime
 
 from models import (
     Contact,
+    NotificationEvent,
     Task,
     Transaction,
     TransactionParticipant,
@@ -56,6 +57,7 @@ def _cleanup(org_id, tx_id):
         ).all()
     ]
     if req_ids:
+        NotificationEvent.query.filter(NotificationEvent.related_requirement_id.in_(req_ids)).delete(synchronize_session=False)
         TransactionRequirementEvent.query.filter(
             TransactionRequirementEvent.requirement_id.in_(req_ids),
         ).delete(synchronize_session=False)
@@ -142,6 +144,22 @@ def test_complete_closes_task_and_clear_cancels(app, seed):
             db.session.commit()
             task = db.session.get(Task, task_id)
             assert task.status == 'pending'
+
+            reminder = NotificationEvent(organization_id=seed['org_a'], user_id=seed['owner_a'],
+                event_type='requirement_due_soon', related_requirement_id=req.id, status='pending')
+            db.session.add(reminder)
+            db.session.flush()
+            reminder_id = reminder.id
+            RequirementsService.update_work_status(req.id, 'not_applicable', actor_id=seed['owner_a'])
+            db.session.commit()
+            assert db.session.get(Task, task_id).status == 'cancelled'
+            assert db.session.get(NotificationEvent, reminder_id).status == 'cancelled'
+            RequirementsService.update_due_at(req.id, datetime(2026, 10, 2), actor_id=seed['owner_a'], manual=True)
+            db.session.commit()
+            assert db.session.get(Task, task_id).status == 'cancelled'
+            RequirementsService.update_work_status(req.id, 'pending', actor_id=seed['owner_a'])
+            db.session.commit()
+            assert db.session.get(Task, task_id).status == 'pending'
 
             RequirementsService.update_due_at(
                 req.id, None, actor_id=seed['owner_a'], manual=True,

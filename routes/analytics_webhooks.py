@@ -66,6 +66,7 @@ def sendgrid_events():
         if item.get('home_facts_receipt') or (item.get('unique_args') or {}).get('home_facts_receipt'):
             from services.home_facts.tracking import apply_event as apply_home_facts_event
             try:
+                db.session.commit()
                 apply_home_facts_event(item)
                 db.session.commit()
             except Exception:
