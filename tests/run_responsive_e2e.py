@@ -143,6 +143,11 @@ def run(browser_names, layouts=True):
                             page.set_viewport_size({'width': width, 'height': height})
                             page.wait_for_timeout(100)
                             assert_fits(page, (name, route_name, width))
+                        if route_name == 'transaction':
+                            # These are layout checks, not polling teardown checks.
+                            # Let pending polls settle before replacing the document;
+                            # WebKit can misreport cancellation as a page error.
+                            page.wait_for_load_state('networkidle')
                         print(f'{name}: {route_name} fits {len(SIZES)} sizes', flush=True)
                     # Search survives switching between both displays and desktop.
                     page.goto(base + urls['contacts'])
