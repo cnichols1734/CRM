@@ -16,8 +16,8 @@ export class Draft {
     this.conflicts = {};
     const nextBase = { ...snapshot.answers };
     for (const [key, value] of Object.entries(this.pending)) {
-      if (equal(snapshot.answers[key], value)) delete this.pending[key];
-      else if (!equal(this.base[key], snapshot.answers[key]) && !equal(this.flight?.changes[key], snapshot.answers[key])) {
+      if (equal(snapshot.answers[key], value) && !Object.hasOwn(this.flight?.changes || {}, key)) delete this.pending[key];
+      else if (!equal(this.base[key], snapshot.answers[key]) && !(Object.hasOwn(this.flight?.changes || {}, key) && equal(this.flight.changes[key], snapshot.answers[key]))) {
         this.conflicts[key] = { mine: value, theirs: snapshot.answers[key] ?? null };
         nextBase[key] = this.base[key] ?? null;
       }

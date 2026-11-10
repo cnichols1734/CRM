@@ -62,3 +62,22 @@ test('retrying a saved request cannot overwrite a newer answer from another devi
   draft.resolve('roof', false);
   assert.equal(draft.answers.roof, '2021');
 });
+
+
+test('a remote clear conflicts with a local answer when no matching request contains the field', () => {
+  const draft = new Draft(snapshot(0, { roof: '2018' }));
+  draft.edit('roof', '2020');
+  draft.reconcile(snapshot(1, {}));
+  assert.deepEqual(draft.conflicts.roof, { mine: '2020', theirs: null });
+  assert.equal(draft.begin(), null);
+});
+
+test('relaunch retains a revert while the earlier save is still uncertain', () => {
+  const draft = new Draft(snapshot(0, { roof: '2018' }));
+  draft.edit('roof', '2019'); const sent = draft.begin();
+  draft.edit('roof', '2018');
+  const restored = new Draft(snapshot(0, { roof: '2018' }), JSON.parse(JSON.stringify(draft.persisted())));
+  assert.equal(restored.begin().mutation_id, sent.mutation_id);
+  restored.acknowledge(snapshot(1, { roof: '2019' }));
+  assert.deepEqual(restored.begin().changes, { roof: '2018' });
+});

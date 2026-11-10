@@ -118,12 +118,6 @@ def _set_org_context(org_id: int) -> None:
     set_org_context(org_id)
 
 
-@agent_api_bp.teardown_request
-def _reset_org_context(exc=None):
-    from services.mobile_org_context import clear_org_context
-    clear_org_context()
-
-
 
 def _bearer_token():
     header = request.headers.get('Authorization') or ''

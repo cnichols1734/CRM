@@ -42,7 +42,7 @@ def upload(response,content,filename,mutation_id,actor_kind,actor_id):
             pdf=fitz.open(stream=content,filetype='pdf')
             if pdf.is_encrypted or not 1<=len(pdf)<=100:
                 raise ValueError()
-            pdf.scrub()
+            pdf.scrub(reset_fields=False)
             content=pdf.tobytes(garbage=4,deflate=True)
         except Exception:
             raise HomeFactsError('Choose an unlocked PDF with at most 100 pages.')

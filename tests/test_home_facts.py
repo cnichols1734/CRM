@@ -45,6 +45,11 @@ def home(app,seed,monkeypatch):
     yield case
     with app.app_context():
         for org_id,flags in original_flags.items():db.session.get(Organization,org_id).feature_flags=flags
+        from models import TransactionRequirement, TransactionRequirementEvent
+        requirements=TransactionRequirement.query.filter_by(transaction_id=case['tx']).all()
+        for requirement in requirements:
+            TransactionRequirementEvent.query.filter_by(requirement_id=requirement.id).delete(synchronize_session=False)
+            db.session.delete(requirement)
         comm_ids=[c.id for c in TransactionCommunication.query.filter_by(transaction_id=case['tx'])]
         CommunicationDeliveryAttempt.query.filter(CommunicationDeliveryAttempt.communication_id.in_(comm_ids)).delete(synchronize_session=False)
         TransactionCommunication.query.filter_by(transaction_id=case['tx']).delete(synchronize_session=False)
@@ -105,6 +110,53 @@ def test_agent_and_client_boundaries_and_revocation(app,home,owner_a_client):
     assert client.get(url,headers=home['client_headers']).status_code==404
     assert client.patch(url,headers=home['client_headers'],json={'expected_revision':0,'mutation_id':str(uuid4()),'changes':{'hoa':'Yes'}}).status_code==404
     with app.app_context():assert db.session.get(HomeFactsResponse,home['id']).answers=={}
+
+
+def test_checklist_home_facts_can_be_completed_skipped_and_auto_completed(app,home,owner_a_client):
+    import re
+    from models import TransactionRequirement
+    from services.listing_prep_checklist import sync_listing_prep_checklist, listing_prep_groups
+    with app.app_context():
+        tx=db.session.get(Transaction,home['tx'])
+        tx.intake_data={'year_built':'2001'}
+        sync_listing_prep_checklist(tx)
+        requirement=TransactionRequirement.query.filter_by(transaction_id=tx.id,requirement_key='seller_home_facts').one()
+        requirement_id=requirement.id
+        db.session.commit()
+    page=owner_a_client.get(f"/transactions/{home['tx']}")
+    banner=re.search(r'<a[^>]*data-next-step-link[^>]*>',page.get_data(as_text=True))
+    assert banner and f"href=\"/transactions/{home['tx']}/home-facts\"" in banner.group()
+    web=f"/transactions/{home['tx']}/requirements/{requirement_id}/toggle"
+    api=f"/api/agent/v1/transactions/{home['tx']}/requirements/{requirement_id}/toggle"
+    client=app.test_client()
+    assert client.post(api,headers=home['foreign_headers'],json={'work_status':'not_applicable'}).status_code in (403,404)
+    skipped=owner_a_client.post(web,json={'work_status':'not_applicable'})
+    assert skipped.status_code==200 and skipped.json['done'] and skipped.json['response_status']=='Skipped'
+    assert skipped.json['next_step']['url']!=f"/transactions/{home['tx']}/home-facts"
+    with app.app_context():
+        tx=db.session.get(Transaction,home['tx']);sync_listing_prep_checklist(tx)
+        row=next(row for group in listing_prep_groups(tx) for row in group['rows'] if row['id']==requirement_id)
+        assert row['done'] and row['work_status']=='not_applicable'
+        db.session.commit()
+    assert client.post(api,headers=home['agent_headers']).json['done'] is False
+    assert owner_a_client.post(web).json['done'] is True
+    with app.app_context():
+        sync_listing_prep_checklist(db.session.get(Transaction,home['tx']))
+        assert db.session.get(TransactionRequirement,requirement_id).work_status=='completed'
+        db.session.commit()
+    assert owner_a_client.post(web,json={'work_status':'not_applicable'}).json['done'] is True
+    submitted=client.post(f"/api/client/v1/home-facts/{home['id']}/submit",headers=home['client_headers'],
+        json={'expected_revision':0,'mutation_id':str(uuid4()),'acknowledged':True})
+    assert submitted.status_code==200
+    with app.app_context():
+        assert db.session.get(TransactionRequirement,requirement_id).work_status=='completed'
+    native=client.get(f"/api/agent/v1/transactions/{home['tx']}/requirements",headers=home['agent_headers'])
+    row=next(row for row in native.json['requirements'] if row['id']==requirement_id)
+    assert row['work_status']=='completed' and row['is_auto'] is False and row['subtitle']=='Submitted'
+    assert owner_a_client.post(web).json['done'] is False
+    with app.app_context():
+        sync_listing_prep_checklist(db.session.get(Transaction,home['tx']))
+        assert db.session.get(TransactionRequirement,requirement_id).work_status=='pending'
 
 
 def test_agent_email_preview_uses_send_template_without_sending(app,home):
@@ -288,7 +340,12 @@ def test_uncertain_email_is_not_automatically_sent_again(app,home,monkeypatch):
 def test_pdf_attachment_retry_preserves_one_sanitized_file(app,home,monkeypatch):
     storage={}
     monkeypatch.setattr('services.supabase_storage.upload_file',lambda bucket,path,content,*args:storage.__setitem__(path,content))
-    content=report_pdf({'property_address':'Upload retry house'},'buyer',address='Upload retry house',revision=0)
+    import fitz
+    pdf=fitz.open();page=pdf.new_page()
+    field=fitz.Widget();field.field_name='Seller detail';field.field_type=fitz.PDF_WIDGET_TYPE_TEXT
+    field.rect=fitz.Rect(20,20,300,60);field.field_value='Keep this completed answer'
+    page.add_widget(field)
+    content=pdf.tobytes();pdf.close()
     payload={'mutation_id':str(uuid4()),'filename':'Home record.pdf','data':base64.b64encode(content).decode()}
     client=app.test_client();url=f'/api/client/v1/home-facts/{home["id"]}/attachments'
     first=client.post(url,headers=home['client_headers'],json=payload)
@@ -297,5 +354,7 @@ def test_pdf_attachment_retry_preserves_one_sanitized_file(app,home,monkeypatch)
     assert retried.status_code==200
     assert [a['id'] for a in retried.json['artifacts']]==[a['id'] for a in first.json['artifacts']]
     assert len(storage)==1
+    with fitz.open(stream=next(iter(storage.values())),filetype='pdf') as stored:
+        assert next(stored[0].widgets()).field_value=='Keep this completed answer'
     changed={**payload,'filename':'Another record.pdf'}
     assert client.post(url,headers=home['client_headers'],json=changed).status_code==409

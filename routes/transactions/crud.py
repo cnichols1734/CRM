@@ -1034,7 +1034,7 @@ def view_transaction(id):
     # then questionnaire, then overdue contract dates.
     next_step = None
     try:
-        from services.listing_prep_checklist import first_open_listing_prep_item
+        from services.listing_prep_checklist import first_open_listing_prep_item, listing_prep_next_action
 
         tx_side_name = (transaction.transaction_type.name or '').lower()
         open_prep = (
@@ -1053,12 +1053,7 @@ def view_transaction(id):
         )
 
         if open_prep:
-            next_step = {
-                'title': open_prep['title'],
-                'description': 'Next item on the Preparing to List checklist.',
-                'cta': 'Open checklist',
-                'url': '#transaction-checklist',
-            }
+            next_step = listing_prep_next_action(transaction, open_prep)
         elif (
             tx_side_name == 'seller'
             and has_intake_schema

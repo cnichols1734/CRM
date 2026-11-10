@@ -1,6 +1,6 @@
 # Seller Home Facts
 
-Companion PRs: [CRM #506](https://github.com/cnichols1734/CRM/pull/506), [ClientFlow #24](https://github.com/cnichols1734/clientflow/pull/24), [AgentFlow #77](https://github.com/cnichols1734/agentflow/pull/77). All remain unmerged for owner review.
+Companion PRs: [CRM #506](https://github.com/cnichols1734/CRM/pull/506), [ClientFlow #24](https://github.com/cnichols1734/clientflow/pull/24), [AgentFlow #77](https://github.com/cnichols1734/agentflow/pull/77). The owner authorized merging and release on November 9 after final checks.
 
 
 ## Completed-page simplification, November 9
@@ -11,11 +11,19 @@ Activity projections omit autosaves before applying the latest-50-event limit, s
 
 Existing review, correction and sharing API operations remain compatible for older builds; their authorization and review requirements have not been weakened. No additional migration is needed for this UI change. Earlier sharing descriptions below document those retained backend capabilities rather than controls on the current completed screens.
 
-## Release hold
+## Release authorization and final checklist behavior
 
-The owner asked on November 9 to keep this work off main while reviewing the HTML and app design. All three companion PRs must remain unmerged. Do not run the production migration, deploy this backend, or distribute a TestFlight build until that hold is lifted.
+The owner lifted the release hold on November 9 and authorized merging all three companion PRs, deploying CRM and its migration, and distributing both apps to the existing external TestFlight groups. Keep marketing versions unchanged and increment build numbers only. Check current CI and Copilot findings before merging. Deploy the backend before distributing the mobile builds.
 
-Existing work in the primary mobile checkouts is preserved. The feature uses separate AgentFlow and ClientFlow worktrees. Local device review uses synthetic records and a local backend with outbound email and push disabled. It does not certify production delivery or stakeholder acceptance.
+Home Facts checks itself on submission. Agents can also check, uncheck or skip it in CRM and AgentFlow. Manual overrides survive refreshes; a new client submission takes priority over an earlier skip. The native toggle endpoint accepts optional `work_status` values `pending`, `completed` and `not_applicable` for Home Facts. Existing toggle requests remain compatible. No additional migration is needed for these checklist changes.
+
+The CRM next-step link opens the relevant workspace, document or linked task. Checklist-only work scrolls to its exact row. AgentFlow offers a Download action through the native Files picker, and direct Home Facts entry includes a Transaction button.
+
+Existing work in the primary mobile checkouts is preserved. Local review uses synthetic records with outbound email and push disabled.
+
+## Final review validation
+
+The November 9 review fixes preserve filled attachment values, retain pending answer reverts and original submission requests, expose conflicts, refresh stale submissions, and keep report polling bounded. Mobile tenant cleanup now runs at the app level, and private-link context survives database commits. Local validation passed 83 backend checks, 86 browser unit checks, both native check suites and signed device builds. The isolated PostgreSQL check is recorded under `/tmp/home-facts-review/`. CI and fresh Copilot review remain release gates.
 
 ## Workflow
 
@@ -75,7 +83,7 @@ The SendGrid event webhook verifies its documented ECDSA signature over the time
 
 ## Migration and later deployment order
 
-Migration `add_home_facts`, after `add_mobile_chat_attachments`, creates responses, revisions, grants, artifacts, events, mutations and jobs, with organization RLS policies on PostgreSQL. It is additive. The fresh SQLite upgrade and model-column parity were checked locally. A production PostgreSQL migration has not been run. Verify pooled-connection tenant isolation across commits and error paths on PostgreSQL before production rollout.
+Migration `add_home_facts`, after `add_mobile_chat_attachments`, creates responses, revisions, grants, artifacts, events, mutations and jobs, with organization RLS policies on PostgreSQL. It is additive. The fresh SQLite upgrade and model-column parity were checked locally. A production PostgreSQL migration has not been run. The additive migration and all seven RLS policies passed on isolated PostgreSQL 17. A restricted database role and a single-connection pool verified organization isolation across commit, rollback, request cleanup and connection reuse. Production schema state still requires verification during rollout.
 
 After the owner releases the hold:
 

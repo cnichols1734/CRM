@@ -264,10 +264,11 @@ def attachment_upload(response,actor_kind,actor_id):
 
 def artifact_result(response,artifact_id,grant=None):
     artifact,content=read_artifact(response,artifact_id,grant)
+    content_type, filename = artifact.content_type, artifact.filename
     if grant:
         hf.event(response,'download_requested',grant.audience,grant.id,artifact_id=artifact.id)
         db.session.commit()
-    return send_file(BytesIO(content),mimetype=artifact.content_type,download_name=artifact.filename,
+    return send_file(BytesIO(content),mimetype=content_type,download_name=filename,
         as_attachment=request.args.get('download')=='1')
 
 

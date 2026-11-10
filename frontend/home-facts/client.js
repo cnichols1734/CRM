@@ -45,11 +45,12 @@ async function save() {
   const payload = draft.begin();
   if (!payload) return;
   clearTimeout(retryTimer);
-  let retry = false;
+  let retry = false, rejected = false;
   saving = true; store();
   try {
     const snapshot = await api('/data', { method: 'PATCH', body: JSON.stringify(payload) });
     draft.acknowledge(snapshot); store(); showError('');
+    if (Object.keys(draft.conflicts).length) render();
     retryDelay = 1500;
   } catch (error) {
     if (error.code === 'revision_conflict') {
@@ -58,12 +59,13 @@ async function save() {
       catch (refreshError) { showError(refreshError.message); retry = !refreshError.httpStatus || refreshError.httpStatus >= 500 || refreshError.httpStatus === 429; }
     } else {
       retry = !error.httpStatus || error.httpStatus >= 500 || error.httpStatus === 429;
+      if (!retry) { draft.flight = null; store(); rejected = true; }
       showError(retry ? 'Connection interrupted. Your answers are saved on this device. We’ll upload them automatically when the connection returns.' : error.message);
     }
   } finally {
     saving = false;
     if (retry) { retryTimer = setTimeout(save, retryDelay); retryDelay = Math.min(retryDelay * 2, 30000); }
-    else if (!draft.flight && Object.keys(draft.pending).length && !Object.keys(draft.conflicts).length) timer = setTimeout(save, 650);
+    else if (!rejected && !draft.flight && Object.keys(draft.pending).length && !Object.keys(draft.conflicts).length) timer = setTimeout(save, 650);
   }
 }
 window.addEventListener('online', save);
@@ -88,9 +90,7 @@ function conflictUI() {
 function format(value) { return Array.isArray(value) ? value.join(', ') : String(value ?? ''); }
 function hasAnswer(group) { return group.fields.some(f => format(draft.answers[f.id]).trim()); }
 function visibleGroups(section) {
-  const optional = section.groups.filter(g => g.optional_row);
-  const firstBlank = optional.find(g => !hasAnswer(g));
-  return section.groups.filter(g => !g.optional_row || hasAnswer(g) || g === firstBlank || expandedRows.has(g.id));
+  return section.groups;
 }
 function move(sectionIndex, groupIndex = null) {
   draft.position = { section: sectionIndex, group: groupIndex ?? 0 }; store(); render();
@@ -256,7 +256,7 @@ function renderReview() {
     try {
       const key = `${storageKey}:submit`;
       let payload; try { payload = JSON.parse(localStorage.getItem(key)); } catch { /* A fresh request follows. */ }
-      if (!payload || payload.expected_revision !== draft.server.revision) payload = { mutation_id: crypto.randomUUID(), expected_revision: draft.server.revision, acknowledged: true };
+      if (!payload) payload = { mutation_id: crypto.randomUUID(), expected_revision: draft.server.revision, acknowledged: true };
       localStorage.setItem(key, JSON.stringify(payload));
       submissionPending = true;
       view.querySelectorAll('button,input,textarea,select').forEach(control => { control.disabled = true; });
@@ -264,6 +264,10 @@ function renderReview() {
       localStorage.removeItem(key); localStorage.removeItem(storageKey); submissionPending = false; render();
     } catch (error) {
       if (error.httpStatus >= 400 && error.httpStatus < 500) { submissionPending = false; localStorage.removeItem(`${storageKey}:submit`); }
+      if (error.code === 'revision_conflict') {
+        try { draft.reconcile(await api()); store(); } catch (refreshError) { showError(refreshError.message); render(); return; }
+        showError('Answers changed on another device. Review the latest answers before submitting again.'); render(); return;
+      }
       showError(submissionPending ? 'Your submission is not confirmed yet. Check it again before changing your answers.' : error.message); render();
     }
   }, 'hf-primary');
@@ -285,7 +289,7 @@ function renderReports() {
   clearTimeout(reportTimer);
   if (!recipient && !data.artifact_hash) reportTimer = setTimeout(async () => {
     try { draft.reconcile(await api()); render(); }
-    catch { renderReports(); }
+    catch { render(); }
   }, 3000);
 }
 async function renderPDF() {

@@ -43,7 +43,6 @@ VISIBLE_KEYS = (
 
 AUTO_KEYS = frozenset({
     'listing_docs_setup',
-    'seller_home_facts',
     'listing_agreement',
     'seller_disclosures',
     'listing_docs_complete',
@@ -255,17 +254,15 @@ def sync_listing_prep_checklist(
         'listing_description': bool(listing_description_text(profile)),
         'showing_instructions': bool((getattr(profile, 'public_showing_instructions', None) or '').strip()),
     }
-    from models import TransactionCommunication
-    done_by_key['seller_home_facts'] = TransactionCommunication.query.filter_by(
-        organization_id=org_id, transaction_id=transaction.id,
-        communication_type='home_facts', purpose='invitation', status='sent',
-    ).first() is not None
 
     reqs = TransactionRequirement.query.filter_by(
         transaction_id=transaction.id,
         organization_id=org_id,
     ).all()
     for req in reqs:
+        if req.requirement_key == 'seller_home_facts':
+            sync_home_facts_requirement(transaction, req)
+            continue
         if req.requirement_key not in done_by_key:
             title = TITLES.get(req.requirement_key)
             if title and req.title != title:
@@ -287,7 +284,7 @@ def _row_payload(
         'key': req.requirement_key,
         'sort_rank': VISIBLE_KEYS.index(req.requirement_key) if req.requirement_key in VISIBLE_KEYS else len(VISIBLE_KEYS),
         'title': TITLES.get(req.requirement_key, req.title),
-        'done': status == 'completed',
+        'done': status in CLOSED_WORK_STATUSES,
         'auto': (not custom) and req.requirement_key in AUTO_KEYS,
         'custom': custom,
         'work_status': status,
@@ -348,8 +345,7 @@ def listing_prep_groups(transaction: Transaction) -> list[dict[str, Any]]:
                     remaining_count=remaining_count,
                 )
                 if key == 'seller_home_facts':
-                    row['response_status'] = ('Submitted' if home_facts and home_facts.state == 'submitted'
-                        else 'In progress' if home_facts and home_facts.answers else 'Awaiting seller' if row['done'] else 'Not sent')
+                    row['response_status'] = home_facts_status(home_facts, req)
                 items.append(row)
         if items:
             groups.append({
@@ -410,3 +406,70 @@ def first_open_listing_prep_item(groups: list[dict[str, Any]]) -> Optional[dict[
             if not item.get('done'):
                 return item
     return None
+
+
+def home_facts_status(response, requirement):
+    if response and response.state == 'submitted':
+        return 'Submitted'
+    if requirement.work_status == 'not_applicable':
+        return 'Skipped'
+    if requirement.work_status == 'completed':
+        return 'Marked complete'
+    return 'In progress' if response and response.answers else 'Not completed'
+
+
+def set_home_facts_requirement_status(requirement, status, actor_id):
+    from models import HomeFactsResponse, TransactionRequirementEvent
+    if status not in ('pending', 'completed', 'not_applicable'):
+        raise ValueError('Choose complete, incomplete or skipped.')
+    response = HomeFactsResponse.query.filter_by(organization_id=requirement.organization_id,
+        transaction_id=requirement.transaction_id).first()
+    RequirementsService.update_work_status(requirement.id, status, actor_id=actor_id)
+    db.session.add(TransactionRequirementEvent(organization_id=requirement.organization_id,
+        requirement_id=requirement.id, event_type='home_facts_override', actor_id=actor_id,
+        new_value={'work_status': status, 'submitted_revision': response.submitted_revision
+            if response and response.state == 'submitted' else None}))
+    db.session.flush()
+    return requirement
+
+
+def sync_home_facts_requirement(transaction, requirement):
+    from models import HomeFactsResponse, TransactionRequirementEvent
+    response = HomeFactsResponse.query.filter_by(organization_id=transaction.organization_id,
+        transaction_id=transaction.id).first()
+    override = TransactionRequirementEvent.query.filter_by(organization_id=transaction.organization_id,
+        requirement_id=requirement.id, event_type='home_facts_override').order_by(TransactionRequirementEvent.id.desc()).first()
+    submitted = response and response.state == 'submitted'
+    manual = (override.new_value or {}) if override else None
+    if manual and (not submitted or manual.get('submitted_revision') == response.submitted_revision):
+        target = manual['work_status']
+    else:
+        target = 'completed' if submitted else 'pending'
+    if requirement.work_status != target:
+        RequirementsService.update_work_status(requirement.id, target)
+
+
+def listing_prep_next_action(transaction, item):
+    from flask import url_for
+    if not item:
+        return None
+    key = item['key']
+    target = f"#listing-prep-{item['id']}"
+    cta = 'Open item'
+    if key == 'listing_docs_setup':
+        target = url_for('transactions.intake_questionnaire', id=transaction.id)
+        cta = 'Set up listing docs'
+    elif key == 'seller_home_facts':
+        target = url_for('home_facts.agent_workspace', transaction_id=transaction.id)
+        cta = 'Open Home Facts'
+    elif key in ('listing_agreement', 'seller_disclosures', 'listing_docs_complete'):
+        slug = {'listing_agreement': 'listing-agreement', 'seller_disclosures': 'sellers-disclosure'}.get(key)
+        document = TransactionDocument.query.filter_by(transaction_id=transaction.id,
+            organization_id=transaction.organization_id, template_slug=slug).first() if slug else None
+        target = (url_for('transactions.document_form', id=transaction.id, doc_id=document.id)
+            if document else '#listing-documents')
+        cta = 'Open document' if document else 'Open listing documents'
+    elif item.get('task_id'):
+        target = url_for('tasks.view_task', task_id=item['task_id'])
+        cta = 'Open task'
+    return {'title': item['title'], 'description': 'Next item on the Preparing to List checklist.', 'cta': cta, 'url': target}

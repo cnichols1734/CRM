@@ -149,6 +149,12 @@ def submit(response, *, participant_id, expected_revision, mutation_id, acknowle
     response.updated_at = datetime.utcnow()
     _record_mutation(response, actor, mutation_id, payload)
     event(response, 'submitted', 'participant', participant_id, revision=response.revision)
+    from models import TransactionRequirement
+    from services.listing_prep_checklist import sync_home_facts_requirement
+    requirement = TransactionRequirement.query.filter_by(organization_id=response.organization_id,
+        transaction_id=response.transaction_id, requirement_key='seller_home_facts').first()
+    if requirement:
+        sync_home_facts_requirement(response.transaction, requirement)
     enqueue(response, 'generate', f'generate:{response.id}:{response.revision}', {'revision': response.revision})
     enqueue(response, 'push', f'submitted:{response.id}:{response.revision}', {'audience': 'agent', 'event': 'submitted'})
     return response

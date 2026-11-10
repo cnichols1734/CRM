@@ -52,7 +52,7 @@
             <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ group.label }}</h3>
             <ul class="mt-2 divide-y divide-slate-100" data-checklist-rows>
                 {% for item in group.rows %}
-                <li class="py-2.5 first:pt-0 last:pb-0"
+                <li class="py-2.5 first:pt-0 last:pb-0 scroll-mt-28" id="listing-prep-{{ item.id }}"
                     data-checklist-item
                     data-requirement-id="{{ item.id }}"
                     data-item-key="{{ item.key }}"
@@ -72,7 +72,7 @@
                                         {% endif %}
                                     </span>
                                     {% elif item.key == 'seller_home_facts' %}
-                                    <span class="shrink-0 text-xs text-[color:var(--ink-3)]">{{ item.response_status }}</span>
+                                    <span class="shrink-0 text-xs text-[color:var(--ink-3)]" data-home-facts-status>{{ item.response_status }}</span>
                                     {% elif item.auto and item.done %}
                                     <span class="shrink-0 text-xs text-[color:var(--ink-3)]">On file</span>
                                     {% elif item.key == 'listing_docs_complete' and item.remaining_count %}
@@ -82,6 +82,7 @@
                                 <div class="flex shrink-0 items-center gap-2">
                                     {% if item.key == 'seller_home_facts' %}
                                     <a class="crm-btn crm-btn-secondary crm-btn-sm" href="{{ url_for('home_facts.agent_workspace',transaction_id=transaction.id) }}">Open</a>
+                                    <button type="button" class="crm-btn crm-btn-secondary crm-btn-sm" data-checklist-skip {% if item.done %}hidden{% endif %} aria-label="Skip Home Facts if the client will not complete it">Skip</button>
                                     {% elif item.key == 'listing_docs_setup' %}
                                     <a class="crm-btn crm-btn-secondary crm-btn-sm" href="{{ url_for('transactions.intake_questionnaire',id=transaction.id) }}">Open</a>
                                     {% endif %}

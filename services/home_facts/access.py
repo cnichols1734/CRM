@@ -13,8 +13,8 @@ from services.home_facts.responses import HomeFactsError, identifier, event, loa
 
 
 def set_org(org_id):
-    if db.engine.dialect.name == 'postgresql':
-        db.session.execute(text("SELECT set_config('app.current_org_id', :org, true)"), {'org':str(org_id)})
+    from services.mobile_org_context import set_org_context
+    set_org_context(org_id)
 
 
 def serializer():

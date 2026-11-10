@@ -314,22 +314,18 @@
         </header>
 
         {# ===== Next step: the single most useful action right now ===== #}
-        {% if next_step %}
-        <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-orange-200 bg-orange-50 px-4 py-3.5 sm:px-5">
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-orange-200 bg-orange-50 px-4 py-3.5 sm:px-5" data-next-step {% if not next_step %}style="display: none"{% endif %}>
             <div class="flex min-w-0 items-start gap-3">
                 <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-700" aria-hidden="true">
                     <i class="fas fa-arrow-right text-xs"></i>
                 </span>
                 <div class="min-w-0">
-                    <p class="text-sm font-semibold text-slate-950">Next step: {{ next_step.title }}</p>
-                    {% if next_step.description %}
-                    <p class="mt-0.5 text-sm text-slate-600">{{ next_step.description }}</p>
-                    {% endif %}
+                    <p class="text-sm font-semibold text-slate-950" data-next-step-title>{% if next_step %}Next step: {{ next_step.title }}{% endif %}</p>
+                    <p class="mt-0.5 text-sm text-slate-600" data-next-step-description>{{ next_step.description if next_step else '' }}</p>
                 </div>
             </div>
-            <a href="{{ next_step.url }}" class="crm-btn crm-btn-accent shrink-0">{{ next_step.cta }}</a>
+            <a href="{{ next_step.url if next_step else '#' }}" class="crm-btn crm-btn-accent shrink-0" data-next-step-link>{{ next_step.cta if next_step else '' }}</a>
         </div>
-        {% endif %}
 
 
         {# ===== Main grid ===== #}
@@ -2208,6 +2204,15 @@
         };
     }
 
+    document.querySelector('[data-next-step-link]')?.addEventListener('click', function (event) {
+        const target = this.getAttribute('href');
+        if (target?.startsWith('#listing-prep-') || target === '#listing-documents') {
+            event.preventDefault();
+            if (typeof sellerWorkspaceTab === 'function') sellerWorkspaceTab('listing');
+            requestAnimationFrame(() => document.querySelector(target)?.scrollIntoView({behavior: 'smooth', block: 'center'}));
+        }
+    });
+
     root.addEventListener('click', async function (event) {
         const dateButton = event.target.closest('[data-checklist-date-button]');
         if (dateButton && root.contains(dateButton)) {
@@ -2216,7 +2221,8 @@
             return;
         }
 
-        const toggle = event.target.closest('[data-checklist-toggle]');
+        const skip = event.target.closest('[data-checklist-skip]');
+        const toggle = skip || event.target.closest('[data-checklist-toggle]');
         if (toggle && root.contains(toggle)) {
             const item = toggle.closest('[data-checklist-item]');
             const reqId = item && item.dataset.requirementId;
@@ -2224,9 +2230,23 @@
             const wasDone = item.dataset.done === 'true';
             toggle.disabled = true;
             try {
-                const data = await postJson(`/transactions/${txId}/requirements/${reqId}/toggle`);
+                const data = await postJson(`/transactions/${txId}/requirements/${reqId}/toggle`, skip ? {work_status: 'not_applicable'} : undefined);
                 const done = Boolean(data.done);
-                applyDone(item, done, done && !wasDone);
+                applyDone(item, done, done && !wasDone && !skip);
+                const badge = item.querySelector('[data-home-facts-status]');
+                if (badge && data.response_status) badge.textContent = data.response_status;
+                const skipButton = item.querySelector('[data-checklist-skip]');
+                if (skipButton) skipButton.hidden = done;
+                const next = document.querySelector('[data-next-step]');
+                if (next && Object.hasOwn(data, 'next_step')) {
+                    next.style.display = data.next_step ? '' : 'none';
+                    if (data.next_step) {
+                        next.querySelector('[data-next-step-title]').textContent = 'Next step: ' + data.next_step.title;
+                        next.querySelector('[data-next-step-description]').textContent = data.next_step.description || '';
+                        const link = next.querySelector('[data-next-step-link]');
+                        link.href = data.next_step.url; link.textContent = data.next_step.cta;
+                    }
+                }
                 upsertTransactionTask(data.task);
             } catch (err) {
                 alert(err.message || 'Could not update this item.');
