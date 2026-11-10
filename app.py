@@ -376,8 +376,9 @@ def create_app():
 
     @app.teardown_request
     def clear_request_org_context(error=None):
-        from services.mobile_org_context import clear_org_context
-        clear_org_context()
+        if 'mobile_org_id' in db.session.info:
+            from services.mobile_org_context import clear_org_context
+            clear_org_context()
 
     @app.before_request
     def start_request_timer():
