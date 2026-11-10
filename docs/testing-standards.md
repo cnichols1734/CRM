@@ -43,6 +43,7 @@ Mock paid or external services at their boundary, not the operation under test. 
 - Check persisted business fields or independent readback for mutations. For denied writes, verify unchanged data. For filters and isolation, include positive matches so an empty response cannot masquerade as success.
 - For tier-gated features, tenant-isolation tests must give the foreign organization feature access. `tests/test_company_updates.py` uses a paid foreign organization so a subscription denial cannot hide a broken tenant filter. Separate free-account checks cover the upgrade page and blocked writes.
 - Parameterize inputs with the same contract. Prefer deferred promises and condition-based browser waits over arbitrary delays. Avoid tests that pin helper names, statement order, or equivalent syntax when observable behavior is already protected.
+- Scope browser network interception to the step that needs the mock. WebKit can report cancelled polling during navigation as access-control page errors when routing is enabled; keep unrelated navigation outside that interception instead of suppressing page errors.
 - Run focused checks first, then the required CI suites. Check test-order effects when changing shared fixtures. Record measured before/after runtime with the same command and environment; one run is not a performance guarantee. Follow AGENTS.md's UI-test execution rule.
 
 ## Keep the guidance current

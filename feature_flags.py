@@ -388,11 +388,8 @@ def can_access_transactions(user) -> bool:
     if not org_has_feature('TRANSACTIONS', org):
         return False
     
-    # Platform admin org: any admin/owner can access
-    if org.is_platform_admin:
-        return user.org_role in ('owner', 'admin') or user.role == 'admin'
-    
-    # Regular orgs: if they have the feature, all members can access
+    # All members can enter the module. Individual transactions still require
+    # ownership or assignment unless the user is an organization admin/owner.
     return True
 
 
