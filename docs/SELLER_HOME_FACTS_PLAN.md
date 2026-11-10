@@ -77,7 +77,7 @@ Invitation secrets travel in URL fragments. GET and HEAD cannot activate them. A
 
 Email uses the existing branded template, reply-to behavior and provider selection. CRM and AgentFlow request the actual rendered template from the read-only email-preview operation. Invitations explain both browser completion and ClientFlow. Each recipient receives a separate private link. The approved payload and delivery attempt are stored before external sending. An uncertain provider outcome is marked ambiguous and is not automatically resent. Browser and app send actions retain uncertain operation IDs.
 
-The `home_facts` queue processes durable database jobs for generation, email and notifications. The notification outbox worker also recovers queued Home Facts work. Generation enqueues a report-ready notification, and the same bounded drain can process it. Agent notifications are recorded in the CRM and sent to eligible devices; client push targets active matching seller access. External delivery was mocked in local tests, not exercised against real clients.
+The `home_facts` queue processes durable database jobs for generation, email and notifications. A dedicated Home Facts Recovery Cron runs `python -m jobs.home_facts_recovery` every five minutes to recover missed wake-ups and retry queued work. It processes only Home Facts jobs. The notification outbox worker also supports recovery when invoked. Generation enqueues a report-ready notification, and the same bounded drain can process it. Agent notifications are recorded in the CRM and sent to eligible devices; client push targets active matching seller access. External delivery was mocked in local tests, not exercised against real clients.
 
 The SendGrid event webhook verifies its documented ECDSA signature over the timestamp and raw body. Home Facts events also require the signed communication receipt and provider-message match. Before a later production rollout, verify the configured verification key and webhook settings. An email open is an observation, not proof of reading.
 
@@ -88,7 +88,7 @@ Migration `add_home_facts`, after `add_mobile_chat_attachments`, creates respons
 After the owner releases the hold:
 
 1. Recheck current main, migration head, CI and all Copilot review threads in the three PRs. Resolve conflicts and valid findings first.
-2. Apply the additive migration and deploy CRM web, document worker and notification recovery worker. Verify the current head and health for each service.
+2. Apply the additive migration and deploy CRM web, document worker and Home Facts recovery cron. Verify the current head and health for each service.
 3. Verify private storage, signed SendGrid events, an approved test invitation, generation and both notification audiences with dedicated non-client records.
 4. Finish physical iPhone/Duo acceptance before merging and distributing the app PRs.
 
