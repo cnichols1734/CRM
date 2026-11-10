@@ -51,6 +51,8 @@ segno==1.6.6
 
 # PDF rendering (for document extraction - renders pages to images)
 PyMuPDF==1.28.2
+pypdf==6.10.0
+reportlab==4.4.9
 
 # Task queue (background document extraction)
 redis==8.1.0

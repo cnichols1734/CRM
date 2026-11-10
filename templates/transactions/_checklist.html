@@ -71,6 +71,8 @@
                                         {{ badge('AI draft', 'info') }}
                                         {% endif %}
                                     </span>
+                                    {% elif item.key == 'seller_home_facts' %}
+                                    <span class="shrink-0 text-xs text-[color:var(--ink-3)]">{{ item.response_status }}</span>
                                     {% elif item.auto and item.done %}
                                     <span class="shrink-0 text-xs text-[color:var(--ink-3)]">On file</span>
                                     {% elif item.key == 'listing_docs_complete' and item.remaining_count %}
@@ -78,6 +80,11 @@
                                     {% endif %}
                                 </div>
                                 <div class="flex shrink-0 items-center gap-2">
+                                    {% if item.key == 'seller_home_facts' %}
+                                    <a class="crm-btn crm-btn-secondary crm-btn-sm" href="{{ url_for('home_facts.agent_workspace',transaction_id=transaction.id) }}">Open</a>
+                                    {% elif item.key == 'listing_docs_setup' %}
+                                    <a class="crm-btn crm-btn-secondary crm-btn-sm" href="{{ url_for('transactions.intake_questionnaire',id=transaction.id) }}">Open</a>
+                                    {% endif %}
                                     <div class="relative" data-checklist-due>
                                         <button type="button"
                                                 class="text-xs font-medium {% if item.due_at %}tabular-nums is-set{% else %}text-[color:var(--ink-3)] hover:text-[color:var(--ink)]{% endif %}"

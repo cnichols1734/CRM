@@ -1,7 +1,7 @@
 import posthog from "posthog-js";
 
 const config = window.CRM_ANALYTICS || {};
-const enabled = Boolean(config.token && config.enabled);
+const enabled = Boolean(config.token && config.enabled && !location.pathname.includes('/home-facts'));
 
 // Keep in sync with services/product_analytics.py BLOCKED_KEY_PARTS.
 const BLOCKED_KEY_PARTS = [

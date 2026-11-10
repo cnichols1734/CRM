@@ -330,6 +330,8 @@ def create_app():
     app.register_blueprint(client_discovery_bp)
     app.register_blueprint(client_messages_bp)
     app.register_blueprint(agent_api_bp)
+    from routes.home_facts import home_facts_bp
+    app.register_blueprint(home_facts_bp)
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
@@ -385,7 +387,7 @@ def create_app():
         2. Check if the user's session has been invalidated
         3. Set the PostgreSQL app.current_org_id for RLS
         """
-        if request.path.startswith(('/api/agent/v1', '/api/client/v1/discovery')):
+        if request.path.startswith(('/api/agent/v1', '/api/client/v1/discovery', '/home-facts/')):
             return
         if not current_user.is_authenticated:
             return

@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Home Facts | {{ response.transaction.street_address }}</title>
+<link rel="stylesheet" href="{{ url_for('static',filename='css/home-facts.css') }}"><script type="module" src="{{ url_for('static',filename='dist/home-facts.js') }}"></script></head>
+<body class="hf-client"><main data-home-facts-client data-response-id="{{ response.id }}" data-scope="{{ draft_scope }}" data-csrf="{{ csrf_token }}" data-recipient="{{ 'true' if recipient else 'false' }}">
+<header class="hf-header"><a href="{{ url_for('home_facts.client_workspace',response_id=response.id) }}" aria-label="Home Facts"><img src="{{ url_for('static',filename='images/brand/origen-og-mark-slate.png') }}" alt="Origen Realty" width="44"></a>
+<div><p class="hf-eyebrow">{{ 'PROPERTY DOCUMENTS' if recipient else 'HOME FACTS' }}</p><strong>{{ response.transaction.street_address }}</strong></div><span id="hf-save-status" role="status" aria-live="polite">Loading</span></header>
+{% include "home_facts/_masthead.html" %}
+<div class="hf-message" id="hf-error" role="alert" hidden></div>
+<div id="hf-app" aria-busy="true"><p class="hf-loading">Opening your home facts…</p></div>
+<noscript>Enable JavaScript to save your answers, or contact your agent for help.</noscript>
+</main></body></html>

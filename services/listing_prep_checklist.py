@@ -23,6 +23,9 @@ LISTING_PREP_PHASES = (
 )
 
 VISIBLE_KEYS = (
+    'listing_docs_setup',
+    'seller_home_facts',
+    'comparative_market_analysis',
     'listing_agreement',
     'seller_disclosures',
     'listing_docs_complete',
@@ -39,6 +42,8 @@ VISIBLE_KEYS = (
 )
 
 AUTO_KEYS = frozenset({
+    'listing_docs_setup',
+    'seller_home_facts',
     'listing_agreement',
     'seller_disclosures',
     'listing_docs_complete',
@@ -47,6 +52,9 @@ AUTO_KEYS = frozenset({
 })
 
 TITLES = {
+    'listing_docs_setup': 'Listing Docs Setup',
+    'seller_home_facts': 'Send Sellers Home Facts Questionnaire',
+    'comparative_market_analysis': 'Create Comparative Market Analysis',
     'listing_agreement': 'Sign Listing Agreement',
     'seller_disclosures': "Complete Seller's Disclosure",
     'listing_docs_complete': 'Upload Remaining Listing Documents',
@@ -79,6 +87,9 @@ OWN_LISTING_CHECKLIST_SLUGS = frozenset({
 HIDDEN_KEYS = frozenset({'photos_ready', 'offer_intake_ready'})
 
 KEY_PHASE = {
+    'listing_docs_setup': 'listing_docs',
+    'seller_home_facts': 'listing_docs',
+    'comparative_market_analysis': 'listing_docs',
     'listing_agreement': 'listing_docs',
     'seller_disclosures': 'listing_docs',
     'listing_docs_complete': 'listing_docs',
@@ -237,12 +248,18 @@ def sync_listing_prep_checklist(
     listing_docs_done = all(slug in uploaded for slug in remaining)
 
     done_by_key = {
+        'listing_docs_setup': bool(transaction.intake_data),
         'listing_agreement': 'listing-agreement' in uploaded,
         'seller_disclosures': 'sellers-disclosure' in uploaded,
         'listing_docs_complete': listing_docs_done,
         'listing_description': bool(listing_description_text(profile)),
         'showing_instructions': bool((getattr(profile, 'public_showing_instructions', None) or '').strip()),
     }
+    from models import TransactionCommunication
+    done_by_key['seller_home_facts'] = TransactionCommunication.query.filter_by(
+        organization_id=org_id, transaction_id=transaction.id,
+        communication_type='home_facts', purpose='invitation', status='sent',
+    ).first() is not None
 
     reqs = TransactionRequirement.query.filter_by(
         transaction_id=transaction.id,
@@ -268,6 +285,7 @@ def _row_payload(
     return {
         'id': req.id,
         'key': req.requirement_key,
+        'sort_rank': VISIBLE_KEYS.index(req.requirement_key) if req.requirement_key in VISIBLE_KEYS else len(VISIBLE_KEYS),
         'title': TITLES.get(req.requirement_key, req.title),
         'done': status == 'completed',
         'auto': (not custom) and req.requirement_key in AUTO_KEYS,
@@ -311,6 +329,10 @@ def listing_prep_groups(transaction: Transaction) -> list[dict[str, Any]]:
     )
 
     groups = []
+    from models import HomeFactsResponse
+    home_facts = HomeFactsResponse.query.filter_by(
+        organization_id=transaction.organization_id, transaction_id=transaction.id,
+    ).first()
     for phase_key, label in LISTING_PREP_PHASES:
         items = []
         if phase_key == 'custom':
@@ -320,11 +342,15 @@ def listing_prep_groups(transaction: Transaction) -> list[dict[str, Any]]:
                 req = reqs.get(key)
                 if not req or KEY_PHASE.get(key) != phase_key:
                     continue
-                items.append(_row_payload(
+                row = _row_payload(
                     req,
                     description=description,
                     remaining_count=remaining_count,
-                ))
+                )
+                if key == 'seller_home_facts':
+                    row['response_status'] = ('Submitted' if home_facts and home_facts.state == 'submitted'
+                        else 'In progress' if home_facts and home_facts.answers else 'Awaiting seller' if row['done'] else 'Not sent')
+                items.append(row)
         if items:
             groups.append({
                 'key': phase_key,

@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Open Home Facts</title>
+<link rel="stylesheet" href="{{ url_for('static',filename='css/home-facts.css') }}"><script type="module" src="{{ url_for('static',filename='dist/home-facts.js') }}"></script></head>
+<body class="hf-client"><main data-home-facts-open>
+{% include "home_facts/_masthead.html" %}
+<div class="hf-welcome">
+<p class="hf-eyebrow">LET’S GET STARTED</p><h2>Your home, in your words.</h2>
+<p>Open your private questionnaire or property documents. You can use this browser without downloading an app.</p>
+<form method="post" action="{{ url_for('home_facts.open_link') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="token" id="hf-link-token">
+<button class="hf-primary" type="submit" disabled>Continue securely</button>
+</form><p role="status" id="hf-open-status">Open the full private link from your email to continue.</p>
+</div></main></body></html>

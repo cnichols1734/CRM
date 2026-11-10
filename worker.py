@@ -33,6 +33,7 @@ QUEUE_NAMES = (
     "bob_telegram",
     "contract_bootstrap",
     "apns",
+    "home_facts",
 )
 
 

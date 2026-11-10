@@ -4,8 +4,13 @@
   "name": "Listing Preparation",
   "description": "Seller preparing-to-list checklist. Document rows auto-check from uploads; MLS and marketing rows are agent-attested.",
   "applies_to": {
-    "sides": ["seller"],
-    "statuses": ["preparing_to_list", "active"]
+    "sides": [
+      "seller"
+    ],
+    "statuses": [
+      "preparing_to_list",
+      "active"
+    ]
   },
   "phases": [
     {
@@ -26,20 +31,47 @@
     {
       "phase_key": "prep",
       "name": "Listing Prep",
-      "description": "Legacy phase — hidden from the checklist card"
+      "description": "Legacy phase \u2014 hidden from the checklist card"
     },
     {
       "phase_key": "marketing",
       "name": "Marketing & Showings",
-      "description": "Legacy phase — hidden from the checklist card"
+      "description": "Legacy phase \u2014 hidden from the checklist card"
     },
     {
       "phase_key": "offers",
       "name": "Offers",
-      "description": "Legacy phase — hidden from the checklist card"
+      "description": "Legacy phase \u2014 hidden from the checklist card"
     }
   ],
   "requirements": {
+    "listing_docs_setup": {
+      "phase": "listing_docs",
+      "title": "Listing Docs Setup",
+      "description": "Save listing document setup",
+      "responsibility": "agent",
+      "required": true,
+      "auto_check": "intake"
+    },
+    "seller_home_facts": {
+      "phase": "listing_docs",
+      "title": "Send Sellers Home Facts Questionnaire",
+      "description": "Invite sellers to complete Home Facts",
+      "responsibility": "agent",
+      "required": true,
+      "auto_check": "home_facts_invitation"
+    },
+    "comparative_market_analysis": {
+      "phase": "listing_docs",
+      "title": "Create Comparative Market Analysis",
+      "description": "Prepare and review the comparative market analysis",
+      "responsibility": "agent",
+      "required": true,
+      "evidence_types": [
+        "document",
+        "attestation"
+      ]
+    },
     "listing_agreement": {
       "phase": "listing_docs",
       "title": "Sign Listing Agreement",
@@ -47,7 +79,9 @@
       "responsibility": "agent",
       "required": true,
       "auto_check": "document",
-      "evidence_types": ["document"],
+      "evidence_types": [
+        "document"
+      ],
       "document_slug": "listing-agreement"
     },
     "seller_disclosures": {
@@ -57,7 +91,9 @@
       "responsibility": "seller",
       "required": true,
       "auto_check": "document",
-      "evidence_types": ["document"],
+      "evidence_types": [
+        "document"
+      ],
       "document_slug": "sellers-disclosure"
     },
     "listing_docs_complete": {
@@ -143,7 +179,7 @@
     "photos_ready": {
       "phase": "prep",
       "title": "Photos Ready",
-      "description": "Legacy row — hidden from the checklist card",
+      "description": "Legacy row \u2014 hidden from the checklist card",
       "responsibility": "agent",
       "required": false,
       "hidden": true
@@ -151,14 +187,17 @@
     "offer_intake_ready": {
       "phase": "offers",
       "title": "Offer Intake Ready",
-      "description": "Legacy row — hidden from the checklist card",
+      "description": "Legacy row \u2014 hidden from the checklist card",
       "responsibility": "agent",
       "required": false,
       "hidden": true
     }
   },
   "business_day_rules": {
-    "excluded_days": ["saturday", "sunday"],
+    "excluded_days": [
+      "saturday",
+      "sunday"
+    ],
     "holidays": [
       "2026-01-01",
       "2026-07-04",

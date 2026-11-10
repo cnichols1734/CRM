@@ -1131,6 +1131,122 @@ class Transaction(db.Model):
         return f'<Transaction {self.id}: {self.street_address}>'
 
 
+class HomeFactsResponse(db.Model):
+    __tablename__ = 'home_facts_responses'
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, unique=True)
+    schema_version = db.Column(db.Integer, nullable=False, default=1)
+    revision = db.Column(db.Integer, nullable=False, default=0)
+    state = db.Column(db.String(24), nullable=False, default='draft')
+    answers = db.Column(db.JSON, nullable=False, default=dict)
+    provenance = db.Column(db.JSON, nullable=False, default=dict)
+    submitted_revision = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    transaction = db.relationship('Transaction')
+
+
+class HomeFactsRevision(db.Model):
+    __tablename__ = 'home_facts_revisions'
+    __table_args__ = (db.UniqueConstraint('response_id', 'revision', name='uq_home_facts_revision'),)
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    response_id = db.Column(db.String(36), db.ForeignKey('home_facts_responses.id', ondelete='CASCADE'), nullable=False, index=True)
+    revision = db.Column(db.Integer, nullable=False)
+    answers = db.Column(db.JSON, nullable=False)
+    provenance = db.Column(db.JSON, nullable=False)
+    attachments = db.Column(db.JSON, nullable=False, default=list)
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id', ondelete='SET NULL'))
+    acknowledgment = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    agent_reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    agent_reviewed_at = db.Column(db.DateTime)
+    seller_reviewed_at = db.Column(db.DateTime)
+    seller_reviewed_by = db.Column(db.Integer)
+    seller_review_method = db.Column(db.String(24))
+    seller_review_note = db.Column(db.Text)
+    reviewed_artifact_hash = db.Column(db.String(64))
+
+
+class HomeFactsGrant(db.Model):
+    __tablename__ = 'home_facts_grants'
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    response_id = db.Column(db.String(36), db.ForeignKey('home_facts_responses.id', ondelete='CASCADE'), nullable=False, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id', ondelete='CASCADE'))
+    audience = db.Column(db.String(16), nullable=False)
+    email = db.Column(db.String(254), nullable=False)
+    token_hash = db.Column(db.String(64), nullable=False)
+    token_used_at = db.Column(db.DateTime)
+    session_version = db.Column(db.Integer, nullable=False, default=1)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime)
+    # Recipient grants freeze exact artifact identifiers and content digests.
+    artifacts = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class HomeFactsArtifact(db.Model):
+    __tablename__ = 'home_facts_artifacts'
+    __table_args__ = (db.UniqueConstraint('response_id', 'generation_key', name='uq_home_facts_artifact'),)
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    response_id = db.Column(db.String(36), db.ForeignKey('home_facts_responses.id', ondelete='CASCADE'), nullable=False, index=True)
+    revision = db.Column(db.Integer, nullable=False)
+    kind = db.Column(db.String(24), nullable=False)
+    generation_key = db.Column(db.String(100), nullable=False)
+    filename = db.Column(db.String(180), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    content_type = db.Column(db.String(100), nullable=False)
+    digest = db.Column(db.String(64), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class HomeFactsEvent(db.Model):
+    __tablename__ = 'home_facts_events'
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    response_id = db.Column(db.String(36), db.ForeignKey('home_facts_responses.id', ondelete='CASCADE'), nullable=False, index=True)
+    kind = db.Column(db.String(40), nullable=False)
+    actor_kind = db.Column(db.String(16), nullable=False)
+    actor_id = db.Column(db.String(36))
+    details = db.Column(db.JSON, nullable=False, default=dict)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class HomeFactsMutation(db.Model):
+    __tablename__ = 'home_facts_mutations'
+    __table_args__ = (db.UniqueConstraint('response_id', 'actor', 'mutation_id', name='uq_home_facts_mutation'),)
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    response_id = db.Column(db.String(36), db.ForeignKey('home_facts_responses.id', ondelete='CASCADE'), nullable=False, index=True)
+    actor = db.Column(db.String(80), nullable=False)
+    mutation_id = db.Column(db.String(36), nullable=False)
+    payload_hash = db.Column(db.String(64), nullable=False)
+    resulting_revision = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class HomeFactsJob(db.Model):
+    __tablename__ = 'home_facts_jobs'
+    __table_args__ = (db.UniqueConstraint('organization_id', 'dedupe_key', name='uq_home_facts_job'),)
+    id = db.Column(db.String(36), primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    response_id = db.Column(db.String(36), db.ForeignKey('home_facts_responses.id', ondelete='CASCADE'), nullable=False, index=True)
+    kind = db.Column(db.String(24), nullable=False)
+    dedupe_key = db.Column(db.String(150), nullable=False)
+    payload = db.Column(db.JSON, nullable=False, default=dict)
+    state = db.Column(db.String(24), nullable=False, default='queued', index=True)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    available_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    claimed_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    last_error = db.Column(db.String(300))
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 class TransactionParticipant(db.Model):
     """
     Links contacts/users to transactions with specific roles.

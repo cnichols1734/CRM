@@ -11,6 +11,7 @@ def test_worker_listens_to_inbox_bootstrap_queue():
         "bob_telegram",
         "contract_bootstrap",
         "apns",
+        "home_facts",
     )
     assert TELEGRAM_QUEUE in QUEUE_NAMES
     assert APNS_QUEUE in QUEUE_NAMES
