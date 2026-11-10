@@ -18,7 +18,7 @@ POSTHOG_SESSION_REPLAY=true
 ACTIVATION_EXPERIENCE_VERSION=retention_v2
 ACTIVATION_EVENT_SCHEMA_VERSION=2
 SENDGRID_EVENT_WEBHOOK_VERIFICATION_KEY=...   # optional but recommended
-APP_BASE_URL=https://www.origentechnolog.com
+APP_BASE_URL=https://agentflow.origentechnolog.com
 ```
 
 Use the PostHog project token, not a personal API key. Keep the PostHog personal
@@ -29,6 +29,56 @@ API key only in MCP configuration.
 Leave the PostHog project without a payment method and set the monthly billing
 limit to `$0`. Autocapture stays disabled. Replay runs only on registration and
 the zero-contact activation dashboard. Inputs and rendered text are masked.
+
+## First visit through signup
+
+With `POSTHOG_ENABLED`, the server records `first_visit` on the first successful
+anonymous GET to the homepage, a CRM offer/comparison page, registration, login
+or terms page. A signed, HttpOnly cookie keeps that visit for 30 days. Later
+navigation, campaign links and form retries do not replace it or extend its
+expiry. The analytics cookie is shared between the legacy marketing hosts and
+the canonical app host so redirects preserve the source. Other hosts use a
+host-only cookie. Authentication cookie settings do not change.
+
+Self-serve signup links the opaque visitor ID to `user_<id>` in PostHog, stores
+the attribution on the CRM `account_created` event and mirrors it to immutable
+PostHog person properties. The cookie clears after successful authentication.
+Analytics failure does not block registration or remove the CRM attribution.
+Existing signup `utm_*` and `ref` fields remain available with first-touch values;
+`source=self_serve` still describes the signup method.
+
+Use these event/person properties for acquisition reports:
+
+- `first_touch_at` and `first_touch_landing_path`
+- `first_touch_referring_domain` and `first_touch_referrer_kind`
+- `first_touch_utm_source`, `first_touch_utm_medium`, `first_touch_utm_campaign`
+- `first_touch_campaign_variant`, from `utm_content`
+- `first_touch_utm_term` and `first_touch_ref`
+
+The referrer kind is `external`, `internal` or `direct_or_unknown`. An internal
+referrer is not evidence of an external acquisition source. Missing referrers
+cannot distinguish a typed URL from a private message or a browser that removed
+the header. The generic browser `$initial_*` fields may still begin at the
+registration page; use the explicit `first_touch_*` properties for these reports.
+
+Only the referring hostname and an allowlisted public landing path are stored.
+Referrer paths, query strings, fragments and arbitrary landing query parameters
+are discarded. Campaign labels accept 1–80 characters using letters, numbers,
+dots, underscores, hyphens and tildes. Email addresses, URLs, free-form text and
+phone-like digit sequences are rejected. Use campaign slugs such as
+`nov-launch`, and never put personal details in campaign labels.
+
+This measures a browser's first tracked visit within the cookie window, not a
+unique human or every page view. Anonymous server visits may include crawlers.
+Deleted, expired or blocked cookies and switching devices can break continuity.
+Direct POST signups without a previous tracked visit have no first-visit record.
+Old signup sessions retain sanitized campaign labels but cannot recover a
+missing landing page or referrer. There is no historical backfill.
+
+CRM owns this change. Native AgentFlow and ClientFlow APIs and payloads are
+unchanged. No migration, mobile release or PostHog setting change is required.
+Deploy the CRM change before checking new signups. Existing PostHog configuration
+controls collection; no extra pageview capture or session replay is enabled.
 
 ## Metric definitions
 

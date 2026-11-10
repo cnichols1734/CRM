@@ -62,15 +62,6 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('main.contacts'))
 
-    if request.method == 'GET':
-        acquisition = {}
-        for key in ('utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'ref'):
-            value = request.args.get(key, '').strip()
-            if value:
-                acquisition[key] = value[:80]
-        if acquisition:
-            session['signup_acquisition'] = acquisition
-
     form = RegistrationForm()
     if form.validate_on_submit():
         # Honeypot check - bots fill this hidden field, humans don't see it
@@ -221,7 +212,8 @@ def register():
             )
 
         login_user(user)
-        acquisition = session.pop('signup_acquisition', {})
+        from services.acquisition import signup_attribution
+        acquisition = signup_attribution(user)
         record_event(
             ActivationEvent.ACCOUNT_CREATED,
             user=user,

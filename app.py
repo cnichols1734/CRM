@@ -338,6 +338,9 @@ def create_app():
     app.register_blueprint(mcp_oauth_bp)
     app.register_blueprint(mcp_bp)
 
+    from services.acquisition import init_acquisition_tracking
+    init_acquisition_tracking(app)
+
     @app.route('/robots.txt')
     def robots_txt():
         return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')

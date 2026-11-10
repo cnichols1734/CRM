@@ -136,6 +136,19 @@ def capture_anonymous(event, *, distinct_id=None, properties=None):
         return False
 
 
+def alias_visitor(visitor_id, user):
+    """Link a server-issued first-visit ID to the new account. Never raises."""
+    try:
+        client = _get_client()
+        if client is None:
+            return False
+        client.alias(previous_id=visitor_id, distinct_id=opaque_user_id(user.id))
+        return True
+    except Exception:
+        logger.exception('PostHog visitor alias failed user_id=%s', user.id)
+        return False
+
+
 def identify_user(user, *, set_properties=None, set_once_properties=None):
     """Upsert privacy-safe person properties for an opaque user id."""
     try:
