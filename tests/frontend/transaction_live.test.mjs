@@ -51,13 +51,15 @@ for (const departure of ['disconnect', 'pagehide']) {
   });
 }
 
-test('back-forward restoration resumes polling with a fresh request', async t => {
+test('back-forward restoration ignores the old request settling after the new one starts', async t => {
   const { controller, requests, payloads, timers } = fixture(t);
   window.dispatchEvent(new Event('pagehide'));
-  requests[0].resolve(response);
-  await settle();
   window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
   assert.equal(requests.length, 2);
+  requests[0].resolve(response);
+  await settle();
+  assert.deepEqual(payloads, []);
+  assert.equal(timers.size, 0);
   assert.equal(requests[1].signal.aborted, false);
   requests[1].resolve(response);
   await settle();

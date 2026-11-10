@@ -101,8 +101,9 @@ export default class extends Controller {
   }
 
   async _fetchThenSchedule() {
+    const controller = this.requestController;
     const data = await this._fetchOnce();
-    if (this.stopped) return;
+    if (this.stopped || controller !== this.requestController || controller.signal.aborted) return;
     if (data) this._processPayload(data);
     if (!this.stopped) this._schedule();
   }
@@ -179,8 +180,9 @@ export default class extends Controller {
     if (!this.stopped) return;
 
     const prevVersion = this.lastVersion;
+    const controller = this.requestController;
     const data = await this._fetchOnce();
-    if (!data) return;
+    if (!data || controller !== this.requestController || controller.signal.aborted) return;
 
     const versionChanged = prevVersion !== null && data.version !== prevVersion;
     if (data.in_flight || versionChanged) {
