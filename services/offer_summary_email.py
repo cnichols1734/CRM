@@ -701,7 +701,7 @@ def _gmail_integration(agent):
     return integration
 
 
-def _send_via_gmail(integration, *, html, text, subject, recipients, copies, transaction_id):
+def _send_via_gmail(integration, *, html, text, subject, recipients, copies, transaction_id, commit_token_refresh=True):
     from services.gmail_service import send_email
 
     result = send_email(
@@ -712,6 +712,7 @@ def _send_via_gmail(integration, *, html, text, subject, recipients, copies, tra
         body_text=text,
         cc_emails=list(copies) or None,
         include_signature=False,
+        commit_token_refresh=commit_token_refresh,
     )
     if result.get('needs_reauth'):
         raise OfferEmailError('Reconnect Gmail in Profile, then send this again.')

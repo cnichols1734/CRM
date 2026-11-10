@@ -31,6 +31,10 @@
                         </div>
 
                         <div id="seller-panel-listing" class="seller-tab-panel t-panel-slide space-y-4{% if default_seller_tab != 'listing' %} hidden{% endif %}" data-open="{{ 'true' if default_seller_tab == 'listing' else 'false' }}">
+                            <div class="flex items-center justify-between gap-4">
+                                <p class="text-sm text-slate-500">Seller answers, property reports and delivery history.</p>
+                                <a class="crm-btn crm-btn-secondary" href="{{ url_for('home_facts.agent_workspace', transaction_id=transaction.id) }}">Home Facts</a>
+                            </div>
                             {% include 'transactions/_listing_dates.html' %}
                             {% with checklist_scope='listing' %}{% include 'transactions/_checklist.html' %}{% endwith %}
                             <p class="text-sm text-slate-500">Listing paperwork and preparation stay with the listing. Each offer has its own response deadline.</p>
@@ -39,7 +43,7 @@
                                 <div class="flex flex-wrap items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3.5">
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <h3 class="text-sm font-semibold text-slate-900">Property questionnaire</h3>
+                                            <h3 class="text-sm font-semibold text-slate-900">Listing Docs Setup</h3>
                                             {% if transaction.intake_data %}
                                             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
                                                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
@@ -61,7 +65,7 @@
                                         </p>
                                     </div>
                                     <a href="{{ url_for('transactions.intake_questionnaire', id=transaction.id) }}" class="crm-btn crm-btn-secondary shrink-0">
-                                        {% if transaction.intake_data %}Edit questionnaire{% else %}Start questionnaire{% endif %}
+                                        {% if transaction.intake_data %}Edit setup{% else %}Start setup{% endif %}
                                     </a>
                                 </div>
                                 {% endif %}

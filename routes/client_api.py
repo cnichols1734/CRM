@@ -42,29 +42,9 @@ def _json_error(message, status=401):
 
 
 def _set_org_context(org_id: int) -> None:
-    try:
-        db.session.execute(
-            text("SELECT set_config('app.current_org_id', :org_id, false)"),
-            {'org_id': str(org_id)},
-        )
-        db.session.commit()
-    except Exception:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
+    from services.mobile_org_context import set_org_context
+    set_org_context(org_id)
 
-
-@client_api_bp.teardown_request
-def _reset_org_context(exc=None):
-    try:
-        db.session.execute(text('RESET app.current_org_id'))
-        db.session.commit()
-    except Exception:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
 
 
 def _bearer_token():

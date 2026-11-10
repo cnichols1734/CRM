@@ -330,6 +330,8 @@ def create_app():
     app.register_blueprint(client_discovery_bp)
     app.register_blueprint(client_messages_bp)
     app.register_blueprint(agent_api_bp)
+    from routes.home_facts import home_facts_bp
+    app.register_blueprint(home_facts_bp)
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
@@ -372,6 +374,12 @@ def create_app():
     # MULTI-TENANT RLS CONTEXT
     # =========================================================================
 
+    @app.teardown_request
+    def clear_request_org_context(error=None):
+        if 'mobile_org_id' in db.session.info:
+            from services.mobile_org_context import clear_org_context
+            clear_org_context()
+
     @app.before_request
     def start_request_timer():
         g._request_started_at = time.perf_counter()
@@ -385,7 +393,7 @@ def create_app():
         2. Check if the user's session has been invalidated
         3. Set the PostgreSQL app.current_org_id for RLS
         """
-        if request.path.startswith(('/api/agent/v1', '/api/client/v1/discovery')):
+        if request.path.startswith(('/api/agent/v1', '/api/client/v1/discovery', '/home-facts/')):
             return
         if not current_user.is_authenticated:
             return

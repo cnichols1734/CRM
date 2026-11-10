@@ -109,7 +109,7 @@ class RequirementsService:
         """
         Update requirement work status.
 
-        When moving to completed/waived/cancelled, cancels pending
+        When moving to a closed status, cancels pending
         NotificationEvents for this requirement (history preserved).
         """
         req = TransactionRequirement.query.get(requirement_id)
@@ -132,7 +132,7 @@ class RequirementsService:
             description=f'Status changed: {old_status} → {new_status}'
         )
 
-        if new_status in ('completed', 'waived', 'cancelled'):
+        if new_status in CLOSED_WORK_STATUSES:
             from services.notification_outbox import NotificationOutboxService
             NotificationOutboxService.cancel_events_for_requirement(req.id)
 
@@ -176,9 +176,6 @@ class RequirementsService:
                 return None
         else:
             task.due_date = RequirementsService._task_due(req.due_at)
-            if task.status == 'cancelled':
-                task.status = 'pending'
-                task.completed_at = None
             if not task.contact_id:
                 tx = Transaction.query.get(req.transaction_id)
                 contact_id = tx.primary_client_contact_id if tx else None
@@ -186,10 +183,13 @@ class RequirementsService:
                     task.contact_id = contact_id
 
         status = (req.work_status or 'pending').lower()
-        if status == 'completed' and task.status == 'pending':
+        if status == 'completed' and task.status != 'completed':
             task.status = 'completed'
             task.completed_at = datetime.utcnow()
-        elif status == 'pending' and task.status == 'completed':
+        elif status in CLOSED_WORK_STATUSES - {'completed'}:
+            task.status = 'cancelled'
+            task.completed_at = None
+        elif status not in CLOSED_WORK_STATUSES and task.status in ('completed', 'cancelled'):
             task.status = 'pending'
             task.completed_at = None
         return task

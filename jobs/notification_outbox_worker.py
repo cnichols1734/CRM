@@ -113,6 +113,8 @@ def run_notification_outbox_worker(
                         set_job_org_context(current_org_id)
 
             totals['orgs'] += 1
+            from jobs.home_facts import drain as drain_home_facts
+            drain_home_facts(current_org_id, limit=limit)
         except Exception:
             totals['errors'] += 1
             logger.exception('Outbox worker error for org %s', current_org_id)

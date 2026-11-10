@@ -359,11 +359,20 @@ def toggle_requirement(id, requirement_id):
         }), 400
 
     current = (req.work_status or 'pending').lower()
-    new_status = 'pending' if current == 'completed' else 'completed'
+    new_status = 'pending' if current in ('completed', 'not_applicable') else 'completed'
+    if req.requirement_key == 'seller_home_facts':
+        payload = request.get_json(silent=True) or {}
+        if not isinstance(payload, dict):
+            return jsonify({'error': 'Choose complete, incomplete or skipped.'}), 400
+        new_status = payload.get('work_status', new_status)
+        if new_status not in ('pending', 'completed', 'not_applicable'):
+            return jsonify({'error': 'Choose complete, incomplete or skipped.'}), 400
     try:
-        updated = RequirementsService.update_work_status(
-            req.id, new_status, actor_id=current_user.id,
-        )
+        if req.requirement_key == 'seller_home_facts':
+            from services.listing_prep_checklist import set_home_facts_requirement_status
+            updated = set_home_facts_requirement_status(req, new_status, current_user.id)
+        else:
+            updated = RequirementsService.update_work_status(req.id, new_status, actor_id=current_user.id)
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -372,11 +381,17 @@ def toggle_requirement(id, requirement_id):
             'error': 'Could not update this item. Try again.',
         }), 500
 
+    from services.listing_prep_checklist import listing_prep_groups, first_open_listing_prep_item, listing_prep_next_action
+    groups = listing_prep_groups(tx)
+    row = next((item for group in groups for item in group['rows'] if item['id'] == updated.id), {})
     return jsonify({
         'success': True,
+        'response_status': row.get('response_status'),
+        **({'next_step': listing_prep_next_action(tx, first_open_listing_prep_item(groups))}
+           if tx.transaction_type.name == 'seller' and tx.status == 'preparing_to_list' else {}),
         'requirement_id': updated.id,
         'work_status': updated.work_status,
-        'done': updated.work_status == 'completed',
+        'done': updated.work_status in ('completed', 'not_applicable'),
         'task': _task_card_payload(_task_for_requirement(updated)),
     })
 

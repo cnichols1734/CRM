@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static',filename='css/home-facts.css') }}">
+<div class="crm-page"><div class="crm-page__inner max-w-[1400px]">
+<main class="hf-agent crm-surface" data-home-facts-agent data-transaction-id="{{ transaction.id }}" data-owner-id="{{ current_user.id }}" data-org-id="{{ transaction.organization_id }}" data-csrf="{{ csrf_token }}">
+<div class="hf-agent-heading"><div><a href="{{ url_for('transactions.view_transaction',id=transaction.id) }}">Back to transaction</a></div><span id="hf-save-status" role="status">Loading</span></div>
+{% include "home_facts/_masthead.html" %}
+<div class="hf-message" id="hf-error" role="alert" hidden></div><div id="hf-app"><p>Opening Home Facts…</p></div>
+</main></div></div><script type="module" src="{{ url_for('static',filename='dist/home-facts.js') }}"></script>
+{% endblock %}

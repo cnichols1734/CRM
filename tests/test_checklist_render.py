@@ -96,7 +96,7 @@ def test_seller_preparing_to_list_renders_grouped_checklist(app, seed, owner_a_c
         assert 'Add date' in html
         assert 'data-checklist-add' in html
         assert 'Add an item' in html
-        assert 'Next step: Sign Listing Agreement' in html
+        assert 'Next step: Listing Docs Setup' in html
         assert 'href="#transaction-checklist"' in html
         assert 'id="transaction-required-documents"' not in html
         assert 'click any date' not in html.lower()

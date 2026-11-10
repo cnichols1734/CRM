@@ -208,6 +208,10 @@ class TransactionCommsService:
         comm = TransactionCommunication.query.get(communication_id)
         if not comm:
             raise ValueError(f'Communication {communication_id} not found')
+        if (comm.communication_metadata or {}).get('adapter') == 'home_facts':
+            # Home Facts uses actual provider sends with its own durable worker.
+            # Never route these messages through the legacy Gmail-draft adapter.
+            return comm
 
         if comm.status == 'sent':
             return comm

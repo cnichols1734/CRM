@@ -1,0 +1,4 @@
+documents/home_facts/**/*.pdf binary
+documents/home_facts/**/manifest.json linguist-generated=true
+static/dist/chunks/* -whitespace linguist-generated=true
+static/dist/assets/* -whitespace linguist-generated=true

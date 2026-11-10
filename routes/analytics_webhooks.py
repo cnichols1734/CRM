@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
 import json
 import logging
 
@@ -27,18 +25,15 @@ _EVENT_MAP = {
 def _verify_sendgrid_signature(payload: bytes, signature: str, timestamp: str) -> bool:
     key = current_app.config.get('SENDGRID_EVENT_WEBHOOK_VERIFICATION_KEY')
     if not key:
-        # Allow local/dev without verification, but never in production.
-        return current_app.config.get('FLASK_ENV') != 'production'
+        return False
     try:
-        # SendGrid signed event webhook uses ECDSA; when only a shared secret
-        # is configured we fall back to HMAC of timestamp + body.
-        digest = hmac.new(
-            key.encode('utf-8'),
-            msg=(timestamp + payload.decode('utf-8')).encode('utf-8'),
-            digestmod=hashlib.sha256,
-        ).digest()
-        expected = base64.b64encode(digest).decode('utf-8')
-        return hmac.compare_digest(expected, signature or '')
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        public_key = serialization.load_der_public_key(base64.b64decode(key, validate=True))
+        if not isinstance(public_key, ec.EllipticCurvePublicKey) or not timestamp.isdecimal():
+            return False
+        public_key.verify(base64.b64decode(signature, validate=True), timestamp.encode('ascii') + payload, ec.ECDSA(hashes.SHA256()))
+        return True
     except Exception:
         logger.exception('SendGrid webhook signature verification failed')
         return False
@@ -51,9 +46,7 @@ def sendgrid_events():
     signature = request.headers.get('X-Twilio-Email-Event-Webhook-Signature', '')
     timestamp = request.headers.get('X-Twilio-Email-Event-Webhook-Timestamp', '')
     if not _verify_sendgrid_signature(raw, signature, timestamp):
-        # Still accept in non-production when key missing; reject otherwise.
-        if current_app.config.get('SENDGRID_EVENT_WEBHOOK_VERIFICATION_KEY'):
-            return ('invalid signature', 401)
+        return ('invalid signature', 401)
 
     try:
         events = request.get_json(force=True, silent=True) or []
@@ -62,7 +55,7 @@ def sendgrid_events():
     if not isinstance(events, list):
         return ('ok', 200)
 
-    from jobs.base import set_job_org_context
+    from services.mobile_org_context import set_org_context
     from models import db
     from services.marketing.attribution import apply_event as apply_marketing_event
 
@@ -70,18 +63,30 @@ def sendgrid_events():
     for item in events:
         if not isinstance(item, dict):
             continue
+        if item.get('home_facts_receipt') or (item.get('unique_args') or {}).get('home_facts_receipt'):
+            from services.home_facts.tracking import apply_event as apply_home_facts_event
+            try:
+                db.session.commit()
+                apply_home_facts_event(item)
+                db.session.commit()
+            except Exception:
+                logger.exception('Home Facts delivery event failed')
+                db.session.rollback()
+                return ('retry', 503)
+            continue
         org_hint = item.get('organization_id') or (item.get('unique_args') or {}).get(
             'organization_id'
         )
         if org_hint:
             try:
-                set_job_org_context(int(org_hint))
+                set_org_context(int(org_hint))
             except Exception:
                 db.session.rollback()
 
         try:
             if apply_marketing_event(item):
                 marketing_touched = True
+                db.session.commit()
                 continue
         except Exception:
             logger.exception('Marketing webhook event failed')

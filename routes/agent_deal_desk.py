@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import jsonify
+from flask import jsonify, request
 from sqlalchemy.orm.attributes import flag_modified
 
 from models import (
@@ -533,6 +533,8 @@ def serialize_requirements(tx):
             remaining = item.get('remaining_count')
             if remaining:
                 subtitle = f"{remaining} still needed"
+            if item.get('response_status'):
+                subtitle = item['response_status']
             rows.append(serialize_requirement(
                 req,
                 group_label=group.get('label'),
@@ -1126,6 +1128,9 @@ def list_requirements(user, transaction_id):
     tx, error = _load_tx(user, transaction_id, CAP_VIEW)
     if error:
         return error
+    from services.listing_prep_checklist import sync_listing_prep_checklist
+    sync_listing_prep_checklist(tx)
+    db.session.commit()
     return jsonify({'requirements': serialize_requirements(tx)})
 
 
@@ -1177,11 +1182,20 @@ def toggle_requirement(user, transaction_id, requirement_id):
         return _json_error('This item checks itself when the work is on file.', 400)
 
     current = (req.work_status or 'pending').lower()
-    new_status = 'pending' if current == 'completed' else 'completed'
+    new_status = 'pending' if current in ('completed', 'not_applicable') else 'completed'
+    if req.requirement_key == 'seller_home_facts':
+        payload = request.get_json(silent=True) or {}
+        if not isinstance(payload, dict):
+            return jsonify({'error': 'Choose complete, incomplete or skipped.'}), 400
+        new_status = payload.get('work_status', new_status)
+        if new_status not in ('pending', 'completed', 'not_applicable'):
+            return jsonify({'error': 'Choose complete, incomplete or skipped.'}), 400
     try:
-        updated = RequirementsService.update_work_status(
-            req.id, new_status, actor_id=user.id,
-        )
+        if req.requirement_key == 'seller_home_facts':
+            from services.listing_prep_checklist import set_home_facts_requirement_status
+            updated = set_home_facts_requirement_status(req, new_status, user.id)
+        else:
+            updated = RequirementsService.update_work_status(req.id, new_status, actor_id=user.id)
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -1190,7 +1204,7 @@ def toggle_requirement(user, transaction_id, requirement_id):
     return jsonify({
         'requirement': serialize_requirement(updated),
         'work_status': updated.work_status,
-        'done': updated.work_status == 'completed',
+        'done': updated.work_status in ('completed', 'not_applicable'),
     })
 
 
