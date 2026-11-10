@@ -16,13 +16,18 @@ ACTION_LABELS = {
 }
 EVENT_LABELS = {
     Event.ACCOUNT_CREATED: 'Account created',
-    Event.CONTACT_CREATED: 'First contact added',
-    Event.FOLLOW_UP_CREATED: 'First follow-up created',
+    Event.CONTACT_CREATED: 'Contact added',
+    Event.FOLLOW_UP_CREATED: 'Follow-up created',
     Event.ACTIVATION_COMPLETED: 'Activation completed',
     Event.SESSION_STARTED: 'Daily app visit',
     Event.LOGIN_SUCCEEDED: 'Signed in',
     Event.MEANINGFUL_ACTION: 'Meaningful action',
     Event.SURFACE_VIEWED: 'App page viewed',
+}
+MILESTONE_LABELS = {
+    **EVENT_LABELS,
+    Event.CONTACT_CREATED: 'First contact added',
+    Event.FOLLOW_UP_CREATED: 'First follow-up created',
 }
 # Automated mail, inbox processing and scheduled retention changes are excluded.
 ACTIVITY_EVENTS = tuple(EVENT_LABELS)
@@ -124,6 +129,6 @@ def organization_activity(org_id, now=None):
         'actions_total': counts.get(Event.MEANINGFUL_ACTION, 0),
         'daily_visits': counts.get(Event.SESSION_STARTED, 0),
         'last_activity': timeline[0].created_at if timeline else None,
-        'milestones': [(EVENT_LABELS[event], at) for event, at in sorted(milestones.items(), key=lambda row: row[1])],
+        'milestones': [(MILESTONE_LABELS[event], at) for event, at in sorted(milestones.items(), key=lambda row: row[1])],
         'timeline': [{'at': row.created_at, 'label': ACTION_LABELS.get((row.event_data or {}).get('action'), EVENT_LABELS[row.event]) if row.event == Event.MEANINGFUL_ACTION else EVENT_LABELS[row.event]} for row in timeline],
     }
