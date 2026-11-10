@@ -159,69 +159,11 @@
         </div>
     </div>
 
+    {% include "platform_admin/_org_activity.html" %}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Info -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Metrics -->
-            <div class="admin-card p-6">
-                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                    <i class="fas fa-chart-bar text-slate-400 mr-2"></i>Usage Metrics
-                </h3>
-                {% if metrics %}
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-4">
-                        <div class="flex items-center">
-                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #60a5fa, #2563eb);">
-                                <i class="fas fa-users text-white text-xs"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-blue-600 font-medium">Users</p>
-                                <p class="text-2xl font-semibold text-blue-900">{{ metrics.user_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 border border-green-200 p-4">
-                        <div class="flex items-center">
-                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #4ade80, #16a34a);">
-                                <i class="fas fa-address-book text-white text-xs"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-green-600 font-medium">Contacts</p>
-                                <p class="text-2xl font-semibold text-green-900">{{ metrics.contact_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 p-4">
-                        <div class="flex items-center">
-                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #c084fc, #9333ea);">
-                                <i class="fas fa-tasks text-white text-xs"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-purple-600 font-medium">Tasks</p>
-                                <p class="text-2xl font-semibold text-purple-900">{{ metrics.task_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 p-4">
-                        <div class="flex items-center">
-                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #fbbf24, #d97706);">
-                                <i class="fas fa-file-contract text-white text-xs"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-amber-600 font-medium">Transactions</p>
-                                <p class="text-2xl font-semibold text-amber-900">{{ metrics.transaction_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-400 mt-4">
-                    <i class="fas fa-clock mr-1"></i>Last updated: {{ metrics.updated_at.strftime('%b %d, %Y %I:%M %p') if metrics.updated_at else 'Never' }}
-                </p>
-                {% else %}
-                <p class="text-slate-400">No metrics available yet.</p>
-                {% endif %}
-            </div>
-
             <!-- Feature Access -->
             <div class="admin-card p-6">
                 <h3 class="text-lg font-semibold text-slate-800 mb-1 flex items-center">

@@ -231,3 +231,31 @@ failure mode, ship one `activation_experience_version` change, then remeasure.
 - No autocapture / pageviews
 - Replay masked and limited to register + zero-contact dashboard
 - `activation_events` RLS enabled with no tenant policy; service role only
+
+## Platform reports
+
+Platform admins can open `/platform/dashboard` for signup source totals and 30-day
+activity across the filtered organizations. Organization names link to a report
+with saved CRM counts, saved BOB message counts, task status totals, a daily
+meaningful-action chart, activation milestones and recent recorded activity.
+
+The source belongs to the organization's earliest recorded signup. `Not captured`
+means the original visit is missing. `Direct / unknown` means a captured first visit
+had no external referrer. Historical signup UTM tags can still appear without a
+captured first visit. No source is inferred for older accounts.
+
+Activity charts include today and the preceding 29 UTC dates. Daily user visits
+are recorded at most once per user per UTC day. They do not measure exact sessions
+or time spent. Scheduled retention changes and automated emails are excluded from
+latest activity and the recent timeline. Counts reflect stored records, while
+activity events are historical and can remain after a record is deleted.
+
+The metrics aggregator stores only counts in `organization_metrics.usage_summary`.
+The org page's **Refresh counts** button updates that snapshot. The existing
+**Refresh All Metrics** action updates active customer organizations. Snapshot
+timestamps stay visible, and missing snapshots are never presented as zero usage.
+No contact, inbox or BOB message content is loaded into these reports.
+
+Deployment adds the nullable `usage_summary` column after `add_home_facts` through
+the existing boot migration command. Older app versions ignore it. This change
+is CRM-only, with no mobile contract or companion release requirement.

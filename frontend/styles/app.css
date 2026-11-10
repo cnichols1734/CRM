@@ -5272,3 +5272,14 @@ html.am-skin .crm-contact-detail .crm-contact-profile .crm-avatar {
   .crm-subtodos__editor { flex-wrap: wrap; }
   .crm-subtodos__editor .crm-input { flex-basis: 100%; }
 }
+
+/* Platform analytics use the same solid work surfaces in both themes. */
+.crm-analytics-muted { color: var(--ink-3); }
+.crm-analytics-divider { border-top: 1px solid var(--hairline); }
+.crm-analytics-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.crm-analytics-track { height: .375rem; background: var(--canvas); border-radius: .25rem; overflow: hidden; }
+.crm-analytics-track > div { height: 100%; background: var(--accent); }
+.crm-activity-chart { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: .25rem; height: 10rem; border-bottom: 1px solid var(--hairline); }
+.crm-activity-chart__column { display: flex; align-items: end; height: 100%; }
+.crm-activity-chart__bar { width: 100%; background: var(--accent); border-radius: .125rem .125rem 0 0; }
+@media (min-width: 640px) { .crm-analytics-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

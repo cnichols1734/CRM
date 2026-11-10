@@ -1,7 +1,7 @@
 # routes/platform_admin.py
 """
 Platform admin routes for Origen super admins.
-Queries ONLY organization_metrics table for aggregate data - NO direct tenant table queries.
+Usage reads aggregate snapshots and activation milestones, never tenant content.
 """
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
@@ -160,6 +160,8 @@ def dashboard():
 
     from services.activation_service import funnel_summary
     activation = funnel_summary()
+    from services.platform_analytics import platform_overview
+    analytics = platform_overview(org_ids)
 
     return render_template('platform_admin/dashboard.html',
         # Origen stats
@@ -184,6 +186,7 @@ def dashboard():
         orgs=orgs,
         org_owners=org_owners,
         activation=activation,
+        analytics=analytics,
     )
 
 
@@ -353,13 +356,35 @@ def view_org(org_id):
         target_org_id=org_id
     ).order_by(PlatformAuditLog.created_at.desc()).limit(20).all()
     
+    from services.platform_analytics import organization_activity
+    activity = organization_activity(org_id)
+
     return render_template('platform_admin/org_detail.html',
                           org=org,
                           metrics=metrics,
+                          activity=activity,
                           owner_email=owner_email,
                           audit_logs=audit_logs,
                           features=describe_org_features(org),
                           tier_defaults=TIER_DEFAULTS)
+
+
+@platform_bp.route('/orgs/<int:org_id>/refresh-metrics', methods=['POST'])
+@login_required
+@platform_admin_required
+def refresh_org_metrics(org_id):
+    Organization.query.get_or_404(org_id)
+    from jobs.metrics_aggregator import update_single_org_metrics
+    try:
+        update_single_org_metrics(org_id)
+        db.session.commit()
+        flash('Usage counts refreshed.', 'success')
+    except Exception:
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.exception('Organization metrics refresh failed')
+        flash('Could not refresh usage counts. Please try again.', 'error')
+    return redirect(url_for('platform.view_org', org_id=org_id))
 
 
 @platform_bp.route('/orgs/<int:org_id>/suspend', methods=['POST'])
