@@ -2124,6 +2124,7 @@
         item.className = 'py-2.5 first:pt-0 last:pb-0';
         item.setAttribute('data-checklist-item', '');
         item.dataset.requirementId = String(data.requirement_id);
+        item.id = `listing-prep-${data.requirement_id}`;
         item.dataset.itemKey = data.key || '';
         item.dataset.auto = 'false';
         item.dataset.custom = 'true';
