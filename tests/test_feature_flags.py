@@ -8,7 +8,7 @@ feature overrides can disable a feature for everyone.
 import pytest
 
 from feature_flags import FEATURE_FLAGS, can_access_reports, get_org_features, org_has_feature
-from models import Organization, User, db
+from models import Organization, TransactionAssignment, User, db
 
 
 class TestFreeTierRestrictions:
@@ -50,6 +50,51 @@ class TestProTierAccess:
         assert resp.status_code == 200
         assert b'Market Insights' not in resp.data
         assert b'market-insights-panel' not in resp.data
+
+
+class TestPlatformOrganizationAccess:
+    def test_agent_can_use_transactions_without_admin_access(self, app, seed, agent_a_client):
+        with app.app_context():
+            org = db.session.get(Organization, seed['org_a'])
+            original = org.subscription_tier, org.is_platform_admin
+            org.subscription_tier, org.is_platform_admin = 'enterprise', True
+            db.session.commit()
+
+        try:
+            response = agent_a_client.get('/transactions/')
+            assert response.status_code == 200
+            assert b'100 Main St' not in response.data
+            assert 'href="/transactions/"' in response.get_data(as_text=True)
+            assert agent_a_client.get(f'/transactions/{seed["tx_a"]}').status_code == 403
+            assert agent_a_client.get(f'/transactions/{seed["tx_b"]}').status_code == 404
+
+            with app.app_context():
+                assignment = TransactionAssignment(
+                    organization_id=seed['org_a'], transaction_id=seed['tx_a'],
+                    user_id=seed['agent_a'], role='collaborator',
+                )
+                db.session.add(assignment)
+                db.session.commit()
+
+            response = agent_a_client.get('/transactions/?view=all')
+            assert response.status_code == 200
+            assert b'100 Main St' in response.data
+            assert b'200 Oak Ave' not in response.data
+            assert agent_a_client.get(f'/transactions/{seed["tx_a"]}').status_code == 200
+            assert agent_a_client.get(f'/transactions/{seed["tx_a"]}/edit').status_code == 403
+
+            with app.app_context():
+                agent = db.session.get(User, seed['agent_a'])
+                assert (agent.role, agent.org_role, agent.is_super_admin) == ('agent', 'agent', False)
+        finally:
+            with app.app_context():
+                TransactionAssignment.query.filter_by(
+                    organization_id=seed['org_a'], transaction_id=seed['tx_a'],
+                    user_id=seed['agent_a'],
+                ).delete(synchronize_session=False)
+                org = db.session.get(Organization, seed['org_a'])
+                org.subscription_tier, org.is_platform_admin = original
+                db.session.commit()
 
 
 class TestGlobalFeatureOverrides:
