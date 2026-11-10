@@ -133,7 +133,7 @@ class TestChromeHooks:
         assert "localOrigin" not in detail
         assert "playSuccessCheck" in detail
         assert "setChecked" in detail
-        assert "applyDone(item, done, done && !wasDone)" in detail
+        assert "applyDone(item, done, done && !wasDone && !skip)" in detail
         assert "if (celebrate && done) celebrateChecklistCheck(item);" in detail
 
     def test_wave2_list_skeletons(self):
