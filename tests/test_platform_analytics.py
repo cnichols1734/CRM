@@ -6,10 +6,34 @@ from models import ActivationEvent, ChatConversation, ChatMessage, Organization,
 from services.platform_analytics import organization_activity, platform_overview
 
 
-def test_org_reports_keep_first_source_and_exclude_automated_activity(app, seed):
+@pytest.fixture
+def reporting_orgs(app):
+    with app.app_context():
+        orgs = [Organization(name=f'Report test {n}', slug=f'report-test-{n}', status='active') for n in range(2)]
+        db.session.add_all(orgs)
+        db.session.flush()
+        users = [User(organization_id=org.id, username=f'report-test-{n}', email=f'report-{n}@test.local', first_name='Report', last_name='Test', password_hash='unused') for n, org in enumerate(orgs)]
+        db.session.add_all(users)
+        db.session.commit()
+        ids = [org.id for org in orgs]
+        user_ids = [user.id for user in users]
+    yield ids, user_ids
+    with app.app_context():
+        db.session.rollback()
+        ActivationEvent.query.filter(ActivationEvent.organization_id.in_(ids)).delete(synchronize_session=False)
+        OrganizationMetrics.query.filter(OrganizationMetrics.organization_id.in_(ids)).delete(synchronize_session=False)
+        for convo in ChatConversation.query.filter(ChatConversation.organization_id.in_(ids)).all():
+            db.session.delete(convo)
+        db.session.flush()
+        User.query.filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+        Organization.query.filter(Organization.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+
+
+def test_org_reports_keep_first_source_and_exclude_automated_activity(app, reporting_orgs):
     with app.app_context():
         now = datetime.utcnow()
-        oid, other = seed['org_a'], seed['org_b']
+        oid, other = reporting_orgs[0]
         rows = [
             ActivationEvent(organization_id=oid, event='account_created', created_at=now-timedelta(days=3), event_data={'first_touch_utm_source': 'newsletter', 'first_touch_at': '2026-11-01T12:00:00+00:00'}),
             ActivationEvent(organization_id=oid, event='account_created', created_at=now-timedelta(days=2), event_data={'first_touch_utm_source': 'later-campaign'}),
@@ -46,14 +70,15 @@ def test_customer_admin_cannot_access_platform_reports(owner_a_client, seed, pat
     assert response.status_code == 403
 
 
-def test_platform_report_renders_aggregate_counts_without_message_content(app, seed, owner_a_client):
+def test_platform_report_renders_aggregate_counts_without_message_content(app, seed, owner_a_client, reporting_orgs):
     with app.app_context():
         org = db.session.get(Organization, seed['org_a'])
         user = db.session.get(User, seed['owner_a'])
         previous = org.is_platform_admin, user.is_super_admin
         org.is_platform_admin, user.is_super_admin = True, True
-        own = ChatConversation(organization_id=seed['org_b'], user_id=seed['owner_b'])
-        foreign = ChatConversation(organization_id=seed['org_a'], user_id=seed['owner_a'])
+        (target, other), (target_user, other_user) = reporting_orgs
+        own = ChatConversation(organization_id=target, user_id=target_user)
+        foreign = ChatConversation(organization_id=other, user_id=other_user)
         db.session.add_all([own, foreign])
         db.session.flush()
         db.session.add_all([
@@ -63,12 +88,12 @@ def test_platform_report_renders_aggregate_counts_without_message_content(app, s
         ])
         db.session.commit()
         try:
-            response = owner_a_client.post(f"/platform/orgs/{seed['org_b']}/refresh-metrics")
+            response = owner_a_client.post(f"/platform/orgs/{target}/refresh-metrics")
             assert response.status_code == 302
-            metrics = OrganizationMetrics.query.filter_by(organization_id=seed['org_b']).one()
+            metrics = OrganizationMetrics.query.filter_by(organization_id=target).one()
             assert metrics.usage_summary['bob_user_messages'] == 1
             assert metrics.usage_summary['bob_replies'] == 1
-            detail = owner_a_client.get(f"/platform/orgs/{seed['org_b']}")
+            detail = owner_a_client.get(f"/platform/orgs/{target}")
             assert detail.status_code == 200
             html = detail.get_data(as_text=True)
             assert 'BOB messages sent' in html
@@ -83,5 +108,5 @@ def test_platform_report_renders_aggregate_counts_without_message_content(app, s
             org.is_platform_admin, user.is_super_admin = previous
             for convo in (own, foreign):
                 db.session.delete(convo)
-            OrganizationMetrics.query.filter_by(organization_id=seed['org_b']).delete()
+            OrganizationMetrics.query.filter_by(organization_id=target).delete()
             db.session.commit()
