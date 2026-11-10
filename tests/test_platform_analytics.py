@@ -41,6 +41,7 @@ def test_org_reports_keep_first_source_and_exclude_automated_activity(app, repor
             ActivationEvent(organization_id=oid, event='retention_stage_changed', created_at=now, event_data={}),
             ActivationEvent(organization_id=oid, event='contact_created', created_at=now-timedelta(days=2), event_data={}),
             ActivationEvent(organization_id=oid, event='contact_created', created_at=now-timedelta(days=1), event_data={}),
+            ActivationEvent(organization_id=oid, event='task_created', created_at=now-timedelta(hours=1), event_data={}),
             ActivationEvent(organization_id=other, event='meaningful_action', created_at=now-timedelta(hours=1), event_data={'action': 'csv_import_completed'}),
         ]
         db.session.add_all(rows)
@@ -51,14 +52,16 @@ def test_org_reports_keep_first_source_and_exclude_automated_activity(app, repor
             assert report['actions_30d'] == 1
             assert sum(day['count'] for day in report['days']) == 1
             assert len(report['days']) == 30
-            assert report['last_activity'] == rows[2].created_at
+            assert report['last_activity'] == rows[6].created_at
+            assert report['timeline'][0]['label'] == 'Task created'
             assert report['actions'] == [('Interactions logged', 1)]
-            assert len(report['timeline']) == 5
+            assert len(report['timeline']) == 6
             assert [item['label'] for item in report['timeline']].count('Contact added') == 2
             assert ('First contact added', rows[4].created_at) in report['milestones']
             assert 'private_note' not in str(report)
             overview = platform_overview([oid, other], now)
             assert overview['actions'] == 2
+            assert overview['orgs'][oid]['last_activity'] == rows[6].created_at
             assert overview['captured'] == 1
             assert overview['orgs'][other]['source']['label'] == 'Not captured'
             assert platform_overview([], now)['sources'] == []
