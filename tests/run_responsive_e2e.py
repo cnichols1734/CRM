@@ -122,7 +122,6 @@ def run(browser_names, layouts=True):
                 browser = getattr(pw, name).launch()
                 context = browser.new_context(viewport={'width': 1440, 'height': 900}, has_touch=True,
                                               reduced_motion='reduce')
-                context.route('**' + urls['pdf'], lambda route: route.fulfill(content_type='application/pdf', body=pdf_bytes()))
                 page = context.new_page(); page.set_default_timeout(12000)
                 errors = []
                 page.on('pageerror', lambda exc: errors.append(str(exc)))
@@ -180,9 +179,14 @@ def run(browser_names, layouts=True):
                         expect(page.locator('#bob-close-btn')).to_be_in_viewport()
                     page.locator('#bob-close-btn').click()
                     # Exercise the actual PDF controller with a long local PDF.
+                    # Keep interception out of unrelated page navigation. WebKit
+                    # can report cancelled polling as access-control page errors.
+                    pdf_pattern = '**' + urls['pdf']
+                    context.route(pdf_pattern, lambda route: route.fulfill(content_type='application/pdf', body=pdf_bytes()))
                     page.goto(base + urls['review'])
                     expect(page.locator('.drw-page')).to_have_count(30)
                     page.wait_for_function("document.querySelector('.drw-page canvas') !== null")
+                    context.unroute(pdf_pattern)
                     pane = page.locator('[data-document-review-workspace-target="pdfPane"]')
                     initial_canvases = page.locator('.drw-page canvas').count()
                     assert initial_canvases < 10, initial_canvases
