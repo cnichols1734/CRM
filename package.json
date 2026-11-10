@@ -12,8 +12,8 @@
   "dependencies": {
     "@hotwired/stimulus": "^3.2.2",
     "pdf-lib": "1.17.1",
-    "pdfjs-dist": "5.4.624",
-    "posthog-js": "^1.442.1"
+    "pdfjs-dist": "6.5.438",
+    "posthog-js": "^1.447.3"
   },
   "devDependencies": {
     "autoprefixer": "^10.6.2",
