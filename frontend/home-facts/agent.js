@@ -87,12 +87,25 @@ function render() {
     const [toWrapper, to] = input('Recipients, separated by commas', 'share-recipients'); const [messageWrapper, message] = input('Personal message', 'share-message', true); reports.append(toWrapper, messageWrapper);
     const attachmentLabel = el('label'); const attachmentsReviewed = el('input', null, { type: 'checkbox' }); attachmentLabel.append(attachmentsReviewed, document.createTextNode(' I reviewed selected attachments for private information and improvement costs.')); reports.append(attachmentLabel);
     const preview = el('div', null, { class: 'hf-conflict', hidden: '' });
-    const reviewSend = button('Review email', () => {
+    let previewVersion = 0;
+    const invalidatePreview = () => { previewVersion += 1; preview.hidden = true; };
+    selected.addEventListener('change', () => { attachmentsReviewed.checked = false; invalidatePreview(); });
+    [to, message, attachmentsReviewed].forEach(control => control.addEventListener('input', invalidatePreview));
+    const reviewSend = button('Review email', async () => {
       const ids = [...selected.querySelectorAll('input:checked')].map(n => n.value); const recipients = to.value.split(',').map(v => v.trim()).filter(Boolean);
       if (!ids.length || !recipients.length) { error('Select documents and add at least one recipient.'); return; }
-      preview.replaceChildren(el('h3', 'Confirm this email'), el('p', `Subject: Your property documents are ready | ${data.property_address}`), el('p', `Separate private email to: ${recipients.join(', ')}`), el('p', current.filter(a => ids.includes(a.id)).map(a => a.filename).join(' · ')), el('p', message.value), el('p', 'The email uses your Origen template with a secure View property documents button. Link and download activity is recorded; email opens are not proof someone read it.'));
       const payload = { recipients, message: message.value, artifact_ids: ids, artifact_hash: data.artifact_hash, attachments_reviewed: attachmentsReviewed.checked };
-      const send = button('Send these documents', () => action('share', payload, send), true); preview.append(send); preview.hidden = false;
+      const version = ++previewVersion;
+      reviewSend.disabled = true;
+      try {
+        const email = await api('/actions/email_preview', payload);
+        if (version !== previewVersion || !preview.isConnected) return;
+        const frame = el('iframe', null, { title: 'Email preview', sandbox: '', class: 'hf-email-preview' });
+        frame.srcdoc = email.html;
+        preview.replaceChildren(el('h3', email.subject), el('p', `Separate private email to: ${recipients.join(', ')}`), el('p', current.filter(a => ids.includes(a.id)).map(a => a.filename).join(' · ')), frame);
+        const send = button('Send these documents', () => action('share', payload, send), true); preview.append(send); preview.hidden = false;
+      } catch (failure) { error(failure.message); }
+      finally { reviewSend.disabled = !!pending || inFlight; }
     }, true); reviewSend.disabled = !!pending || inFlight || !(data.agent_reviewed && data.seller_reviewed); reports.append(reviewSend, preview);
   } else if (data.state === 'submitted') {
     reports.append(el('p', 'Reports are being prepared.'));

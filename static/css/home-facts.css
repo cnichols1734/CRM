@@ -18,18 +18,13 @@
 .hf-client h2 { font-size: 1.75rem; line-height: 1.15; font-weight: 750; letter-spacing: -.03em; margin-bottom: 0; }
 .hf-client h3 { font-size: 1.125rem; line-height: 1.35; }
 .hf-eyebrow { font-size: .6875rem; letter-spacing: .12em; margin: 0 0 6px; color: var(--hf-muted,#596767); font-weight: 650; }
-.hf-header { display: flex; align-items: center; gap: 12px; padding: 12px 28px; background: var(--hf-paper); border-bottom: 1px solid var(--hf-line); }
-.hf-header img { display: block; width: 36px; }
-.hf-header strong { font-size: .875rem; font-weight: 600; }
-.hf-header .hf-eyebrow { font-size: .625rem; margin-bottom: 1px; }
-.hf-header #hf-save-status { margin-left: auto; text-align: right; font-size: .75rem; color: var(--hf-teal-ink); max-width: 140px; flex-shrink: 0; }
 .hf-masthead { --hf-teal: #35d4d1; --hf-gold: #f8bd38; position: relative; overflow: hidden; background: #080b0b; color: #fff; padding: 28px 40px 36px; }
-.hf-masthead-content { position: relative; z-index: 1; max-width: 1400px; margin: auto; padding-right: 96px; }
+.hf-masthead-content { position: relative; z-index: 1; max-width: 1400px; margin: auto; padding-right: 184px; }
 .hf-masthead .hf-kicker { display: inline-block; margin: 0 0 14px; padding: 4px 10px; background: var(--hf-teal); color: #111b1a; border-radius: 3px; font: 650 .625rem/1.4 Archivo,sans-serif; letter-spacing: .17em; }
 .hf-masthead h1 { font-size: 2.5rem; font-weight: 850; font-style: italic; margin: 0 0 12px; }
 .hf-masthead h1 em { font-style: inherit; }
 .hf-masthead-caption { color: #d7dfdd; font-size: .875rem; margin: 0; max-width: 60ch; }
-.hf-brand-mark { position: absolute; right: max(40px, calc((100vw - 1400px) / 2)); top: 50%; transform: translateY(-50%); width: 72px; height: 72px; object-fit: contain; }
+.hf-brand-wordmark { position: absolute; right: max(40px, calc((100vw - 1400px) / 2)); top: 50%; transform: translateY(-50%); width: 144px; height: auto; object-fit: contain; }
 .hf-ribbon { position: absolute; bottom: 0; left: 0; width: 100%; height: 24px; fill: none; stroke: var(--hf-teal); stroke-width: 5; }
 .hf-ribbon path + path { stroke: var(--hf-gold); stroke-width: 4; }
 .hf-welcome { max-width: 580px; margin: 48px auto; padding: 0 28px; }
@@ -122,7 +117,7 @@ fieldset.hf-field { border: 0; padding: 0; min-width: 0; }
 .hf-agent .hf-masthead h1 { font: italic 850 32px/1.1 Archivo,sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
 .hf-agent .hf-masthead p { color: #d7dfdd; margin: 0; }
 .hf-agent .hf-masthead .hf-kicker { color: #111b1a; margin-bottom: 14px; }
-.hf-agent .hf-brand-mark { right: 32px; }
+.hf-agent .hf-brand-wordmark { right: 32px; }
 .hf-agent h2 { font-size: 19px; font-weight: 650; margin: 32px 0 12px; }
 .hf-agent h3 { font-size: 16px; font-weight: 650; }
 .hf-agent p { color: var(--ink-2,#596767); font-size: 14px; line-height: 1.6; margin: 12px 0; }
@@ -150,16 +145,13 @@ fieldset.hf-field { border: 0; padding: 0; min-width: 0; }
   .hf-preview-close { display: inline-flex; }
 }
 @media(max-width:650px) {
-  .hf-header { padding: 10px 20px; gap: 10px; }
-  .hf-header > div { min-width: 0; }
-  .hf-header strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48vw; }
-  .hf-header #hf-save-status { max-width: 92px; font-size: .6875rem; }
-  .hf-header .hf-eyebrow { display: none; }
   .hf-masthead { padding: 24px 24px 32px; }
-  .hf-masthead-content { padding-right: 68px; }
+  .hf-masthead-content { padding-right: 0; }
   .hf-masthead h1 { font-size: 2rem; margin-bottom: 12px; }
   .hf-masthead .hf-kicker { font-size: .5625rem; letter-spacing: .13em; }
-  .hf-brand-mark { right: 24px; width: 52px; height: 52px; top: 84px; }
+  .hf-brand-wordmark { position: static; display: block; width: 104px; height: auto; transform: none; margin: 0 0 24px; order: -1; }
+  .hf-masthead { display: flex; flex-direction: column; }
+  .hf-masthead-content { width: 100%; }
   .hf-masthead-caption { font-size: .75rem; }
   .hf-layout { display: block; }
   .hf-sections { display: none; }
@@ -181,3 +173,5 @@ fieldset.hf-field { border: 0; padding: 0; min-width: 0; }
 @media(prefers-reduced-motion:no-preference) {
   .hf-choice, .hf-secondary, .hf-primary { transition: background-color .15s ease, border-color .15s ease; }
 }
+
+.hf-email-preview { display: block; width: 100%; height: 620px; border: 1px solid var(--hairline); margin: 16px 0; background: #fff; }

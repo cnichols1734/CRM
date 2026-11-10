@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from pypdf import PdfReader
 
-from models import (db,User,Transaction,TransactionType,TransactionParticipant,ClientPortalAccess,
+from models import (db,User,Organization,Transaction,TransactionType,TransactionParticipant,ClientPortalAccess,
     HomeFactsResponse,HomeFactsRevision,HomeFactsMutation,HomeFactsGrant,HomeFactsArtifact,HomeFactsJob,HomeFactsEvent,
     TransactionCommunication,CommunicationDeliveryAttempt)
 from services.home_facts import responses as hf
@@ -24,6 +24,10 @@ from services.agent_auth import issue_agent_jwt
 def home(app,seed,monkeypatch):
     monkeypatch.setattr('jobs.home_facts.kick',lambda org_id:None)
     with app.app_context():
+        original_flags={}
+        for org_id in (seed['org_a'],seed['org_b']):
+            org=db.session.get(Organization,org_id);original_flags[org_id]=org.feature_flags
+            org.feature_flags={**(org.feature_flags or {}),'TRANSACTIONS':True}
         kind=TransactionType.query.filter_by(organization_id=seed['org_a'],name='seller').first()
         tx=Transaction(organization_id=seed['org_a'],created_by_id=seed['owner_a'],transaction_type_id=kind.id,street_address='123 Synthetic Home Facts Lane')
         db.session.add(tx);db.session.flush()
@@ -40,6 +44,7 @@ def home(app,seed,monkeypatch):
             'foreign_headers':{'Authorization':'Bearer '+issue_agent_jwt(db.session.get(User,seed['owner_b']))}}
     yield case
     with app.app_context():
+        for org_id,flags in original_flags.items():db.session.get(Organization,org_id).feature_flags=flags
         comm_ids=[c.id for c in TransactionCommunication.query.filter_by(transaction_id=case['tx'])]
         CommunicationDeliveryAttempt.query.filter(CommunicationDeliveryAttempt.communication_id.in_(comm_ids)).delete(synchronize_session=False)
         TransactionCommunication.query.filter_by(transaction_id=case['tx']).delete(synchronize_session=False)
@@ -82,10 +87,34 @@ def test_agent_and_client_boundaries_and_revocation(app,home,owner_a_client):
     assert client.get(agent_url,headers=home['client_headers']).status_code==401
     assert client.get(url,headers=home['client_headers']).status_code==200
     with app.app_context():
+        org=db.session.get(Organization,home['org']);org.feature_flags={**org.feature_flags,'TRANSACTIONS':False};db.session.commit()
+    assert client.get(agent_url,headers=home['agent_headers']).status_code==403
+    assert client.post(agent_url+'/invite',headers=home['agent_headers'],json={'mutation_id':str(uuid4()),'participant_ids':[home['participant']]}).status_code==403
+    assert owner_a_client.get(f'/transactions/{home["tx"]}/home-facts').status_code==302
+    assert client.get(url,headers=home['client_headers']).status_code==200
+    with app.app_context():
         grant=db.session.get(HomeFactsGrant,home['grant']);grant.revoked_at=datetime.utcnow();db.session.commit()
     assert client.get(url,headers=home['client_headers']).status_code==404
     assert client.patch(url,headers=home['client_headers'],json={'expected_revision':0,'mutation_id':str(uuid4()),'changes':{'hoa':'Yes'}}).status_code==404
     with app.app_context():assert db.session.get(HomeFactsResponse,home['id']).answers=={}
+
+
+def test_agent_email_preview_uses_send_template_without_sending(app,home):
+    client=app.test_client()
+    url=f"/api/agent/v1/transactions/{home['tx']}/home-facts/email_preview"
+    payload={'recipients':['recipient@example.com'],'message':'Please review <private> details.'}
+    with app.app_context():
+        before=HomeFactsGrant.query.count(),HomeFactsJob.query.count(),TransactionCommunication.query.count()
+    assert client.post(url,headers=home['foreign_headers'],json=payload).status_code==404
+    result=client.post(url,headers=home['agent_headers'],json=payload)
+    assert result.status_code==200
+    preview=result.get_json()
+    assert 'Your property documents are ready' in preview['subject']
+    assert 'Open the secure link below' in preview['html']
+    assert 'Please review &lt;private&gt; details.' in preview['html']
+    assert 'View property documents' in preview['html']
+    with app.app_context():
+        assert (HomeFactsGrant.query.count(),HomeFactsJob.query.count(),TransactionCommunication.query.count())==before
 
 
 def test_email_scanner_get_does_not_consume_and_web_csrf_is_required(app,home):
@@ -143,6 +172,7 @@ def test_report_review_cannot_apply_to_an_old_revision(app,home):
         db.session.flush();hash_value=hf.report_digest(response,0)
         hf.review(response,actor_kind='participant',actor_id=home['participant'],revision=0,artifact_hash=hash_value)
         hf.reopen(response,1,'Please check the roof year.')
+        assert hf.serialize(response)['correction_note']=='Please check the roof year.'
         with pytest.raises(hf.HomeFactsError,match='current submitted'):
             hf.review(response,actor_kind='agent',actor_id=1,revision=0,artifact_hash=hash_value)
         db.session.rollback()
@@ -219,9 +249,12 @@ def test_uncertain_email_is_not_automatically_sent_again(app,home,monkeypatch):
     from services.home_facts.commands import execute
     with app.app_context():
         response=hf.load_response(home['id'],home['org']);user=db.session.get(User,response.transaction.created_by_id)
+        participant=db.session.get(TransactionParticipant,home['participant'])
+        participant.email='seller.'+'a'*50+'@'+'b'*50+'.'+'c'*40+'.com'
         payload={'mutation_id':str(uuid4()),'participant_ids':[home['participant']]}
         execute(response,user,'invite',payload);execute(response,user,'invite',payload);db.session.commit()
         job=HomeFactsJob.query.filter_by(response_id=home['id'],kind='email').one()
+        assert len(job.dedupe_key)<=150
         calls=[]
         def uncertain(job,response):
             calls.append(job.id)
@@ -230,7 +263,18 @@ def test_uncertain_email_is_not_automatically_sent_again(app,home,monkeypatch):
         process_one(home['org'],job.id);process_one(home['org'],job.id)
         assert len(calls)==1
         assert db.session.get(HomeFactsJob,job.id).state=='ambiguous'
-        assert TransactionCommunication.query.filter_by(transaction_id=home['tx']).one().status=='ambiguous'
+        comm=TransactionCommunication.query.filter_by(transaction_id=home['tx']).one()
+        assert comm.status=='ambiguous'
+        from services.home_facts.access import serializer
+        from services.home_facts.tracking import apply_event
+        comm.status='sending';db.session.commit()
+        callback={'home_facts_receipt':serializer().dumps({'org':home['org'],'communication':comm.id}),
+            'sg_message_id':'receipt-1.extra','sg_event_id':'callback-1','event':'delivered'}
+        with pytest.raises(RuntimeError,match='still being committed'):apply_event(callback)
+        comm.provider_message_id='receipt-1';comm.status='sent';db.session.commit()
+        assert apply_event(callback)
+        db.session.commit()
+        assert HomeFactsEvent.query.filter_by(response_id=home['id'],kind='delivered').count()==1
 
 
 def test_pdf_attachment_retry_preserves_one_sanitized_file(app,home,monkeypatch):

@@ -53,6 +53,12 @@ test('retrying a saved request cannot overwrite a newer answer from another devi
   draft.acknowledge(snapshot(2, { roof: '2021' }));
   assert.deepEqual(draft.conflicts.roof, { mine: 'approximately 2019', theirs: '2021' });
   assert.equal(draft.begin(), null);
+  draft.reconcile(snapshot(2, { roof: '2021' }));
+  assert.equal(draft.begin(), null);
+  const restored = new Draft(snapshot(2, { roof: '2021' }), JSON.parse(JSON.stringify(draft.persisted())));
+  assert.equal(restored.begin(), null, 'Reload must retain the unresolved conflict');
+  restored.resolve('roof', true);
+  assert.equal(restored.begin().changes.roof, 'approximately 2019');
   draft.resolve('roof', false);
   assert.equal(draft.answers.roof, '2021');
 });

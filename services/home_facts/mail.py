@@ -43,7 +43,7 @@ def queue_mail(response,agent,*,grant,token,kind,request_id,custom_message=''):
     link=base.rstrip('/')+'/home-facts/open#token='+token
     email=render_email(response,agent,db.session.get(Organization,response.organization_id),
         recipient=grant.email,link=link,kind=kind,custom_message=custom_message)
-    key=f'home-facts:{kind}:{request_id}:{grant.email}'
+    key=f'home-facts:{kind}:{request_id}:{digest(grant.email)}'
     comm=TransactionCommsService.queue_approved_send(transaction_id=response.transaction_id,
         organization_id=response.organization_id,channel='email',body=email['html'],subject=email['subject'],
         recipients=[grant.email],approved_by_user_id=agent.id,approved_payload_hash='',

@@ -9,7 +9,8 @@ from flask import Blueprint, jsonify, request, session, render_template, redirec
 from flask_login import login_required, current_user
 
 from models import db, HomeFactsGrant
-from routes.agent_api import agent_jwt_required
+from routes.agent_api import agent_jwt_required, transactions_flag_required
+from routes.transactions.decorators import transactions_required
 from routes.client_api import client_jwt_required
 from services.transaction_auth import get_transaction_for_user,CAP_VIEW,CAP_EDIT,CAP_SEND_COMMS
 from services.home_facts import responses as hf
@@ -55,7 +56,7 @@ def finish(response,agent=False):
 
 
 def agent_response(user,transaction_id,operation=None):
-    capability=CAP_VIEW if request.method=='GET' else CAP_SEND_COMMS if operation in ('invite','request_review','share','revoke') else CAP_EDIT
+    capability=CAP_VIEW if request.method=='GET' else CAP_SEND_COMMS if operation in ('invite','request_review','share','revoke','email_preview') else CAP_EDIT
     tx,decision=get_transaction_for_user(transaction_id,user,capability)
     if not tx:
         raise hf.HomeFactsError('This transaction is not available.','not_found',404)
@@ -64,6 +65,19 @@ def agent_response(user,transaction_id,operation=None):
     if not response:
         if request.method=='GET':return jsonify({'available':False,'transaction_id':tx.id})
         raise hf.HomeFactsError('Set up Home Facts first.','not_found',404)
+    if operation=='email_preview':
+        from models import Organization
+        from services.home_facts.mail import render_email, valid_email
+        values=body()
+        recipients=values.get('recipients')
+        message=values.get('message','')
+        if not isinstance(recipients,list) or not 1<=len(recipients)<=20:
+            raise hf.HomeFactsError('Add between one and 20 recipients.')
+        recipients=[valid_email(value) for value in recipients]
+        if not isinstance(message,str) or len(message)>5000:
+            raise hf.HomeFactsError('Keep the message under 5,000 characters.')
+        return jsonify(render_email(response,user,db.session.get(Organization,response.organization_id),
+            recipient=recipients[0],link='about:blank',kind='share',custom_message=message))
     if operation:
         response=execute(response,user,operation,body())
     return finish(response,agent=True)
@@ -71,18 +85,21 @@ def agent_response(user,transaction_id,operation=None):
 
 @home_facts_bp.route('/api/agent/v1/transactions/<int:transaction_id>/home-facts',methods=['GET','POST'])
 @agent_jwt_required
+@transactions_flag_required
 def agent_api(user,transaction_id):
     return agent_response(user,transaction_id)
 
 
 @home_facts_bp.route('/api/agent/v1/transactions/<int:transaction_id>/home-facts/<operation>',methods=['POST'])
 @agent_jwt_required
+@transactions_flag_required
 def agent_command(user,transaction_id,operation):
     return agent_response(user,transaction_id,operation)
 
 
 @home_facts_bp.route('/transactions/<int:transaction_id>/home-facts')
 @login_required
+@transactions_required
 def agent_workspace(transaction_id):
     tx,decision=get_transaction_for_user(transaction_id,current_user,CAP_VIEW)
     if not tx:raise hf.HomeFactsError('This transaction is not available.','not_found',404)
@@ -91,6 +108,7 @@ def agent_workspace(transaction_id):
 
 @home_facts_bp.route('/transactions/<int:transaction_id>/home-facts/data',methods=['GET','POST'])
 @login_required
+@transactions_required
 def agent_web_data(transaction_id):
     csrf()
     return agent_response(current_user,transaction_id)
@@ -98,6 +116,7 @@ def agent_web_data(transaction_id):
 
 @home_facts_bp.route('/transactions/<int:transaction_id>/home-facts/actions/<operation>',methods=['POST'])
 @login_required
+@transactions_required
 def agent_web_command(transaction_id,operation):
     csrf()
     return agent_response(current_user,transaction_id,operation)
@@ -266,6 +285,7 @@ def client_file(access,response_id,artifact_id):
 
 @home_facts_bp.route('/api/agent/v1/transactions/<int:transaction_id>/home-facts/files/<artifact_id>')
 @agent_jwt_required
+@transactions_flag_required
 def agent_file(user,transaction_id,artifact_id):
     tx,_=get_transaction_for_user(transaction_id,user,CAP_VIEW)
     if not tx:raise hf.HomeFactsError('This transaction is not available.','not_found',404)
@@ -276,8 +296,9 @@ def agent_file(user,transaction_id,artifact_id):
 
 @home_facts_bp.route('/transactions/<int:transaction_id>/home-facts/files/<artifact_id>')
 @login_required
+@transactions_required
 def agent_web_file(transaction_id,artifact_id):
-    return agent_file.__wrapped__(current_user,transaction_id,artifact_id)
+    return agent_file.__wrapped__.__wrapped__(current_user,transaction_id,artifact_id)
 
 
 @home_facts_bp.after_request

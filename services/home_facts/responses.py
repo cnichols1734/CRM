@@ -229,6 +229,10 @@ def serialize(response, *, agent=False):
         'artifacts': [{'id': a.id, 'revision': a.revision, 'kind': a.kind, 'filename': a.filename,
                        'digest': a.digest, 'size': a.size, 'content_type': a.content_type} for a in artifacts
                       if a.kind=='attachment' or (snapshot and a.revision==snapshot.revision)]}
+    if response.state=='draft':
+        correction=HomeFactsEvent.query.filter_by(organization_id=response.organization_id,
+            response_id=response.id,kind='changes_requested').order_by(HomeFactsEvent.created_at.desc()).first()
+        data['correction_note']=(correction.details or {}).get('note') if correction else None
     if agent:
         data['participants'] = [{'id': p.id, 'name': p.display_name, 'email': p.display_email}
             for p in response.transaction.participants if p.role in ('seller','co_seller') and p.organization_id == response.organization_id]

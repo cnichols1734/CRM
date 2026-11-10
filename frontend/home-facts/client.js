@@ -3,10 +3,10 @@ import { Draft } from './draft.js';
 const root = document.querySelector('[data-home-facts-client]');
 const app = document.getElementById('hf-app');
 const errorBox = document.getElementById('hf-error');
-const status = document.getElementById('hf-save-status');
 const base = `/home-facts/r/${encodeURIComponent(root.dataset.responseId)}`;
 const storageKey = `home-facts:v1:${root.dataset.scope}:${root.dataset.responseId}`;
 const recipient = root.dataset.recipient === 'true';
+let retryTimer, retryDelay = 1500, reportTimer, submissionPending = false, uploading = false;
 let draft, timer, saving = false, mode = 'editor', pdfTimer, pdfVersion = 0, pdfBytes;
 let previewOpen = false;
 const expandedRows = new Set();
@@ -25,40 +25,45 @@ function button(text, action, className = 'hf-secondary') {
 function showError(message) { errorBox.textContent = message || ''; errorBox.hidden = !message; }
 function store() {
   try { localStorage.setItem(storageKey, JSON.stringify(draft.persisted())); return true; }
-  catch { showError('This browser could not save a device copy. Keep this page open until the status says Saved to your agent.'); return false; }
+  catch { showError('This browser could not save a device copy. Keep this page open until you finish and submit.'); return false; }
 }
 async function api(path = '/data', options = {}) {
   const response = await fetch(base + path, { credentials: 'same-origin', ...options,
     headers: { 'X-CSRF-Token': root.dataset.csrf, ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...options.headers } });
   const data = await response.json();
-  if (!response.ok) { const error = new Error(data.error || 'Could not connect. Please try again.'); error.code = data.code; throw error; }
+  if (!response.ok) { const error = new Error(data.error || 'Could not connect. Please try again.'); error.code = data.code; error.httpStatus = response.status; throw error; }
   return data;
 }
 function changed(key, value) {
   draft.edit(key, value);
-  status.textContent = store() ? 'Saved on this device' : 'Not saved';
+  store();
   clearTimeout(timer); timer = setTimeout(save, 650);
   clearTimeout(pdfTimer); pdfTimer = setTimeout(renderPDF, 900);
 }
 async function save() {
-  if (saving || !draft || draft.server.state !== 'draft') return;
+  if (saving || uploading || !draft || draft.server.state !== 'draft') return;
   const payload = draft.begin();
   if (!payload) return;
-  saving = true; store(); status.textContent = 'Saving…';
+  clearTimeout(retryTimer);
+  let retry = false;
+  saving = true; store();
   try {
     const snapshot = await api('/data', { method: 'PATCH', body: JSON.stringify(payload) });
     draft.acknowledge(snapshot); store(); showError('');
-    status.textContent = Object.keys(draft.pending).length ? 'Saved on this device' : 'Saved to your agent';
+    retryDelay = 1500;
   } catch (error) {
     if (error.code === 'revision_conflict') {
       draft.flight = null;
       try { draft.reconcile(await api()); store(); render(); }
-      catch (refreshError) { showError(refreshError.message); }
-    } else showError(error.message || 'You are offline. Your changes stay on this device until you reconnect.');
-    status.textContent = 'Saved on this device';
+      catch (refreshError) { showError(refreshError.message); retry = !refreshError.httpStatus || refreshError.httpStatus >= 500 || refreshError.httpStatus === 429; }
+    } else {
+      retry = !error.httpStatus || error.httpStatus >= 500 || error.httpStatus === 429;
+      showError(retry ? 'Connection interrupted. Your answers are saved on this device. We’ll upload them automatically when the connection returns.' : error.message);
+    }
   } finally {
     saving = false;
-    if (!draft.flight && Object.keys(draft.pending).length && !Object.keys(draft.conflicts).length) timer = setTimeout(save, 650);
+    if (retry) { retryTimer = setTimeout(save, retryDelay); retryDelay = Math.min(retryDelay * 2, 30000); }
+    else if (!draft.flight && Object.keys(draft.pending).length && !Object.keys(draft.conflicts).length) timer = setTimeout(save, 650);
   }
 }
 window.addEventListener('online', save);
@@ -157,6 +162,10 @@ function render() {
   sections.forEach((_, i) => progress.append(el('span', null, { class: i <= draft.position.section ? 'is-reached' : '' })));
   editor.append(progress);
   editor.append(el('p', section.help || 'Every answer is optional. Skip anything that does not apply, or write unsure.', { class: 'hf-context' }));
+  if (draft.server.correction_note) {
+    const note = el('aside', null, { class: 'hf-conflict' });
+    note.append(el('h3', 'A note from your agent'), el('p', draft.server.correction_note)); editor.append(note);
+  }
   const conflicts = conflictUI(); if (conflicts) editor.append(conflicts);
   for (const questionGroup of groups) {
     const block = el('section', null, { class: 'hf-question-group', 'aria-labelledby': `hf-group-${questionGroup.id}` });
@@ -200,33 +209,45 @@ function filesUI(container, artifacts) {
 function renderReview() {
   const view = el('section', null, { class: 'hf-review' });
   view.append(el('h1', 'Ready to share with your agent?'), el('p', 'Unanswered questions are fine. Review what you know, attach any helpful documents, and return your questionnaire.'));
+  if (draft.server.correction_note) {
+    const note = el('aside', null, { class: 'hf-conflict' });
+    note.append(el('h3', 'A note from your agent'), el('p', draft.server.correction_note)); view.append(note);
+  }
   const conflicts = conflictUI(); if (conflicts) view.append(conflicts);
   for (const [i, section] of draft.server.manifest.sections.entries()) {
     const details = el('details'); const answered = section.groups.flatMap(g => g.fields).filter(f => format(draft.answers[f.id]));
     details.append(el('summary', `${section.title} · ${answered.length ? `${answered.length} answers` : 'Skipped'}`));
     const list = el('dl');
     answered.forEach(field => list.append(el('dt', field.label), el('dd', format(draft.answers[field.id]))));
-    details.append(list, button('Edit section', () => { mode = 'editor'; move(i); }, 'hf-link')); view.append(details);
+    const edit = button('Edit section', () => { mode = 'editor'; move(i); }, 'hf-link'); edit.disabled = submissionPending;
+    details.append(list, edit); view.append(details);
   }
   filesUI(view, draft.server.artifacts.filter(a => a.kind === 'attachment'));
   const upload = el('label', 'Add receipts, warranties, manuals or other documents', { class: 'hf-upload' });
   const input = el('input', null, { type: 'file', accept: 'application/pdf,image/jpeg,image/png' });
+  input.disabled = submissionPending;
   input.addEventListener('change', async () => {
-    if (!input.files[0]) return;
+    if (!input.files[0] || submissionPending || uploading) return;
+    if (saving || draft.flight) { showError('Wait for your answers to finish saving, then add the file again.'); input.value = ''; return; }
+    uploading = true;
     input.disabled = true;
-    const file = input.files[0];
-    const identity = new TextEncoder().encode(`${draft.server.id}\0${file.name}\0`);
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const source = new Uint8Array(identity.length + bytes.length); source.set(identity); source.set(bytes, identity.length);
-    const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', source))].slice(0,16).map(b => b.toString(16).padStart(2,'0')).join('');
-    const mutation = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
-    const form = new FormData(); form.set('file', file); form.set('mutation_id', mutation);
-    try { const snapshot = await api('/actions/attachments', { method: 'POST', body: form }); draft.reconcile(snapshot); store(); render(); }
+    try {
+      const file = input.files[0];
+      const identity = new TextEncoder().encode(`${draft.server.id}\0${file.name}\0`);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const source = new Uint8Array(identity.length + bytes.length); source.set(identity); source.set(bytes, identity.length);
+      const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', source))].slice(0,16).map(b => b.toString(16).padStart(2,'0')).join('');
+      const mutation = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
+      const form = new FormData(); form.set('file', file); form.set('mutation_id', mutation);
+      const snapshot = await api('/actions/attachments', { method: 'POST', body: form }); draft.reconcile(snapshot); store(); render();
+    }
     catch (error) { showError(error.message); input.disabled = false; }
+    finally { uploading = false; save(); }
   }); upload.append(input); view.append(upload);
   const ack = el('label', null, { class: 'hf-ack' }); const checkbox = el('input', null, { type: 'checkbox' });
   ack.append(checkbox, el('span', draft.server.manifest.acknowledgment)); view.append(ack);
-  const submit = button('Submit Home Facts', async () => {
+  const submit = button(submissionPending ? 'Check submission' : 'Submit Home Facts', async () => {
+    if (uploading) { showError('Wait for your document to finish uploading before submitting.'); return; }
     submit.disabled = true; showError('');
     await save();
     if (saving || draft.flight || Object.keys(draft.pending).length || Object.keys(draft.conflicts).length) {
@@ -237,12 +258,19 @@ function renderReview() {
       let payload; try { payload = JSON.parse(localStorage.getItem(key)); } catch { /* A fresh request follows. */ }
       if (!payload || payload.expected_revision !== draft.server.revision) payload = { mutation_id: crypto.randomUUID(), expected_revision: draft.server.revision, acknowledged: true };
       localStorage.setItem(key, JSON.stringify(payload));
+      submissionPending = true;
+      view.querySelectorAll('button,input,textarea,select').forEach(control => { control.disabled = true; });
       draft.reconcile(await api('/actions/submit', { method: 'POST', body: JSON.stringify(payload) }));
-      localStorage.removeItem(key); localStorage.removeItem(storageKey); status.textContent = 'Submitted'; render();
-    } catch (error) { showError(error.message); submit.disabled = false; }
+      localStorage.removeItem(key); localStorage.removeItem(storageKey); submissionPending = false; render();
+    } catch (error) {
+      if (error.httpStatus >= 400 && error.httpStatus < 500) { submissionPending = false; localStorage.removeItem(`${storageKey}:submit`); }
+      showError(submissionPending ? 'Your submission is not confirmed yet. Check it again before changing your answers.' : error.message); render();
+    }
   }, 'hf-primary');
-  submit.disabled = true; checkbox.addEventListener('change', () => { submit.disabled = !checkbox.checked; });
-  view.append(submit, button('Keep answering', () => { mode = 'editor'; render(); }, 'hf-link')); app.append(view);
+  submit.disabled = !submissionPending; checkbox.addEventListener('change', () => { submit.disabled = !checkbox.checked && !submissionPending; });
+  const keepAnswering = button('Keep answering', () => { mode = 'editor'; render(); }, 'hf-link');
+  keepAnswering.disabled = submissionPending;
+  view.append(submit, keepAnswering); app.append(view);
 }
 function renderReports() {
   const data = draft.server;
@@ -262,6 +290,11 @@ function renderReports() {
   } else if (data.seller_reviewed) view.append(el('p', 'Your review is recorded for this report version.'));
   if (!recipient && !data.artifact_hash) view.append(el('p', 'Your reports are being prepared. You can close this page and return later.'));
   app.append(view);
+  clearTimeout(reportTimer);
+  if (!recipient && !data.artifact_hash) reportTimer = setTimeout(async () => {
+    try { draft.reconcile(await api()); render(); }
+    catch { renderReports(); }
+  }, 3000);
 }
 async function renderPDF() {
   const mount = document.getElementById('hf-pdf-page');
@@ -327,8 +360,10 @@ async function start() {
     if (saved.schema_version && (saved.schema_version !== snapshot.schema_version || saved.template_sha256 !== snapshot.manifest?.template_sha256)) {
       throw new Error('This questionnaire template changed while you had a device draft. Keep this page open and contact your agent so those answers can be recovered.');
     }
-    draft = new Draft(snapshot, saved); status.textContent = recipient ? 'Private documents' : snapshot.state === 'submitted' ? 'Submitted' : Object.keys(draft.pending).length ? 'Saved on this device' : 'Saved to your agent';
+    draft = new Draft(snapshot, saved);
+    submissionPending = snapshot.state === 'draft' && !!localStorage.getItem(`${storageKey}:submit`);
+    if (submissionPending) mode = 'review';
     render(); if (!recipient && snapshot.state === 'draft') save();
-  } catch (error) { showError(error.message); status.textContent = 'Could not open'; app.replaceChildren(button('Try again', start)); }
+  } catch (error) { showError(error.message); app.replaceChildren(button('Try again', start)); }
 }
 start();

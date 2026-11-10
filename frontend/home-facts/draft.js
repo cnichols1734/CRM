@@ -11,19 +11,22 @@ export class Draft {
     this.reconcile(snapshot);
   }
   get answers() { return { ...this.server.answers, ...this.pending }; }
-  edit(key, value) { this.pending[key] = value; delete this.conflicts[key]; }
+  edit(key, value) { if (this.conflicts[key]) this.base[key] = this.server.answers[key] ?? null; this.pending[key] = Array.isArray(value) && !value.length ? null : value; delete this.conflicts[key]; }
   reconcile(snapshot) {
     this.conflicts = {};
+    const nextBase = { ...snapshot.answers };
     for (const [key, value] of Object.entries(this.pending)) {
       if (equal(snapshot.answers[key], value)) delete this.pending[key];
       else if (!equal(this.base[key], snapshot.answers[key]) && !equal(this.flight?.changes[key], snapshot.answers[key])) {
         this.conflicts[key] = { mine: value, theirs: snapshot.answers[key] ?? null };
+        nextBase[key] = this.base[key] ?? null;
       }
     }
     this.server = snapshot;
-    this.base = snapshot.answers;
+    this.base = nextBase;
   }
   resolve(key, useMine) {
+    this.base[key] = this.server.answers[key] ?? null;
     if (!useMine) delete this.pending[key];
     delete this.conflicts[key];
   }

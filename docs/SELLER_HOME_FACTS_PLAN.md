@@ -1,5 +1,8 @@
 # Seller Home Facts
 
+Companion PRs: [CRM #506](https://github.com/cnichols1734/CRM/pull/506), [ClientFlow #24](https://github.com/cnichols1734/clientflow/pull/24), [AgentFlow #77](https://github.com/cnichols1734/agentflow/pull/77). All remain unmerged for owner review.
+
+
 ## Release hold
 
 The owner asked on November 9 to keep this work off main while reviewing the HTML and app design. All three companion PRs must remain unmerged. Do not run the production migration, deploy this backend, or distribute a TestFlight build until that hold is lifted.
@@ -19,7 +22,7 @@ Preparing to List has this Listing Documents order:
 
 CRM and AgentFlow can invite selected sellers, review their answers, request corrections, open PDFs, approve a report version, select files, preview an email, send recipient links, inspect activity, and revoke access. ClientFlow exposes the request in My Move and handles Home Facts notifications. An emailed link opens the dedicated browser editor without an account signup or app download.
 
-Each numbered section is one scrollable page. Question groups have separate headings and dividers. Continue and Back move between sections, and the section menu supports direct navigation. All answers remain optional. The original PDF is a companion when the window has room and a separate reader on a compact phone. PDF fields select the matching question group. A client can review answers, attach receipts or other records, acknowledge the sharing statement, and submit an incomplete response. The backend then creates the completed questionnaire, Appraiser Property Brief, and Buyer Home Guide.
+Each numbered section is one scrollable page. Question groups have separate headings and dividers. Continue and Back move between sections, and the section menu supports direct navigation. All answers remain optional. ClientFlow uses a section rail beside the form when the window has room. Its PDF opens only on request in a separate reader. The browser retains its PDF companion on large desktop windows. PDF fields select the matching question group. A client can review answers, attach receipts or other records, acknowledge the sharing statement, and submit an incomplete response. The backend then creates the completed questionnaire, Appraiser Property Brief, and Buyer Home Guide.
 
 This is a questionnaire submission, not an electronic signature. The source has no signature requirement. Home Facts does not call DocuSeal or lift the existing document-generation freeze for other signing workflows.
 
@@ -27,7 +30,7 @@ This is a questionnaire submission, not an electronic signature. The source has 
 
 The untouched originals, named-field working PDF, and manifest are in `documents/home_facts/v1`. The 11 original questionnaire pages retain their artwork and wording. All 791 widgets have stable names, with 530 logical answer fields. Required flags and artificial 100-character limits are removed. Long answers print on continuation pages, with references in the original field.
 
-The owner requested that the interfaces follow the PDF's design. Home Facts uses its Archivo italic headline, black masthead, actual Origen monogram, teal and gold lines, and numbered sections. The surrounding CRM and app navigation retain their existing styles. The client action bar has a large Continue button with a trailing arrow and a separate Back action. Short native windows use a compact masthead so questions remain reachable.
+The owner requested that the interfaces follow the PDF's design. Home Facts uses its Archivo italic headline, black masthead, existing Origen Realty wordmark on the web and monogram in the app, teal and gold lines, and numbered sections. The surrounding CRM and app navigation retain their existing styles. The client action bar has a large Continue button with a trailing arrow and a separate Back action. Short native windows use a compact masthead so questions remain reachable. The client status bar and manual Sync action are removed. Drafts save automatically; interrupted uploads retry with a capped backoff and show a notice only while recovery is needed.
 
 ClientFlow dark appearance uses the existing `portalCanvas`, `portalSurface`, `portalInk`, `portalBorder`, and `portalAccent` tokens. Inputs sit on raised dark surfaces, text uses semantic colors, and the primary button uses deep teal with white text. The PDF itself retains its printed white pages. Dynamic Type and space-based Duo layout remain native.
 
@@ -52,11 +55,11 @@ Submission records an immutable answer/provenance/attachment snapshot. Agent and
 
 ## Access and delivery
 
-Every Home Facts row belongs to an organization. Agent operations use transaction capability checks. Client access requires the matching active seller participant, portal access and unrevoked Home Facts grant. A recipient can retrieve only the exact files listed in their grant.
+Every Home Facts row belongs to an organization. Agent operations require the Transactions entitlement and transaction capability checks. Mobile JWT tenant context is transaction-local and reapplies after commits through the SQLAlchemy session; connection return rolls it back even for routes owned by another blueprint. Client access requires the matching active seller participant, portal access and unrevoked Home Facts grant. A recipient can retrieve only the exact files listed in their grant.
 
 Invitation secrets travel in URL fragments. GET and HEAD cannot activate them. An explicit CSRF-protected Continue exchanges the token for a restricted session and redirects to a clean URL. The same link remains usable on another device until its 30-day expiry or revocation. Private pages disable caching, indexing, analytics and referrers. Files remain in private Supabase storage and are checked against their digest before delivery.
 
-Email uses the existing branded template, reply-to behavior and provider selection. Invitations explain both browser completion and ClientFlow. Each recipient receives a separate private link. The approved payload and delivery attempt are stored before external sending. An uncertain provider outcome is marked ambiguous and is not automatically resent. Browser and app send actions retain uncertain operation IDs.
+Email uses the existing branded template, reply-to behavior and provider selection. CRM and AgentFlow request the actual rendered template from the read-only email-preview operation. Invitations explain both browser completion and ClientFlow. Each recipient receives a separate private link. The approved payload and delivery attempt are stored before external sending. An uncertain provider outcome is marked ambiguous and is not automatically resent. Browser and app send actions retain uncertain operation IDs.
 
 The `home_facts` queue processes durable database jobs for generation, email and notifications. The notification outbox worker also recovers queued Home Facts work. Generation enqueues a report-ready notification, and the same bounded drain can process it. Agent notifications are recorded in the CRM and sent to eligible devices; client push targets active matching seller access. External delivery was mocked in local tests, not exercised against real clients.
 
@@ -64,7 +67,7 @@ The SendGrid event webhook verifies its documented ECDSA signature over the time
 
 ## Migration and later deployment order
 
-Migration `add_home_facts`, after `add_mobile_chat_attachments`, creates responses, revisions, grants, artifacts, events, mutations and jobs, with organization RLS policies on PostgreSQL. It is additive. The fresh SQLite upgrade and model-column parity were checked locally. A production PostgreSQL migration has not been run.
+Migration `add_home_facts`, after `add_mobile_chat_attachments`, creates responses, revisions, grants, artifacts, events, mutations and jobs, with organization RLS policies on PostgreSQL. It is additive. The fresh SQLite upgrade and model-column parity were checked locally. A production PostgreSQL migration has not been run. Verify pooled-connection tenant isolation across commits and error paths on PostgreSQL before production rollout.
 
 After the owner releases the hold:
 
@@ -79,9 +82,9 @@ Do not downgrade by deleting response tables or shared artifact versions. Revert
 
 Local checks on November 9:
 
-- CRM backend suite: 2,434 passed, 1 skipped. Separate Home Facts and IDOR run: 33 passed. Focused Home Facts/worker queue run: 10 passed after retry changes.
+- CRM backend suite after review fixes: 2,459 passed, 1 skipped. Separate Home Facts and IDOR run: 33 passed. Home Facts suite after review fixes: 10 passed.
 - Frontend unit suite: 84 passed. Includes delayed acknowledgments, reload/retry, clearing, and conflicts after another device edits an already-saved request.
-- Both app `scripts/check-all.sh` runs passed. ClientFlow adds native draft/relaunch/retry/conflict/account-scope checks against the production store.
+- Both app `scripts/check-all.sh` runs passed. ClientFlow checks protected drafts, automatic recovery, unresolved conflicts across relaunch, stale refresh responses, submission locking and account scope. AgentFlow checks shared command ownership across presentations and retries the same uncertain send.
 - Both app simulator builds and signed device review builds passed. Review versions are AgentFlow 1.0.4 build 16 and ClientFlow 1.0.3 build 12.
 - Browser checks exercised the phone/desktop editor, PDF rendering and field targeting, autosave, offline recovery, submission, generated reports and CRM layout with synthetic data.
 - Duo simulator checks include compact and expanded layouts, folding/rotation, native question navigation and dark appearance. Full VoiceOver, all accessibility sizes, RTL, partial-fold keyboard comfort and older-OS hardware acceptance are still pending. Simulator screenshots are not physical acceptance.

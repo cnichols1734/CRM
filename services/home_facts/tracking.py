@@ -16,6 +16,8 @@ def apply_event(item):
     set_org(org_id)
     comm=TransactionCommunication.query.filter_by(id=communication_id,organization_id=org_id,
         communication_type='home_facts').with_for_update().first()
+    if comm and comm.status=='sending' and not comm.provider_message_id:
+        raise RuntimeError('The delivery receipt is still being committed')
     provider_id=item.get('sg_message_id')
     if (not comm or not comm.provider_message_id or not isinstance(provider_id,str)
             or provider_id.split('.')[0]!=comm.provider_message_id.split('.')[0]):

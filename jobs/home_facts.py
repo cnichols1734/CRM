@@ -144,7 +144,7 @@ def _email(job,response):
     db.session.commit();set_org(org_id)
     if sender['via']=='gmail':
         message_id=_send_via_gmail(_gmail_integration(agent),html=comm.body,text=comm.communication_metadata['text'],
-            subject=comm.subject,recipients=comm.recipients,copies=[],transaction_id=response.transaction_id)
+            subject=comm.subject,recipients=comm.recipients,copies=[],transaction_id=response.transaction_id,commit_token_refresh=False)
     else:
         from sendgrid import SendGridAPIClient
         from sendgrid.helpers.mail import Mail,Email,To,CustomArg,TrackingSettings,ClickTracking
