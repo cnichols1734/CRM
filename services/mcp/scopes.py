@@ -15,12 +15,17 @@ DEFAULT_CONSENT_SCOPES = (SCOPE_READ, SCOPE_WRITE, SCOPE_OFFLINE)
 SCOPE_LABELS = {
     SCOPE_READ: 'Look up contacts, tasks, todos, agenda, and deals you can already open',
     SCOPE_WRITE: 'Create, update, log, and complete the same records you can in the app',
-    SCOPE_DESTRUCTIVE: 'Delete contacts, tasks, personal to-dos, sub-to-dos or comments',
+    SCOPE_DESTRUCTIVE: 'Delete CRM records, including transactions, documents, tasks and personal to-dos',
     SCOPE_OFFLINE: 'Stay connected until you revoke access',
 }
 
 ATTACHMENT_TOOLS = frozenset({'inspect_attachment', 'import_contacts'})
-DESTRUCTIVE_TOOLS = frozenset({'delete_contact', 'delete_task', 'delete_todo', 'delete_subtodo', 'delete_todo_comment'})
+DESTRUCTIVE_TOOLS = frozenset({'delete_contact', 'delete_task', 'delete_todo', 'delete_subtodo', 'delete_todo_comment', 'delete_transaction'})
+DESTRUCTIVE_ACTIONS = {
+    'manage_transaction_intake': frozenset({'generate_package'}),
+    'manage_transaction_document': frozenset({'remove'}),
+    'manage_transaction_requirement': frozenset({'remove'}),
+}
 MCP_ONLY_TOOLS = frozenset({'whoami', 'get_capabilities'})
 
 
@@ -66,11 +71,11 @@ def tool_allowed(name: str, scopes: list[str] | tuple[str, ...]) -> bool:
 
 def annotations_for_tool(name: str) -> dict:
     tool = TOOLS_BY_NAME.get(name)
-    destructive = name in DESTRUCTIVE_TOOLS
+    destructive = name in DESTRUCTIVE_TOOLS or name in DESTRUCTIVE_ACTIONS or name == 'manage_transaction_contract'
     read_only = tool is not None and tool.risk == RISK_READ and name not in {'select_transaction_context'}
     return {
         'readOnlyHint': read_only,
         'destructiveHint': destructive,
         'idempotentHint': read_only,
-        'openWorldHint': False,
+        'openWorldHint': name == 'send_offer_email',
     }

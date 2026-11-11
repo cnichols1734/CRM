@@ -481,6 +481,7 @@ def sync_seller_commission_terms_from_listing(
     field_data,
     user_id,
     org_id,
+    partial=False,
 ):
     """Upsert SellerCommissionTerms from listing-agreement extraction fields."""
     if not transaction or not isinstance(field_data, dict):
@@ -507,14 +508,21 @@ def sync_seller_commission_terms_from_listing(
             if derived >= 0:
                 listing_pct = derived
 
-    if not any(v is not None for v in (listing_pct, listing_flat, buyer_pct, buyer_flat)):
+    input_keys = {
+        'listing_commission_percent': {'listing_side_percent'},
+        'listing_commission_flat': {'listing_side_flat'},
+        'coop_compensation_percent': {'buyer_agent_percent', 'buyer_agent_commission_percent'},
+        'coop_compensation_flat': {'buyer_agent_flat', 'buyer_agent_commission_flat'},
+    }
+    explicitly_selected = {key for key, aliases in input_keys.items() if aliases.intersection(field_data)}
+    if not any(v is not None for v in (listing_pct, listing_flat, buyer_pct, buyer_flat)) and not (partial and explicitly_selected):
         return None
 
     terms = SellerCommissionTerms.query.filter_by(
         transaction_id=transaction.id,
         organization_id=org_id,
     ).first()
-    if terms and terms.source == 'manual':
+    if terms and terms.source == 'manual' and not partial:
         # Preserve agent-edited terms; only fill blanks.
         if terms.listing_commission_percent is None and listing_pct is not None:
             terms.listing_commission_percent = listing_pct
@@ -534,10 +542,12 @@ def sync_seller_commission_terms_from_listing(
         )
         db.session.add(terms)
 
-    terms.listing_commission_percent = listing_pct
-    terms.listing_commission_flat = listing_flat
-    terms.coop_compensation_percent = buyer_pct
-    terms.coop_compensation_flat = buyer_flat
+    for key, value in (('listing_commission_percent', listing_pct),
+                       ('listing_commission_flat', listing_flat),
+                       ('coop_compensation_percent', buyer_pct),
+                       ('coop_compensation_flat', buyer_flat)):
+        if value is not None or not partial or key in explicitly_selected:
+            setattr(terms, key, value)
     terms.source = 'listing_agreement_extraction'
     notes_bits = []
     raw = field_data.get('broker_fee_raw_text') or field_data.get('total_commission_display')

@@ -432,10 +432,15 @@ def _run_and_reply(
         channel.pending_action_id = pending['action_id']
         db.session.commit()
         preview_body = _format_pending_preview(pending, reply_text)
+        choice_body = preview_body
+        if (pending.get('preview') or {}).get('kind') == 'transaction_workflow':
+            # Send every reviewed value, including long emails, before the buttons.
+            transport.send_text(channel.chat_id, preview_body, parse_mode=None)
+            choice_body = pending.get('summary') or 'Tap Confirm to apply, or Cancel to leave it alone.'
         style = 'danger' if pending['tool_name'].startswith('delete_') else 'primary'
         transport.send_choice(
             channel.chat_id,
-            preview_body,
+            choice_body,
             [
                 ChoiceOption(
                     label='Confirm',

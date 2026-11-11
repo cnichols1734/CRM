@@ -682,6 +682,23 @@ def drop_cleared_offer_terms(merged, incoming):
     return merged
 
 
+def legacy_offer_terms(offer):
+    """Seed the first editable version from the persisted legacy offer."""
+    terms = dict(offer.terms_summary or {})
+    fields = ('offer_price financing_type cash_down_payment financing_amount earnest_money '
+              'additional_earnest_money option_fee option_period_days seller_concessions_amount '
+              'proposed_close_date possession_type leaseback_days appraisal_contingency '
+              'financing_contingency sale_of_other_property_contingency inspection_or_repair_terms_summary '
+              'title_policy_payer survey_payer survey_furnished_by hoa_resale_certificate_payer '
+              'residential_service_contract buyer_agent_commission_percent buyer_agent_commission_flat '
+              'non_realty_items response_deadline_at').split()
+    for key in fields:
+        value = getattr(offer, key, None)
+        if value is not None:
+            terms[key] = value.isoformat() if hasattr(value, 'isoformat') else str(value) if isinstance(value, Decimal) else value
+    return terms
+
+
 def apply_offer_terms(offer, terms):
     """Copy reviewed/extracted terms into canonical offer comparison columns."""
     terms = normalize_offer_terms(terms)

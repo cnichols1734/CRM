@@ -21,6 +21,7 @@ from services.offer_summary_email import (
     _pick,
     build_draft,
     render_html,
+    render_text,
     resolve_sender,
     selectable_offers,
     send_draft,
@@ -76,12 +77,10 @@ def _can_manage_transaction(transaction):
 
 def _get_offer_transaction(id):
     """Load an org-scoped transaction that supports offer threads (buyer or seller)."""
-    transaction = Transaction.query.filter_by(
-        id=id,
-        organization_id=current_user.organization_id,
-    ).first_or_404()
-    if not _can_manage_transaction(transaction):
-        abort(403)
+    from services.transaction_auth import CAP_EDIT, get_transaction_for_user
+    transaction, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not transaction:
+        abort(404 if decision.reason == 'not_found' else 403)
     if not supports_offers(transaction):
         return None
     return transaction
@@ -155,6 +154,12 @@ def _pending_offer_extraction_documents(offer):
 
 def _normalize_terms(data):
     terms = dict(data.get('terms_data') or data.get('terms') or {})
+    for canonical, alias in (('offer_price', 'sales_price'),
+                             ('proposed_close_date', 'closing_date'),
+                             ('financing_amount', 'total_financing_amount')):
+        if canonical in terms or alias in terms:
+            value = terms[canonical] if canonical in terms else terms[alias]
+            terms[canonical] = terms[alias] = value
     for key in ('response_deadline_at',):
         if isinstance(terms.get(key), str):
             terms[key] = _parse_datetime(terms[key])
@@ -705,6 +710,7 @@ def preview_offer_client_email(id):
         'success': True,
         'draft': draft.as_payload(),
         'html': render_html(draft),
+        'text': render_text(draft),
         'candidates': _client_email_candidates(available, {o.id for o in chosen}),
         'sender': resolve_sender(current_user),
     })
@@ -873,7 +879,8 @@ def update_seller_offer(id, offer_id):
             version.terms_data = merged_terms
             version.status = 'reviewed'
         else:
-            merged_terms = dict(terms)
+            from services.seller_workflow import legacy_offer_terms
+            merged_terms = {**legacy_offer_terms(offer), **terms}
             drop_cleared_offer_terms(merged_terms, terms)
             version = SellerOfferVersion(
                 organization_id=current_user.organization_id,
